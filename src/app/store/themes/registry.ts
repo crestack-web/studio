@@ -238,6 +238,8 @@ export async function getThemeComponentsServer(themeId: string): Promise<ThemeCo
   return loader();
 }
 
+const LINK_THEMES = new Set(['glow', 'link', 'pulse', 'vault', 'spark']);
+
 export function isLinkTheme(themeId: string): boolean {
-  return themeId === 'link';
+  return LINK_THEMES.has(themeId);
 }

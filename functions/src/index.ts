@@ -1,6 +1,7 @@
-import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { onRequest } from 'firebase-functions/v2/https';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { defineSecret } from 'firebase-functions/params';
 
 // Define secrets
@@ -16,7 +17,7 @@ const auth = admin.auth();
  * Ask MO API - Firebase Function
  * Handles AI-powered business intelligence queries
  */
-export const askMo = functions.https.onRequest(
+export const askMo = onRequest(
   { secrets: [googleAiKeySecret], region: 'us-central1' },
   async (req, res) => {
     // Set CORS headers for all responses
@@ -461,7 +462,7 @@ function getCategorySpecificAdvice(category: string): string {
  * Initialize Payment - Firebase Function
  * Initializes Paystack payment transaction
  */
-export const initializePayment = functions.https.onRequest(
+export const initializePayment = onRequest(
   { secrets: [paystackSecretKeySecret] },
   async (req, res) => {
     // Set CORS headers for all responses
@@ -574,7 +575,7 @@ export const initializePayment = functions.https.onRequest(
  * Verify Payment - Firebase Function
  * Verifies Paystack transaction and updates user subscription
  */
-export const verifyPayment = functions.https.onRequest(
+export const verifyPayment = onRequest(
   { secrets: [paystackSecretKeySecret] },
   async (req, res) => {
     // Set CORS headers
@@ -701,7 +702,7 @@ export const verifyPayment = functions.https.onRequest(
  * Paystack Webhook - Firebase Function
  * Handles Paystack webhook events
  */
-export const paystackWebhook = functions.https.onRequest(
+export const paystackWebhook = onRequest(
   { secrets: [paystackSecretKeySecret] },
   async (req, res) => {
     // Set CORS headers
@@ -749,8 +750,6 @@ export const paystackWebhook = functions.https.onRequest(
       const paymentDoc = await paymentRef.get();
 
       if (paymentDoc.exists) {
-        const paymentData = paymentDoc.data();
-        
         await paymentRef.update({
           status: 'success',
           verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -783,15 +782,14 @@ export const paystackWebhook = functions.https.onRequest(
  * Trial Reminder Email - Scheduled Function
  * Runs daily at 9 AM to check for users whose trial is ending soon
  */
-export const sendTrialReminders = functions.pubsub.schedule('0 9 * * *')
-  .timeZone('Africa/Lagos')
-  .onRun(async (context) => {
+export const sendTrialReminders = onSchedule(
+  { schedule: '0 9 * * *', timeZone: 'Africa/Lagos' },
+  async () => {
     try {
       console.log('🔔 [Trial Reminders] Starting trial reminder check...');
 
       const now = new Date();
       const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-      const oneDayFromNow = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000);
 
       // Find users with trial ending in 1 or 3 days
       const usersSnapshot = await db.collection('users')
@@ -843,9 +841,9 @@ export const sendTrialReminders = functions.pubsub.schedule('0 9 * * *')
  * Daily Business Summary Email - Scheduled Function
  * Runs daily at 8 AM to send business performance summaries
  */
-export const sendDailySummaries = functions.pubsub.schedule('0 8 * * *')
-  .timeZone('Africa/Lagos')
-  .onRun(async (context) => {
+export const sendDailySummaries = onSchedule(
+  { schedule: '0 8 * * *', timeZone: 'Africa/Lagos' },
+  async () => {
     try {
       console.log('📊 [Daily Summaries] Starting daily summary generation...');
 
@@ -950,9 +948,9 @@ export const sendDailySummaries = functions.pubsub.schedule('0 8 * * *')
  * Business Insights Email - Scheduled Function
  * Runs weekly on Mondays at 10 AM to send business insights
  */
-export const sendBusinessInsights = functions.pubsub.schedule('0 10 * * 1')
-  .timeZone('Africa/Lagos')
-  .onRun(async (context) => {
+export const sendBusinessInsights = onSchedule(
+  { schedule: '0 10 * * 1', timeZone: 'Africa/Lagos' },
+  async () => {
     try {
       console.log('🎯 [Business Insights] Starting insights generation...');
 
@@ -1021,7 +1019,7 @@ export const sendBusinessInsights = functions.pubsub.schedule('0 10 * * 1')
  * Create Staff - Firebase Function
  * Creates a new staff user with Firebase Auth and Firestore
  */
-export const createStaff = functions.https.onRequest(
+export const createStaff = onRequest(
   { region: 'us-central1', invoker: 'public' },
   async (req, res) => {
     // Set CORS headers for all responses

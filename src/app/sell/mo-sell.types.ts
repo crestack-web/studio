@@ -173,6 +173,8 @@ export interface StoreConfig {
   buttonStyle?: 'pill' | 'square' | 'rounded';
   /** Custom body text color override */
   bodyTextColor?: string | null;
+  /** Background color override (link-style themes) */
+  bgColor?: string | null;
   /** Busmo collects payments on behalf of merchant, charges 5% commission */
   managedPayments?: boolean;
   /** Merchant bank account for payouts (only stored when managedPayments = true) */

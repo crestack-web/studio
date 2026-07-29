@@ -21,6 +21,7 @@ interface MobilePreviewPageProps {
   fontFamily?: string | null;
   buttonStyle?: 'pill' | 'square' | 'rounded';
   bodyTextColor?: string | null;
+  bgColor?: string | null;
   hideStoreNameWithLogo?: boolean;
 }
 
@@ -49,7 +50,7 @@ export function MobilePreviewPage() {
     );
   }
 
-  const { theme, storeName, tagline, primaryColor, secondaryColor, logoUrl, sections, storeSlug, products, collections, fontFamily, buttonStyle, bodyTextColor, hideStoreNameWithLogo } = previewData;
+  const { theme, storeName, tagline, primaryColor, secondaryColor, logoUrl, sections, storeSlug, products, collections, fontFamily, buttonStyle, bodyTextColor, bgColor, hideStoreNameWithLogo } = previewData;
 
   return (
     <div className={styles.mobilePreviewPage}>
@@ -87,6 +88,7 @@ export function MobilePreviewPage() {
                   fontFamily={fontFamily ?? null}
                   buttonStyle={buttonStyle}
                   bodyTextColor={bodyTextColor ?? null}
+                  bgColor={bgColor ?? null}
                   hideStoreNameWithLogo={hideStoreNameWithLogo}
                 />
               </CartProvider>

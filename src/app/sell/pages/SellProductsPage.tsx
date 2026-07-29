@@ -12,7 +12,7 @@ import styles from './SellProductsPage.module.css';
 
 type ProductType = 'physical' | 'digital' | 'service';
 
-type DigitalSubtype = 'ebook' | 'course' | 'template' | 'ticket';
+type DigitalSubtype = 'ebook' | 'course' | 'template' | 'ticket' | 'coaching';
 
 interface StoreProduct {
   id: string;
@@ -56,6 +56,17 @@ interface StoreProduct {
   venue: string | null;
   ticketType: string | null;
   capacity: number | null;
+  // Coaching specific
+  sessionType: string | null;
+  sessionDuration: number | null;
+  sessionFormat: string | null;
+  numberOfSessions: number | null;
+  coachingDeliverable: string | null;
+  // Service slot config
+  slotDuration: number | null;
+  bufferTime: number | null;
+  // Multiple digital files
+  digitalFiles?: Array<{ url: string; name: string }>;
 }
 
 interface InventoryProduct {
@@ -105,6 +116,15 @@ type FormData = {
   venue: string;
   ticketType: string;
   capacity: string;
+  // Coaching specific
+  sessionType: string;
+  sessionDuration: string;
+  sessionFormat: string;
+  numberOfSessions: string;
+  coachingDeliverable: string;
+  // Service slot config
+  slotDuration: string;
+  bufferTime: string;
 };
 
 const EMPTY_FORM: FormData = {
@@ -117,6 +137,8 @@ const EMPTY_FORM: FormData = {
   courseDuration: '', lessonCount: '', accessDuration: 'lifetime', difficultyLevel: '',
   fileFormat: '', compatibleSoftware: '', licenseType: '',
   eventDate: '', eventTime: '', venue: '', ticketType: 'general', capacity: '',
+  sessionType: '', sessionDuration: '', sessionFormat: '', numberOfSessions: '', coachingDeliverable: '',
+  slotDuration: '60', bufferTime: '15',
 };
 
 const CATEGORIES = [
@@ -256,6 +278,13 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
       venue: product.venue ?? '',
       ticketType: product.ticketType ?? 'general',
       capacity: product.capacity ? String(product.capacity) : '',
+      sessionType: product.sessionType ?? '',
+      sessionDuration: product.sessionDuration ? String(product.sessionDuration) : '',
+      sessionFormat: product.sessionFormat ?? '',
+      numberOfSessions: product.numberOfSessions ? String(product.numberOfSessions) : '',
+      coachingDeliverable: product.coachingDeliverable ?? '',
+      slotDuration: product.slotDuration ? String(product.slotDuration) : '60',
+      bufferTime: product.bufferTime != null ? String(product.bufferTime) : '15',
     };
   });
 
@@ -267,7 +296,7 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
   const [imagePreview, setImagePreview] = useState(form.imageUrl);
   const [showImport, setShowImport] = useState(false);
   const [inventoryProducts, setInventoryProducts] = useState<InventoryProduct[]>([]);
-  const [digitalFile, setDigitalFile] = useState<File | null>(null);
+  const [digitalFiles, setDigitalFiles] = useState<File[]>([]);
   const [uploadingDigital, setUploadingDigital] = useState(false);
   const [showEbookPreview, setShowEbookPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -315,10 +344,10 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
   };
 
   const handleDigitalFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setDigitalFile(file);
-    set('digitalFileName', file.name);
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    setDigitalFiles(prev => [...prev, ...files]);
+    set('digitalFileName', files.map(f => f.name).join(', '));
   };
 
   const handleImportSelect = (p: InventoryProduct) => {
@@ -359,7 +388,7 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: `Generate product details. ${instruction}\n\nReturn ONLY a JSON object (no markdown, no code fences, no other text) with these fields:\n{"displayName":"...","description":"2-3 sentence compelling product description","price":number,"category":"one of: Fashion & Clothing, Beauty & Personal Care, Food & Groceries, Electronics, Home & Kitchen, Health & Wellness, Sports & Fitness, Art & Crafts, Services, Other, digital","tags":["tag1","tag2","tag3"]}${form.productType === 'digital' && form.digitalSubtype === 'ebook' ? '\nAlso include "author":"..." and "pageCount":number if relevant.' : ''}${form.productType === 'digital' && form.digitalSubtype === 'course' ? '\nAlso include "courseDuration":"...","lessonCount":number,"difficultyLevel":"..." if relevant.' : ''}${form.productType === 'digital' && form.digitalSubtype === 'template' ? '\nAlso include "fileFormat":"...","compatibleSoftware":"..." if relevant.' : ''}${form.productType === 'digital' && form.digitalSubtype === 'ticket' ? '\nAlso include "eventDate":"...","venue":"..." if relevant.' : ''}\n\nContext: ${contextParts.length > 0 ? contextParts.join('. ') : 'New product, no details yet.'}`,
+          message: `Generate product details. ${instruction}\n\nReturn ONLY a JSON object (no markdown, no code fences, no other text) with these fields:\n{"displayName":"...","description":"2-3 sentence compelling product description","price":number,"category":"one of: Fashion & Clothing, Beauty & Personal Care, Food & Groceries, Electronics, Home & Kitchen, Health & Wellness, Sports & Fitness, Art & Crafts, Services, Other, digital","tags":["tag1","tag2","tag3"]}${form.productType === 'digital' && form.digitalSubtype === 'ebook' ? '\nAlso include "author":"..." and "pageCount":number if relevant.' : ''}${form.productType === 'digital' && form.digitalSubtype === 'course' ? '\nAlso include "courseDuration":"...","lessonCount":number,"difficultyLevel":"..." if relevant.' : ''}${form.productType === 'digital' && form.digitalSubtype === 'template' ? '\nAlso include "fileFormat":"...","compatibleSoftware":"..." if relevant.' : ''}${form.productType === 'digital' && form.digitalSubtype === 'ticket' ? '\nAlso include "eventDate":"...","venue":"..." if relevant.' : ''}${form.productType === 'digital' && form.digitalSubtype === 'coaching' ? '\nAlso include "sessionType":"one-on-one/group","sessionDuration":number,"sessionFormat":"video/phone/in-person","numberOfSessions":number if relevant.' : ''}\n\nContext: ${contextParts.length > 0 ? contextParts.join('. ') : 'New product, no details yet.'}`,
           businessId,
           conversationHistory: [],
         }),
@@ -417,7 +446,7 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
       showToast('Please enter a valid price', 'error');
       return;
     }
-    if (form.productType === 'digital' && !form.digitalFileUrl && !digitalFile) {
+    if (form.productType === 'digital' && !form.digitalFileUrl && digitalFiles.length === 0) {
       showToast('Please upload a file or provide a download URL for digital products', 'error');
       return;
     }
@@ -435,14 +464,23 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
         finalImageUrl = await getDownloadURL(imgRef);
       }
 
-      // Upload digital file if provided
-      if (digitalFile) {
+      const uploadedDigitalFiles: Array<{ url: string; name: string }> = [];
+      if (digitalFiles.length > 0) {
         setUploadingDigital(true);
-        const digitalRef = storageRef(storage, `digitalProducts/${businessId}/${Date.now()}_${digitalFile.name}`);
-        await uploadBytes(digitalRef, digitalFile);
-        finalDigitalFileUrl = await getDownloadURL(digitalRef);
-        finalDigitalFileName = digitalFile.name;
+        for (let i = 0; i < digitalFiles.length; i++) {
+          const df = digitalFiles[i];
+          const digitalRef = storageRef(storage, `digitalProducts/${businessId}/${Date.now()}_${i}_${df.name}`);
+          await uploadBytes(digitalRef, df);
+          const url = await getDownloadURL(digitalRef);
+          uploadedDigitalFiles.push({ url, name: df.name });
+        }
+        if (uploadedDigitalFiles.length > 0) {
+          finalDigitalFileUrl = uploadedDigitalFiles[0].url;
+          finalDigitalFileName = uploadedDigitalFiles[0].name;
+        }
         setUploadingDigital(false);
+      } else if (form.digitalFileUrl && form.digitalFileName) {
+        uploadedDigitalFiles.push({ url: form.digitalFileUrl, name: form.digitalFileName });
       }
 
       const payload: Record<string, unknown> = {
@@ -461,6 +499,7 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
         featured: form.featured,
         digitalFileUrl: form.productType === 'digital' ? finalDigitalFileUrl || null : null,
         digitalFileName: form.productType === 'digital' ? finalDigitalFileName || null : null,
+        digitalFiles: form.productType === 'digital' && uploadedDigitalFiles.length > 0 ? uploadedDigitalFiles : null,
         deliveryNote: form.productType === 'service' ? form.deliveryNote.trim() || null : null,
         lowStockThreshold: parseInt(form.lowStockThreshold) || 5,
         updatedAt: serverTimestamp(),
@@ -500,6 +539,21 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
           payload.ticketType = form.ticketType || null;
           payload.capacity = form.capacity ? parseInt(form.capacity) : null;
         }
+        
+        // Coaching specific
+        if (form.digitalSubtype === 'coaching') {
+          payload.sessionType = form.sessionType.trim() || null;
+          payload.sessionDuration = form.sessionDuration ? parseInt(form.sessionDuration) : null;
+          payload.sessionFormat = form.sessionFormat.trim() || null;
+          payload.numberOfSessions = form.numberOfSessions ? parseInt(form.numberOfSessions) : null;
+          payload.coachingDeliverable = form.coachingDeliverable.trim() || null;
+        }
+      }
+      
+      // Service slot config
+      if (form.productType === 'service') {
+        payload.slotDuration = parseInt(form.slotDuration) || 60;
+        payload.bufferTime = parseInt(form.bufferTime) || 15;
       }
 
       const colRef = collection(firestore, 'businesses', businessId, 'storeProducts');
@@ -519,7 +573,7 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
       setSaving(false);
       setUploadingDigital(false);
     }
-  }, [form, imageFile, digitalFile, product, businessId, onSaved, showToast]);
+  }, [form, imageFile, digitalFiles, product, businessId, onSaved, showToast]);
 
   return (
     <>
@@ -600,14 +654,16 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
             </div>
 
             <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Category</label>
-                <select className={styles.formSelect} value={form.category} onChange={e => set('category', e.target.value)}>
-                  <option value="">Select category</option>
-                  {CATEGORIES.map(c => <option key={c}>{c}</option>)}
-                </select>
-              </div>
-              <div className={styles.formGroup}>
+              {form.productType !== 'digital' && (
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Category</label>
+                  <select className={styles.formSelect} value={form.category} onChange={e => set('category', e.target.value)}>
+                    <option value="">Select category</option>
+                    {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+              )}
+              <div className={styles.formGroup} style={form.productType === 'digital' ? { flex: 1 } : undefined}>
                 <label className={styles.formLabel}>SKU</label>
                 <input className={styles.formInput} placeholder="Auto-generated if blank" value={form.sku} onChange={e => set('sku', e.target.value)} />
               </div>
@@ -748,38 +804,54 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
                   <option value="course">🎓 Online Course</option>
                   <option value="template">📄 Template</option>
                   <option value="ticket">🎫 Event Ticket</option>
+                  <option value="coaching">🎯 Coaching / Consultation</option>
                 </select>
               </div>
 
               {/* File upload or URL */}
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Digital file</label>
-                {form.digitalFileUrl || digitalFile ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ flex: 1, padding: '8px 12px', background: 'var(--sell-bg)', borderRadius: 'var(--sell-radius-sm)', border: '1px solid var(--sell-border)' }}>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--sell-text-1)' }}>
-                        {digitalFile ? digitalFile.name : form.digitalFileName || 'File uploaded'}
-                      </span>
-                    </div>
-                    <button className={`${styles.btn} ${styles.btnGhost}`} style={{ fontSize: '0.78rem' }} onClick={() => { setDigitalFile(null); set('digitalFileUrl', ''); set('digitalFileName', ''); }}>
-                      Remove
-                    </button>
-                    {form.digitalFileUrl && (
-                      <button className={`${styles.btn} ${styles.btnGhost}`} style={{ fontSize: '0.78rem' }} onClick={() => setShowEbookPreview(true)}>
-                        Preview
-                      </button>
+                <label className={styles.formLabel}>Digital files</label>
+                {form.digitalFileUrl || digitalFiles.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {digitalFiles.map((f, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ flex: 1, padding: '8px 12px', background: 'var(--sell-bg)', borderRadius: 'var(--sell-radius-sm)', border: '1px solid var(--sell-border)' }}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--sell-text-1)' }}>{f.name}</span>
+                        </div>
+                        <button className={`${styles.btn} ${styles.btnGhost}`} style={{ fontSize: '0.78rem' }} onClick={() => { setDigitalFiles(prev => prev.filter((_, j) => j !== i)); }}>
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    {form.digitalFileUrl && digitalFiles.length === 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ flex: 1, padding: '8px 12px', background: 'var(--sell-bg)', borderRadius: 'var(--sell-radius-sm)', border: '1px solid var(--sell-border)' }}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--sell-text-1)' }}>{form.digitalFileName || 'File uploaded'}</span>
+                        </div>
+                        <button className={`${styles.btn} ${styles.btnGhost}`} style={{ fontSize: '0.78rem' }} onClick={() => { setDigitalFiles([]); set('digitalFileUrl', ''); set('digitalFileName', ''); }}>
+                          Remove
+                        </button>
+                        {form.digitalFileUrl && (
+                          <button className={`${styles.btn} ${styles.btnGhost}`} style={{ fontSize: '0.78rem' }} onClick={() => setShowEbookPreview(true)}>
+                            Preview
+                          </button>
+                        )}
+                      </div>
                     )}
+                    <div className={styles.imageUploadArea} onClick={() => digitalFileInputRef.current?.click()} style={{ padding: '12px', cursor: 'pointer', border: '1px dashed var(--sell-border)' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--sell-text-3)' }}>+ Add more files</span>
+                    </div>
                   </div>
                 ) : (
                   <>
                     <div className={styles.imageUploadArea} onClick={() => digitalFileInputRef.current?.click()} style={{ padding: '16px' }}>
                       <label className={styles.imageUploadLabel}>
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                        <span>Upload file</span>
-                        <span style={{ fontSize: '0.72rem', color: 'var(--sell-text-3)' }}>PDF, ZIP, MP4, etc. · max 50MB</span>
+                        <span>Upload files</span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--sell-text-3)' }}>PDF, ZIP, MP4, MP3, etc. · max 50MB each</span>
                       </label>
                     </div>
-                    <input ref={digitalFileInputRef} type="file" accept=".pdf,.zip,.mp4,.doc,.docx,.ppt,.pptx" style={{ display: 'none' }} onChange={handleDigitalFileChange} />
+                    <input ref={digitalFileInputRef} type="file" accept=".pdf,.zip,.mp4,.mp3,.wav,.flac,.m4a,.doc,.docx,.ppt,.pptx" multiple style={{ display: 'none' }} onChange={handleDigitalFileChange} />
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
                       <span style={{ fontSize: '0.8rem', color: 'var(--sell-text-3)' }}>or</span>
                       <input className={styles.formInput} placeholder="Paste download URL" value={form.digitalFileUrl} onChange={e => set('digitalFileUrl', e.target.value)} style={{ flex: 1 }} />
@@ -787,7 +859,7 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
                   </>
                 )}
                 {uploadingDigital && (
-                  <p className={styles.formHint} style={{ color: 'var(--sell-primary)' }}>Uploading file...</p>
+                  <p className={styles.formHint} style={{ color: 'var(--sell-primary)' }}>Uploading files...</p>
                 )}
               </div>
 
@@ -915,15 +987,88 @@ function ProductSlideOver({ product, onClose, onSaved, businessId, currency, sto
                   </div>
                 </>
               )}
+
+              {/* Coaching specific fields */}
+              {form.digitalSubtype === 'coaching' && (
+                <>
+                  <div className={styles.formRow}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Session type</label>
+                      <select className={styles.formSelect} value={form.sessionType} onChange={e => set('sessionType', e.target.value)}>
+                        <option value="">Select type</option>
+                        <option value="one-on-one">One-on-One</option>
+                        <option value="group">Group Session</option>
+                        <option value="both">Both Available</option>
+                      </select>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Session duration (min)</label>
+                      <input className={styles.formInput} type="number" min="0" placeholder="e.g. 60" value={form.sessionDuration} onChange={e => set('sessionDuration', e.target.value)} />
+                    </div>
+                  </div>
+                  <div className={styles.formRow}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Session format</label>
+                      <select className={styles.formSelect} value={form.sessionFormat} onChange={e => set('sessionFormat', e.target.value)}>
+                        <option value="">Select format</option>
+                        <option value="video">Video Call</option>
+                        <option value="phone">Phone Call</option>
+                        <option value="in-person">In Person</option>
+                        <option value="chat">Chat / Text</option>
+                      </select>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Number of sessions</label>
+                      <input className={styles.formInput} type="number" min="0" placeholder="e.g. 4" value={form.numberOfSessions} onChange={e => set('numberOfSessions', e.target.value)} />
+                    </div>
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>What's included / Deliverable</label>
+                    <textarea className={styles.formTextarea} placeholder="e.g. Personalized coaching plan, weekly check-ins, and progress tracking" value={form.coachingDeliverable} onChange={e => set('coachingDeliverable', e.target.value)} rows={3} />
+                  </div>
+                </>
+              )}
             </div>
           )}
 
           {form.productType === 'service' && (
             <div className={styles.formSection}>
               <p className={styles.formSectionLabel}>Service details</p>
+              
+              {/* Delivery note */}
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>Delivery note</label>
                 <textarea className={styles.formTextarea} placeholder="How will this service be delivered? e.g. 'We'll contact you within 24 hours to schedule.'" value={form.deliveryNote} onChange={e => set('deliveryNote', e.target.value)} rows={3} />
+              </div>
+
+              {/* Booking slot configuration */}
+              <div className={styles.formSection}>
+                <p className={styles.formSectionLabel} style={{ borderTop: 'none', paddingTop: 0, marginBottom: 8 }}>Booking slot settings</p>
+                <div className={styles.formRow}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Slot duration (minutes)</label>
+                    <select className={styles.formSelect} value={form.slotDuration} onChange={e => set('slotDuration', e.target.value)}>
+                      <option value="15">15 min</option>
+                      <option value="30">30 min</option>
+                      <option value="45">45 min</option>
+                      <option value="60">60 min</option>
+                      <option value="90">90 min</option>
+                      <option value="120">2 hours</option>
+                    </select>
+                    <p className={styles.formHint}>How long each appointment lasts</p>
+                  </div>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Buffer time (minutes)</label>
+                    <select className={styles.formSelect} value={form.bufferTime} onChange={e => set('bufferTime', e.target.value)}>
+                      <option value="0">None</option>
+                      <option value="5">5 min</option>
+                      <option value="10">10 min</option>
+                      <option value="15">15 min</option>
+                      <option value="30">30 min</option>
+                    </select>
+                    <p className={styles.formHint}>Gap between appointments</p>
+                  </div>
+                </div>
               </div>
             </div>
           )}

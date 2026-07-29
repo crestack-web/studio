@@ -1,6 +1,6 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
-import { getThemeComponentsServer, type ThemeId } from '../themes/registry';
+import { getThemeComponentsServer, isLinkTheme, type ThemeId } from '../themes/registry';
 import type { ProductCardData } from '../themes/types';
 import type {
   StorefrontTheme, StoreSection,
@@ -112,6 +112,41 @@ export default async function StorefrontHomePage({
   const ProductCard = components.ProductCard;
   const CollectionCard = components.CollectionCard;
 
+  // ── Link-in-bio layout ────────────────────────────────────────────────────
+  if (isLinkTheme(theme)) {
+    const heroSection = sections.find(s => s.type === 'hero');
+    const hs = heroSection?.enabled ? (heroSection.settings as HeroSectionSettings) : null;
+    return (
+      <div id="products" style={{ maxWidth: 640, margin: '0 auto', width: '100%' }}>
+        {hs && (
+          <Hero
+            storeName={hs.heading || config.storeName}
+            tagline={hs.showTagline !== false ? (hs.subheading || config.tagline || null) : null}
+            logoUrl={config.logoUrl ?? null}
+            primaryColor={config.primaryColor ?? '#C9A84C'}
+            secondaryColor={config.secondaryColor ?? '#8B7355'}
+            ctaLabel={hs.ctaLabel || 'Shop Now'}
+            ctaUrl={hs.ctaUrl || '#products'}
+            backgroundImage={hs.backgroundImage ?? null}
+            textAlign={hs.textAlign ?? 'center'}
+            buttonStyle={config.buttonStyle ?? 'pill'}
+          />
+        )}
+        {allProducts.length > 0 && (
+          <div style={{ padding: '0 20px 48px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <p style={{ fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--sf-text-3)', textAlign: 'center', margin: '0 0 4px' }}>
+              Products
+            </p>
+            {allProducts.map(p => (
+              <ProductCard key={p.id} product={p} storeSlug={storeSlug} currency={config.currency} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── E-commerce layout ─────────────────────────────────────────────────────
   return (
     <div id="products">
       {sections.map(section => {

@@ -82,6 +82,61 @@
   --sf-radius:    14px; --sf-radius-sm: 10px; --sf-radius-lg: 22px;
 }
 
+/* ── Pulse theme (social-first creator) ── */
+[data-theme="pulse"] {
+  --sf-bg:        #FFF7ED;
+  --sf-surface:   #FFFFFF;
+  --sf-border:    #FFE8D6;
+  --sf-text-1:    #3D2B1F;
+  --sf-text-2:    #7A5545;
+  --sf-text-3:    #B09080;
+  --sf-radius:    14px; --sf-radius-sm: 10px; --sf-radius-lg: 22px;
+}
+
+/* ── Vault theme (digital product showcase) ── */
+[data-theme="vault"] {
+  --sf-bg:        #0B1D3A;
+  --sf-surface:   #112240;
+  --sf-border:    #1E3A5F;
+  --sf-text-1:    #F1F5F9;
+  --sf-text-2:    #94A3B8;
+  --sf-text-3:    #475569;
+  --sf-radius:    12px; --sf-radius-sm: 8px; --sf-radius-lg: 18px;
+}
+
+/* ── Atlas theme (professional services) ── */
+[data-theme="atlas"] {
+  --sf-bg:        #F8FAFC;
+  --sf-surface:   #FFFFFF;
+  --sf-border:    #E2E8F0;
+  --sf-text-1:    #1E293B;
+  --sf-text-2:    #64748B;
+  --sf-text-3:    #94A3B8;
+  --sf-radius:    12px; --sf-radius-sm: 8px; --sf-radius-lg: 16px;
+}
+
+/* ── Spark theme (coach & expert authority) ── */
+[data-theme="spark"] {
+  --sf-bg:        #FFF8EE;
+  --sf-surface:   #FFFFFF;
+  --sf-border:    #F3E8D8;
+  --sf-text-1:    #2D1B69;
+  --sf-text-2:    #5B4A8A;
+  --sf-text-3:    #A994C4;
+  --sf-radius:    14px; --sf-radius-sm: 10px; --sf-radius-lg: 22px;
+}
+
+/* ── Bazaar theme (small business ecommerce) ── */
+[data-theme="bazaar"] {
+  --sf-bg:        #ECFDF5;
+  --sf-surface:   #FFFFFF;
+  --sf-border:    #D1FAE5;
+  --sf-text-1:    #064E3B;
+  --sf-text-2:    #047857;
+  --sf-text-3:    #6EE7B7;
+  --sf-radius:    12px; --sf-radius-sm: 8px; --sf-radius-lg: 16px;
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {

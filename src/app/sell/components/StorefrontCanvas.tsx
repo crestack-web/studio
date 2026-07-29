@@ -22,6 +22,7 @@ import type {
   FooterSectionSettings,
 } from '@/app/sell/mo-sell.types';
 import { DEFAULT_SECTIONS } from '@/app/sell/mo-sell.types';
+import { isLinkTheme } from '@/app/store/themes/registry';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -41,6 +42,7 @@ export interface StorefrontCanvasProps {
   fontFamily?: string | null;
   buttonStyle?: 'pill' | 'square' | 'rounded';
   bodyTextColor?: string | null;
+  bgColor?: string | null;
   hideStoreNameWithLogo?: boolean;
 }
 
@@ -708,6 +710,7 @@ export function StorefrontCanvas({
   fontFamily,
   buttonStyle = 'pill',
   bodyTextColor,
+  bgColor,
   hideStoreNameWithLogo,
 }: StorefrontCanvasProps) {
   // Fall back to theme defaults if no colors provided
@@ -734,12 +737,13 @@ export function StorefrontCanvas({
     .sort((a, b) => a.order - b.order);
 
   const themeVars = getThemeCssVars(theme, primary, secondary);
-  const isLink = theme === 'link';
+  const isLink = isLinkTheme(theme);
 
-  // Apply custom font and text color overrides
+  // Apply custom font and color overrides
   const customVars: Record<string, string> = {};
   if (fontFamily) customVars['--sf-font'] = `'${fontFamily}', system-ui, sans-serif`;
   if (bodyTextColor) customVars['--sf-text-1'] = bodyTextColor;
+  if (bgColor) customVars['--sf-bg'] = bgColor;
 
   // Link theme uses a completely different layout (centered profile page)
   if (isLink) {

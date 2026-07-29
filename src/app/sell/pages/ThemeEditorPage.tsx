@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
 import { useSell } from '../context/SellContext';
-import { THEMES } from '@/app/store/themes/registry';
+import { THEMES, isLinkTheme } from '@/app/store/themes/registry';
 import { StorefrontCanvas } from '../components/StorefrontCanvas';
 import { CartProvider } from '@/app/store/[storeSlug]/context/CartContext';
 import type {
@@ -334,6 +334,7 @@ export function ThemeEditorPage() {
   const [fontFamily, setFontFamily] = useState<string>('');
   const [buttonStyle, setButtonStyle] = useState<'pill' | 'square' | 'rounded'>('pill');
   const [bodyTextColor, setBodyTextColor] = useState<string>('');
+  const [bgColor, setBgColor] = useState<string>('');
 
   // Detect mobile device
   useEffect(() => {
@@ -354,10 +355,10 @@ export function ThemeEditorPage() {
   }, []);
 
   // Undo/redo stacks
-  const undoStack = useRef<{ sections: StoreSection[]; theme: StorefrontTheme; primary: string; secondary: string; fontFamily: string; buttonStyle: 'pill' | 'square' | 'rounded'; bodyTextColor: string }[]>([]);
-  const redoStack = useRef<{ sections: StoreSection[]; theme: StorefrontTheme; primary: string; secondary: string; fontFamily: string; buttonStyle: 'pill' | 'square' | 'rounded'; bodyTextColor: string }[]>([]);
+  const undoStack = useRef<{ sections: StoreSection[]; theme: StorefrontTheme; primary: string; secondary: string; fontFamily: string; buttonStyle: 'pill' | 'square' | 'rounded'; bodyTextColor: string; bgColor: string }[]>([]);
+  const redoStack = useRef<{ sections: StoreSection[]; theme: StorefrontTheme; primary: string; secondary: string; fontFamily: string; buttonStyle: 'pill' | 'square' | 'rounded'; bodyTextColor: string; bgColor: string }[]>([]);
 
-  const snapshot = useCallback(() => ({ sections: sections.map(s => ({ ...s, settings: { ...s.settings } })), theme, primary, secondary, fontFamily, buttonStyle, bodyTextColor }), [sections, theme, primary, secondary, fontFamily, buttonStyle, bodyTextColor]);
+  const snapshot = useCallback(() => ({ sections: sections.map(s => ({ ...s, settings: { ...s.settings } })), theme, primary, secondary, fontFamily, buttonStyle, bodyTextColor, bgColor }), [sections, theme, primary, secondary, fontFamily, buttonStyle, bodyTextColor, bgColor]);
 
   const pushUndo = useCallback(() => {
     undoStack.current = [...undoStack.current.slice(-20), snapshot()];
@@ -369,7 +370,7 @@ export function ThemeEditorPage() {
     if (!prev) return;
     redoStack.current.push(snapshot());
     setSections(prev.sections); setTheme(prev.theme); setPrimary(prev.primary); setSecondary(prev.secondary);
-    setFontFamily(prev.fontFamily); setButtonStyle(prev.buttonStyle); setBodyTextColor(prev.bodyTextColor);
+    setFontFamily(prev.fontFamily); setButtonStyle(prev.buttonStyle); setBodyTextColor(prev.bodyTextColor); setBgColor(prev.bgColor);
     setDirty(true);
   }, [snapshot]);
 
@@ -378,7 +379,7 @@ export function ThemeEditorPage() {
     if (!next) return;
     undoStack.current.push(snapshot());
     setSections(next.sections); setTheme(next.theme); setPrimary(next.primary); setSecondary(next.secondary);
-    setFontFamily(next.fontFamily); setButtonStyle(next.buttonStyle); setBodyTextColor(next.bodyTextColor);
+    setFontFamily(next.fontFamily); setButtonStyle(next.buttonStyle); setBodyTextColor(next.bodyTextColor); setBgColor(next.bgColor);
     setDirty(true);
   }, [snapshot]);
 
@@ -398,6 +399,7 @@ export function ThemeEditorPage() {
     setFontFamily((storeConfig as any).fontFamily ?? '');
     setButtonStyle((storeConfig as any).buttonStyle ?? 'pill');
     setBodyTextColor((storeConfig as any).bodyTextColor ?? '');
+    setBgColor((storeConfig as any).bgColor ?? '');
     setDirty(false);
     undoStack.current = []; redoStack.current = [];
   }, [storeConfig]);
@@ -493,6 +495,7 @@ export function ThemeEditorPage() {
           fontFamily: fontFamily || null,
           buttonStyle,
           bodyTextColor: bodyTextColor || null,
+          bgColor: bgColor || null,
           sections: sections.map(s => ({ ...s })), 
           storeSlug: slug,
           updatedAt: serverTimestamp() 
@@ -532,11 +535,12 @@ export function ThemeEditorPage() {
       fontFamily: fontFamily || null,
       buttonStyle,
       bodyTextColor: bodyTextColor || null,
+      bgColor: bgColor || null,
       hideStoreNameWithLogo,
     };
     sessionStorage.setItem('mobilePreviewData', JSON.stringify(previewData));
     window.open('/sell/mobile-preview', '_blank');
-  }, [theme, storeName, tagline, primary, secondary, logoUrl, sections, storeConfig, products, collections, fontFamily, buttonStyle, bodyTextColor, hideStoreNameWithLogo]);
+  }, [theme, storeName, tagline, primary, secondary, logoUrl, sections, storeConfig, products, collections, fontFamily, buttonStyle, bodyTextColor, bgColor, hideStoreNameWithLogo]);
 
   // Device frame dimensions & dynamic scaling
   const previewOuterRef = useRef<HTMLDivElement>(null);
@@ -892,6 +896,22 @@ export function ThemeEditorPage() {
                       <option value="square">Square</option>
                     </select>
                   </div>
+                  {isLinkTheme(theme) && (
+                    <div className={styles.field}>
+                      <label className={styles.fLabel}>Background color</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input type="color" value={bgColor || '#0D0D0D'} onChange={e => { pushUndo(); setBgColor(e.target.value);
+                          const hex = e.target.value;
+                          const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+                          const lum = (0.299*r + 0.587*g + 0.114*b)/255;
+                          if (!bodyTextColor) setBodyTextColor(lum > 0.5 ? '#1a1a1a' : '#F5F5F5');
+                          mark();
+                        }} style={{ width: 32, height: 32, borderRadius: 7, border: '1.5px solid var(--sell-border)', cursor: 'pointer', padding: 2, background: 'transparent', flexShrink: 0 }} />
+                        <input className={styles.fInput} value={bgColor} onChange={e => { pushUndo(); setBgColor(e.target.value); mark(); }} placeholder="Theme default" style={{ width: 90 }} />
+                      </div>
+                      <p className={styles.fHint}>Background color for your store page</p>
+                    </div>
+                  )}
                   <div className={styles.field}>
                     <label className={styles.fLabel}>Text color override</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

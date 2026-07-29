@@ -13,6 +13,7 @@ import { StorefrontNav } from './components/StorefrontNav';
 import { CartDrawer } from './components/CartDrawer';
 import type { StorefrontTheme, StoreSection, FooterSectionSettings, HeaderSectionSettings } from '@/app/sell/mo-sell.types';
 import { DEFAULT_SECTIONS } from '@/app/sell/mo-sell.types';
+import { isLinkTheme } from '@/app/store/themes/registry';
 
 // ─── Fetch store config ───────────────────────────────────────────────────────
 
@@ -98,6 +99,7 @@ export default async function StorefrontLayout({
   const secondary = config.secondaryColor ?? '#8B7355';
   const fontFamily = config.fontFamily ?? null;
   const bodyTextColor = config.bodyTextColor ?? null;
+  const bgColor = config.bgColor ?? null;
 
   const savedSections: StoreSection[] = config.sections ?? [];
 
@@ -148,7 +150,7 @@ export default async function StorefrontLayout({
     },
   };
 
-  const isLink = theme === 'link';
+  const isLink = isLinkTheme(theme);
 
   return (
     <html lang="en" data-theme={theme}>
@@ -167,6 +169,7 @@ export default async function StorefrontLayout({
             --sf-secondary: ${secondary};
             ${fontFamily ? `--sf-font: '${fontFamily}', system-ui, sans-serif;` : ''}
             ${bodyTextColor ? `--sf-text-1: ${bodyTextColor};` : ''}
+            ${bgColor ? `--sf-bg: ${bgColor};` : ''}
           }
         `}</style>
       </head>
