@@ -436,6 +436,13 @@ service cloud.firestore {
       }
 
       // =====================
+      // AI CONVERSATIONS SUBCOLLECTION (for Ask MO chat persistence)
+      // =====================
+      match /aiConversations/{conversationId} {
+        allow read, write: if hasBusinessAccess(businessId) || isAdmin();
+      }
+
+      // =====================
       // AUDIT TRAIL SUBCOLLECTION (for tracking all changes)
       // =====================
       match /auditTrail/{auditId} {
