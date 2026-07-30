@@ -75,7 +75,7 @@ export function Sidebar({ page, onChangePage, permissions, open = false }: Sideb
       </nav>
       <div className="sb-user">
         <div className="sb-user-in">
-          <div className="s-av">JD</div>
+          <div className="s-av">ST</div>
         </div>
       </div>
     </aside>

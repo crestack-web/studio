@@ -8,8 +8,8 @@ import React, { useState, useEffect } from 'react';
 import type { PageId, Permissions, StaffUser } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Topbar } from './components/Topbar';
-import { Toast, BottomNav } from './components/shared';
-import HomePage from './HomePage';
+import { Toast, BottomNav, LockedPage } from './components/shared';
+import { HomePage } from './HomePage';
 import { SalePage } from './pages/SalePage';
 import { InventoryPage, HistoryPage, AttendancePage, MessagesPage, SettingsPage } from './OtherPages';
 import './busmo.css';
@@ -39,8 +39,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
 
   const navigate = (newPage: PageId) => {
     setPage(newPage);
-    setSidebarOpen(false); // Close sidebar on mobile after navigation
-    showToast(`Navigating to ${newPage}`);
+    setSidebarOpen(false);
   };
 
   const toggleSidebar = () => {
@@ -127,7 +126,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
               staffId={staff?.id}
             />
           )}
-          {page === 'sale' && <SalePage onComplete={() => showToast('Sale completed!')} />}
+          {page === 'sale' && (permissions!.sale ? <SalePage onComplete={() => showToast('Sale completed!')} /> : <LockedPage pageName="Record Sale" />)}
           {page === 'inv' && <InventoryPage hasAccess={permissions!.inv} />}
           {page === 'hist' && <HistoryPage hasAccess={permissions!.hist} sessionSales={[]} />}
           {page === 'atd' && <AttendancePage hasAccess={permissions!.atd} />}

@@ -19,8 +19,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     { id: 'home' as PageId, label: 'Home', icon: '🏠' },
     { id: 'sale' as PageId, label: 'Sale', permKey: 'sale' as keyof Permissions, icon: '🛒' },
     ...(permissions.inv ? [{ id: 'inv' as PageId, label: 'Stock', icon: '📦' }] : []),
-    { id: 'attendance' as PageId, label: 'Shift', permKey: 'atd' as keyof Permissions, icon: '📍' },
-    ...(permissions.msg ? [{ id: 'messages' as PageId, label: 'Chat', dot: hasMessage, icon: '💬' }] : []),
+    { id: 'atd' as PageId, label: 'Shift', permKey: 'atd' as keyof Permissions, icon: '📍' },
+    ...(permissions.msg ? [{ id: 'msg' as PageId, label: 'Chat', dot: hasMessage, icon: '💬' }] : []),
   ];
 
   return (

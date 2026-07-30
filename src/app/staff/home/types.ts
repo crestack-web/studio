@@ -6,6 +6,7 @@ export interface Permissions {
   hist: boolean;
   atd: boolean;
   msg: boolean;
+  earn: boolean;
 }
 
 export interface StaffUser {

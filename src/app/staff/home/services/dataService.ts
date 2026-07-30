@@ -288,23 +288,17 @@ export async function fetchBusiness(
 ): Promise<Business | null> {
   try {
     const businessRef = doc(db, 'businesses', businessId);
-    const businessSnap = await getDocs(collection(db, 'businesses'));
+    const businessSnap = await getDoc(businessRef);
     
-    // Find the business by ID
-    let business: Business | null = null;
-    businessSnap.forEach(doc => {
-      if (doc.id === businessId) {
-        const data = doc.data();
-        business = {
-          id: doc.id,
-          businessName: data.businessName || 'Unnamed Business',
-          ownerId: data.ownerId || '',
-          staff: data.staff || [],
-        };
-      }
-    });
+    if (!businessSnap.exists()) return null;
 
-    return business;
+    const data = businessSnap.data();
+    return {
+      id: businessSnap.id,
+      businessName: data.businessName || 'Unnamed Business',
+      ownerId: data.ownerId || '',
+      staff: data.staff || [],
+    };
   } catch (error) {
     console.error('Error fetching business:', error);
     return null;
@@ -319,19 +313,13 @@ export async function getStaffBusinessId(
   userId: string
 ): Promise<string | null> {
   try {
-    // Check if user has a businessId field
     const userRef = doc(db, 'users', userId);
-    const userSnap = await getDocs(collection(db, 'users'));
+    const userSnap = await getDoc(userRef);
     
-    let businessId: string | null = null;
-    userSnap.forEach(doc => {
-      if (doc.id === userId) {
-        const data = doc.data();
-        businessId = data.businessId || null;
-      }
-    });
-
-    return businessId;
+    if (!userSnap.exists()) return null;
+    
+    const data = userSnap.data();
+    return data.businessId || null;
   } catch (error) {
     console.error('Error fetching staff business ID:', error);
     return null;
