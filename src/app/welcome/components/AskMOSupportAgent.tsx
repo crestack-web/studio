@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Bot, CheckCheck, Sparkles, Smartphone } from 'lucide-react';
+import { X, Send, Bot, CheckCheck, Smartphone } from 'lucide-react';
+import { MoIcon } from '../../owner/dashboard/NavIcons';
 
 const WHATSAPP_NUMBER = '+2349124559388';
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER.replace('+', '')}`;
@@ -53,7 +54,7 @@ export const AskMOSupportAgent = () => {
       setMessages([{
         id: 'welcome',
         role: 'assistant',
-        content: `Hi there! 👋 I'm **MO**, your Busmo AI assistant. How can I help you today?`,
+        content: `Hey there 👋 I'm **MO**, your Busmo AI. Ask me anything about Busmo — how it works, features, pricing, or help getting started.`,
         timestamp: new Date().toISOString(),
       }]);
     }
@@ -78,22 +79,8 @@ export const AskMOSupportAgent = () => {
     setInput('');
     setIsLoading(true);
 
-    if (text.trim().toLowerCase().includes('whatsapp')) {
-      setTimeout(() => {
-        const reply: Message = {
-          id: `mo-${Date.now()}`,
-          role: 'assistant',
-          content: `You can reach our support team on **WhatsApp** at **${WHATSAPP_NUMBER}**. Click the WhatsApp button below to start a chat!`,
-          timestamp: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, reply]);
-        setIsLoading(false);
-      }, 800);
-      return;
-    }
-
     try {
-      const conversationHistory = messages.slice(1).map((m) => ({
+      const conversationHistory = messages.map((m) => ({
         role: m.role,
         content: m.content,
       }));
@@ -124,7 +111,7 @@ export const AskMOSupportAgent = () => {
       const fallback: Message = {
         id: `mo-${Date.now()}`,
         role: 'assistant',
-        content: "I'm having trouble connecting right now. Please try again or reach us on WhatsApp.",
+        content: "I'm having trouble connecting right now. Please try again later or reach us on WhatsApp.",
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, fallback]);
@@ -178,11 +165,11 @@ export const AskMOSupportAgent = () => {
               <div className="relative flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                    <Sparkles size={22} />
+                    <MoIcon size={14} />
                   </div>
                   <div>
                     <h2 className="font-bold text-base leading-tight">Ask MO</h2>
-                    <p className="text-xs text-white/80">AI Support Agent</p>
+                    <p className="text-xs text-white/80">Busmo AI · Online</p>
                   </div>
                 </div>
                 <button onClick={close} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
