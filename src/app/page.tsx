@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import type { Page } from './welcome/types';
-import { FloatingChatWidget } from './welcome/components/FloatingChatWidget';
+import { AskMOSupportAgent } from './welcome/components/AskMOSupportAgent';
 import { Navbar } from './welcome/components/Navbar';
 import { Hero } from './welcome/components/Hero';
 import { DemoVideoSection } from './welcome/components/DemoVideoSection';
@@ -85,7 +85,7 @@ export default function Home() {
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <Footer onNavigate={handleNavigate} />
       </ScrollReveal>
-      <FloatingChatWidget />
+      <AskMOSupportAgent />
     </main>
   );
 }

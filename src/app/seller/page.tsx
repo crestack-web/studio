@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Navbar } from '../welcome/components/Navbar';
 import { Footer } from '../welcome/components/Footer';
-import { FloatingChatWidget } from '../welcome/components/FloatingChatWidget';
+import { AskMOSupportAgent } from '../welcome/components/AskMOSupportAgent';
 import { LangProvider } from '../owner/dashboard/LangContext';
 import { Page } from '../welcome/types';
 
@@ -350,7 +350,7 @@ export default function SellerPage() {
       <LangProvider>
         <Footer onNavigate={handleNavigate} />
       </LangProvider>
-      <FloatingChatWidget />
+      <AskMOSupportAgent />
     </div>
   );
 }

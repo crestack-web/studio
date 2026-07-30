@@ -105,17 +105,18 @@ export default function CapitalPage() {
         // Calculate total revenue and profit
         const totalRevenue = sales.reduce((sum, s) => sum + (s.total || s.totalRevenue || 0), 0);
         
-        // Calculate profit from products instead of using stored profit field
+        // Calculate profit from products, subtracting discounts
         const totalProfit = sales.reduce((sum, s) => {
-          if (s.products && Array.isArray(s.products)) {
-            return sum + s.products.reduce((productSum: number, p: any) => {
-              const price = p.price || 0;
-              const costPrice = p.costPrice || p.cost || 0;
-              const quantity = p.quantity || 1;
-              return productSum + ((price - costPrice) * quantity);
-            }, 0);
-          }
-          return sum;
+          const grossProfit = s.products && Array.isArray(s.products)
+            ? s.products.reduce((productSum: number, p: any) => {
+                const price = p.price || 0;
+                const costPrice = p.costPrice || p.cost || 0;
+                const quantity = p.quantity || 1;
+                return productSum + ((price - costPrice) * quantity);
+              }, 0)
+            : 0;
+          const discount = s.discount || 0;
+          return sum + (grossProfit - discount);
         }, 0);
         
         const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
@@ -123,8 +124,8 @@ export default function CapitalPage() {
         // Calculate average margin
         const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
-        // Calculate cash balance (simplified - revenue - expenses)
-        const cashBalance = totalRevenue - totalExpenses;
+        // Calculate cash balance (simplified net income)
+        const cashBalance = totalProfit - totalExpenses;
 
         // Calculate platform dedication metrics
         // Get unique days with activity (sales or expenses)

@@ -75,23 +75,24 @@ export function detectIntent(
 
   // Enhanced product patterns with more flexible matching
   const productPatterns = [
-    /^(?:add|create|new|register)\s+(?:a\s+)?(?:product|item|inventory)/i,
+    /^(?:add|create|new|register)\s+(?:(?:a|new)\s+)?(?:product|item|inventory)/i,
     /^(?:add|create)\s+\d+\s+(?:new\s+)?(?:products?|items?|inventory)/i,
-    /(?:add|create|register)\s+(?:product|item):\s*/i,  // Explicit product prefix
-    /(?:new|create)\s+(?:product|item)\s+named/i,  // "create product named..."
-    /(?:add|new)\s+.+\s+at\s+₦?\d+/i,  // "add rice at ₦2000" - this was missing
-    /(?:add|new)\s+.+\s+with\s+₦?\d+/i,  // "add rice with ₦2000 cost"
+    /(?:add|create|register)\s+(?:\w+\s+)?(?:product|item):\s*/i,
+    /(?:new|create)\s+(?:product|item)\s+named/i,
+    /(?:add|new)\s+.+\s+at\s+₦?\d+/i,
+    /(?:add|new)\s+.+\s+with\s+₦?\d+/i,
   ];
 
   // Enhanced expense patterns with more flexible matching
   const expensePatterns = [
     /^(?:record|log|add|track)\s+(?:an?\s+)?(?:expense|expenses|cost|spending|payment)/i,
     /^(?:spent|paid|payment)\s+(?:₦|naira|n\d+|\d+)/i,
-    /(?:add|record|log)\s+(?:expense|cost):\s*/i,  // Explicit expense prefix
-    /(?:paid|spent)\s+₦?\d+/i,  // "paid ₦5000" or "spent 5000"
-    /(?:expense|cost)\s+of\s+₦?\d+/i,  // "expense of ₦5000"
-    /(?:add|record)\s+expense:\s+/i,  // "add expense: Rent ₦5000"
-    /(?:record|log)\s+expense:\s+/i,  // "record expense: Utilities ₦10000"
+    /(?:add|record|log)\s+(?:expense|cost):\s*/i,
+    /(?:paid|spent)\s+₦?\d+/i,
+    /(?:expense|cost)\s+(?:of|for)\s+₦?\d+/i,
+    /(?:add|record)\s+expense:\s+/i,
+    /(?:record|log)\s+expense:\s+/i,
+    /(?:expense|cost)\s+(?:of|for)\s+.+?\s+₦?\d+/i,
   ];
 
   // Update product patterns
@@ -557,6 +558,40 @@ function parseSaleData(message: string): Record<string, any> {
           productName,
           quantity: 1,
           price: singleMatch[2] ? parseInt(singleMatch[2].replace(/,/g, '')) : undefined,
+        });
+      }
+    }
+  }
+
+  // Fallback: "record sale of X product" (with or without price)
+  if (items.length === 0) {
+    const recordSalePattern = /(?:record|log|add)\s+(?:a\s+)?sale\s+of\s+(\d+)\s+(.+?)$/i;
+    const recordSaleMatch = message.match(recordSalePattern);
+    if (recordSaleMatch) {
+      let productName = recordSaleMatch[2].trim();
+      productName = productName.replace(/\s+(at|for|each|per|₦|naira|\d+(?:,\d+)*)$/i, '').trim();
+      if (productName && productName.length > 1) {
+        items.push({
+          productName,
+          quantity: parseInt(recordSaleMatch[1]) || 1,
+          price: undefined,
+        });
+      }
+    }
+  }
+
+  // Fallback: "new sale of X product" without quantity (assume qty=1)
+  if (items.length === 0) {
+    const newSalePattern = /(?:record|log|add|make)\s+(?:a\s+)?(?:new\s+)?sale\s+of\s+(.+?)$/i;
+    const newSaleMatch = message.match(newSalePattern);
+    if (newSaleMatch) {
+      let productName = newSaleMatch[1].trim();
+      productName = productName.replace(/\s+(at|for|each|per|₦|naira|\d+(?:,\d+)*)$/i, '').trim();
+      if (productName && productName.length > 1) {
+        items.push({
+          productName,
+          quantity: 1,
+          price: undefined,
         });
       }
     }

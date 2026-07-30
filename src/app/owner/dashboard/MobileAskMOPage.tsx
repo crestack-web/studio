@@ -182,17 +182,22 @@ export function MobileAskMOPage() {
           const successMsg: MOMessage = {
             id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             role: 'bot',
-            content: `✅ Sale recorded successfully!\n\n${result.message}\n\nProduct: ${saleData.productName}\nQuantity: ${saleData.quantity}\nRevenue: ₦${result.data.totalRevenue?.toLocaleString()}\nProfit: ₦${result.data.profit?.toLocaleString()}`,
+            content: `✅ Sale recorded successfully!\n\n${result.message}\n\nItems: ${saleData.items?.length || 1}\nRevenue: ₦${result.data.totalRevenue?.toLocaleString()}\nProfit: ₦${result.data.profit?.toLocaleString()}`,
             timestamp: new Date(),
             saleCard: {
-              items: [{
-                name: saleData.productName,
-                quantity: saleData.quantity,
-                price: result.data.product?.sellingPrice || saleData.price,
-                costPrice: result.data.product?.costPrice,
+              items: result.data?.items?.map((item: any) => ({
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price,
+                costPrice: item.costPrice,
+              })) || [{
+                name: saleData.productName || 'Sale',
+                quantity: saleData.quantity || 1,
+                price: result.data?.product?.sellingPrice || saleData.price || 0,
+                costPrice: result.data?.product?.costPrice || saleData.costPrice,
               }],
-              totalRevenue: result.data.totalRevenue,
-              totalProfit: result.data.profit,
+              totalRevenue: result.data.totalRevenue || 0,
+              totalProfit: result.data.profit || 0,
               timestamp: new Date(),
               mode: 'recorded',
             },
@@ -244,6 +249,26 @@ export function MobileAskMOPage() {
             role: 'bot',
             content: `✅ ${result.message || 'Action completed successfully.'}`,
             timestamp: new Date(),
+            ...(pendingAction.action === 'add_product' && {
+              productCard: {
+                type: 'product',
+                name: pendingAction.data.name || 'Product',
+                price: pendingAction.data.price || 0,
+                cost: pendingAction.data.costPrice || 0,
+                stock: pendingAction.data.stock || 0,
+                sku: pendingAction.data.sku,
+                message: `✅ Product "${pendingAction.data.name}" added successfully.`,
+              },
+            }),
+            ...(pendingAction.action === 'add_expense' && {
+              expenseCard: {
+                type: 'expense',
+                category: pendingAction.data.category || 'General',
+                amount: pendingAction.data.amount || 0,
+                date: pendingAction.data.date || new Date().toISOString().split('T')[0],
+                message: `✅ Expense recorded: ${pendingAction.data.category || 'General'}`,
+              },
+            }),
           };
           setMessages(prev => [...prev, successMsg]);
         } else {
@@ -583,7 +608,7 @@ export function MobileAskMOPage() {
         }
       }
       
-      const requestBody = {
+      const requestBody: any = {
         message: finalMessage,
         image: finalImageUrl,
         businessId: user.businessId || user.id,
@@ -596,6 +621,7 @@ export function MobileAskMOPage() {
         businessSummary: businessSummary,
         userRole: user.role,
       };
+      if (audioBase64) requestBody.audio = audioBase64;
       
       console.log('📤 [MobileAskMO] Request payload:', {
         messageLength: finalMessage.length,
@@ -742,7 +768,7 @@ export function MobileAskMOPage() {
       setLoadingText('');
       setIsSending(false);
     }
-  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, currentConversationId, createConversation, saveMessages, updateCredits, messagesRef, creditsRemaining, businessSummary, loadBusinessData, isSending, isTranscribing]);
+  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, audioBase64, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, currentConversationId, createConversation, saveMessages, updateCredits, messagesRef, creditsRemaining, businessSummary, loadBusinessData, isSending, isTranscribing]);
 
   const cancelPendingAction = useCallback(async () => {
     const cancelMsg: MOMessage = {

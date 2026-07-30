@@ -4,7 +4,7 @@ import React from 'react';
 import { Navbar } from '../components/Navbar';
 import { SupportSection } from '../components/SupportSection';
 import { Footer } from '../components/Footer';
-import { FloatingChatWidget } from '../components/FloatingChatWidget';
+import { AskMOSupportAgent } from '../components/AskMOSupportAgent';
 import type { Page } from '../types';
 
 export default function SupportPage() {
@@ -33,7 +33,7 @@ export default function SupportPage() {
       <Navbar currentPage="support" onNavigate={(page) => handleNavigate(page)} />
       <SupportSection onNavigate={handleNavigate} />
       <Footer onNavigate={handleNavigate} />
-      <FloatingChatWidget />
+      <AskMOSupportAgent />
     </>
   );
 }

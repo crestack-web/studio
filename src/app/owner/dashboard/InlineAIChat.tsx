@@ -420,22 +420,24 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
         }
       }
       
+      const requestBody: any = {
+        message: finalMessage,
+        image: finalImageUrl,
+        businessId: user.businessId || user.id,
+        userId: user.id,
+        conversationHistory: messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
+        userPlan: user.plan || 'starter',
+        language: lang,
+        languageName: langMeta.name,
+        businessCategory: businessCategory,
+        userRole: user.role,
+        businessSummary: businessSummary,
+      };
+      if (audioBase64) requestBody.audio = audioBase64;
       const response = await fetch('/api/ask-mo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: finalMessage,
-          image: finalImageUrl,
-          businessId: user.businessId || user.id,
-          userId: user.id,
-          conversationHistory: messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
-          userPlan: user.plan || 'starter',
-          language: lang,
-          languageName: langMeta.name,
-          businessCategory: businessCategory,
-          userRole: user.role,
-          businessSummary: businessSummary,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       console.log('📡 API Response status:', response.status);
@@ -528,7 +530,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       setLoadingText('');
       setIsSending(false);
     }
-  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, saveConversation, isSending, currentConversationId, creditsRemaining, businessSummary, loadBusinessData, createConversation, setCurrentConversationId, updateCredits, saveMessages]);
+  }, [input, selectedImage, imagePreview, audioBlob, audioUrl, audioBase64, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, saveConversation, isSending, currentConversationId, creditsRemaining, businessSummary, loadBusinessData, createConversation, setCurrentConversationId, updateCredits, saveMessages]);
 
   // Execute pending action (sale/expense/product confirmation)
   const executePendingAction = useCallback(async () => {
@@ -555,16 +557,41 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
           timestamp: new Date(),
           ...(pendingAction.action === 'record_sale' && {
             saleCard: {
-              items: [{
-                name: pendingAction.data.productName || pendingAction.data.items?.[0]?.productName || 'Sale',
-                quantity: pendingAction.data.quantity || pendingAction.data.items?.[0]?.quantity || 1,
-                price: result.data?.product?.sellingPrice || pendingAction.data.price || pendingAction.data.items?.[0]?.price || 0,
-                costPrice: result.data?.product?.costPrice || pendingAction.data.costPrice || pendingAction.data.items?.[0]?.costPrice,
+              items: result.data?.items?.map((item: any) => ({
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price,
+                costPrice: item.costPrice,
+              })) || [{
+                name: pendingAction.data.productName || 'Sale',
+                quantity: pendingAction.data.quantity || 1,
+                price: pendingAction.data.price || 0,
+                costPrice: pendingAction.data.costPrice,
               }],
               totalRevenue: result.data?.totalRevenue || pendingAction.data.totalRevenue || 0,
-              totalProfit: result.data?.profit || pendingAction.data.profit,
+              totalProfit: result.data?.totalProfit ?? result.data?.profit ?? pendingAction.data.profit,
               timestamp: new Date(),
               mode: 'recorded',
+            },
+          }),
+          ...(pendingAction.action === 'add_product' && {
+            productCard: {
+              type: 'product',
+              name: pendingAction.data.name || 'Product',
+              price: pendingAction.data.price || 0,
+              cost: pendingAction.data.costPrice || 0,
+              stock: pendingAction.data.stock || 0,
+              sku: pendingAction.data.sku,
+              message: `✅ Product "${pendingAction.data.name}" added successfully.`,
+            },
+          }),
+          ...(pendingAction.action === 'add_expense' && {
+            expenseCard: {
+              type: 'expense',
+              category: pendingAction.data.category || 'General',
+              amount: pendingAction.data.amount || 0,
+              date: pendingAction.data.date || new Date().toISOString().split('T')[0],
+              message: `✅ Expense recorded: ${pendingAction.data.category || 'General'}`,
             },
           }),
         };
@@ -801,53 +828,33 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
                     totalRevenue={m.saleCard.totalRevenue}
                     totalProfit={m.saleCard.totalProfit}
                     timestamp={m.saleCard.timestamp}
+                    mode={m.saleCard.mode || 'pending'}
+                    onConfirm={
+                      pendingAction && pendingAction.action === 'record_sale' && !isExecutingAction
+                        ? executePendingAction
+                        : undefined
+                    }
+                    onCancel={
+                      pendingAction && pendingAction.action === 'record_sale' && !isExecutingAction
+                        ? cancelPendingAction
+                        : undefined
+                    }
+                    isExecuting={isExecutingAction}
                   />
-                  {pendingAction && pendingAction.action === 'record_sale' && !isExecutingAction && (
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                      <button
-                        onClick={executePendingAction}
-                        style={{
-                          flex: 1,
-                          padding: '10px',
-                          background: 'var(--green)',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '8px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        ✓ Confirm
-                      </button>
-                      <button
-                        onClick={cancelPendingAction}
-                        style={{
-                          flex: 1,
-                          padding: '10px',
-                          background: 'var(--bg-2)',
-                          color: 'var(--text-1)',
-                          border: '1px solid var(--border)',
-                          borderRadius: '8px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
               {m.productCard && (
                 <div className="my-3">
                   <div style={{
-                    background: 'var(--primary-light)',
-                    border: '1px solid var(--primary)',
+                    background: pendingAction?.action === 'add_product' ? 'rgba(245,158,11,0.1)' : 'var(--primary-light)',
+                    border: `1px solid ${pendingAction?.action === 'add_product' ? 'var(--amber, #F59E0B)' : 'var(--primary)'}`,
                     borderRadius: '8px',
                     padding: '16px',
                     marginBottom: '8px'
                   }}>
-                    <h4 style={{ margin: '0 0 8px 0', color: 'var(--primary)' }}>✅ Product Added</h4>
+                    <h4 style={{ margin: '0 0 8px 0', color: pendingAction?.action === 'add_product' ? 'var(--amber, #F59E0B)' : 'var(--primary)' }}>
+                      {pendingAction?.action === 'add_product' ? '📦 Confirm Add Product' : '✅ Product Added'}
+                    </h4>
                     <p style={{ margin: '4px 0' }}><strong>{m.productCard.name}</strong></p>
                     <p style={{ margin: '4px 0', fontSize: '0.9rem' }}>
                       Stock: {m.productCard.stock} units<br/>
@@ -895,13 +902,15 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
               {m.expenseCard && (
                 <div className="my-3">
                   <div style={{
-                    background: 'var(--warning-bg)',
-                    border: '1px solid var(--amber)',
+                    background: pendingAction?.action === 'add_expense' ? 'rgba(245,158,11,0.1)' : 'var(--warning-bg)',
+                    border: `1px solid ${pendingAction?.action === 'add_expense' ? 'var(--amber, #F59E0B)' : 'var(--amber)'}`,
                     borderRadius: '8px',
                     padding: '16px',
                     marginBottom: '8px'
                   }}>
-                    <h4 style={{ margin: '0 0 8px 0', color: 'var(--warning-text)' }}>✅ Expense Recorded</h4>
+                    <h4 style={{ margin: '0 0 8px 0', color: pendingAction?.action === 'add_expense' ? 'var(--amber, #F59E0B)' : 'var(--warning-text)' }}>
+                      {pendingAction?.action === 'add_expense' ? '💰 Confirm Expense' : '✅ Expense Recorded'}
+                    </h4>
                     <p style={{ margin: '4px 0', fontSize: '0.9rem' }}>
                       <strong>{m.expenseCard.category}</strong><br/>
                       Amount: ₦{m.expenseCard.amount.toLocaleString()}<br/>

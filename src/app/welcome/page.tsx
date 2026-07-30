@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import type { Page } from './types';
-import { FloatingChatWidget } from './components/FloatingChatWidget';
+import { AskMOSupportAgent } from './components/AskMOSupportAgent';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { DemoVideoSection } from './components/DemoVideoSection';
@@ -287,7 +287,7 @@ export default function WelcomePage() {
       </ScrollReveal>
 
       {/* Floating chat widget */}
-      <FloatingChatWidget />
+      <AskMOSupportAgent />
     </main>
   );
 }

@@ -334,6 +334,7 @@ export default function Cashflowpage() {
       
       // Use a Map to deduplicate transactions by ID
       const transactionMap = new Map<string, Transaction>();
+      const saleIdsInBankTx = new Set<string>();
       let cashBalance = 0;
       let monthIn = 0;
       let monthOut = 0;
@@ -356,6 +357,9 @@ export default function Cashflowpage() {
           credit: isCredit,
           accountName: data.accountName,
         });
+
+        // Track sale IDs already recorded as bank transactions to avoid double-counting
+        if (data.saleId) saleIdsInBankTx.add(data.saleId);
         
         if (isCredit) {
           cashBalance += amount;
@@ -415,8 +419,11 @@ export default function Cashflowpage() {
             accountName: data.bankAccountId ? accountsList.find(a => a.id === data.bankAccountId)?.accountName : 'Default Account',
           });
           
-          cashBalance += bankPayment;
-          if (date >= monthStart) monthIn += bankPayment;
+          // Avoid double-counting when sale already exists in bankTransactions
+          if (!saleIdsInBankTx.has(doc.id)) {
+            cashBalance += bankPayment;
+            if (date >= monthStart) monthIn += bankPayment;
+          }
         }
         
         // For cash sales, add as transaction too (to show in recent transactions)

@@ -130,7 +130,7 @@ When suggesting navigation, always use the exact sidebar button names as referen
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { message, image, businessId, userId, conversationHistory = [], language = 'en', languageName = 'English', businessCategory = 'retail', userRole, businessSummary, userPlan = 'starter' } = body;
+    const { message, image, audio, businessId, userId, conversationHistory = [], language = 'en', languageName = 'English', businessCategory = 'retail', userRole, businessSummary, userPlan = 'starter' } = body;
 
     console.log('📡 [Ask MO API] Request received', {
       messageLength: message?.length,
@@ -666,25 +666,38 @@ export async function POST(request: NextRequest) {
 
             for (const item of items) {
               const searchResult = await findProductByName(businessId, item.productName);
-              if (searchResult.found && searchResult.product) {
-                const product = searchResult.product;
-                const costPrice = product.costPrice || product.cost || 0;
-                const sellingPrice = product.sellingPrice || product.price || item.price || 0;
-                const quantity = parseInt(item.quantity) || 1;
-                const itemRevenue = sellingPrice * quantity;
-                const itemCost = costPrice * quantity;
+              if (searchResult.found) {
+                // Use exact match or first fuzzy match to populate real product prices
+                const product = searchResult.product || searchResult.matches?.[0];
+                if (product) {
+                  const costPrice = product.costPrice || product.cost || 0;
+                  const sellingPrice = product.sellingPrice || product.price || item.price || 0;
+                  const quantity = parseInt(item.quantity) || 1;
+                  const itemRevenue = sellingPrice * quantity;
+                  const itemCost = costPrice * quantity;
 
-                resolvedItems.push({
-                  productName: product.name || item.productName,
-                  quantity,
-                  price: sellingPrice,
-                  costPrice,
-                  productId: product.id,
-                  stock: product.stock || product.quantity || 0,
-                });
+                  resolvedItems.push({
+                    productName: product.name || item.productName,
+                    quantity,
+                    price: sellingPrice,
+                    costPrice,
+                    productId: product.id,
+                    stock: product.stock || product.quantity || 0,
+                  });
 
-                totalRevenue += itemRevenue;
-                totalCost += itemCost;
+                  totalRevenue += itemRevenue;
+                  totalCost += itemCost;
+                } else {
+                  resolvedItems.push({
+                    productName: item.productName,
+                    quantity: parseInt(item.quantity) || 1,
+                    price: item.price || 0,
+                    costPrice: 0,
+                    productId: null,
+                    stock: 0,
+                  });
+                  totalRevenue += (item.price || 0) * (parseInt(item.quantity) || 1);
+                }
               } else {
                 // Product not found — include what we have from text parsing
                 resolvedItems.push({
@@ -889,6 +902,14 @@ When users request operational tasks, you MUST:
 5. Wait for the backend response
 6. Communicate the outcome naturally and conversationally
 
+SALE RECORDING RULES (CRITICAL):
+- When a user says "record sale of X" or "sold X", do NOT ask for the selling price or cost price.
+- The system automatically looks up the product in your inventory and uses its existing prices.
+- If the product exists in inventory, its current selling price and cost price will be used automatically.
+- Only ask for price if the product is NOT found in your inventory.
+- NEVER ask "What is the selling price?" or "How much did you sell it for?" for products already in inventory.
+- NEVER ask "What is the cost price?" — cost prices are already stored in your product inventory.
+
 CRITICAL: Respond with natural text only. Do NOT use JSON, XML, or action blocks in your response.
 
 ${plannedResponse.systemPrompt}`;
@@ -1028,14 +1049,20 @@ ${processingResult.nextAction}`;
           setTimeout(() => reject(new Error('Google AI API timeout after 30 seconds')), 30000);
         });
 
-        let messageParts;
-        if (image) {
-          messageParts = [
-            { text: message },
-            { inlineData: { mimeType: image.mimeType || 'image/jpeg', data: image.data } }
-          ];
-        } else {
-          messageParts = [{ text: message }];
+        let messageParts = [{ text: message }];
+        if (image && typeof image === 'string') {
+          const [imgHeader, imgData] = image.split(',');
+          const imgMimeType = imgHeader?.split(';')[0]?.split(':')[1] || 'image/jpeg';
+          if (imgData) {
+            messageParts.push({ inlineData: { mimeType: imgMimeType, data: imgData } });
+          }
+        }
+        if (audio && typeof audio === 'string') {
+          const [audioHeader, audioData] = audio.split(',');
+          const audioMimeType = audioHeader?.split(';')[0]?.split(':')[1] || 'audio/webm';
+          if (audioData) {
+            messageParts.push({ inlineData: { mimeType: audioMimeType, data: audioData } });
+          }
         }
 
         result = await Promise.race([

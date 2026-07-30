@@ -177,38 +177,49 @@ async function handleRecordSale(
   const productSummaries: any[] = [];
 
   for (const item of items) {
-    console.log('🔍 [MO Action Router] Looking for product:', item.productName);
-    const productSearch = await findProductByName(context.businessId, item.productName);
-    
-    if (!productSearch.found || !productSearch.product) {
-      console.warn('⚠️ [MO Action Router] Product not found:', item.productName);
-      if (productSearch.matches && productSearch.matches.length > 0) {
+    let product: any;
+    let quantity = parseInt(item.quantity) || 1;
+    let costPrice: number;
+    let sellingPrice: number;
+
+    // If item already has a productId (pre-resolved from pre-fetch), use directly
+    if (item.productId) {
+      product = { id: item.productId, name: item.productName, stock: item.stock };
+      costPrice = parseFloat(item.costPrice) || 0;
+      sellingPrice = parseFloat(item.price) || 0;
+    } else {
+      console.log('🔍 [MO Action Router] Looking for product:', item.productName);
+      const productSearch = await findProductByName(context.businessId, item.productName);
+      
+      if (!productSearch.found || !productSearch.product) {
+        console.warn('⚠️ [MO Action Router] Product not found:', item.productName);
+        if (productSearch.matches && productSearch.matches.length > 0) {
+          return {
+            success: false,
+            action: 'record_sale',
+            message: `I found multiple products matching "${item.productName}":\n\n${productSearch.matches.map((p: any, i: number) => `${i + 1}. ${p.name} (Stock: ${p.stock || p.quantity || 0})`).join('\n')}\n\nPlease specify which one you want to sell.`,
+            requiresClarification: true,
+            clarification: {
+              message: 'Multiple products found',
+              options: productSearch.matches.map((p: any) => ({
+                id: p.id,
+                name: p.name,
+                stock: p.stock || p.quantity || 0,
+              })),
+            },
+          };
+        }
         return {
           success: false,
           action: 'record_sale',
-          message: `I found multiple products matching "${item.productName}":\n\n${productSearch.matches.map((p: any, i: number) => `${i + 1}. ${p.name} (Stock: ${p.stock || p.quantity || 0})`).join('\n')}\n\nPlease specify which one you want to sell.`,
-          requiresClarification: true,
-          clarification: {
-            message: 'Multiple products found',
-            options: productSearch.matches.map((p: any) => ({
-              id: p.id,
-              name: p.name,
-              stock: p.stock || p.quantity || 0,
-            })),
-          },
+          message: `Product "${item.productName}" not found in your inventory. Please add this product first or check the spelling. You can verify product names on the ${PAGE_NAMES.products} page.`,
         };
       }
-      return {
-        success: false,
-        action: 'record_sale',
-        message: `Product "${item.productName}" not found in your inventory. Please add this product first or check the spelling. You can verify product names on the ${PAGE_NAMES.products} page.`,
-      };
-    }
 
-    const product = productSearch.product;
-    const quantity = parseInt(item.quantity) || 1;
-    const costPrice = product.cost || product.costPrice || 0;
-    const sellingPrice = product.price || parseFloat(item.price) || costPrice;
+      product = productSearch.product;
+      costPrice = product.cost || product.costPrice || 0;
+      sellingPrice = product.price || parseFloat(item.price) || costPrice;
+    }
 
     // Guard against NaN from undefined/invalid prices
     if (!sellingPrice || isNaN(sellingPrice)) {

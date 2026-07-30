@@ -184,7 +184,6 @@ export function HomePage() {
           const data = doc.data();
           sales += data.totalRevenue || data.total || 0;
           
-          // Always calculate profit from products to ensure accuracy
           let docProfit = 0;
           if (data.products && Array.isArray(data.products)) {
             docProfit = data.products.reduce((sum: number, p: any) => {
@@ -194,18 +193,21 @@ export function HomePage() {
               return sum + ((price - costPrice) * quantity);
             }, 0);
           }
+          if (data.discount) docProfit -= data.discount;
           profit += docProfit;
           
           transactions += 1;
           
           // Track credit sales for pending collections
+          let pendingAmt = 0;
           if (data.paymentBreakdown && Array.isArray(data.paymentBreakdown)) {
             data.paymentBreakdown.forEach((pb: any) => {
               if (pb.method === 'credit' && !pb.received) {
-                setPendingCollections(prev => prev + pb.amount);
+                pendingAmt += pb.amount;
               }
             });
           }
+          pendingAmt > 0 && setPendingCollections(prev => prev + pendingAmt);
           
           // Track product revenue
           if (data.products && Array.isArray(data.products)) {
@@ -294,9 +296,10 @@ export function HomePage() {
   }
 
   // Calculate profit margin
-  const profitMargin = metrics.totalRevenue > 0
-    ? ((metrics.totalProfit / metrics.totalRevenue) * 100).toFixed(1)
-    : '0';
+  const profitMarginValue = metrics.totalRevenue > 0
+    ? (metrics.totalProfit / metrics.totalRevenue) * 100
+    : 0;
+  const profitMargin = profitMarginValue.toFixed(1);
 
   // Calculate cash runway - improved accuracy
   // Use actual bank balances and calculate average monthly burn from historical data
@@ -359,7 +362,6 @@ export function HomePage() {
 
       // Calculate monthly averages
       const monthlyExpenses = totalExpenses90Days / 3;
-      const monthlyRevenue = totalRevenue90Days / 3;
       const monthlyCashInflow = totalCashCollected90Days / 3;
 
       // Calculate net burn rate (expenses - revenue)
@@ -404,7 +406,7 @@ export function HomePage() {
   const dailyBurn = metrics.totalExpenses / 30;
   const displayMetrics = [
     { label: t('home.totalSales'), value: formatMoney(todayData.sales), trend: `+${todayData.transactions} txns`, trendType: 'up' as const },
-    { label: t('home.netProfit'), value: formatMoney(todayData.profit), trend: `${profitMargin}% margin`, trendType: (profitMargin >= '25' ? 'up' : 'down') as 'up' | 'down' | 'neutral' },
+    { label: t('home.netProfit'), value: formatMoney(todayData.profit), trend: `${profitMargin}% margin`, trendType: (profitMarginValue >= 25 ? 'up' : 'down') as 'up' | 'down' | 'neutral' },
     { label: t('home.totalExpenses'), value: formatMoney(metrics.totalExpenses), trend: dailyBurn > 0 ? `${Math.round(dailyBurn)}/day` : t('home.noExpenses'), trendType: 'neutral' as const },
     { label: t('home.cashBalance'), value: formatMoney(metrics.cashBalance), trend: metrics.totalExpenses === 0 && metrics.totalRevenue === 0 ? t('home.noDataYet') : `${cashRunway} days runway`, trendType: (cashRunway >= 30 ? 'up' : cashRunway >= 14 ? 'neutral' : 'down') as 'up' | 'down' | 'neutral' },
   ];

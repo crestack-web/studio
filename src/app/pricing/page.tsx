@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { LangProvider } from '../owner/dashboard/LangContext';
-import { FloatingChatWidget } from '../welcome/components/FloatingChatWidget';
+import { AskMOSupportAgent } from '../welcome/components/AskMOSupportAgent';
 import { Navbar } from '../welcome/components/Navbar';
 import { Footer } from '../welcome/components/Footer';
 
@@ -343,7 +343,7 @@ export default function PricingPage() {
       )}
 
       {/* Support chat widget - connects to our admin support section */}
-      <FloatingChatWidget />
+      <AskMOSupportAgent />
     </main>
   );
 }
