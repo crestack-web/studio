@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Bot, CheckCheck, Smartphone } from 'lucide-react';
+import { X, Send, CheckCheck, Smartphone } from 'lucide-react';
 import { MoIcon } from '../../owner/dashboard/NavIcons';
 
 const WHATSAPP_NUMBER = '+2349124559388';
@@ -97,7 +97,7 @@ export const AskMOSupportAgent = () => {
       if (!res.ok) throw new Error('Failed');
 
       const data = await res.json();
-      const replyText = data.response || data.reply || "I'm here to help! Could you tell me more?";
+      const replyText = data.answer || data.response || data.reply || "I'm here to help! Could you tell me more?";
 
       const reply: Message = {
         id: `mo-${Date.now()}`,
@@ -138,8 +138,8 @@ export const AskMOSupportAgent = () => {
         >
           <div className="relative">
             <div className="absolute inset-0 bg-purple-600 rounded-full blur-lg opacity-40 group-hover:opacity-60 transition-opacity" />
-            <div className="relative bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-full p-4 shadow-lg transition-all duration-300 hover:scale-110">
-              <Bot size={28} />
+            <div className="relative bg-gradient-to-br from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-full p-3 shadow-lg transition-all duration-300 hover:scale-110">
+              <MoIcon size={12} />
             </div>
           </div>
         </button>

@@ -737,7 +737,7 @@ export async function POST(request: NextRequest) {
 
         renderedResponse = renderResponse(
           `Please confirm: ${enrichedData.productName || enrichedData.category || intent.intent}`,
-          { success: true, action: intent.intent, message: 'Awaiting confirmation' },
+          undefined,
           intent
         );
 
@@ -747,9 +747,9 @@ export async function POST(request: NextRequest) {
             type: 'sale',
             items: enrichedData.items.map((item: any) => ({
               name: item.productName,
-              quantity: item.quantity,
-              price: item.price,
-              costPrice: item.costPrice,
+              quantity: item.quantity || 1,
+              price: item.price || 0,
+              costPrice: item.costPrice || 0,
             })),
             totalRevenue: enrichedData.totalRevenue || 0,
             totalProfit: enrichedData.profit || 0,
