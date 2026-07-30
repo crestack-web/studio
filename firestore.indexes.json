@@ -239,6 +239,14 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "ugcCreators",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isActive", "order": "ASCENDING" },
+        { "fieldPath": "isBanned", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
