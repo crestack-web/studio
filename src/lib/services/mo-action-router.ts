@@ -1090,13 +1090,15 @@ export function validatePermission(
   userRole?: string,
   userPlan?: string
 ): { allowed: boolean; reason?: string } {
+  const role = userRole?.toLowerCase();
+
   // Admin and owner can do everything
-  if (userRole === 'owner' || userRole === 'admin') {
+  if (role === 'owner' || role === 'admin') {
     return { allowed: true };
   }
 
   // Staff permissions
-  if (userRole === 'staff') {
+  if (role === 'staff') {
     // Staff can record sales
     if (action === 'record_sale') {
       return { allowed: true };
