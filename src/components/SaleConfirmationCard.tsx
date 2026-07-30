@@ -14,15 +14,15 @@ interface SaleConfirmationCardProps {
   items: SaleItem[];
   totalRevenue: number;
   totalProfit?: number;
-  timestamp?: Date;
+  timestamp?: Date | string;
   mode?: 'pending' | 'recorded';
   onConfirm?: () => void;
   onCancel?: () => void;
   isExecuting?: boolean;
 }
 
-function generateReceiptHTML(items: SaleItem[], totalRevenue: number, totalProfit?: number, timestamp?: Date): string {
-  const date = timestamp || new Date();
+function generateReceiptHTML(items: SaleItem[], totalRevenue: number, totalProfit?: number, timestamp?: Date | string): string {
+  const date = timestamp ? new Date(timestamp) : new Date();
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   
   return `<!DOCTYPE html>
@@ -76,7 +76,8 @@ function generateReceiptHTML(items: SaleItem[], totalRevenue: number, totalProfi
 </html>`;
 }
 
-export function SaleConfirmationCard({ items, totalRevenue, totalProfit, timestamp, mode = 'pending', onConfirm, onCancel, isExecuting }: SaleConfirmationCardProps) {
+export function SaleConfirmationCard({ items, totalRevenue, totalProfit, timestamp: rawTimestamp, mode = 'pending', onConfirm, onCancel, isExecuting }: SaleConfirmationCardProps) {
+  const timestamp = rawTimestamp ? new Date(rawTimestamp) : undefined;
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const [showReceipt, setShowReceipt] = useState(false);
 

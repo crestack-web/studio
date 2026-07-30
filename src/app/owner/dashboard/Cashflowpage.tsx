@@ -1119,12 +1119,16 @@ export default function Cashflowpage() {
 
   return (
     <div className={styles.page}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '12px' }}>
+      <div className={styles.headerRow}>
         <div>
           <h1 className={styles.heading}>{t('cashflow.title')}</h1>
           <p className={styles.sub}>{t('cashflow.subtitle')}</p>
         </div>
-        <button onClick={handleDownloadPDF} disabled={isDownloading || loading || transactions.length === 0} style={{ padding: '10px 20px', background: 'var(--purple)', color: 'white', border: 'none', borderRadius: '10px', fontSize: '0.9rem', fontWeight: 600, cursor: isDownloading ? 'not-allowed' : 'pointer', opacity: (isDownloading || loading || transactions.length === 0) ? 0.6 : 1, transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <button
+          className={styles.downloadBtn}
+          onClick={handleDownloadPDF}
+          disabled={isDownloading || loading || transactions.length === 0}
+        >
           {isDownloading ? 'Downloading...' : 'Download Statement'}
         </button>
       </div>
@@ -1166,7 +1170,7 @@ export default function Cashflowpage() {
       {/* ── QUICK STATS ── */}
       <div className={styles.statsGrid}>
         {loading ? (
-          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>
+          <div className={styles.loadingState}>
             {t('common.loading')}...
           </div>
         ) : (
@@ -1189,7 +1193,7 @@ export default function Cashflowpage() {
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>Bank Accounts</h2>
           <button className={styles.modalButtonPrimary} onClick={() => setActiveAction('add-account')}>
-            <Plus size={16} style={{ marginRight: '6px' }} />
+            <Plus size={16} />
             Add Account
           </button>
         </div>
@@ -1247,7 +1251,7 @@ export default function Cashflowpage() {
         </button>
         <button className={styles.actionButton} onClick={() => setActiveAction('take-money')}>
           <span className={styles.actionIcon}>
-            <ArrowUpRight size={20} style={{ transform: 'rotate(45deg)' }} />
+            <ArrowUpRight size={20} className={styles.rotateIcon} />
           </span>
           <span>Take Money</span>
         </button>
@@ -1348,7 +1352,6 @@ export default function Cashflowpage() {
                         type="button"
                         className={styles.linkButton}
                         onClick={() => setShowNewProductForm(true)}
-                        style={{ marginTop: '8px', fontSize: '0.9rem', color: 'var(--purple)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                       >
                         + Create new product
                       </button>
@@ -1458,10 +1461,10 @@ export default function Cashflowpage() {
                     {stockAddition.quantity > 0 && stockAddition.costPrice > 0 && (
                       <div className={styles.calculatedTotal}>
                         <strong>Goods Total: </strong>
-                        <span style={{ color: 'var(--purple)', fontSize: '1.1rem', fontWeight: 700 }}>
+                        <span className={styles.totalAmount}>
                           {formatMoney(stockAddition.quantity * stockAddition.costPrice)}
                         </span>
-                        <span style={{ fontSize: '0.85rem', color: 'var(--text-3)', marginLeft: '8px' }}>
+                        <span className={styles.totalBreakdown}>
                           ({stockAddition.quantity} × {formatMoney(stockAddition.costPrice)})
                         </span>
                       </div>
@@ -1535,7 +1538,7 @@ export default function Cashflowpage() {
                           <div className={styles.paymentBreakdown}>
                             <span>Total: {formatMoney(stockAddition.quantity * stockAddition.costPrice)}</span>
                             <span>Payment: {formatMoney(stockAddition.paymentAmount)}</span>
-                            <span style={{ color: 'var(--red)', fontWeight: 600 }}>
+                            <span className={styles.redBold}>
                               Credit: {formatMoney((stockAddition.quantity * stockAddition.costPrice) - stockAddition.paymentAmount)}
                             </span>
                           </div>
@@ -1569,7 +1572,7 @@ export default function Cashflowpage() {
                         {stockAddition.quantity > 0 && stockAddition.costPrice > 0 && (
                           <div className={styles.creditInfoItem}>
                             <span className={styles.creditInfoLabel}>Amount to Credit:</span>
-                            <span className={styles.creditInfoValue} style={{ color: 'var(--red)', fontWeight: 600 }}>
+                            <span className={`${styles.creditInfoValue} ${styles.redBold}`}>
                               {formatMoney(stockAddition.quantity * stockAddition.costPrice)}
                             </span>
                           </div>
@@ -1793,7 +1796,7 @@ export default function Cashflowpage() {
                   <div className={styles.creditInfo}>
                     <div className={styles.creditInfoItem}>
                       <span className={styles.creditInfoLabel}>Current Balance:</span>
-                      <span className={styles.creditInfoValue} style={{ color: 'var(--red)', fontWeight: 600 }}>
+                      <span className={`${styles.creditInfoValue} ${styles.redBold}`}>
                         {formatMoney(suppliers.find(s => s.id === supplierPayment.supplierId)?.currentBalance || 0)}
                       </span>
                     </div>
@@ -1859,96 +1862,109 @@ export default function Cashflowpage() {
 
       {/* ── TRANSACTIONS LIST ── */}
       <div className={styles.transactionsSection}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+        <div className={styles.txHeader}>
           <h2 className={styles.sectionTitle}>{t('cashflow.recentTransactions')}</h2>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-3)' }}>Type:</span>
-            <button onClick={() => setTransactionTypeFilter('all')} style={{ padding: '4px 12px', borderRadius: '16px', border: transactionTypeFilter === 'all' ? '2px solid var(--purple)' : '1px solid var(--border)', background: transactionTypeFilter === 'all' ? 'var(--purple)' : 'var(--surface)', color: transactionTypeFilter === 'all' ? '#fff' : 'var(--text-1)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: transactionTypeFilter === 'all' ? 600 : 400, transition: 'all 0.2s' }}>All</button>
-            {transactionTypes.map(type => (
-              <button key={type} onClick={() => setTransactionTypeFilter(type)} style={{ padding: '4px 12px', borderRadius: '16px', border: transactionTypeFilter === type ? '2px solid var(--purple)' : '1px solid var(--border)', background: transactionTypeFilter === type ? 'var(--purple)' : 'var(--surface)', color: transactionTypeFilter === type ? '#fff' : 'var(--text-1)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: transactionTypeFilter === type ? 600 : 400, transition: 'all 0.2s' }}>{type}</button>
-            ))}
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-3)', marginLeft: '8px' }}>Show:</span>
-            {[2, 5, 10, 20].map(limit => (
-              <button key={limit} onClick={() => setTransactionLimit(limit)} style={{ padding: '6px 14px', borderRadius: '20px', border: transactionLimit === limit ? '2px solid var(--purple)' : '1px solid var(--border)', background: transactionLimit === limit ? 'var(--purple)' : 'var(--surface)', color: transactionLimit === limit ? '#fff' : 'var(--text-1)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: transactionLimit === limit ? 600 : 400, transition: 'all 0.2s' }}>
-                {limit}
+          <div className={styles.txFilters}>
+            <span className={styles.txFilterLabel}>Type:</span>
+            <div className={styles.chipGroup}>
+              <button
+                className={`${styles.chip} ${transactionTypeFilter === 'all' ? styles.chipActive : ''}`}
+                onClick={() => setTransactionTypeFilter('all')}
+              >
+                All
               </button>
-            ))}
+              {transactionTypes.map(type => (
+                <button
+                  key={type}
+                  className={`${styles.chip} ${transactionTypeFilter === type ? styles.chipActive : ''}`}
+                  onClick={() => setTransactionTypeFilter(type)}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+            <span className={styles.txFilterLabel}>Show:</span>
+            <div className={styles.chipGroup}>
+              {[2, 5, 10, 20].map(limitCount => (
+                <button
+                  key={limitCount}
+                  className={`${styles.chip} ${transactionLimit === limitCount ? styles.chipActive : ''}`}
+                  onClick={() => setTransactionLimit(limitCount)}
+                >
+                  {limitCount}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-        
+
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>
+          <div className={styles.txEmpty}>
             {t('common.loading')}...
           </div>
         ) : transactions.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 48, height: 48, margin: '0 auto 12px', opacity: 0.3 }}>
+          <div className={styles.txEmpty}>
+            <svg className={styles.txEmptyIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/>
             </svg>
-            <div style={{ fontWeight: 600, marginBottom: '4px' }}>{t('cashflow.noTransactions')}</div>
-            <div style={{ fontSize: '0.8rem' }}>{t('cashflow.addTransactionsFirst')}</div>
+            <div className={styles.txEmptyTitle}>{t('cashflow.noTransactions')}</div>
+            <div className={styles.txEmptyDesc}>{t('cashflow.addTransactionsFirst')}</div>
           </div>
         ) : (
           <div className={styles.transactionList}>
             {getFilteredTransactions().slice(0, transactionLimit).map(t => {
               const isExpanded = expandedTransaction === t.id;
               return (
-                <div 
-                  key={t.id} 
+                <div
+                  key={t.id}
                   className={styles.transactionCard}
                   onClick={() => setExpandedTransaction(isExpanded ? null : t.id)}
-                  style={{ cursor: 'pointer' }}
                 >
-                  <div className={styles.transactionHeader}>
-                    <span className={styles.transactionNumber}>{t.date}</span>
-                    <span className={`${styles.transactionType} ${t.credit ? styles.moneyIn : styles.moneyOut}`}>
+                  <div className={styles.txTop}>
+                    <span className={styles.txDate}>{t.date}</span>
+                    <span className={`${styles.txBadge} ${t.credit ? styles.txIn : styles.txOut}`}>
                       {t.credit ? '↑' : '↓'} {t.type}
                     </span>
                   </div>
-                  <div className={styles.transactionDetails}>
-                    <div className={styles.transactionDetail}>
-                      <span className={styles.transactionLabel}>Account:</span>
-                      <span className={styles.transactionValue}>{t.accountName || 'N/A'}</span>
+                  <div className={styles.txBody}>
+                    <div className={styles.txMeta}>
+                      <span className={styles.txAccount}>{t.accountName || 'N/A'}</span>
+                      <span className={styles.txDesc}>{t.description}</span>
                     </div>
-                    <div className={styles.transactionDetail}>
-                      <span className={styles.transactionLabel}>Description:</span>
-                      <span className={styles.transactionValue}>{t.description}</span>
+                    <div className={`${styles.txAmount} ${t.credit ? styles.moneyIn : styles.moneyOut}`}>
+                      {t.credit ? '+' : '-'}{formatMoney(t.amount)}
                     </div>
                   </div>
-                  <div className={`${styles.transactionAmount} ${t.credit ? styles.moneyIn : styles.moneyOut}`}>
-                    {t.credit ? '+' : '-'}{formatMoney(t.amount)}
-                  </div>
-                  
-                  {/* Expanded Details */}
+
                   {isExpanded && (
                     <div className={styles.expandedDetails} onClick={e => e.stopPropagation()}>
-                      <div className={styles.transactionDetail}>
-                        <span className={styles.transactionLabel}>Transaction ID:</span>
-                        <span className={styles.transactionValue}>{t.id}</span>
+                      <div className={styles.expRow}>
+                        <span className={styles.expLabel}>Transaction ID:</span>
+                        <span className={styles.expValue}>{t.id}</span>
                       </div>
-                      <div className={styles.transactionDetail}>
-                        <span className={styles.transactionLabel}>Type:</span>
-                        <span className={styles.transactionValue}>{t.type}</span>
+                      <div className={styles.expRow}>
+                        <span className={styles.expLabel}>Type:</span>
+                        <span className={styles.expValue}>{t.type}</span>
                       </div>
-                      <div className={styles.transactionDetail}>
-                        <span className={styles.transactionLabel}>Amount:</span>
-                        <span className={`${styles.transactionValue} ${t.credit ? styles.moneyIn : styles.moneyOut}`}>
+                      <div className={styles.expRow}>
+                        <span className={styles.expLabel}>Amount:</span>
+                        <span className={`${styles.expValue} ${t.credit ? styles.moneyIn : styles.moneyOut}`}>
                           {t.credit ? 'Credit' : 'Debit'}: {formatMoney(t.amount)}
                         </span>
                       </div>
-                      <div className={styles.transactionDetail}>
-                        <span className={styles.transactionLabel}>Date:</span>
-                        <span className={styles.transactionValue}>{t.date}</span>
+                      <div className={styles.expRow}>
+                        <span className={styles.expLabel}>Date:</span>
+                        <span className={styles.expValue}>{t.date}</span>
                       </div>
                       {t.accountName && (
-                        <div className={styles.transactionDetail}>
-                          <span className={styles.transactionLabel}>Account Name:</span>
-                          <span className={styles.transactionValue}>{t.accountName}</span>
+                        <div className={styles.expRow}>
+                          <span className={styles.expLabel}>Account:</span>
+                          <span className={styles.expValue}>{t.accountName}</span>
                         </div>
                       )}
-                      <div className={styles.transactionDetail}>
-                        <span className={styles.transactionLabel}>Description:</span>
-                        <span className={styles.transactionValue}>{t.description || 'No description'}</span>
+                      <div className={styles.expRow}>
+                        <span className={styles.expLabel}>Description:</span>
+                        <span className={styles.expValue}>{t.description || 'No description'}</span>
                       </div>
                     </div>
                   )}
@@ -1957,9 +1973,9 @@ export default function Cashflowpage() {
             })}
           </div>
         )}
-        
+
         {!loading && transactions.length > transactionLimit && (
-          <div style={{ textAlign: 'center', marginTop: '16px', color: 'var(--text-3)', fontSize: '0.9rem' }}>
+          <div className={styles.txCounter}>
             Showing {transactionLimit} of {transactions.length} transactions. Click a chip to view more.
           </div>
         )}
