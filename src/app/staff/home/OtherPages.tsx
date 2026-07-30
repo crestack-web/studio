@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { SaleRecord, SalesHistoryItem, PageId } from './types';
 import { DAILY_TARGET } from './data';
-import { LockedPage } from './shared';
+import { LockedPage } from './components/shared';
 import { useLiveClock } from './hooks';
 import { initializeFirebase } from '@/firebase';
 import { getFirestore, doc, getDoc, collection, getDocs, query, where, Timestamp, addDoc, updateDoc } from 'firebase/firestore';
