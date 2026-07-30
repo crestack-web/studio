@@ -3,7 +3,7 @@ const { GoogleAuth } = require('google-auth-library');
 const fs = require('fs');
 const path = require('path');
 
-const privateKey = (process.env.FIREBASE_ADMIN_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+const firebasePrivateKey = (process.env.FIREBASE_ADMIN_PRIVATE_KEY || '').replace(/\\n/g, '\n');
 const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'bizassistant2-62305643-adad7';
 const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL || 'firebase-adminsdk-fbsvc@bizassistant2-62305643-adad7.iam.gserviceaccount.com';
 
@@ -11,7 +11,7 @@ const auth = new GoogleAuth({
   credentials: {
     type: 'service_account',
     project_id: projectId,
-    private_key: privateKey,
+    private_key: firebasePrivateKey,
     client_email: clientEmail,
   },
   scopes: ['https://www.googleapis.com/auth/cloud-platform', 'https://www.googleapis.com/auth/firebase'],
