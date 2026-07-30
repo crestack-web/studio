@@ -99,6 +99,16 @@ service firebase.storage {
     }
     
     // =====================
+    // UGC AVATARS
+    // =====================
+    match /ugc-avatars/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAuthenticated() &&
+                     request.resource.size < 5 * 1024 * 1024 &&
+                     request.resource.contentType.matches('image/.*');
+    }
+
+    // =====================
     // MARKETPLACE IMAGES
     // =====================
     match /market/{storeId}/{allPaths=**} {

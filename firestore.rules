@@ -480,6 +480,39 @@ service cloud.firestore {
     }
     
     // =====================
+    // UGC CREATORS (creator registration — client SDK writes)
+    // =====================
+    match /ugcCreators/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && request.auth.uid == userId;
+      allow delete: if isAdmin();
+    }
+
+    // =====================
+    // UGC VIDEOS (sample reels — creator uploads via client SDK)
+    // =====================
+    match /ugcVideos/{videoId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.creatorId == request.auth.uid;
+    }
+
+    // =====================
+    // UGC ORDERS (brand ↔ creator transactions)
+    // =====================
+    match /ugcOrders/{orderId} {
+      allow read: if isAuthenticated() && (
+        resource.data.creatorId == request.auth.uid ||
+        resource.data.brandId == request.auth.uid
+      );
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (
+        resource.data.creatorId == request.auth.uid ||
+        resource.data.brandId == request.auth.uid
+      );
+    }
+
+    // =====================
     // REFERRALS COLLECTION (for referral program)
     // =====================
     match /referrals/{referralId} {
