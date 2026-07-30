@@ -1049,7 +1049,7 @@ ${processingResult.nextAction}`;
           setTimeout(() => reject(new Error('Google AI API timeout after 30 seconds')), 30000);
         });
 
-        let messageParts = [{ text: message }];
+        let messageParts: ({ text: string } | { inlineData: { mimeType: string; data: string } })[] = [{ text: message }];
         if (image && typeof image === 'string') {
           const [imgHeader, imgData] = image.split(',');
           const imgMimeType = imgHeader?.split(';')[0]?.split(':')[1] || 'image/jpeg';
