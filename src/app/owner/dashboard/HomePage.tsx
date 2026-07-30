@@ -544,15 +544,31 @@ export function HomePage() {
             </CardIcon>
             {t('services.title')}
           </CardHeader>
-          <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-3)', fontSize: '0.85rem' }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ marginBottom: '8px', opacity: 0.5 }}>
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            <div style={{ fontWeight: 500, marginBottom: '4px' }}>No services available at the moment</div>
-            <div style={{ fontSize: '0.75rem' }}>We're working on bringing you useful business services. Check back soon!</div>
-          </div>
+          <a
+            href="https://mo-sell.store/ugc-creators"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ textDecoration: 'none', display: 'block', padding: '16px', borderRadius: '8px', margin: '8px', border: '1px solid var(--border)', transition: 'all 0.2s', cursor: 'pointer' }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#8B5CF6'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'none'; }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+              <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#8B5CF620', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth="2" width="18" height="18">
+                  <polygon points="23 7 16 12 23 17 23 7"/>
+                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                </svg>
+              </div>
+              <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-1)' }}>UGC Content Creation</span>
+            </div>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-2)', margin: 0, lineHeight: 1.5 }}>
+              Get authentic UGC videos and photos from real creators to promote your products.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+              <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-1)' }}>From ₦5,000</span>
+              <span style={{ fontSize: '0.65rem', color: 'var(--text-3)' }}>48-72 hrs</span>
+            </div>
+          </a>
         </Card>
 
         {/* Restaurant Health Score - Only for restaurants */}
