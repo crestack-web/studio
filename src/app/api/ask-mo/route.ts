@@ -130,7 +130,7 @@ When suggesting navigation, always use the exact sidebar button names as referen
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { message, image, audio, businessId, userId, conversationHistory = [], language = 'en', languageName = 'English', businessCategory = 'retail', userRole, businessSummary, userPlan = 'starter' } = body;
+    const { message, image, audio, businessId, userId, conversationHistory = [], language = 'en', languageName = 'English', businessCategory = 'retail', userRole = 'owner', businessSummary, userPlan = 'starter' } = body;
 
     console.log('📡 [Ask MO API] Request received', {
       messageLength: message?.length,
