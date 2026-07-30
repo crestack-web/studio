@@ -39,7 +39,7 @@ async function deployFirestoreRules() {
       `https://firebaserules.googleapis.com/v1/${releaseName}?updateMask=rulesetName`,
       { rulesetName: ruleset.name }
     );
-  } catch (e) {
+  } catch {
     // Release may not exist yet, try creating
     await request(
       'POST',
@@ -66,7 +66,7 @@ async function deployStorageRules() {
       `https://firebaserules.googleapis.com/v1/${releaseName}?updateMask=rulesetName`,
       { rulesetName: ruleset.name }
     );
-  } catch (e) {
+  } catch {
     await request(
       'POST',
       `https://firebaserules.googleapis.com/v1/projects/${projectId}/releases`,
@@ -80,12 +80,12 @@ async function main() {
   try {
     await deployFirestoreRules();
   } catch (e) {
-    console.error('Firestore error:', e.message);
+    console.error('Firestore error:', e instanceof Error ? e.message : e);
   }
   try {
     await deployStorageRules();
   } catch (e) {
-    console.error('Storage error:', e.message);
+    console.error('Storage error:', e instanceof Error ? e.message : e);
   }
   process.exit(0);
 }
