@@ -62,7 +62,6 @@ export function HomePage() {
   const [forecastItems, setForecastItems] = useState<any[]>([]);
   const [yesterdaySales, setYesterdaySales] = useState(0);
   const [pendingCollections, setPendingCollections] = useState(0);
-  const [selectedInsight, setSelectedInsight] = useState<string | null>(null);
   const [selectedForecast, setSelectedForecast] = useState<string | null>(null);
   const [isAIPanelOpen, setIsAIPanelOpen] = useState(false);
   const [cashRunway, setCashRunway] = useState<number>(0);
@@ -583,100 +582,80 @@ export function HomePage() {
           </Card>
         ) : (
           <>
-        {/* Top Insight */}
+        {/* Daily Business Check */}
         <Card>
           <CardHeader>
-            <CardIcon bg="var(--amber-bg)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth={2}>
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            <CardIcon bg="var(--purple-bg)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth={2}>
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
               </svg>
             </CardIcon>
-            {t('home.topInsight')}
+            Daily Check
           </CardHeader>
-          <div className={styles.insightList}>
-            {loading ? (
-              <div style={{ padding: '20px', color: 'var(--text-3)', fontSize: '0.8rem' }}>
-                Loading insights...
+          {loading ? (
+            <div style={{ padding: '20px', color: 'var(--text-3)', fontSize: '0.8rem' }}>Loading...</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '0 12px 12px' }}>
+              {/* Revenue row */}
+              <div className={styles.insightItem} style={{ background: 'var(--bg)', border: 'none', borderRadius: '10px', padding: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--green-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" width="20" height="20">
+                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+                  </svg>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Revenue Today</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-1)', marginTop: '2px' }}>{formatMoney(todayData.sales)}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: yesterdaySales === 0 ? 'var(--text-3)' : todayData.sales >= yesterdaySales ? 'var(--green)' : 'var(--red)' }}>
+                    {yesterdaySales === 0 ? '—' : todayData.sales >= yesterdaySales ? `↑ ${Math.round((todayData.sales / yesterdaySales - 1) * 100)}%` : `↓ ${Math.round((1 - todayData.sales / yesterdaySales) * 100)}%`}
+                  </div>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-3)' }}>vs yesterday</div>
+                </div>
               </div>
-            ) : (
-              <>
-                {/* Sales Trend */}
-                <div className={styles.insightItem} onClick={() => setSelectedInsight('sales-trend')} style={{ cursor: 'pointer' }}>
-                  <div className={styles.insightIcon} style={{ background: yesterdaySales > 0 && todayData.sales > yesterdaySales ? 'var(--green-bg)' : yesterdaySales > 0 && todayData.sales < yesterdaySales ? 'var(--red-bg)' : 'var(--purple-bg)' }}>
-                    {yesterdaySales > 0 && todayData.sales > yesterdaySales ? (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth={2}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
-                    ) : yesterdaySales > 0 && todayData.sales < yesterdaySales ? (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth={2}><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/></svg>
-                    ) : (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth={2}><line x1="12" y1="5" x2="12" y2="19"/></svg>
-                    )}
-                  </div>
-                  <div className={styles.insightText}>
-                    <div className={styles.insightLabel}>Sales Trend</div>
-                    <div className={styles.insightValue}>
-                      {yesterdaySales === 0 ? 'No data yesterday' : 
-                       todayData.sales > yesterdaySales ? `+${formatMoney(todayData.sales - yesterdaySales)} vs yesterday` :
-                       todayData.sales < yesterdaySales ? `-${formatMoney(yesterdaySales - todayData.sales)} vs yesterday` :
-                       'Same as yesterday'}
-                    </div>
+
+              {/* Mini grid: Profit, Cash, Transactions, Alerts */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div className={styles.insightItem} style={{ background: 'var(--bg)', border: 'none', borderRadius: '10px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase' }}>Profit</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: todayData.profit >= 0 ? 'var(--green)' : 'var(--red)' }}>{formatMoney(todayData.profit)}</div>
+                </div>
+                <div className={styles.insightItem} style={{ background: 'var(--bg)', border: 'none', borderRadius: '10px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase' }}>Cash on Hand</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-1)' }}>{formatMoney(metrics.cashBalance)}</div>
+                </div>
+                <div className={styles.insightItem} style={{ background: 'var(--bg)', border: 'none', borderRadius: '10px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase' }}>Transactions</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-1)' }}>{todayData.transactions}</div>
+                </div>
+                <div className={styles.insightItem} style={{ background: lowStockProducts.length + (pendingCollections > 0 ? 1 : 0) > 0 ? 'var(--red-bg)' : 'var(--green-bg)', border: 'none', borderRadius: '10px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '2px', cursor: (lowStockProducts.length > 0 || pendingCollections > 0) ? 'pointer' : 'default' }}
+                  onClick={() => { const count = lowStockProducts.length + (pendingCollections > 0 ? 1 : 0); if (count > 0) navigateTo('inventory'); }}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', color: lowStockProducts.length + (pendingCollections > 0 ? 1 : 0) > 0 ? 'var(--red)' : 'var(--green)' }}>Alerts</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: lowStockProducts.length + (pendingCollections > 0 ? 1 : 0) > 0 ? 'var(--red)' : 'var(--green)' }}>
+                    {lowStockProducts.length + (pendingCollections > 0 ? 1 : 0) > 0
+                      ? `${lowStockProducts.length + (pendingCollections > 0 ? 1 : 0)} need attention`
+                      : 'All clear'}
                   </div>
                 </div>
+              </div>
 
-                {/* Pending Collections */}
-                {pendingCollections > 0 ? (
-                  <div className={styles.insightItem} onClick={() => setSelectedInsight('pending-collections')} style={{ cursor: 'pointer' }}>
-                    <div className={styles.insightIcon} style={{ background: 'var(--red-bg)' }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth={2}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                    </div>
-                    <div className={styles.insightText}>
-                      <div className={styles.insightLabel}>Pending Collections</div>
-                      <div className={styles.insightValue}>{formatMoney(pendingCollections)} to collect</div>
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* Low Stock Alert */}
-                {lowStockProducts.length > 0 ? (
-                  <div className={styles.insightItem} onClick={() => setSelectedInsight('low-stock')} style={{ cursor: 'pointer' }}>
-                    <div className={styles.insightIcon} style={{ background: 'var(--amber-bg)' }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth={2}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                    </div>
-                    <div className={styles.insightText}>
-                      <div className={styles.insightLabel}>Low Stock</div>
-                      <div className={styles.insightValue}>{lowStockProducts.length} {lowStockProducts.length === 1 ? 'item' : 'items'} need restock</div>
-                    </div>
-                  </div>
-                ) : null}
-
-                {/* Cash Balance */}
-                <div className={styles.insightItem} onClick={() => setSelectedInsight('cash-balance')} style={{ cursor: 'pointer' }}>
-                  <div className={styles.insightIcon} style={{ background: metrics.cashBalance > 0 ? 'var(--green-bg)' : 'var(--red-bg)' }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke={metrics.cashBalance > 0 ? 'var(--green)' : 'var(--red)'} strokeWidth={2}><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
-                  </div>
-                  <div className={styles.insightText}>
-                    <div className={styles.insightLabel}>Cash Balance</div>
-                    <div className={styles.insightValue}>{formatMoney(metrics.cashBalance)}</div>
-                  </div>
-                </div>
-
-                {/* Quick Insight */}
-                <div className={styles.insightItem} onClick={() => setSelectedInsight('daily-summary')} style={{ cursor: 'pointer' }}>
-                  <div className={styles.insightIcon} style={{ background: 'var(--blue-bg)' }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth={2}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                  </div>
-                  <div className={styles.insightText}>
-                    <div className={styles.insightLabel}>Today's Insight</div>
-                    <div className={styles.insightValue}>
-                      {todayData.transactions > 10 ? 'Busy day! Great momentum' :
-                       todayData.transactions > 5 ? 'Good activity today' :
-                       todayData.transactions > 0 ? 'Slow start, keep pushing' :
-                       'No sales yet - make it happen!'}
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+              {/* MO daily tip */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '10px', background: 'var(--purple-bg)', cursor: 'pointer' }} onClick={toggleAIPanel}>
+                <MoIcon size={10} />
+                <span style={{ fontSize: '0.78rem', color: 'var(--purple)', fontWeight: 500, flex: 1 }}>
+                  {todayData.transactions === 0
+                    ? 'No sales yet today — ask MO for tips to boost traffic.'
+                    : todayData.sales > yesterdaySales && yesterdaySales > 0
+                      ? `You're beating yesterday by ${formatMoney(todayData.sales - yesterdaySales)}! Keep it up.`
+                      : todayData.sales > 0
+                        ? `${formatMoney(todayData.sales)} in today — ask MO for insights on your top products.`
+                        : 'Ask MO anything about your business performance.'}
+                </span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth="2" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* Smart Forecasts */}
@@ -763,111 +742,6 @@ export function HomePage() {
           </>
         )}
       </div>
-
-      {/* Insight Detail Modal */}
-      {selectedInsight && (
-        <div className={styles.modalOverlay} onClick={() => setSelectedInsight(null)}>
-          <div className={styles.modal} onClick={e => e.stopPropagation()}>
-            <button className={styles.modalClose} onClick={() => setSelectedInsight(null)}>✕</button>
-            <h2 className={styles.modalTitle}>
-              {selectedInsight === 'sales-trend' && 'Sales Trend Details'}
-              {selectedInsight === 'pending-collections' && 'Pending Collections'}
-              {selectedInsight === 'low-stock' && 'Low Stock Items'}
-              {selectedInsight === 'cash-balance' && 'Cash Balance Breakdown'}
-              {selectedInsight === 'daily-summary' && 'Daily Summary'}
-            </h2>
-            <div className={styles.modalContent}>
-              {selectedInsight === 'sales-trend' && (
-                <div className={styles.detailSection}>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Today's Sales</span>
-                    <span className={styles.detailValue}>{formatMoney(todayData.sales)}</span>
-                  </div>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Yesterday's Sales</span>
-                    <span className={styles.detailValue}>{formatMoney(yesterdaySales)}</span>
-                  </div>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Change</span>
-                    <span className={styles.detailValue} style={{ color: todayData.sales > yesterdaySales ? 'var(--green)' : todayData.sales < yesterdaySales ? 'var(--red)' : 'var(--text-1)' }}>
-                      {yesterdaySales === 0 ? 'N/A' : 
-                       todayData.sales > yesterdaySales ? `+${formatMoney(todayData.sales - yesterdaySales)}` :
-                       todayData.sales < yesterdaySales ? `-${formatMoney(yesterdaySales - todayData.sales)}` :
-                       '₦0'}
-                    </span>
-                  </div>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Transactions Today</span>
-                    <span className={styles.detailValue}>{todayData.transactions}</span>
-                  </div>
-                </div>
-              )}
-              {selectedInsight === 'pending-collections' && (
-                <div className={styles.detailSection}>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Total Pending</span>
-                    <span className={styles.detailValue}>{formatMoney(pendingCollections)}</span>
-                  </div>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Action</span>
-                    <span className={styles.detailValue}>Follow up with customers</span>
-                  </div>
-                </div>
-              )}
-              {selectedInsight === 'low-stock' && (
-                <div className={styles.detailSection}>
-                  {lowStockProducts.map((product, index) => (
-                    <div key={index} className={styles.detailRow}>
-                      <span className={styles.detailLabel}>{product.name}</span>
-                      <span className={styles.detailValue}>{product.stock} units</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {selectedInsight === 'cash-balance' && (
-                <div className={styles.detailSection}>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Current Balance</span>
-                    <span className={styles.detailValue}>{formatMoney(metrics.cashBalance)}</span>
-                  </div>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Total Revenue</span>
-                    <span className={styles.detailValue}>{formatMoney(metrics.totalRevenue)}</span>
-                  </div>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Total Expenses</span>
-                    <span className={styles.detailValue}>{formatMoney(metrics.totalExpenses)}</span>
-                  </div>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Net Profit</span>
-                    <span className={styles.detailValue}>{formatMoney(metrics.totalProfit)}</span>
-                  </div>
-                </div>
-              )}
-              {selectedInsight === 'daily-summary' && (
-                <div className={styles.detailSection}>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Total Sales</span>
-                    <span className={styles.detailValue}>{formatMoney(todayData.sales)}</span>
-                  </div>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Profit</span>
-                    <span className={styles.detailValue}>{formatMoney(todayData.profit)}</span>
-                  </div>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Transactions</span>
-                    <span className={styles.detailValue}>{todayData.transactions}</span>
-                  </div>
-                  <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Average Transaction</span>
-                    <span className={styles.detailValue}>{todayData.transactions > 0 ? formatMoney(todayData.sales / todayData.transactions) : '₦0'}</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Forecast Detail Modal */}
       {selectedForecast && (
