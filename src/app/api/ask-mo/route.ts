@@ -1178,7 +1178,7 @@ ${processingResult.nextAction}`;
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { action, businessId, userId, userRole } = body;
+    const { action, businessId, userId, userRole = 'owner' } = body;
 
     if (!action || !businessId || !userId) {
       return NextResponse.json(
