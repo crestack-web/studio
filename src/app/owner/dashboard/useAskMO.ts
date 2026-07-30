@@ -68,7 +68,7 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
   // Ref to always have the latest messages, avoiding stale closures in saveConversation
   const messagesRef = useRef<MOMessage[]>([]);
   const [creditsUsed, setCreditsUsed] = useState(0);
-  const [creditsRemaining, setCreditsRemaining] = useState(2500);
+  const [creditsRemaining, setCreditsRemaining] = useState(2000);
   const [totalCreditsConsumed, setTotalCreditsConsumed] = useState(0);
   const [planLimit, setPlanLimit] = useState(10);
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -79,7 +79,7 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
 
   // Plan-based limitations
   const PLAN_LIMITS = {
-    starter: { messagesPerDay: 10, totalCredits: 2500 },
+    starter: { messagesPerDay: 10, totalCredits: 2000 },
     standard: { messagesPerDay: 50, totalCredits: 10000 },
     pro: { messagesPerDay: -1, totalCredits: -1 },
   };

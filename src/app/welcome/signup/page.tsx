@@ -1240,6 +1240,7 @@ export default function BusmoOnboarding() {
                     trialStartDate: Timestamp.fromDate(trialStart),
                     trialEndDate: Timestamp.fromDate(trialEnd),
                     subscriptionStatus: 'trial',
+                    moCreditsRemaining: selectedPlan === 'pro' ? -1 : 2000,
                     businessAnalysis: data.businessAnalysis,
                     selectedCategory: data.selectedCategory,
                     selectedFeatures: data.selectedFeatures,
