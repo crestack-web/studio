@@ -17,7 +17,7 @@ const auth = new GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/cloud-platform', 'https://www.googleapis.com/auth/firebase'],
 });
 
-async function request(method, url, body) {
+async function request(method: string, url: string, body?: any) {
   const client = await auth.getClient();
   const res = await client.request({ method, url, data: body });
   return res.data;
