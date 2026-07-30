@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { processConfirmedOrder } from '@/lib/services/mo-sell-integration-bridge';
-import type { CheckoutSession } from '@/app/sell/mo-sell.types';
+import type { CheckoutSession } from '@/types/mo-sell.types';
 
 /**
  * POST /api/store/webhook/paystack

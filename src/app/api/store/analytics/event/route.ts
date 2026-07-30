@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
-import type { AnalyticsEventType } from '@/app/sell/mo-sell.types';
+import type { AnalyticsEventType } from '@/types/mo-sell.types';
 
 const VALID_EVENT_TYPES: AnalyticsEventType[] = [
   'page_view', 'add_to_cart', 'checkout_initiated', 'order_completed',

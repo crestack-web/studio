@@ -41,7 +41,43 @@ const nextConfig: NextConfig = {
     GOOGLE_GENAI_API_KEY: process.env.GOOGLE_GENAI_API_KEY,
   },
   async redirects() {
-    return [];
+    return [
+      {
+        source: '/sell',
+        destination: 'https://mo-sell.store/',
+        permanent: true,
+      },
+      {
+        source: '/sell/:path*',
+        destination: 'https://mo-sell.store/:path*',
+        permanent: true,
+      },
+      {
+        source: '/sell-login',
+        destination: 'https://mo-sell.store/login',
+        permanent: true,
+      },
+      {
+        source: '/sell-signup',
+        destination: 'https://mo-sell.store/signup',
+        permanent: true,
+      },
+      {
+        source: '/sell-welcome',
+        destination: 'https://mo-sell.store/',
+        permanent: true,
+      },
+      {
+        source: '/sell-subscribe',
+        destination: 'https://mo-sell.store/subscribe',
+        permanent: true,
+      },
+      {
+        source: '/sell-subscribe/:path*',
+        destination: 'https://mo-sell.store/subscribe/:path*',
+        permanent: true,
+      },
+    ];
   },
   async rewrites() {
     const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import type { StorefrontTheme } from '@/app/sell/mo-sell.types';
+import type { StorefrontTheme } from '@/types/mo-sell.types';
 
 interface Props {
   storeName: string;

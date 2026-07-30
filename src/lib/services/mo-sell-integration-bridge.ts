@@ -15,7 +15,7 @@ import type {
   OrderLineItem,
   CheckoutSession,
   StoreConfig,
-} from '@/app/sell/mo-sell.types';
+} from '@/types/mo-sell.types';
 import { FieldValue } from 'firebase-admin/firestore';
 
 // ─── Email helpers (fire-and-forget, non-blocking) ────────────────────────────

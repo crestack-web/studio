@@ -11,8 +11,8 @@ import '../../../app/store/themes/minimal.css';
 import { CartProvider } from './context/CartContext';
 import { StorefrontNav } from './components/StorefrontNav';
 import { CartDrawer } from './components/CartDrawer';
-import type { StorefrontTheme, StoreSection, FooterSectionSettings, HeaderSectionSettings } from '@/app/sell/mo-sell.types';
-import { DEFAULT_SECTIONS } from '@/app/sell/mo-sell.types';
+import type { StorefrontTheme, StoreSection, FooterSectionSettings, HeaderSectionSettings } from '@/types/mo-sell.types';
+import { DEFAULT_SECTIONS } from '@/types/mo-sell.types';
 import { isLinkTheme } from '@/app/store/themes/registry';
 
 // ─── Fetch store config ───────────────────────────────────────────────────────

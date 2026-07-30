@@ -1,4 +1,4 @@
-import type { StorefrontTheme } from '@/app/sell/mo-sell.types';
+import type { StorefrontTheme } from '@/types/mo-sell.types';
 import type { ThemeComponents, ThemeProductCardProps, ThemeCollectionCardProps, ThemeHeroProps, ThemeProductPageProps } from './types';
 
 // ─── Theme metadata (for sell dashboard UI) ─────────────────────────────────

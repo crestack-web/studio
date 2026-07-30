@@ -8,8 +8,8 @@ import type {
   FeaturedSectionSettings, AnnouncementSectionSettings,
   AboutSectionSettings, TestimonialsSectionSettings,
   InstagramSectionSettings, NewsletterSectionSettings,
-} from '@/app/sell/mo-sell.types';
-import { DEFAULT_SECTIONS } from '@/app/sell/mo-sell.types';
+} from '@/types/mo-sell.types';
+import { DEFAULT_SECTIONS } from '@/types/mo-sell.types';
 
 const BASE = () => process.env.PUBLIC_APP_URL ?? 'http://localhost:3000';
 
