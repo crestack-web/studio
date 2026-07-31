@@ -1,5 +1,5 @@
 require('dotenv').config({ path: '.env.local' });
-const admin = require('firebase-admin');
+const adminSDK = require('firebase-admin');
 
 // Initialize with environment variables
 const serviceAccount = {
@@ -15,12 +15,12 @@ const serviceAccount = {
   client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${process.env.FIREBASE_CLIENT_EMAIL || 'firebase-adminsdk-fbsvc@bizassistant2-62305643-adad7.iam.gserviceaccount.com'}`
 };
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+adminSDK.initializeApp({
+  credential: adminSDK.credential.cert(serviceAccount),
   projectId: 'bizassistant2-62305643-adad7'
 });
 
-const db = admin.firestore();
+const db = adminSDK.firestore();
 
 async function updateUserPlan() {
   const email = 'goodboygnut@gmail.com';
@@ -47,7 +47,7 @@ async function updateUserPlan() {
       plan: 'lifetime',
       planType: 'lifetime',
       lifetimeAccess: true,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      updatedAt: adminSDK.firestore.FieldValue.serverTimestamp()
     });
     
     console.log(`Successfully updated ${email} to lifetime access`);

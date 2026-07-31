@@ -11,23 +11,23 @@ dotenv.config({ path: '.env.local' });
 if (!admin.apps.length) {
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'bizassistant2-62305643-adad7';
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  const firebasePrivateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n');
 
   console.log('🔑 Firebase Admin Config:', { projectId, clientEmail });
 
-  if (clientEmail && privateKey) {
+  if (clientEmail && firebasePrivateKey) {
     admin.initializeApp({
       credential: admin.credential.cert({
         projectId,
         clientEmail,
-        privateKey,
+        privateKey: firebasePrivateKey,
       }),
     });
     console.log('✅ Firebase Admin initialized successfully');
   } else {
     console.error('❌ Firebase Admin credentials not found in environment variables');
     console.log('FIREBASE_ADMIN_CLIENT_EMAIL:', clientEmail ? 'Found' : 'Missing');
-    console.log('FIREBASE_ADMIN_PRIVATE_KEY:', privateKey ? 'Found' : 'Missing');
+    console.log('FIREBASE_ADMIN_PRIVATE_KEY:', firebasePrivateKey ? 'Found' : 'Missing');
     process.exit(1);
   }
 }
