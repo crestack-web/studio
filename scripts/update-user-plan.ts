@@ -1,3 +1,5 @@
+export {};
+
 require('dotenv').config({ path: '.env.local' });
 const adminSDK = require('firebase-admin');
 

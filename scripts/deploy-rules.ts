@@ -1,3 +1,5 @@
+export {};
+
 require('dotenv').config({ path: '.env.local' });
 const { GoogleAuth } = require('google-auth-library');
 const fs = require('fs');
