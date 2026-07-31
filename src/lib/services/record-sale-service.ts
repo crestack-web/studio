@@ -277,6 +277,70 @@ export async function recordSale(params: RecordSaleParams): Promise<RecordSaleRe
  * Get product by name (fuzzy match)
  * Used by MO to find products in inventory
  */
+function levenshteinDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp: number[] = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const tmp = dp[j];
+      dp[j] = Math.min(
+        dp[j] + 1,
+        dp[j - 1] + 1,
+        prev + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+      prev = tmp;
+    }
+  }
+  return dp[n];
+}
+
+function normalizeName(s: string): string {
+  return (s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function tokenSimilarity(query: string, target: string): number {
+  const qTokens = normalizeName(query).split(' ').filter(Boolean);
+  const tTokens = normalizeName(target).split(' ').filter(Boolean);
+  if (qTokens.length === 0 || tTokens.length === 0) return 0;
+
+  let matchedScore = 0;
+  for (const qt of qTokens) {
+    let best = 0;
+    for (const tt of tTokens) {
+      if (qt === tt) {
+        best = 1;
+        break;
+      }
+      if (qt.length >= 3 && (tt.includes(qt) || qt.includes(tt))) {
+        best = Math.max(best, 0.9);
+        continue;
+      }
+      const ratio = 1 - levenshteinDistance(qt, tt) / Math.max(qt.length, tt.length, 1);
+      if (ratio >= 0.7) {
+        best = Math.max(best, ratio);
+      }
+    }
+    matchedScore += best;
+  }
+  return matchedScore / qTokens.length;
+}
+
+function productNameSimilarity(query: string, target: string): number {
+  const q = normalizeName(query);
+  const t = normalizeName(target);
+  if (!q || !t) return 0;
+  if (q === t) return 1;
+  if (q.length >= 3 && t.includes(q)) return 0.95;
+  const tokenScore = tokenSimilarity(q, t);
+  const fullRatio = 1 - levenshteinDistance(q, t) / Math.max(q.length, t.length);
+  return Math.max(tokenScore, fullRatio);
+}
+
 export async function findProductByName(
   businessId: string,
   productName: string
@@ -300,18 +364,33 @@ export async function findProductByName(
       };
     }
 
-    // Try case-insensitive search
-    const allProducts = await db.collection('businesses')
-      .doc(businessId)
-      .collection('products')
-      .where('active', '==', true)
-      .get();
+    // Try case-insensitive fuzzy search (handles misspellings and partial names)
+    const scoreProducts = (docs: any) =>
+      docs.docs
+        .map((doc: any) => ({ id: doc.id, ...doc.data() }))
+        .map((p: any) => ({ product: p, score: productNameSimilarity(productName, p.name) }))
+        .filter((entry: any) => entry.score >= 0.7)
+        .sort((a: any, b: any) => b.score - a.score)
+        .slice(0, 5)
+        .map((entry: any) => entry.product);
 
-    const searchTerm = productName.toLowerCase();
-    const matches = allProducts.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }))
-      .filter((p: any) => p.name.toLowerCase().includes(searchTerm))
-      .slice(0, 5); // Return top 5 matches
+    let matches = scoreProducts(
+      await db.collection('businesses')
+        .doc(businessId)
+        .collection('products')
+        .where('active', '==', true)
+        .get()
+    );
+
+    // Fallback: also match products that may be missing the active flag
+    if (matches.length === 0) {
+      matches = scoreProducts(
+        await db.collection('businesses')
+          .doc(businessId)
+          .collection('products')
+          .get()
+      );
+    }
 
     if (matches.length > 0) {
       return {
