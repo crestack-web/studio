@@ -481,18 +481,21 @@ service cloud.firestore {
     
     // =====================
     // UGC CREATORS (creator registration — client SDK writes)
+    // Public read so the UGC marketplace/discover pages can list creators for
+    // both logged-in and anonymous visitors.
     // =====================
     match /ugcCreators/{userId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create, update: if isAuthenticated() && request.auth.uid == userId;
       allow delete: if isAdmin();
     }
 
     // =====================
     // UGC VIDEOS (sample reels — creator uploads via client SDK)
+    // Public read so any visitor can preview creator portfolios.
     // =====================
     match /ugcVideos/{videoId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow create: if isAuthenticated() && request.resource.data.creatorId == request.auth.uid;
       allow update, delete: if isAuthenticated() && resource.data.creatorId == request.auth.uid;
     }
