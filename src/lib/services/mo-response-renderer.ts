@@ -39,6 +39,7 @@ interface ProductCard {
   cost: number;
   stock: number;
   sku?: string;
+  imageUrl?: string;
   message: string;
 }
 

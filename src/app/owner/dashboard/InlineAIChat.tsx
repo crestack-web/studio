@@ -43,7 +43,7 @@ interface MOMessage {
   expandableSections?: Array<{ title: string; content: string; id: string }>;
   alerts?: Array<{ type: 'warning' | 'info' | 'success' | 'error'; message: string }>;
   saleCard?: {
-    items: Array<{ name: string; quantity: number; price: number; costPrice?: number }>;
+    items: Array<{ name: string; quantity: number; price: number; costPrice?: number; imageUrl?: string }>;
     totalRevenue: number;
     totalProfit?: number;
     timestamp: Date;
@@ -56,6 +56,7 @@ interface MOMessage {
     cost: number;
     stock: number;
     sku?: string;
+    imageUrl?: string;
     message: string;
   };
   expenseCard?: {
@@ -556,19 +557,22 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
         showToast(`Action completed: ${result.message}`);
 
         if (pendingAction.action === 'record_sale' && pendingMessageId) {
-          const recordedItems = result.data?.items?.map((item: any) => ({
-            name: item.name,
-            quantity: item.quantity,
-            price: item.price,
-            costPrice: item.costPrice,
-          })) || [{
+          const cardIndex = updatedMessages.findIndex(msg => msg.id === pendingMessageId && msg.saleCard);
+          const existingCard = cardIndex !== -1 ? updatedMessages[cardIndex].saleCard : undefined;
+          const fallbackItems = existingCard?.items || [{
             name: pendingAction.data.productName || 'Sale',
             quantity: pendingAction.data.quantity || 1,
             price: pendingAction.data.price || 0,
             costPrice: pendingAction.data.costPrice,
+            imageUrl: undefined,
           }];
-          const cardIndex = updatedMessages.findIndex(msg => msg.id === pendingMessageId && msg.saleCard);
-          const existingCard = cardIndex !== -1 ? updatedMessages[cardIndex].saleCard : undefined;
+          const recordedItems = result.data?.items?.map((item: any, idx: number) => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            costPrice: item.costPrice,
+            imageUrl: item.imageUrl || fallbackItems[idx]?.imageUrl || undefined,
+          })) || fallbackItems;
           if (cardIndex !== -1 && existingCard) {
             updatedMessages[cardIndex] = {
               ...updatedMessages[cardIndex],
@@ -598,6 +602,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
                 cost: pendingAction.data.costPrice || 0,
                 stock: pendingAction.data.stock || 0,
                 sku: pendingAction.data.sku,
+                imageUrl: pendingAction.data.imageUrl,
                 message: `✅ Product "${pendingAction.data.name}" added successfully.`,
               },
             }),
@@ -880,6 +885,14 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
                       {pendingAction?.action === 'add_product' ? '📦 Confirm Add Product' : '✅ Product Added'}
                     </h4>
                     <p style={{ margin: '4px 0' }}><strong>{m.productCard.name}</strong></p>
+                    {m.productCard.imageUrl && (
+                      <img
+                        src={m.productCard.imageUrl}
+                        alt={m.productCard.name}
+                        style={{ width: '64px', height: '64px', objectFit: 'cover', borderRadius: '8px', marginTop: '4px', display: 'block' }}
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    )}
                     <p style={{ margin: '4px 0', fontSize: '0.9rem' }}>
                       Stock: {m.productCard.stock} units<br/>
                       Selling: ₦{m.productCard.price.toLocaleString()}<br/>

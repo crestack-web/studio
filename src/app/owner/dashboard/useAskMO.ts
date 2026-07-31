@@ -18,7 +18,7 @@ interface MOMessage {
   expandableSections?: Array<{ title: string; content: string; id: string }>;
   alerts?: Array<{ type: 'warning' | 'info' | 'success' | 'error'; message: string }>;
   saleCard?: {
-    items: Array<{ name: string; quantity: number; price: number; costPrice?: number }>;
+    items: Array<{ name: string; quantity: number; price: number; costPrice?: number; imageUrl?: string }>;
     totalRevenue: number;
     totalProfit?: number;
     timestamp: Date;
@@ -31,6 +31,7 @@ interface MOMessage {
     cost: number;
     stock: number;
     sku?: string;
+    imageUrl?: string;
     message: string;
   };
   expenseCard?: {

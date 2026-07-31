@@ -247,6 +247,7 @@ async function handleRecordSale(
       price: sellingPrice,
       costPrice,
       emoji: product.attributes?.emoji || '📦',
+      imageUrl: product.imageUrl || item.imageUrl || '',
     });
 
     productSummaries.push({
@@ -254,6 +255,7 @@ async function handleRecordSale(
       quantity,
       sellingPrice,
       costPrice,
+      imageUrl: product.imageUrl || item.imageUrl || '',
     });
   }
 
@@ -312,6 +314,7 @@ async function handleRecordSale(
           quantity: product.quantity,
           price: product.sellingPrice,
           costPrice: product.costPrice,
+          imageUrl: product.imageUrl,
           remainingStock: result.data?.remainingStock[saleItems[idx].productId],
         })),
       },
@@ -388,7 +391,7 @@ async function handleAddProduct(
       shippingFeeOverride: data.shippingFeeOverride,
       manualSale: data.manualSale !== false,
       onlineStore: data.onlineStore || false,
-      imageUrl: data.imageUrl || '',
+      imageUrl: data.imageData ? '' : (data.imageUrl || ''),
       imageData: data.imageData,
       productType: data.productType || 'product',
       dishCategory: data.dishCategory,

@@ -655,6 +655,13 @@ export async function POST(request: NextRequest) {
         
         let enrichedData = { ...intent.data };
 
+        // For add_product with an attached photo, carry the image so it can be
+        // shown on the confirmation card and uploaded when the user confirms
+        if (intent.intent === 'add_product' && image && typeof image === 'string') {
+          enrichedData.imageData = image;
+          enrichedData.imageUrl = image;
+        }
+
         // For record_sale: look up products from inventory to get real prices and calculate profit
         if (intent.intent === 'record_sale' && businessId) {
           try {
@@ -683,6 +690,7 @@ export async function POST(request: NextRequest) {
                     costPrice,
                     productId: product.id,
                     stock: product.stock || product.quantity || 0,
+                    imageUrl: product.imageUrl || item.imageUrl || '',
                   });
 
                   totalRevenue += itemRevenue;
@@ -695,6 +703,7 @@ export async function POST(request: NextRequest) {
                     costPrice: 0,
                     productId: null,
                     stock: 0,
+                    imageUrl: item.imageUrl || '',
                   });
                   totalRevenue += (item.price || 0) * (parseInt(item.quantity) || 1);
                 }
@@ -750,6 +759,7 @@ export async function POST(request: NextRequest) {
               quantity: item.quantity || 1,
               price: item.price || 0,
               costPrice: item.costPrice || 0,
+              imageUrl: item.imageUrl || '',
             })),
             totalRevenue: enrichedData.totalRevenue || 0,
             totalProfit: enrichedData.profit || 0,
@@ -763,6 +773,7 @@ export async function POST(request: NextRequest) {
             cost: enrichedData.costPrice || 0,
             stock: enrichedData.stock || 0,
             sku: enrichedData.sku,
+            imageUrl: enrichedData.imageUrl,
             message: `Add ${enrichedData.name || 'product'} to inventory`,
           };
         } else if (intent.intent === 'add_expense') {

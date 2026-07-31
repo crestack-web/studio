@@ -8,6 +8,7 @@ interface SaleItem {
   quantity: number;
   price: number;
   costPrice?: number;
+  imageUrl?: string;
 }
 
 interface SaleConfirmationCardProps {
@@ -57,8 +58,9 @@ function generateReceiptHTML(items: SaleItem[], totalRevenue: number, totalProfi
   </div>
   <div class="items">
     ${items.map(item => `
-    <div class="item">
-      <div>
+    <div class="item" style="display: flex; align-items: center; gap: 10px;">
+      ${item.imageUrl ? `<img src="${item.imageUrl}" alt="${item.name}" style="width:32px;height:32px;object-fit:cover;border-radius:6px;flex-shrink:0;" onerror="this.style.display='none'">` : ''}
+      <div style="flex: 1;">
         <div class="item-name">${item.name}</div>
         <div class="item-details">${item.quantity} x ₦${item.price.toLocaleString()}${item.costPrice ? ` (Cost: ₦${item.costPrice.toLocaleString()})` : ''}</div>
       </div>
@@ -147,11 +149,23 @@ export function SaleConfirmationCard({ items, totalRevenue, totalProfit, timesta
             </div>
           </div>
           {items.map((item, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderBottom: '1px solid #f5f5f5' }}>
-              <div>
-                <div style={{ fontWeight: 500 }}>{item.name}</div>
-                <div style={{ color: '#666', fontSize: '12px' }}>
-                  {item.quantity} x ₦{item.price.toLocaleString()}
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid #f5f5f5' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {item.imageUrl ? (
+                  <img
+                    src={item.imageUrl}
+                    alt={item.name}
+                    style={{ width: '28px', height: '28px', objectFit: 'cover', borderRadius: '6px', flexShrink: 0 }}
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                ) : (
+                  <Package size={16} style={{ color: '#0369a1', flexShrink: 0 }} />
+                )}
+                <div>
+                  <div style={{ fontWeight: 500 }}>{item.name}</div>
+                  <div style={{ color: '#666', fontSize: '12px' }}>
+                    {item.quantity} x ₦{item.price.toLocaleString()}
+                  </div>
                 </div>
               </div>
               <div style={{ fontWeight: 600 }}>₦{(item.price * item.quantity).toLocaleString()}</div>
@@ -231,7 +245,16 @@ export function SaleConfirmationCard({ items, totalRevenue, totalProfit, timesta
         {items.map((item, index) => (
           <div key={index} className="flex items-center justify-between py-2 px-3 bg-white/50 dark:bg-white/5 rounded-lg">
             <div className="flex items-center gap-2">
-              <Package className="w-4 h-4 text-green-600 dark:text-green-400" />
+              {item.imageUrl ? (
+                <img
+                  src={item.imageUrl}
+                  alt={item.name}
+                  className="w-8 h-8 object-cover rounded-lg"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              ) : (
+                <Package className="w-4 h-4 text-green-600 dark:text-green-400" />
+              )}
               <div>
                 <span className="font-medium text-gray-800 dark:text-gray-200 text-sm">
                   {item.name}
