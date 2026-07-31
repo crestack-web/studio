@@ -130,6 +130,7 @@ export function MobileAskMOPage() {
   const [loadingText, setLoadingText] = useState<string>('');
   const [isSending, setIsSending] = useState(false); // Prevent duplicate requests
   const [pendingAction, setPendingAction] = useState<any>(null);
+  const [pendingMessageId, setPendingMessageId] = useState<string | null>(null);
   const [isExecutingAction, setIsExecutingAction] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<MOMessage[]>([]);
@@ -157,6 +158,7 @@ export function MobileAskMOPage() {
     setIsExecutingAction(true);
     try {
       const { firestore } = initializeFirebase();
+      const updatedMessages = [...messagesRef.current];
       
       if (pendingAction.action === 'record_sale') {
         const saleData = pendingAction.data;
@@ -178,38 +180,43 @@ export function MobileAskMOPage() {
         if (result.success) {
           showToast(`Sale recorded: ${result.message}`);
           
+          if (pendingMessageId) {
+            const recordedItems = result.data?.items?.map((item: any) => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price,
+              costPrice: item.costPrice,
+            })) || [{
+              name: saleData.productName || 'Sale',
+              quantity: saleData.quantity || 1,
+              price: result.data?.product?.sellingPrice || saleData.price || 0,
+              costPrice: result.data?.product?.costPrice || saleData.costPrice,
+            }];
+            const cardIndex = updatedMessages.findIndex(msg => msg.id === pendingMessageId && msg.saleCard);
+            const existingCard = cardIndex !== -1 ? updatedMessages[cardIndex].saleCard : undefined;
+            if (cardIndex !== -1 && existingCard) {
+              updatedMessages[cardIndex] = {
+                ...updatedMessages[cardIndex],
+                saleCard: {
+                  ...existingCard,
+                  items: recordedItems,
+                  totalRevenue: result.data.totalRevenue || 0,
+                  totalProfit: result.data.profit ?? existingCard.totalProfit,
+                  timestamp: new Date(),
+                  mode: 'recorded',
+                },
+              };
+            }
+          }
+          
           // Add success message to chat
           const successMsg: MOMessage = {
             id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             role: 'bot',
             content: `✅ Sale recorded successfully!\n\n${result.message}\n\nItems: ${saleData.items?.length || 1}\nRevenue: ₦${result.data.totalRevenue?.toLocaleString()}\nProfit: ₦${result.data.profit?.toLocaleString()}`,
             timestamp: new Date(),
-            saleCard: {
-              items: result.data?.items?.map((item: any) => ({
-                name: item.name,
-                quantity: item.quantity,
-                price: item.price,
-                costPrice: item.costPrice,
-              })) || [{
-                name: saleData.productName || 'Sale',
-                quantity: saleData.quantity || 1,
-                price: result.data?.product?.sellingPrice || saleData.price || 0,
-                costPrice: result.data?.product?.costPrice || saleData.costPrice,
-              }],
-              totalRevenue: result.data.totalRevenue || 0,
-              totalProfit: result.data.profit || 0,
-              timestamp: new Date(),
-              mode: 'recorded',
-            },
           };
-
-          setMessages(prev => [...prev, successMsg]);
-          setPendingAction(null);
-          
-          // Save conversation after successful action
-          if (currentConversationId) {
-            await saveConversation();
-          }
+          updatedMessages.push(successMsg);
         } else {
           showToast(`Failed to record sale: ${result.message}`);
           
@@ -219,13 +226,7 @@ export function MobileAskMOPage() {
             content: `❌ Failed to record sale: ${result.message}`,
             timestamp: new Date(),
           };
-
-          setMessages(prev => [...prev, errorMsg]);
-          setPendingAction(null);
-          
-          if (currentConversationId) {
-            await saveConversation();
-          }
+          updatedMessages.push(errorMsg);
         }
       } else {
         // Generic handler for add_expense, add_product, etc.
@@ -270,7 +271,7 @@ export function MobileAskMOPage() {
               },
             }),
           };
-          setMessages(prev => [...prev, successMsg]);
+          updatedMessages.push(successMsg);
         } else {
           showToast(`Failed: ${result.message}`);
           const errorMsg: MOMessage = {
@@ -279,17 +280,21 @@ export function MobileAskMOPage() {
             content: `❌ ${result.message || 'Action failed.'}`,
             timestamp: new Date(),
           };
-          setMessages(prev => [...prev, errorMsg]);
+          updatedMessages.push(errorMsg);
         }
-        setPendingAction(null);
-        if (currentConversationId) {
-          await saveConversation();
-        }
+      }
+
+      setMessages(updatedMessages);
+      setPendingAction(null);
+      setPendingMessageId(null);
+      if (currentConversationId) {
+        await saveMessages(currentConversationId, updatedMessages);
       }
     } catch (error) {
       console.error('Error executing action:', error);
       showToast('Failed to execute action');
       setPendingAction(null);
+      setPendingMessageId(null);
       
       // Save conversation even on error
       if (currentConversationId) {
@@ -298,7 +303,7 @@ export function MobileAskMOPage() {
     } finally {
       setIsExecutingAction(false);
     }
-  }, [pendingAction, isExecutingAction, user, showToast, currentConversationId, saveConversation, setMessages]);
+  }, [pendingAction, isExecutingAction, pendingMessageId, user, showToast, currentConversationId, saveConversation, saveMessages, setMessages]);
 
   // Check for pre-filled question from other pages
   useEffect(() => {
@@ -683,6 +688,7 @@ export function MobileAskMOPage() {
       // If API returned a pending action (needs confirmation), set it
       if (data.pendingAction) {
         setPendingAction(data.pendingAction);
+        setPendingMessageId(botMsgId);
       }
 
       // Update the final message
@@ -779,6 +785,7 @@ export function MobileAskMOPage() {
     };
     setMessages(prev => [...prev, cancelMsg]);
     setPendingAction(null);
+    setPendingMessageId(null);
     
     // Save conversation after cancellation
     if (currentConversationId) {
@@ -1066,12 +1073,12 @@ export function MobileAskMOPage() {
                     timestamp={m.saleCard.timestamp}
                     mode={m.saleCard.mode || 'pending'}
                     onConfirm={
-                      pendingAction && pendingAction.action === 'record_sale' && !isExecutingAction
+                      pendingAction && pendingMessageId === m.id && pendingAction.action === 'record_sale' && !isExecutingAction
                         ? executePendingAction
                         : undefined
                     }
                     onCancel={
-                      pendingAction && pendingAction.action === 'record_sale' && !isExecutingAction
+                      pendingAction && pendingMessageId === m.id && pendingAction.action === 'record_sale' && !isExecutingAction
                         ? cancelPendingAction
                         : undefined
                     }
@@ -1098,7 +1105,7 @@ export function MobileAskMOPage() {
                     Cost: ₦{m.productCard.cost.toLocaleString()}
                     {m.productCard.sku && <><br/>SKU: {m.productCard.sku}</>}
                   </p>
-                  {pendingAction && pendingAction.action === 'add_product' && !isExecutingAction && (
+                  {pendingAction && pendingMessageId === m.id && pendingAction.action === 'add_product' && !isExecutingAction && (
                     <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
                       <button onClick={executePendingAction} style={{ flex: 1, padding: '10px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
                         ✓ Confirm
@@ -1127,7 +1134,7 @@ export function MobileAskMOPage() {
                     Amount: ₦{m.expenseCard.amount.toLocaleString()}<br/>
                     Date: {m.expenseCard.date}
                   </p>
-                  {pendingAction && pendingAction.action === 'add_expense' && !isExecutingAction && (
+                  {pendingAction && pendingMessageId === m.id && pendingAction.action === 'add_expense' && !isExecutingAction && (
                     <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
                       <button onClick={executePendingAction} style={{ flex: 1, padding: '10px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>
                         ✓ Confirm

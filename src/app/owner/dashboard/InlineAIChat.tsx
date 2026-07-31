@@ -135,6 +135,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
   const [loadingText, setLoadingText] = useState<string>('');
   const [isExecuting, setIsExecuting] = useState(false);
   const [pendingAction, setPendingAction] = useState<any>(null);
+  const [pendingMessageId, setPendingMessageId] = useState<string | null>(null);
   const [isExecutingAction, setIsExecutingAction] = useState(false);
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -479,6 +480,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
       // If API returned a pending action (needs confirmation), set it
       if (data.pendingAction) {
         setPendingAction(data.pendingAction);
+        setPendingMessageId(botMsg.id);
       }
 
       setMessages(prev => [...prev, botMsg]);
@@ -548,54 +550,69 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
         }),
       });
       const result = await response.json();
+      const updatedMessages = [...messagesRef.current];
+
       if (result.success) {
         showToast(`Action completed: ${result.message}`);
+
+        if (pendingAction.action === 'record_sale' && pendingMessageId) {
+          const recordedItems = result.data?.items?.map((item: any) => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            costPrice: item.costPrice,
+          })) || [{
+            name: pendingAction.data.productName || 'Sale',
+            quantity: pendingAction.data.quantity || 1,
+            price: pendingAction.data.price || 0,
+            costPrice: pendingAction.data.costPrice,
+          }];
+          const cardIndex = updatedMessages.findIndex(msg => msg.id === pendingMessageId && msg.saleCard);
+          const existingCard = cardIndex !== -1 ? updatedMessages[cardIndex].saleCard : undefined;
+          if (cardIndex !== -1 && existingCard) {
+            updatedMessages[cardIndex] = {
+              ...updatedMessages[cardIndex],
+              saleCard: {
+                ...existingCard,
+                items: recordedItems,
+                totalRevenue: result.data?.totalRevenue ?? existingCard.totalRevenue ?? 0,
+                totalProfit: result.data?.totalProfit ?? result.data?.profit ?? existingCard.totalProfit,
+                timestamp: new Date(),
+                mode: 'recorded',
+              },
+            };
+          }
+        }
+
         const successMsg: MOMessage = {
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           role: 'bot',
           content: `✅ ${result.message || 'Action completed successfully.'}`,
           timestamp: new Date(),
-          ...(pendingAction.action === 'record_sale' && {
-            saleCard: {
-              items: result.data?.items?.map((item: any) => ({
-                name: item.name,
-                quantity: item.quantity,
-                price: item.price,
-                costPrice: item.costPrice,
-              })) || [{
-                name: pendingAction.data.productName || 'Sale',
-                quantity: pendingAction.data.quantity || 1,
+          ...(pendingAction.action !== 'record_sale' && {
+            ...(pendingAction.action === 'add_product' && {
+              productCard: {
+                type: 'product',
+                name: pendingAction.data.name || 'Product',
                 price: pendingAction.data.price || 0,
-                costPrice: pendingAction.data.costPrice,
-              }],
-              totalRevenue: result.data?.totalRevenue || pendingAction.data.totalRevenue || 0,
-              totalProfit: result.data?.totalProfit ?? result.data?.profit ?? pendingAction.data.profit,
-              timestamp: new Date(),
-              mode: 'recorded',
-            },
-          }),
-          ...(pendingAction.action === 'add_product' && {
-            productCard: {
-              type: 'product',
-              name: pendingAction.data.name || 'Product',
-              price: pendingAction.data.price || 0,
-              cost: pendingAction.data.costPrice || 0,
-              stock: pendingAction.data.stock || 0,
-              sku: pendingAction.data.sku,
-              message: `✅ Product "${pendingAction.data.name}" added successfully.`,
-            },
-          }),
-          ...(pendingAction.action === 'add_expense' && {
-            expenseCard: {
-              type: 'expense',
-              category: pendingAction.data.category || 'General',
-              amount: pendingAction.data.amount || 0,
-              date: pendingAction.data.date || new Date().toISOString().split('T')[0],
-              message: `✅ Expense recorded: ${pendingAction.data.category || 'General'}`,
-            },
+                cost: pendingAction.data.costPrice || 0,
+                stock: pendingAction.data.stock || 0,
+                sku: pendingAction.data.sku,
+                message: `✅ Product "${pendingAction.data.name}" added successfully.`,
+              },
+            }),
+            ...(pendingAction.action === 'add_expense' && {
+              expenseCard: {
+                type: 'expense',
+                category: pendingAction.data.category || 'General',
+                amount: pendingAction.data.amount || 0,
+                date: pendingAction.data.date || new Date().toISOString().split('T')[0],
+                message: `✅ Expense recorded: ${pendingAction.data.category || 'General'}`,
+              },
+            }),
           }),
         };
-        setMessages(prev => [...prev, successMsg]);
+        updatedMessages.push(successMsg);
       } else {
         showToast(`Failed: ${result.message}`);
         const errorMsg: MOMessage = {
@@ -604,19 +621,25 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
           content: `❌ ${result.message || 'Action failed.'}`,
           timestamp: new Date(),
         };
-        setMessages(prev => [...prev, errorMsg]);
+        updatedMessages.push(errorMsg);
+      }
+
+      setMessages(updatedMessages);
+      if (currentConversationId) {
+        await saveMessages(currentConversationId, updatedMessages);
       }
     } catch (error) {
       console.error('Error executing action:', error);
       showToast('Failed to execute action');
-    } finally {
-      setPendingAction(null);
-      setIsExecutingAction(false);
       if (currentConversationId) {
         await saveConversation();
       }
+    } finally {
+      setPendingAction(null);
+      setPendingMessageId(null);
+      setIsExecutingAction(false);
     }
-  }, [pendingAction, isExecutingAction, user, showToast, currentConversationId, saveConversation, setMessages]);
+  }, [pendingAction, isExecutingAction, pendingMessageId, user, showToast, currentConversationId, saveConversation, saveMessages, setMessages]);
 
   const cancelPendingAction = useCallback(() => {
     const cancelMsg: MOMessage = {
@@ -627,6 +650,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
     };
     setMessages(prev => [...prev, cancelMsg]);
     setPendingAction(null);
+    setPendingMessageId(null);
   }, [setMessages]);
 
   function handleKey(e: React.KeyboardEvent) {
@@ -830,12 +854,12 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
                     timestamp={m.saleCard.timestamp}
                     mode={m.saleCard.mode || 'pending'}
                     onConfirm={
-                      pendingAction && pendingAction.action === 'record_sale' && !isExecutingAction
+                      pendingAction && pendingMessageId === m.id && pendingAction.action === 'record_sale' && !isExecutingAction
                         ? executePendingAction
                         : undefined
                     }
                     onCancel={
-                      pendingAction && pendingAction.action === 'record_sale' && !isExecutingAction
+                      pendingAction && pendingMessageId === m.id && pendingAction.action === 'record_sale' && !isExecutingAction
                         ? cancelPendingAction
                         : undefined
                     }
@@ -863,7 +887,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
                       {m.productCard.sku && <>• SKU: {m.productCard.sku}</>}
                     </p>
                   </div>
-                  {pendingAction && pendingAction.action === 'add_product' && !isExecutingAction && (
+                  {pendingAction && pendingMessageId === m.id && pendingAction.action === 'add_product' && !isExecutingAction && (
                     <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
                       <button
                         onClick={executePendingAction}
@@ -917,7 +941,7 @@ export function InlineAIChat({ onClose }: InlineAIChatProps) {
                       Date: {m.expenseCard.date}
                     </p>
                   </div>
-                  {pendingAction && pendingAction.action === 'add_expense' && !isExecutingAction && (
+                  {pendingAction && pendingMessageId === m.id && pendingAction.action === 'add_expense' && !isExecutingAction && (
                     <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
                       <button
                         onClick={executePendingAction}
