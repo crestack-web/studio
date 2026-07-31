@@ -47,7 +47,7 @@ async function restoreUserAccess(email: string, plan: string = 'standard', billi
     // Try to find similar emails
     const allUsers = await db.collection('users').limit(100).get();
     const similarUsers: any[] = [];
-    allUsers.forEach(doc => {
+    allUsers.forEach((doc: any) => {
       const userData = doc.data();
       if (userData.email && userData.email.includes('shehu')) {
         similarUsers.push({ id: doc.id, email: userData.email, plan: userData.plan });
@@ -59,7 +59,7 @@ async function restoreUserAccess(email: string, plan: string = 'standard', billi
     } else {
       console.log('📋 No similar users found. Listing recent users...');
       const recentUsers: any[] = [];
-      allUsers.forEach(doc => {
+      allUsers.forEach((doc: any) => {
         const userData = doc.data();
         recentUsers.push({ id: doc.id, email: userData.email, plan: userData.plan });
       });

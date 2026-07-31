@@ -1239,13 +1239,18 @@
   }
 
   .inputArea {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: var(--bottom-nav-height);
+    z-index: 40;
     padding: 8px 12px;
-    padding-bottom: calc(12px + var(--bottom-nav-height));
+    padding-bottom: 12px;
     gap: 6px;
   }
 
   .messages {
-    padding: 6px 10px;
+    padding: 6px 10px 120px;
     gap: 4px;
   }
 
@@ -1280,7 +1285,11 @@
 
   @supports (padding: env(safe-area-inset-bottom)) {
     .inputArea {
-      padding-bottom: calc(12px + var(--bottom-nav-height) + env(safe-area-inset-bottom));
+      padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    }
+
+    .messages {
+      padding-bottom: calc(120px + env(safe-area-inset-bottom));
     }
   }
 }
@@ -1313,17 +1322,17 @@
   }
 
   .messages {
-    padding: 6px 10px;
+    padding: 6px 10px 120px;
   }
 
   .inputArea {
     padding: 8px 10px;
-    padding-bottom: calc(12px + var(--bottom-nav-height));
+    padding-bottom: 12px;
     gap: 4px;
   }
 
   .messages {
-    padding: 4px 8px;
+    padding: 4px 8px 120px;
     gap: 4px;
   }
 
@@ -1364,7 +1373,11 @@
 
   @supports (padding: env(safe-area-inset-bottom)) {
     .inputArea {
-      padding-bottom: calc(12px + var(--bottom-nav-height) + env(safe-area-inset-bottom));
+      padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    }
+
+    .messages {
+      padding-bottom: calc(120px + env(safe-area-inset-bottom));
     }
   }
 }
