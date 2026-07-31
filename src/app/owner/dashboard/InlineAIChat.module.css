@@ -160,6 +160,26 @@
   color: var(--text-1);
 }
 
+.expanderBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: var(--bg);
+  color: var(--text-3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.expanderBtn:hover {
+  background: var(--surface);
+  color: var(--primary);
+}
+
 .messages {
   flex: 1;
   overflow-y: auto;

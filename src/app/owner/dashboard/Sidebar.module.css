@@ -60,6 +60,12 @@
   border-radius: 10px;
   padding: 6px;
 }
+.navIcon.mo {
+  background: var(--purple-lt);
+  border-radius: 10px;
+  padding: 6px;
+  color: var(--purple);
+}
 /* ─────────────────────────────────────────────
    Sidebar
 ───────────────────────────────────────────── */

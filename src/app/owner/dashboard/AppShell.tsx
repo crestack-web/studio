@@ -27,6 +27,7 @@ import StaffAccountabilityPage from './StaffAccountabilityPage';
 import MoneyLeakagePage from './MoneyLeakagePage';
 import PaymentTraceabilityPage from './PaymentTraceabilityPage';
 import { MobileAskMOPage } from './MobileAskMOPage';
+import { InlineAIChat } from './InlineAIChat';
 import { CreditTrackingPage } from './CreditTrackingPage';
 import { AvatarModal }     from './AvatarModal';
 import { Toast }           from './Toast';
@@ -73,6 +74,7 @@ const PAGE_MAP: Record<string, React.ReactNode> = {
   capital:      <CapitalPage />,
   branches:     <BranchesPage />,
   'mo-mobile':  <MobileAskMOPage />,
+  'mo':         <InlineAIChat />,
   'menu-management': <MenuManagementPage />,
   'ingredient-tracking': <IngredientsPage />,
   'expiry-alerts': <ExpiryAlertsPage />,
@@ -85,7 +87,7 @@ const PAGE_MAP: Record<string, React.ReactNode> = {
   'stock-transfers': <StockTransfersPage />,
 };
 
-const FULL_HEIGHT_PAGES = new Set<string>(['mo-mobile']);
+const FULL_HEIGHT_PAGES = new Set<string>(['mo', 'mo-mobile']);
 
 export function AppShell() {
   const { activePage } = useApp();

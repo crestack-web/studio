@@ -62,7 +62,7 @@ export function NavIcons({ id, size = 14 }: NavIconsProps) {
     case 'mo':
       // Increase icon size and ensure no stroke/fill props are passed from base
       return (
-        <svg width={size * 4} height={size * 4} viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+        <svg width={size * 2} height={size * 2} style={{ width: size * 2, height: size * 2 }} viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
           <circle cx="40" cy="40" r="38" fill="#162334"></circle>
           <circle cx="40" cy="40" r="36" fill="none" stroke="#1DB954" strokeWidth="1.5"></circle>
           <circle cx="40" cy="37" r="21" fill="#F5C9A0"></circle>
