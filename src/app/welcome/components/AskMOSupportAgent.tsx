@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, CheckCheck, Smartphone } from 'lucide-react';
+import { X, Send, CheckCheck, Smartphone, Maximize2, Minimize2 } from 'lucide-react';
 import { MoIcon } from '../../owner/dashboard/NavIcons';
 
 const WHATSAPP_NUMBER = '+2349124559388';
@@ -25,6 +25,7 @@ interface Message {
 
 export const AskMOSupportAgent = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -62,6 +63,7 @@ export const AskMOSupportAgent = () => {
 
   const close = () => {
     setIsOpen(false);
+    setIsExpanded(false);
     setMessages([]);
   };
 
@@ -150,11 +152,15 @@ export const AskMOSupportAgent = () => {
             onClick={close}
           />
           <div
-            className="fixed bottom-6 right-6 z-[101] bg-white rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 animate-[slideUp_0.3s_ease-out]"
+            className={`fixed z-[101] bg-white shadow-2xl overflow-hidden transition-all duration-300 flex flex-col ${
+              isExpanded && !isMobile
+                ? 'inset-0 rounded-none'
+                : 'bottom-6 right-6 rounded-2xl animate-[slideUp_0.3s_ease-out]'
+            }`}
             style={{
-              width: isMobile ? 'calc(100% - 24px)' : '400px',
-              height: isMobile ? 'calc(100vh - 84px)' : '580px',
-              maxHeight: isMobile ? 'none' : '580px',
+              width: isExpanded && !isMobile ? '100vw' : isMobile ? 'calc(100% - 24px)' : '400px',
+              height: isExpanded && !isMobile ? '100vh' : isMobile ? 'calc(100vh - 84px)' : '580px',
+              maxHeight: isMobile || (isExpanded && !isMobile) ? 'none' : '580px',
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -172,16 +178,28 @@ export const AskMOSupportAgent = () => {
                     <p className="text-xs text-white/80">Busmo AI · Online</p>
                   </div>
                 </div>
-                <button onClick={close} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
-                  <X size={20} />
-                </button>
+                <div className="flex items-center gap-1">
+                  {!isMobile && (
+                    <button
+                      onClick={() => setIsExpanded(!isExpanded)}
+                      className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+                      aria-label={isExpanded ? 'Exit fullscreen' : 'Open fullscreen'}
+                      title={isExpanded ? 'Exit fullscreen' : 'Open fullscreen'}
+                    >
+                      {isExpanded ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
+                    </button>
+                  )}
+                  <button onClick={close} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* Messages */}
             <div
-              className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"
-              style={{ height: isMobile ? 'calc(100% - 270px)' : '340px' }}
+              className={`overflow-y-auto p-4 space-y-4 bg-gray-50 ${isExpanded && !isMobile ? 'flex-1' : ''}`}
+              style={{ height: isExpanded && !isMobile ? undefined : isMobile ? 'calc(100% - 270px)' : '340px' }}
             >
               {messages.map((msg) => (
                 <div
