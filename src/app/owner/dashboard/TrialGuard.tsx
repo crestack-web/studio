@@ -4,7 +4,7 @@ import React, { useEffect, useState, createContext, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { initializeFirebase } from '@/firebase';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { BusmoLogoLoadingSpinner } from '@/components/BusmoLogoLoadingSpinner';
 
 interface TrialGuardProps {
@@ -73,8 +73,8 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
             // Trial status but no end date - set default 3-day trial
             const defaultTrialEnd = new Date(Date.now() + (3 * 24 * 60 * 60 * 1000));
             await updateDoc(doc(firestore, 'users', user.uid), {
-              trialEndDate: admin.firestore.FieldValue.serverTimestamp(),
-              trialStartDate: admin.firestore.FieldValue.serverTimestamp(),
+              trialEndDate: serverTimestamp(),
+              trialStartDate: serverTimestamp(),
             });
             setIsLoading(false);
             return;
@@ -139,8 +139,8 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
         if (!subscriptionStatus && !trialEndDate) {
           const defaultTrialEnd = new Date(Date.now() + (3 * 24 * 60 * 60 * 1000));
           await updateDoc(doc(firestore, 'users', user.uid), {
-            trialEndDate: admin.firestore.FieldValue.serverTimestamp(),
-            trialStartDate: admin.firestore.FieldValue.serverTimestamp(),
+            trialEndDate: serverTimestamp(),
+            trialStartDate: serverTimestamp(),
             subscriptionStatus: 'trial',
           });
           setIsLoading(false);
