@@ -487,7 +487,7 @@ service cloud.firestore {
     match /ugcCreators/{userId} {
       allow read: if true;
       allow create, update: if isAuthenticated() && request.auth.uid == userId;
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || (isAuthenticated() && userId == request.auth.uid);
     }
 
     // =====================
