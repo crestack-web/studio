@@ -662,63 +662,85 @@ export async function POST(request: NextRequest) {
           enrichedData.imageUrl = image;
         }
 
-        // For record_sale: look up products from inventory to get real prices and calculate profit
+        // For record_sale: look up products from inventory to get real prices and calculate profit.
+        // Never show a confirmation card (or make up sale data) for products that can't be
+        // uniquely matched to a real inventory item.
         if (intent.intent === 'record_sale' && businessId) {
+          const items = intent.data.items || [];
+
+          if (items.length === 0) {
+            return NextResponse.json({
+              answer: 'I can help you record a sale, but I need to know what was sold. Try something like: "Sold 3 bread at ₦500 each" or "Record sale: 2 rice at ₦1000 each".',
+              intent,
+              timestamp: new Date().toISOString()
+            });
+          }
+
           try {
             const { findProductByName } = await import('@/lib/services/record-sale-service');
-            const items = intent.data.items || [];
             const resolvedItems: any[] = [];
+            const unresolvedItems: string[] = [];
+            const ambiguousItems: Array<{ productName: string; options: any[] }> = [];
             let totalRevenue = 0;
             let totalCost = 0;
 
             for (const item of items) {
               const searchResult = await findProductByName(businessId, item.productName);
-              if (searchResult.found) {
-                // Use exact match or first fuzzy match to populate real product prices
-                const product = searchResult.product || searchResult.matches?.[0];
-                if (product) {
-                  const costPrice = product.costPrice || product.cost || 0;
-                  const sellingPrice = product.sellingPrice || product.price || item.price || 0;
-                  const quantity = parseInt(item.quantity) || 1;
-                  const itemRevenue = sellingPrice * quantity;
-                  const itemCost = costPrice * quantity;
 
-                  resolvedItems.push({
-                    productName: product.name || item.productName,
-                    quantity,
-                    price: sellingPrice,
-                    costPrice,
-                    productId: product.id,
-                    stock: product.stock || product.quantity || 0,
-                    imageUrl: product.imageUrl || item.imageUrl || '',
-                  });
-
-                  totalRevenue += itemRevenue;
-                  totalCost += itemCost;
-                } else {
-                  resolvedItems.push({
-                    productName: item.productName,
-                    quantity: parseInt(item.quantity) || 1,
-                    price: item.price || 0,
-                    costPrice: 0,
-                    productId: null,
-                    stock: 0,
-                    imageUrl: item.imageUrl || '',
-                  });
-                  totalRevenue += (item.price || 0) * (parseInt(item.quantity) || 1);
-                }
-              } else {
-                // Product not found — include what we have from text parsing
-                resolvedItems.push({
-                  productName: item.productName,
-                  quantity: parseInt(item.quantity) || 1,
-                  price: item.price || 0,
-                  costPrice: 0,
-                  productId: null,
-                  stock: 0,
-                });
-                totalRevenue += (item.price || 0) * (parseInt(item.quantity) || 1);
+              if (!searchResult.found) {
+                unresolvedItems.push(item.productName);
+                continue;
               }
+
+              const matches = searchResult.matches;
+              if (matches && matches.length > 1) {
+                ambiguousItems.push({ productName: item.productName, options: matches });
+                continue;
+              }
+
+              const product = searchResult.product || matches?.[0];
+              if (!product) {
+                unresolvedItems.push(item.productName);
+                continue;
+              }
+
+              const costPrice = product.costPrice || product.cost || 0;
+              const sellingPrice = product.sellingPrice || product.price || item.price || 0;
+              const quantity = parseInt(item.quantity) || 1;
+              const itemRevenue = sellingPrice * quantity;
+              const itemCost = costPrice * quantity;
+
+              resolvedItems.push({
+                productName: product.name || item.productName,
+                quantity,
+                price: sellingPrice,
+                costPrice,
+                productId: product.id,
+                stock: product.stock || product.quantity || 0,
+                imageUrl: product.imageUrl || item.imageUrl || '',
+              });
+
+              totalRevenue += itemRevenue;
+              totalCost += itemCost;
+            }
+
+            // Block confirmation if any item couldn't be uniquely resolved
+            if (unresolvedItems.length > 0 || ambiguousItems.length > 0) {
+              let answer = '';
+              if (unresolvedItems.length > 0) {
+                answer += `I couldn't find ${unresolvedItems.join(', ')} in your inventory, so I can't record that sale yet. Please check the spelling, or add the product to your inventory first.`;
+              }
+              if (ambiguousItems.length > 0) {
+                for (const amb of ambiguousItems) {
+                  answer += `\n\nI found multiple products matching "${amb.productName}":\n${amb.options.map((p: any, i: number) => `${i + 1}. ${p.name} (Stock: ${p.stock || p.quantity || 0})`).join('\n')}`;
+                }
+                answer += `\n\nPlease tell me exactly which one was sold, e.g., "Sold 3 ${ambiguousItems[0].options[0].name}".`;
+              }
+              return NextResponse.json({
+                answer,
+                intent,
+                timestamp: new Date().toISOString()
+              });
             }
 
             enrichedData = {
@@ -741,6 +763,11 @@ export async function POST(request: NextRequest) {
             });
           } catch (err) {
             console.error('❌ [Ask MO API] Error pre-fetching sale product data:', err);
+            return NextResponse.json({
+              answer: "Sorry, I couldn't verify the products for that sale. Please try again in a moment.",
+              intent,
+              timestamp: new Date().toISOString()
+            });
           }
         }
 
@@ -750,8 +777,13 @@ export async function POST(request: NextRequest) {
           intent
         );
 
-        // Attach card data for confirmation UI
-        if (intent.intent === 'record_sale' && enrichedData.items?.length > 0) {
+        // Attach card data for confirmation UI (sale cards only when every item
+        // resolved to a real inventory product — never fabricate sale data)
+        if (
+          intent.intent === 'record_sale' &&
+          enrichedData.items?.length > 0 &&
+          enrichedData.items.every((item: any) => !!item.productId)
+        ) {
           renderedResponse.card = {
             type: 'sale',
             items: enrichedData.items.map((item: any) => ({
