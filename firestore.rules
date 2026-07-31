@@ -173,6 +173,27 @@ service cloud.firestore {
       }
 
       // =====================
+      // MO SELL — 7-DAY CONTENT CAMPAIGNS
+      // =====================
+      match /campaigns/{campaignId} {
+        allow read, write: if hasBusinessAccess(businessId) || isAdmin();
+      }
+
+      // =====================
+      // MO SELL — CONTENT CALENDAR (scheduled/published social posts)
+      // =====================
+      match /contentCalendar/{postId} {
+        allow read, write: if hasBusinessAccess(businessId) || isAdmin();
+      }
+
+      // =====================
+      // MO SELL — SOCIAL PROFILES (seller social links + verified follower stats)
+      // =====================
+      match /socialProfiles/{profileId} {
+        allow read, write: if hasBusinessAccess(businessId) || isAdmin();
+      }
+
+      // =====================
       // MO SELL — SHIPPING ZONES
       // =====================
       match /storeShippingZones/{zoneId} {
