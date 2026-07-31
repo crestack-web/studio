@@ -1187,11 +1187,20 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Check permissions using the centralized validator
-    const permCheck = validatePermission(action.action, userRole);
+    const actionIntent = action.intent || action.action;
+    const actionData = action.data;
+
+    if (!actionIntent) {
+      return NextResponse.json({
+        success: false,
+        message: 'Could not determine the action to perform. Please try again.',
+      });
+    }
+
+    const permCheck = validatePermission(actionIntent, userRole);
     
     if (!permCheck.allowed) {
-      console.log('🔒 [Ask MO API] Permission denied for user role:', userRole, 'on action:', action.action, 'reason:', permCheck.reason);
+      console.log('🔒 [Ask MO API] Permission denied for user role:', userRole, 'on action:', actionIntent, 'reason:', permCheck.reason);
       return NextResponse.json({
         success: false,
         message: permCheck.reason || `Sorry, you don't have permission for this action.`,
@@ -1199,9 +1208,9 @@ export async function PUT(request: NextRequest) {
       });
     }
 
-    console.log('🎯 [Ask MO API] Executing action:', action.action);
+    console.log('🎯 [Ask MO API] Executing action:', actionIntent);
 
-    const result = await executeAction(action, {
+    const result = await executeAction({ intent: actionIntent, data: actionData }, {
       businessId,
       userId,
     });
