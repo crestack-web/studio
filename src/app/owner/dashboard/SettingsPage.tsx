@@ -191,6 +191,7 @@ export default function SettingsPage() {
 
   // ── Inventory Deduction Mode ───────────────────────────
   const [inventoryDeductionMode, setInventoryDeductionMode] = useState<'immediate' | 'warehouse'>('immediate');
+  const [enablePayment, setEnablePayment] = useState(false);
 
   // ── Receipt Type Setting ───────────────────────────────
   const [receiptTypeSetting, setReceiptTypeSetting] = useState<'supermarket' | 'invoice'>('supermarket');
@@ -234,6 +235,12 @@ export default function SettingsPage() {
                 setReceiptTypeSetting(data.receiptType);
               }
             }
+            // Load store config
+            const configDoc = await getDoc(doc(firestore, 'businesses', user.businessId, 'store', 'config'));
+            if (configDoc.exists()) {
+              setEnablePayment(configDoc.data().enablePayment || false);
+            }
+          }
           }
 
           // Load subscription info
@@ -753,6 +760,35 @@ export default function SettingsPage() {
               <span>Sale Invoice</span>
             </label>
           </div>
+        </div>
+
+        {/* Enable Payment */}
+        <div className={styles.toggleRow} style={{ marginTop: '24px' }}>
+          <div>
+            <div className={styles.toggleLabel}>Enable Online Payments</div>
+            <div className={styles.rowDesc}>
+              Allow customers to pay for your digital products online.
+            </div>
+          </div>
+          <Toggle
+            id="enablePayment"
+            checked={enablePayment}
+            onChange={async (v) => {
+              setEnablePayment(v);
+              try {
+                const { firestore } = initializeFirebase();
+                if (user.businessId) {
+                  await updateDoc(doc(firestore, 'businesses', user.businessId, 'store', 'config'), {
+                    enablePayment: v,
+                  });
+                  showToast(v ? 'Payments enabled' : 'Payments disabled');
+                }
+              } catch (error) {
+                console.error('Failed to update payment setting:', error);
+                showToast('Failed to update payment setting');
+              }
+            }}
+          />
         </div>
 
         <button className={styles.saveBtn} onClick={handleSave}>

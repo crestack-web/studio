@@ -15,14 +15,13 @@ interface ShippingZone {
 interface PickupLocation {
   name: string;
   address: string;
-}
-
 interface Props {
   storeSlug: string;
   businessId: string;
   currency: string;
   shippingZones: ShippingZone[];
   pickupLocations: PickupLocation[];
+  enablePayment: boolean;
 }
 
 function fmt(n: number, currency: string) {
@@ -33,13 +32,25 @@ function fmt(n: number, currency: string) {
 type DeliveryOption = 'delivery' | 'pickup';
 
 export function CheckoutForm({
-  storeSlug, businessId, currency, shippingZones, pickupLocations,
+  storeSlug, businessId, currency, shippingZones, pickupLocations, enablePayment,
 }: Props) {
   const { items, subtotal, clearCart } = useCart();
   const router = useRouter();
 
   const [name,  setName]  = useState('');
-  const [email, setEmail] = useState('');
+// ...
+  if (!enablePayment) {
+    return (
+      <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--sf-text-3)' }}>
+        <div style={{ fontSize: '3rem', marginBottom: 12 }}>🚫</div>
+        <p style={{ fontWeight: 600 }}>Payments are not enabled for this store</p>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+// ...
+
   const [phone, setPhone] = useState('');
   const [deliveryOption, setDeliveryOption] = useState<DeliveryOption>(
     pickupLocations.length > 0 ? 'pickup' : 'delivery'

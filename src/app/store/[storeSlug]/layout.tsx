@@ -11,6 +11,8 @@ import '../../../app/store/themes/minimal.css';
 import { CartProvider } from './context/CartContext';
 import { StorefrontNav } from './components/StorefrontNav';
 import { CartDrawer } from './components/CartDrawer';
+import { ThemeSwitcher } from './components/ThemeSwitcher';
+import { cookies } from 'next/headers';
 import type { StorefrontTheme, StoreSection, FooterSectionSettings, HeaderSectionSettings } from '@/types/mo-sell.types';
 import { DEFAULT_SECTIONS } from '@/types/mo-sell.types';
 import { isLinkTheme } from '@/app/store/themes/registry';
@@ -94,7 +96,14 @@ export default async function StorefrontLayout({
     notFound();
   }
 
-  const theme: StorefrontTheme = config.theme ?? 'luxe';
+  const defaultTheme: StorefrontTheme = config.theme ?? 'luxe';
+  const isDefaultLinkTheme = isLinkTheme(defaultTheme);
+
+  const cookieStore = await cookies();
+  const themeOverride = cookieStore.get(`sf_theme_override_${storeSlug}`)?.value;
+  const theme: StorefrontTheme = (themeOverride as StorefrontTheme) || defaultTheme;
+  const isOverrideActive = !!themeOverride;
+
   const primary   = config.primaryColor   ?? '#C9A84C';
   const secondary = config.secondaryColor ?? '#8B7355';
   const fontFamily = config.fontFamily ?? null;
@@ -155,6 +164,8 @@ export default async function StorefrontLayout({
   return (
     <html lang="en" data-theme={theme}>
       <head>
+        <link rel="icon" href="/favicon.png" />
+        <link rel="apple-touch-icon" href="/icon.png" />
         {/* Google Font loading for custom store font */}
         {fontFamily && (
           <link
@@ -226,18 +237,36 @@ export default async function StorefrontLayout({
               )}
 
               {/* Custom / copyright text */}
-              <p>
-                {footerSettings.customText
-                  ? footerSettings.customText
-                  : `© ${new Date().getFullYear()} ${config.storeName}`}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center' }}>
+                <p>
+                  {footerSettings.customText
+                    ? footerSettings.customText
+                    : `© ${new Date().getFullYear()} ${config.storeName}`}
+                </p>
                 {footerSettings.showPoweredBy !== false && (
-                  <> · Powered by <a href="https://busmo.io" style={{ color: 'inherit', opacity: 0.7 }}>Busmo</a></>
+                  <a href="https://mo-sell.com/signup" style={{
+                    display: 'inline-block',
+                    padding: '8px 16px',
+                    borderRadius: 20,
+                    background: 'var(--sf-primary)',
+                    color: '#fff',
+                    textDecoration: 'none',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                  }}>
+                    Try Mo-Sell for free
+                  </a>
                 )}
-              </p>
+              </div>
             </footer>
           )}
 
           {!isLink && <CartDrawer storeSlug={storeSlug} currency={config.currency} />}
+          <ThemeSwitcher
+            storeSlug={storeSlug}
+            isDefaultLinkTheme={isDefaultLinkTheme}
+            isOverrideActive={isOverrideActive}
+          />
         </CartProvider>
       </body>
     </html>

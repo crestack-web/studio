@@ -91,6 +91,7 @@ export async function GET(
       customDomain:        data.customDomain ?? null,
       customDomainStatus:  data.customDomainStatus ?? 'pending',
       paystackPublicKey:   data.paystackPublicKey ?? '',
+      enablePayment:       data.enablePayment ?? false,
     };
 
     return NextResponse.json(publicConfig, {
