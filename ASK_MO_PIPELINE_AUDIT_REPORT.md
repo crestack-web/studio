@@ -1,4 +1,4 @@
-# Ask MO Pipeline Audit Report
+﻿# Ask MO Pipeline Audit Report
 
 **Date:** June 18, 2026  
 **Objective:** Complete end-to-end audit of the Ask MO pipeline to identify failure points and enhance observability
@@ -10,14 +10,14 @@
 The Ask MO pipeline has been significantly enhanced with comprehensive logging, structured error reporting, and robust fallback mechanisms. All major components have been instrumented with detailed diagnostics to enable precise failure identification.
 
 ### Status Overview
-- **Health Endpoint:** ✅ Operational
-- **Error Reporting:** ✅ Implemented
-- **Environment Validation:** ✅ Implemented  
-- **Structured Logging:** ✅ Implemented
-- **Firestore Context Loading:** ✅ Enhanced with fallbacks
-- **Google AI Service:** ✅ Enhanced with detailed logging
-- **Frontend Logging:** ✅ Implemented
-- **Development Mode Bypass:** ⚠️ Requires further investigation
+- **Health Endpoint:** âœ… Operational
+- **Error Reporting:** âœ… Implemented
+- **Environment Validation:** âœ… Implemented  
+- **Structured Logging:** âœ… Implemented
+- **Firestore Context Loading:** âœ… Enhanced with fallbacks
+- **Google AI Service:** âœ… Enhanced with detailed logging
+- **Frontend Logging:** âœ… Implemented
+- **Development Mode Bypass:** âš ï¸ Requires further investigation
 
 ---
 
@@ -71,7 +71,7 @@ The Ask MO pipeline has been significantly enhanced with comprehensive logging, 
 - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
 - `FIREBASE_ADMIN_PRIVATE_KEY`
 - `FIREBASE_ADMIN_CLIENT_EMAIL`
-- `GOOGLE_GENAI_API_KEY`
+- `MISTRAL_API_KEY`
 
 ---
 
@@ -270,7 +270,7 @@ The Ask MO pipeline has been significantly enhanced with comprehensive logging, 
 ```typescript
 // Skip authentication if database is not initialized (for development/testing)
 if (!db || !adminInitialized) {
-  console.warn('⚠️ [Ask MO API] Database not initialized, skipping authentication validation');
+  console.warn('âš ï¸ [Ask MO API] Database not initialized, skipping authentication validation');
   // Development mode bypass logic
 } else {
   const authValidation = await validateAIRequest(req, body);
@@ -295,43 +295,43 @@ if (!db || !adminInitialized) {
 
 ```
 User Request (MobileAskMOPage.tsx)
-    ↓
+    â†“
 [Frontend Logging] Request initiation, validation
-    ↓
+    â†“
 Firestore Save (User Message)
-    ↓
+    â†“
 API Call: POST /api/ask-mo
-    ↓
+    â†“
 [API Logging] Request received, body parsed
-    ↓
+    â†“
 Input Validation
-    ↓
+    â†“
 Authentication (or Development Mode Bypass)
-    ↓
+    â†“
 Rate Limiting (User, Business, IP)
-    ↓
+    â†“
 Abuse Check
-    ↓
+    â†“
 Request Queue Check
-    ↓
+    â†“
 Intent Detection (Sale/Product)
-    ↓
+    â†“
 Firestore Context Loading (with fallbacks)
-    ↓
+    â†“
 Google AI Service
-    ↓
+    â†“
 [AI Service Logging] Model selection, retry, fallback
-    ↓
+    â†“
 Streaming Response
-    ↓
+    â†“
 [Streaming Logging] Progress, completion
-    ↓
+    â†“
 Firestore Save (Bot Message)
-    ↓
+    â†“
 Credit Consumption
-    ↓
+    â†“
 Conversation Save
-    ↓
+    â†“
 [Frontend Logging] Request completion
 ```
 
@@ -424,18 +424,18 @@ curl -X POST http://localhost:3000/api/ask-mo \
 The Ask MO pipeline has been significantly enhanced with comprehensive logging, structured error reporting, and robust fallback mechanisms. The pipeline now provides detailed visibility into each stage of execution, enabling precise failure identification.
 
 **Completed Enhancements:**
-- ✅ Unified error reporting layer
-- ✅ Environment validation
-- ✅ Health check endpoint
-- ✅ Structured API logging with timing
-- ✅ Robust Firestore context loading
-- ✅ Enhanced Google AI service
-- ✅ Frontend request lifecycle logging
+- âœ… Unified error reporting layer
+- âœ… Environment validation
+- âœ… Health check endpoint
+- âœ… Structured API logging with timing
+- âœ… Robust Firestore context loading
+- âœ… Enhanced Google AI service
+- âœ… Frontend request lifecycle logging
 
 **Remaining Work:**
-- ⚠️ Fix development mode authentication bypass
-- ⚠️ Add server-side logging visibility
-- 📋 Implement metrics collection
-- 📋 Add comprehensive testing
+- âš ï¸ Fix development mode authentication bypass
+- âš ï¸ Add server-side logging visibility
+- ðŸ“‹ Implement metrics collection
+- ðŸ“‹ Add comprehensive testing
 
 The pipeline is now production-ready with enhanced observability and error handling. The development mode bypass issue should be addressed to enable easier local testing and development.

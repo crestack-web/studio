@@ -9,7 +9,7 @@ export enum ErrorSource {
   FIRESTORE = 'FIRESTORE',
   RATE_LIMITING = 'RATE_LIMITING',
   REQUEST_QUEUE = 'REQUEST_QUEUE',
-  GEMINI_API = 'GEMINI_API',
+  MISTRAL_API = 'MISTRAL_API',
   STREAMING = 'STREAMING',
   TOKEN_LIMITS = 'TOKEN_LIMITS',
   ENVIRONMENT = 'ENVIRONMENT',
@@ -48,14 +48,14 @@ export enum ErrorCode {
   QUEUE_DUPLICATE_REQUEST = 'QUEUE_DUPLICATE_REQUEST',
   QUEUE_TIMEOUT = 'QUEUE_TIMEOUT',
   
-  // Gemini API Errors
-  GEMINI_API_KEY_MISSING = 'GEMINI_API_KEY_MISSING',
-  GEMINI_API_KEY_INVALID = 'GEMINI_API_KEY_INVALID',
-  GEMINI_MODEL_FAILED = 'GEMINI_MODEL_FAILED',
-  GEMINI_ALL_MODELS_FAILED = 'GEMINI_ALL_MODELS_FAILED',
-  GEMINI_NETWORK_ERROR = 'GEMINI_NETWORK_ERROR',
-  GEMINI_QUOTA_EXCEEDED = 'GEMINI_QUOTA_EXCEEDED',
-  GEMINI_CONTENT_FILTERED = 'GEMINI_CONTENT_FILTERED',
+  // Mistral API Errors
+  MISTRAL_API_KEY_MISSING = 'MISTRAL_API_KEY_MISSING',
+  MISTRAL_API_KEY_INVALID = 'MISTRAL_API_KEY_INVALID',
+  MISTRAL_MODEL_FAILED = 'MISTRAL_MODEL_FAILED',
+  MISTRAL_ALL_MODELS_FAILED = 'MISTRAL_ALL_MODELS_FAILED',
+  MISTRAL_NETWORK_ERROR = 'MISTRAL_NETWORK_ERROR',
+  MISTRAL_QUOTA_EXCEEDED = 'MISTRAL_QUOTA_EXCEEDED',
+  MISTRAL_CONTENT_FILTERED = 'MISTRAL_CONTENT_FILTERED',
   
   // Streaming Errors
   STREAM_INTERRUPTED = 'STREAM_INTERRUPTED',
@@ -69,7 +69,7 @@ export enum ErrorCode {
   // Environment Errors
   ENV_FIREBASE_ADMIN_MISSING = 'ENV_FIREBASE_ADMIN_MISSING',
   ENV_FIREBASE_PROJECT_ID_MISSING = 'ENV_FIREBASE_PROJECT_ID_MISSING',
-  ENV_GOOGLE_AI_KEY_MISSING = 'ENV_GOOGLE_AI_KEY_MISSING',
+  ENV_MISTRAL_API_KEY_MISSING = 'ENV_MISTRAL_API_KEY_MISSING',
   
   // Validation Errors
   VALIDATION_INVALID_INPUT = 'VALIDATION_INVALID_INPUT',
@@ -203,33 +203,33 @@ export class AskMOErrorFactory {
     return this.create(ErrorSource.REQUEST_QUEUE, ErrorCode.QUEUE_TIMEOUT, 'Request queue timeout');
   }
 
-  // Gemini API Errors
+  // Mistral API Errors
   static apiKeyMissing(): AskMOError {
-    return this.create(ErrorSource.GEMINI_API, ErrorCode.GEMINI_API_KEY_MISSING, 'Google Gen AI API key is missing');
+    return this.create(ErrorSource.MISTRAL_API, ErrorCode.MISTRAL_API_KEY_MISSING, 'Mistral API key is missing');
   }
 
   static apiKeyInvalid(): AskMOError {
-    return this.create(ErrorSource.GEMINI_API, ErrorCode.GEMINI_API_KEY_INVALID, 'Google Gen AI API key is invalid');
+    return this.create(ErrorSource.MISTRAL_API, ErrorCode.MISTRAL_API_KEY_INVALID, 'Mistral API key is invalid');
   }
 
   static modelFailed(model: string, error: any): AskMOError {
-    return this.create(ErrorSource.GEMINI_API, ErrorCode.GEMINI_MODEL_FAILED, `Model failed: ${model}`, { model, error: error.message });
+    return this.create(ErrorSource.MISTRAL_API, ErrorCode.MISTRAL_MODEL_FAILED, `Model failed: ${model}`, { model, error: error.message });
   }
 
   static allModelsFailed(attemptedModels: string[]): AskMOError {
-    return this.create(ErrorSource.GEMINI_API, ErrorCode.GEMINI_ALL_MODELS_FAILED, 'All Gemini models failed', { attemptedModels });
+    return this.create(ErrorSource.MISTRAL_API, ErrorCode.MISTRAL_ALL_MODELS_FAILED, 'All Mistral models failed', { attemptedModels });
   }
 
-  static geminiNetworkError(error: any): AskMOError {
-    return this.create(ErrorSource.GEMINI_API, ErrorCode.GEMINI_NETWORK_ERROR, 'Gemini API network error', { error: error.message });
+  static mistralNetworkError(error: any): AskMOError {
+    return this.create(ErrorSource.MISTRAL_API, ErrorCode.MISTRAL_NETWORK_ERROR, 'Mistral API network error', { error: error.message });
   }
 
   static quotaExceeded(): AskMOError {
-    return this.create(ErrorSource.GEMINI_API, ErrorCode.GEMINI_QUOTA_EXCEEDED, 'Gemini API quota exceeded');
+    return this.create(ErrorSource.MISTRAL_API, ErrorCode.MISTRAL_QUOTA_EXCEEDED, 'Mistral API quota exceeded');
   }
 
   static contentFiltered(): AskMOError {
-    return this.create(ErrorSource.GEMINI_API, ErrorCode.GEMINI_CONTENT_FILTERED, 'Content was filtered by Gemini safety filters');
+    return this.create(ErrorSource.MISTRAL_API, ErrorCode.MISTRAL_CONTENT_FILTERED, 'Content was filtered by Mistral safety filters');
   }
 
   // Streaming Errors
@@ -263,8 +263,8 @@ export class AskMOErrorFactory {
     return this.create(ErrorSource.ENVIRONMENT, ErrorCode.ENV_FIREBASE_PROJECT_ID_MISSING, 'Firebase Project ID is missing');
   }
 
-  static googleAIKeyMissing(): AskMOError {
-    return this.create(ErrorSource.ENVIRONMENT, ErrorCode.ENV_GOOGLE_AI_KEY_MISSING, 'Google Gen AI API key is missing');
+  static mistralApiKeyMissing(): AskMOError {
+    return this.create(ErrorSource.ENVIRONMENT, ErrorCode.ENV_MISTRAL_API_KEY_MISSING, 'Mistral API key is missing');
   }
 
   // Validation Errors
@@ -320,7 +320,7 @@ function getStatusCodeForError(error: AskMOError): number {
       return 429;
     case ErrorSource.ENVIRONMENT:
       return 500;
-    case ErrorSource.GEMINI_API:
+    case ErrorSource.MISTRAL_API:
     case ErrorSource.FIRESTORE:
     case ErrorSource.STREAMING:
     case ErrorSource.TOKEN_LIMITS:

@@ -1,16 +1,16 @@
-# 🚀 Busmo - Quick Deployment Guide
+﻿# ðŸš€ Busmo - Quick Deployment Guide
 
-## ✅ What's Ready
+## âœ… What's Ready
 
 - [x] Staff authentication fixed (uses real Firebase)
 - [x] Forgot password page created
 - [x] Storage rules created
 - [x] Firestore indexes created
 - [x] Environment files created
-- [x] Paystack LIVE key configured ✅
-- [x] DashScope API key configured ✅
+- [x] Paystack LIVE key configured âœ…
+- [x] DashScope API key configured âœ…
 
-## ⚠️ Missing Keys (Get These Now)
+## âš ï¸ Missing Keys (Get These Now)
 
 You need 2 more keys to complete setup:
 
@@ -39,7 +39,7 @@ You need 2 more keys to complete setup:
 
 ---
 
-## 🚀 Deploy to Firebase (5 minutes)
+## ðŸš€ Deploy to Firebase (5 minutes)
 
 ### Step 1: Login to Firebase
 
@@ -58,7 +58,7 @@ firebase use bizassistant2-62305643-adad7
 
 ```bash
 # Deploy API keys securely
-firebase functions:secrets:set GOOGLE_GENAI_API_KEY
+firebase functions:secrets:set MISTRAL_API_KEY
 # (Paste your Google AI key when prompted)
 
 firebase functions:secrets:set SENDGRID_API_KEY
@@ -76,11 +76,11 @@ firebase deploy
 ```
 
 This will deploy:
-- ✅ Firestore rules
-- ✅ Firestore indexes
-- ✅ Storage rules
-- ✅ Cloud Functions
-- ✅ Hosting (if configured)
+- âœ… Firestore rules
+- âœ… Firestore indexes
+- âœ… Storage rules
+- âœ… Cloud Functions
+- âœ… Hosting (if configured)
 
 ### Step 5: Test Everything
 
@@ -102,7 +102,7 @@ This will deploy:
 
 ---
 
-## 🎯 Launch Checklist
+## ðŸŽ¯ Launch Checklist
 
 - [ ] Get Google AI API Key
 - [ ] Get SendGrid API Key
@@ -113,11 +113,11 @@ This will deploy:
 - [ ] Test staff login
 - [ ] Test forgot password
 - [ ] Test payment flow
-- [ ] **LAUNCH!** 🚀
+- [ ] **LAUNCH!** ðŸš€
 
 ---
 
-## 📞 Quick Commands
+## ðŸ“ž Quick Commands
 
 ```bash
 # Check if server is running
@@ -141,22 +141,22 @@ firebase functions:log
 
 ---
 
-## 🎉 You're Almost There!
+## ðŸŽ‰ You're Almost There!
 
 **Current Status:** 85% Ready
 
 **What's Working:**
-- ✅ Staff authentication (real Firebase)
-- ✅ Forgot password page
-- ✅ Paystack LIVE payments
-- ✅ All config files
-- ✅ Firebase rules & indexes
+- âœ… Staff authentication (real Firebase)
+- âœ… Forgot password page
+- âœ… Paystack LIVE payments
+- âœ… All config files
+- âœ… Firebase rules & indexes
 
 **What's Needed:**
-- ⏳ Google AI Key (2 min)
-- ⏳ SendGrid Key (5 min)
-- ⏳ Deploy to Firebase (5 min)
+- â³ Google AI Key (2 min)
+- â³ SendGrid Key (5 min)
+- â³ Deploy to Firebase (5 min)
 
 **Total Time to Launch:** ~15 minutes
 
-Let's go! 🚀
+Let's go! ðŸš€

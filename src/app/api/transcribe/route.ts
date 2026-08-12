@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getMistralClient, STT_MODEL } from '@/ai/mistral';
 
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENAI_API_KEY || '');
+const MIME_EXTENSIONS: Record<string, string> = {
+  'audio/webm': 'webm',
+  'audio/mp3': 'mp3',
+  'audio/mpeg': 'mp3',
+  'audio/wav': 'wav',
+  'audio/wave': 'wav',
+  'audio/ogg': 'ogg',
+  'audio/mp4': 'm4a',
+  'audio/aac': 'aac',
+  'audio/flac': 'flac',
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,26 +30,18 @@ export async function POST(request: NextRequest) {
     const resolvedMimeType = mimeType || 'audio/webm';
     const resolvedLanguage = language || 'en';
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+    const mistral = getMistralClient();
+    const audioBuffer = Buffer.from(base64Data, 'base64');
+    const extension = MIME_EXTENSIONS[resolvedMimeType] || 'webm';
+    const audioFile = new File([audioBuffer], `audio.${extension}`, { type: resolvedMimeType });
 
-    const prompt = `Transcribe this audio message accurately.
-- If the audio is in ${resolvedLanguage}, respond in ${resolvedLanguage}
-- Detect the language automatically if unsure
-- Return ONLY the transcription text, no explanations or additional text
-- Handle multiple languages if the speaker switches languages
-- Include punctuation and proper formatting`;
+    const result = await mistral.audio.transcriptions.complete({
+      model: STT_MODEL,
+      file: audioFile,
+      language: resolvedLanguage,
+    });
 
-    const result = await model.generateContent([
-      prompt,
-      {
-        inlineData: {
-          data: base64Data,
-          mimeType: resolvedMimeType,
-        },
-      },
-    ]);
-
-    const transcription = result.response.text().trim();
+    const transcription = result.text?.trim() || '';
     return NextResponse.json({ transcription });
   } catch (error) {
     console.error('[/api/transcribe] Error:', error);

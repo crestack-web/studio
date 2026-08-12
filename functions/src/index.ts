@@ -1,11 +1,10 @@
 import * as admin from 'firebase-admin';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { defineSecret } from 'firebase-functions/params';
 
 // Define secrets
-const googleAiKeySecret = defineSecret('GOOGLE_GENAI_API_KEY');
+const mistralAiKeySecret = defineSecret('MISTRAL_API_KEY');
 const paystackSecretKeySecret = defineSecret('PAYSTACK_SECRET_KEY');
 
 // Initialize Firebase Admin
@@ -18,7 +17,7 @@ const auth = admin.auth();
  * Handles AI-powered business intelligence queries
  */
 export const askMo = onRequest(
-  { secrets: [googleAiKeySecret], region: 'us-central1' },
+  { secrets: [mistralAiKeySecret], region: 'us-central1' },
   async (req, res) => {
     // Set CORS headers for all responses
     res.set('Access-Control-Allow-Origin', '*');
@@ -62,15 +61,15 @@ export const askMo = onRequest(
         userPlan,
       });
 
-      // Get Google AI API key from secret
-      const googleApiKey = googleAiKeySecret.value();
+      // Get Mistral API key from secret
+      const mistralApiKey = mistralAiKeySecret.value();
 
-      // Validate Google AI API key
-      if (!googleApiKey) {
-        console.error('❌ [Ask MO Function] Google Gen AI API key is missing');
+      // Validate Mistral API key
+      if (!mistralApiKey) {
+        console.error('❌ [Ask MO Function] Mistral API key is missing');
         res.status(500).json({
-          error: 'Google Gen AI API key is missing',
-          code: 'ENV_GOOGLE_AI_KEY_MISSING',
+          error: 'Mistral API key is missing',
+          code: 'ENV_MISTRAL_API_KEY_MISSING',
           source: 'ENVIRONMENT',
           details: {},
           timestamp: new Date().toISOString()
@@ -92,24 +91,22 @@ export const askMo = onRequest(
     // Build system prompt with feature awareness
     const systemPrompt = buildSystemPrompt(businessContext, language, languageName, conversationHistory, enabledFeatures, businessCategory, userPlan);
 
-    // Initialize Google AI
-    const genAI = new GoogleGenerativeAI(googleApiKey);
-    const model = genAI.getGenerativeModel({ 
-      model: 'gemini-pro-latest',
-      systemInstruction: systemPrompt
-    });
+    // Initialize Mistral (loaded dynamically since the SDK is ESM-only and this project is CommonJS)
+    const { Mistral } = await import('@mistralai/mistralai');
+    const mistral = new Mistral({ apiKey: mistralApiKey });
 
-    // Generate response with retry mechanism
-    const chat = model.startChat({
-      history: conversationHistory.map((msg: any) => ({
-        role: msg.role === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.content }]
-      }))
-    });
+    // Build chat messages: system prompt + conversation history + current user message
+    const messages: any[] = [
+      { role: 'system', content: systemPrompt },
+      ...conversationHistory.map((msg: any) => ({
+        role: msg.role === 'user' ? 'user' : 'assistant',
+        content: String(msg.content ?? ''),
+      })),
+    ];
 
     // Retry logic with exponential backoff
-    let result;
-    let lastError;
+    let result: any;
+    let lastError: any;
     const maxRetries = 3;
     const baseDelay = 1000; // 1 second
 
@@ -117,12 +114,15 @@ export const askMo = onRequest(
       try {
         // Add timeout for the API call
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Google AI API timeout after 30 seconds')), 30000);
+          setTimeout(() => reject(new Error('Mistral AI API timeout after 30 seconds')), 30000);
         });
 
         result = await Promise.race([
-          chat.sendMessage(message),
-          timeoutPromise
+          mistral.chat.complete({
+            model: 'mistral-large-latest',
+            messages: [...messages, { role: 'user', content: message }],
+          }),
+          timeoutPromise,
         ]) as any;
 
         // If successful, break out of retry loop
@@ -143,8 +143,12 @@ export const askMo = onRequest(
       throw lastError || new Error('Failed to generate response after retries');
     }
 
-    const response = result.response;
-    const text = response.text();
+    const content = result.choices?.[0]?.message?.content;
+    const text = typeof content === 'string'
+      ? content
+      : Array.isArray(content)
+        ? content.map((part: any) => part?.type === 'text' ? part.text : '').join('')
+        : '';
 
     console.log('✅ [Ask MO Function] Response generated');
 

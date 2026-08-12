@@ -38,7 +38,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: false,
   },
   env: {
-    GOOGLE_GENAI_API_KEY: process.env.GOOGLE_GENAI_API_KEY,
+    MISTRAL_API_KEY: process.env.MISTRAL_API_KEY,
   },
   async redirects() {
     return [

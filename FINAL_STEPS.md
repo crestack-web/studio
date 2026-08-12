@@ -1,27 +1,27 @@
-# 🔥 Firebase Deployment - Manual Steps Required
+﻿# ðŸ”¥ Firebase Deployment - Manual Steps Required
 
-## ⚠️ Firebase Login Requires Browser
+## âš ï¸ Firebase Login Requires Browser
 
 Firebase CLI needs to open a browser window for authentication.
 
 ---
 
-## 📋 Follow These Steps:
+## ðŸ“‹ Follow These Steps:
 
 ### Step 1: Get Missing API Keys (7 minutes)
 
-#### 1. Google AI API Key (2 min)
-1. Go to: **https://makersuite.google.com/app/apikey**
+#### 1. Mistral AI API Key (2 min)
+1. Go to: **https://console.mistral.ai/api-keys**
 2. Click "Create API Key"
-3. Copy the key (starts with `AIza...`)
+3. Copy the key (starts with a long alphanumeric string)
 4. Open `c:\firebase\studio\.env.local`
 5. Replace this line:
    ```
-   GOOGLE_GENAI_API_KEY=your-google-ai-api-key
+   MISTRAL_API_KEY=your-mistral-api-key
    ```
    With your actual key:
    ```
-   GOOGLE_GENAI_API_KEY=AIzaSy...your-actual-key
+   MISTRAL_API_KEY=your-actual-key
    ```
 6. Do the same for `c:\firebase\studio\functions\.env`
 
@@ -57,7 +57,7 @@ firebase login
 firebase use bizassistant2-62305643-adad7
 
 # 3. Deploy secrets securely
-firebase functions:secrets:set GOOGLE_GENAI_API_KEY
+firebase functions:secrets:set MISTRAL_API_KEY
 # (Paste your Google AI key when prompted)
 
 firebase functions:secrets:set SENDGRID_API_KEY
@@ -73,7 +73,7 @@ firebase deploy
 
 #### Test is Complete When You See:
 ```
-✔  Deploy complete!
+âœ”  Deploy complete!
 ```
 
 #### Then Test:
@@ -82,21 +82,21 @@ firebase deploy
    - Open: http://localhost:3000/staff/login
    - Enter email
    - Check email for OTP
-   - Login successfully ✅
+   - Login successfully âœ…
 
 2. **Forgot Password:**
    - Open: http://localhost:3000/forgot
    - Enter email
-   - Check for reset email ✅
+   - Check for reset email âœ…
 
 3. **Payment Flow:**
    - Open: http://localhost:3000/plans/subscribe
    - Click a plan
-   - Paystack modal appears ✅
+   - Paystack modal appears âœ…
 
 ---
 
-## 🎯 Quick Reference
+## ðŸŽ¯ Quick Reference
 
 ### Files You Need to Edit:
 
@@ -113,26 +113,26 @@ firebase deploy
 ```bash
 firebase login
 firebase use bizassistant2-62305643-adad7
-firebase functions:secrets:set GOOGLE_GENAI_API_KEY
+firebase functions:secrets:set MISTRAL_API_KEY
 firebase functions:secrets:set SENDGRID_API_KEY
 firebase deploy
 ```
 
 ---
 
-## ✅ What's Already Done
+## âœ… What's Already Done
 
 - [x] Staff authentication fixed
 - [x] Forgot password page created
 - [x] Storage rules deployed
 - [x] Firestore indexes created
-- [x] Paystack LIVE key configured ✅
-- [x] DashScope API key configured ✅
-- [x] Environment files created ✅
+- [x] Paystack LIVE key configured âœ…
+- [x] DashScope API key configured âœ…
+- [x] Environment files created âœ…
 
 ---
 
-## 🚀 After Deployment
+## ðŸš€ After Deployment
 
 Your app will be live at:
 - **Firebase Hosting:** https://busmo.web.app (if configured)
@@ -140,7 +140,7 @@ Your app will be live at:
 
 ---
 
-## 📞 If You Need Help
+## ðŸ“ž If You Need Help
 
 **Common Issues:**
 
@@ -164,7 +164,7 @@ Your app will be live at:
 
 ---
 
-## 🎉 You're Ready to Launch!
+## ðŸŽ‰ You're Ready to Launch!
 
 **Current Progress:** 90% Complete
 
@@ -173,6 +173,6 @@ Your app will be live at:
 2. Run deploy commands (5 min)
 3. Test flows (5 min)
 
-**Total Time:** ~17 minutes to LAUNCH! 🚀
+**Total Time:** ~17 minutes to LAUNCH! ðŸš€
 
-See you on the other side! 👋
+See you on the other side! ðŸ‘‹

@@ -39,4 +39,3 @@ runConfig:
     PUBLIC_BRAND_HOST: "https://busmo.io"
     DEFAULT_CURRENCY: "NGN"
     PAYOUT_DELAY_HOURS: "24"
-    GOOGLE_GENAI_API_KEY: "AIzaSyAjQGZ-PjajRn18SZdnFZyI0hG_OjjPuz4"

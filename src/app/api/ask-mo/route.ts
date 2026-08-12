@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getMistralClient, STT_MODEL } from '@/ai/mistral';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { detectIntent } from '@/lib/services/mo-intent-router';
 import { executeAction, validatePermission } from '@/lib/services/mo-action-router';
@@ -868,9 +868,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 3: Generate AI response for conversational context
-    const googleApiKey = process.env.GOOGLE_GENAI_API_KEY;
-    if (!googleApiKey || googleApiKey === 'your-google-ai-api-key') {
-      console.error('❌ [Ask MO API] Google Gen AI API key is missing or invalid');
+    const mistralApiKey = process.env.MISTRAL_API_KEY;
+    if (!mistralApiKey || mistralApiKey === 'your-mistral-api-key') {
+      console.error('❌ [Ask MO API] Mistral API key is missing or invalid');
       
       // Return structured response if action was executed
       if (renderedResponse) {
@@ -886,7 +886,7 @@ export async function POST(request: NextRequest) {
       // Fallback response if no API key
       return NextResponse.json({
         answer: 'I apologize, but the AI service is not properly configured. Please contact support.',
-        error: 'Google Gen AI API key is not configured',
+        error: 'Mistral API key is not configured',
         timestamp: new Date().toISOString()
       }, { status: 500 });
     }
@@ -1060,57 +1060,80 @@ ${processingResult.busmoAction.requiresConfirmation ? '(Requires confirmation)' 
 ${processingResult.nextAction}`;
     }
 
-    const genAI = new GoogleGenerativeAI(googleApiKey);
-    const modelName = image ? 'gemini-pro-vision' : 'gemini-pro-latest';
-    const model = genAI.getGenerativeModel({ 
-      model: modelName,
-      systemInstruction: systemPrompt
-    });
+    const mistral = getMistralClient();
 
-    const chat = model.startChat({
-      history: effectiveHistory
+    // Mistral uses a single vision-capable flagship model for both text and images
+    const modelName = 'mistral-large-latest';
+
+    // Transcribe audio once via Voxtral so the transcript can be included as text
+    let transcribedAudio = '';
+    if (audio && typeof audio === 'string') {
+      const [audioHeader, audioData] = audio.split(',');
+      const audioMimeType = audioHeader?.split(';')[0]?.split(':')[1] || 'audio/webm';
+      if (audioData) {
+        try {
+          const audioBuffer = Buffer.from(audioData, 'base64');
+          const extension = audioMimeType.includes('mp3') || audioMimeType.includes('mpeg')
+            ? 'mp3'
+            : audioMimeType.includes('wav')
+              ? 'wav'
+              : 'webm';
+          const transcriptionResult = await mistral.audio.transcriptions.complete({
+            model: STT_MODEL,
+            file: new File([audioBuffer], `voice.${extension}`, { type: audioMimeType }),
+            language: language || 'en',
+          });
+          transcribedAudio = transcriptionResult.text?.trim() || '';
+        } catch (audioError) {
+          console.error('❌ [Ask MO API] Audio transcription failed, continuing without audio:', audioError);
+        }
+      }
+    }
+
+    const messages: any[] = [
+      { role: 'system', content: systemPrompt },
+      ...effectiveHistory
         .filter((msg: any) => msg.role === 'user' || msg.role === 'assistant')
         .map((msg: any) => ({
-          role: msg.role === 'user' ? 'user' : 'model',
-          parts: [{ text: msg.content }]
+          role: msg.role === 'user' ? 'user' : 'assistant',
+          content: String(msg.content ?? ''),
         }))
         .filter((history: any, index: number, arr: any[]) => {
           // Ensure first message is from user
           if (index === 0 && history.role !== 'user') return false;
           return true;
-        })
-    });
+        }),
+    ];
 
-    let result;
-    let lastError;
+    let result: any;
+    let lastError: any;
     const maxRetries = 3;
     const baseDelay = 1000;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Google AI API timeout after 30 seconds')), 30000);
+          setTimeout(() => reject(new Error('Mistral AI API timeout after 30 seconds')), 30000);
         });
 
-        let messageParts: ({ text: string } | { inlineData: { mimeType: string; data: string } })[] = [{ text: message }];
+        const userContent: any[] = [{ type: 'text', text: message }];
         if (image && typeof image === 'string') {
           const [imgHeader, imgData] = image.split(',');
           const imgMimeType = imgHeader?.split(';')[0]?.split(':')[1] || 'image/jpeg';
           if (imgData) {
-            messageParts.push({ inlineData: { mimeType: imgMimeType, data: imgData } });
+            userContent.push({ type: 'image_url', imageUrl: `data:${imgMimeType};base64,${imgData}` });
           }
         }
-        if (audio && typeof audio === 'string') {
-          const [audioHeader, audioData] = audio.split(',');
-          const audioMimeType = audioHeader?.split(';')[0]?.split(':')[1] || 'audio/webm';
-          if (audioData) {
-            messageParts.push({ inlineData: { mimeType: audioMimeType, data: audioData } });
-          }
+        if (transcribedAudio) {
+          userContent.push({ type: 'text', text: `[Transcribed voice message: ${transcribedAudio}]` });
         }
 
         result = await Promise.race([
-          chat.sendMessage(messageParts),
-          timeoutPromise
+          mistral.chat.complete({
+            model: modelName,
+            messages: [...messages, { role: 'user', content: userContent }],
+          }),
+          timeoutPromise,
         ]) as any;
 
         break;
@@ -1130,8 +1153,12 @@ ${processingResult.nextAction}`;
       throw lastError || new Error('Failed to generate response after retries');
     }
 
-    const response = result.response;
-    const text = response.text();
+    const content = result.choices?.[0]?.message?.content;
+    const text = typeof content === 'string'
+      ? content
+      : Array.isArray(content)
+        ? content.map((part: any) => part?.type === 'text' ? part.text : '').join('')
+        : '';
 
     console.log('✅ [Ask MO API] Response generated');
 
@@ -1181,19 +1208,19 @@ ${processingResult.nextAction}`;
     if (errorMessage.includes('404') || errorMessage.includes('Not Found')) {
       return NextResponse.json(
         { 
-          error: 'Google AI model not found or API key issue',
-          message: 'The Google AI API key may not have access to the requested model. Please check that your GOOGLE_GENAI_API_KEY is valid.',
+          error: 'Mistral AI model not found or API key issue',
+          message: 'The Mistral API key may not have access to the requested model. Please check that your MISTRAL_API_KEY is valid.',
           details: errorMessage
         },
         { status: 500 }
       );
     }
     
-    if (errorMessage.includes('API key') || errorMessage.includes('GENAI_API_KEY')) {
+    if (errorMessage.includes('API key') || errorMessage.includes('MISTRAL_API_KEY')) {
       return NextResponse.json(
         { 
-          error: 'Google AI API key configuration error',
-          message: 'The Google AI API key is not configured or invalid. Please check your environment variables.',
+          error: 'Mistral AI API key configuration error',
+          message: 'The Mistral API key is not configured or invalid. Please check your environment variables.',
           details: errorMessage
         },
         { status: 500 }
@@ -1204,7 +1231,7 @@ ${processingResult.nextAction}`;
       return NextResponse.json(
         { 
           error: 'Request timeout',
-          message: 'The request to Google AI timed out. Please try again.',
+          message: 'The request to Mistral AI timed out. Please try again.',
           details: errorMessage
         },
         { status: 500 }

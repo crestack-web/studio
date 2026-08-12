@@ -1,12 +1,12 @@
-# 🚀 Busmo Launch Checklist
+﻿# ðŸš€ Busmo Launch Checklist
 
-## Status: ⚠️ NOT READY FOR PRODUCTION
+## Status: âš ï¸ NOT READY FOR PRODUCTION
 
 Last Updated: March 3, 2026
 
 ---
 
-## ✅ Completed (Configuration Files Created)
+## âœ… Completed (Configuration Files Created)
 
 - [x] `storage.rules` - Firebase Storage security rules
 - [x] `firestore.indexes.json` - Database indexes
@@ -17,7 +17,7 @@ Last Updated: March 3, 2026
 
 ---
 
-## ❌ Critical Blockers (Must Fix Before Launch)
+## âŒ Critical Blockers (Must Fix Before Launch)
 
 ### 1. Environment Variables Not Configured
 
@@ -27,10 +27,10 @@ Last Updated: March 3, 2026
 
 | Service | Variable | Where to Get | Status |
 |---------|----------|--------------|--------|
-| **Google AI** | `GOOGLE_GENAI_API_KEY` | [makersuite.google.com](https://makersuite.google.com/app/apikey) | ❌ Missing |
-| **Paystack** | `PAYSTACK_SECRET_KEY` | [paystack.com/settings/api-keys](https://paystack.com/settings/api-keys) | ❌ Missing |
-| **SendGrid** | `SENDGRID_API_KEY` | [sendgrid.com](https://sendgrid.com) | ❌ Missing |
-| **Alibaba Cloud** | `DASHSCOPE_API_KEY` | [dashscope.console.aliyun.com](https://dashscope.console.aliyun.com) | ✅ Exists in WhatsApp bot |
+| **Google AI** | `MISTRAL_API_KEY` | [makersuite.google.com](https://makersuite.google.com/app/apikey) | âŒ Missing |
+| **Paystack** | `PAYSTACK_SECRET_KEY` | [paystack.com/settings/api-keys](https://paystack.com/settings/api-keys) | âŒ Missing |
+| **SendGrid** | `SENDGRID_API_KEY` | [sendgrid.com](https://sendgrid.com) | âŒ Missing |
+| **Alibaba Cloud** | `DASHSCOPE_API_KEY` | [dashscope.console.aliyun.com](https://dashscope.console.aliyun.com) | âœ… Exists in WhatsApp bot |
 
 #### Steps to Configure:
 
@@ -43,7 +43,7 @@ copy functions\.env.example functions\.env
 # 2. Edit .env.local with your actual keys
 # 3. Edit functions\.env with your actual keys
 # 4. Deploy environment variables to Firebase
-firebase functions:secrets:set GOOGLE_GENAI_API_KEY
+firebase functions:secrets:set MISTRAL_API_KEY
 firebase functions:secrets:set PAYSTACK_SECRET_KEY
 firebase functions:secrets:set SENDGRID_API_KEY
 ```
@@ -52,7 +52,7 @@ firebase functions:secrets:set SENDGRID_API_KEY
 
 ### 2. Incomplete Authentication Flow
 
-#### Staff Login Uses Mock Data ❌
+#### Staff Login Uses Mock Data âŒ
 **File:** `src/app/staff/login/page.tsx`
 
 **Current Issue:**
@@ -65,7 +65,7 @@ const correctOtp = '123456';
 - Connect to Firebase Auth
 - Use OTP functions from `functions/index.js` (`sendOtpLogin`, `verifyOtpLogin`)
 
-#### Missing Pages ❌
+#### Missing Pages âŒ
 - `/forgot` - Password reset request page
 - `/onboarding` - First-time user setup
 
@@ -88,10 +88,10 @@ const correctOtp = '123456';
 
 ```typescript
 typescript: {
-  ignoreBuildErrors: true,  // ⚠️ REMOVE THIS
+  ignoreBuildErrors: true,  // âš ï¸ REMOVE THIS
 },
 eslint: {
-  ignoreDuringBuilds: true,  // ⚠️ REMOVE THIS
+  ignoreDuringBuilds: true,  // âš ï¸ REMOVE THIS
 },
 ```
 
@@ -99,7 +99,7 @@ eslint: {
 
 ---
 
-## 🔧 High Priority Fixes
+## ðŸ”§ High Priority Fixes
 
 ### 5. Owner Dashboard Uses Mock Data
 
@@ -137,7 +137,7 @@ Currently shows placeholder content instead of real Firestore data.
 
 ---
 
-## 📋 Medium Priority
+## ðŸ“‹ Medium Priority
 
 ### 8. Security Hardening
 
@@ -166,7 +166,7 @@ firebase emulators:start
 
 ---
 
-## 📝 Low Priority (Post-Launch)
+## ðŸ“ Low Priority (Post-Launch)
 
 ### 11. Documentation
 
@@ -190,38 +190,38 @@ firebase emulators:start
 
 ---
 
-## 🎯 Launch Readiness Score
+## ðŸŽ¯ Launch Readiness Score
 
 | Category | Score | Status |
 |----------|-------|--------|
-| **Firebase Setup** | 90% | ✅ Good |
-| **Authentication** | 50% | ⚠️ Needs Work |
-| **Database** | 85% | ✅ Good |
-| **Cloud Functions** | 70% | ⚠️ Untested |
-| **Environment Config** | 20% | ❌ Critical |
-| **Frontend Pages** | 60% | ⚠️ TODOs |
-| **Security** | 40% | ❌ Hardcoded Keys |
-| **Documentation** | 30% | ❌ Minimal |
+| **Firebase Setup** | 90% | âœ… Good |
+| **Authentication** | 50% | âš ï¸ Needs Work |
+| **Database** | 85% | âœ… Good |
+| **Cloud Functions** | 70% | âš ï¸ Untested |
+| **Environment Config** | 20% | âŒ Critical |
+| **Frontend Pages** | 60% | âš ï¸ TODOs |
+| **Security** | 40% | âŒ Hardcoded Keys |
+| **Documentation** | 30% | âŒ Minimal |
 
 ### **Overall: 45/100 - NOT READY FOR PRODUCTION**
 
 ---
 
-## 🚦 Go/No-Go Decision
+## ðŸš¦ Go/No-Go Decision
 
-### ✅ GREEN LIGHT (Ready to Launch) When:
+### âœ… GREEN LIGHT (Ready to Launch) When:
 - All Critical Blockers are resolved
 - Environment variables configured
 - Authentication flow tested
 - Payment flow tested end-to-end
 - Build errors fixed (no suppressed errors)
 
-### ⚠️ YELLOW LIGHT (Launch with Caution) When:
+### âš ï¸ YELLOW LIGHT (Launch with Caution) When:
 - Critical blockers resolved
 - High priority fixes 50% complete
 - Basic monitoring in place
 
-### ❌ RED LIGHT (Do Not Launch) Current Status:
+### âŒ RED LIGHT (Do Not Launch) Current Status:
 - Critical blockers NOT resolved
 - No environment variables configured
 - Authentication incomplete
@@ -229,7 +229,7 @@ firebase emulators:start
 
 ---
 
-## 📅 Recommended Timeline
+## ðŸ“… Recommended Timeline
 
 | Week | Focus |
 |------|-------|
@@ -240,7 +240,7 @@ firebase emulators:start
 
 ---
 
-## 🔗 Quick Links
+## ðŸ”— Quick Links
 
 - [Firebase Console](https://console.firebase.google.com/project/bizassistant2-62305643-adad7)
 - [Paystack Dashboard](https://dashboard.paystack.com)

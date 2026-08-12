@@ -21,13 +21,13 @@ export interface EnvironmentValidationResult {
 export interface EnvironmentStatus {
   firebaseAdmin: boolean;
   firestore: boolean;
-  googleAI: boolean;
+  mistralAI: boolean;
   timestamp: string;
   details: {
     projectId: boolean;
     privateKey: boolean;
     clientEmail: boolean;
-    googleApiKey: boolean;
+    mistralApiKey: boolean;
   };
 }
 
@@ -77,19 +77,19 @@ export function validateAskMOEnvironment(): EnvironmentValidationResult {
     });
   }
 
-  // Google AI Variables
-  const googleApiKey = process.env.GOOGLE_GENAI_API_KEY;
+  // Mistral AI Variables
+  const mistralApiKey = process.env.MISTRAL_API_KEY;
 
-  if (!googleApiKey) {
+  if (!mistralApiKey) {
     errors.push({
-      variable: 'GOOGLE_GENAI_API_KEY',
-      message: 'Google Gen AI API Key is missing',
+      variable: 'MISTRAL_API_KEY',
+      message: 'Mistral API Key is missing',
       source: ErrorSource.ENVIRONMENT,
     });
-  } else if (googleApiKey === 'your-google-ai-api-key') {
+  } else if (mistralApiKey === 'your-mistral-api-key') {
     warnings.push({
-      variable: 'GOOGLE_GENAI_API_KEY',
-      message: 'Google Gen AI API Key is using placeholder value',
+      variable: 'MISTRAL_API_KEY',
+      message: 'Mistral API Key is using placeholder value',
     });
   }
 
@@ -123,22 +123,22 @@ export function getEnvironmentStatus(): EnvironmentStatus {
   const projectId = !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   const privateKey = !!process.env.FIREBASE_ADMIN_PRIVATE_KEY;
   const clientEmail = !!process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-  const googleApiKey = !!process.env.GOOGLE_GENAI_API_KEY;
+  const mistralApiKey = !!process.env.MISTRAL_API_KEY;
 
   const firebaseAdmin = projectId && privateKey && clientEmail;
   const firestore = firebaseAdmin; // Firestore depends on Firebase Admin
-  const googleAI = googleApiKey;
+  const mistralAI = mistralApiKey;
 
   return {
     firebaseAdmin,
     firestore,
-    googleAI,
+    mistralAI,
     timestamp: new Date().toISOString(),
     details: {
       projectId,
       privateKey,
       clientEmail,
-      googleApiKey,
+      mistralApiKey,
     },
   };
 }
@@ -171,8 +171,8 @@ export function logEnvironmentStartup(): void {
   console.log(`  - Private Key: ${status.details.privateKey ? '✅' : '❌'}`);
   console.log(`  - Client Email: ${status.details.clientEmail ? '✅' : '❌'}`);
   console.log(`Firestore: ${status.firestore ? '✅' : '❌'}`);
-  console.log(`Google AI: ${status.googleAI ? '✅' : '❌'}`);
-  console.log(`  - API Key: ${status.details.googleApiKey ? '✅' : '❌'}`);
+  console.log(`Mistral AI: ${status.mistralAI ? '✅' : '❌'}`);
+  console.log(`  - API Key: ${status.details.mistralApiKey ? '✅' : '❌'}`);
   console.log('================================');
   console.log(`Timestamp: ${status.timestamp}`);
 }

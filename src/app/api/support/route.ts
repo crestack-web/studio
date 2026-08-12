@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { initializeFirebase } from '@/firebase';
 import { collection, addDoc, serverTimestamp, getDoc, doc, updateDoc, arrayUnion } from 'firebase/firestore';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getMistralClient } from '@/ai/mistral';
 
 /**
  * Handles incoming support messages from the chat widget
@@ -181,17 +181,15 @@ async function handleHumanAgentRequest(firestore: any, messageDoc: any) {
 // Support-specific AI - separate from business intelligence AI
 async function askSupportAI(message: string, conversationHistory: any[]) {
   try {
-    const googleApiKey = process.env.GOOGLE_GENAI_API_KEY;
-    if (!googleApiKey || googleApiKey === 'your-google-ai-api-key') {
-      console.error('Google Gen AI API key is missing for support AI');
+    const mistralApiKey = process.env.MISTRAL_API_KEY;
+    if (!mistralApiKey || mistralApiKey === 'your-mistral-api-key') {
+      console.error('Mistral API key is missing for support AI');
       // Return a more helpful fallback message
       return "I'm currently experiencing some technical difficulties. I've saved your message and our support team will get back to you shortly. In the meantime, you can click the 'Human' button to speak with a live agent.";
     }
 
-    const genAI = new GoogleGenerativeAI(googleApiKey);
-    const model = genAI.getGenerativeModel({ 
-      model: 'gemini-pro',
-      systemInstruction: `You are MO Support, a helpful customer support assistant for Busmo - a comprehensive business management platform designed for African entrepreneurs.
+    const mistral = getMistralClient();
+    const systemInstruction = `You are MO Support, a helpful customer support assistant for Busmo - a comprehensive business management platform designed for African entrepreneurs.
 
 COMPREHENSIVE BUSMO KNOWLEDGE:
 
@@ -308,23 +306,32 @@ You should:
 If you cannot answer a question or it requires account-specific actions, suggest the user:
 - Contact support@busmo.io
 - Use the human agent option in the chat
-- Check the help center documentation`
-    });
+- Check the help center documentation`;
 
     const historyToSend = conversationHistory
       .slice(-10)
       .map((msg: any) => ({
-        role: msg.sender === 'user' ? 'user' : 'model',
-        parts: [{ text: msg.text || msg.content }]
+        role: msg.sender === 'user' ? 'user' : 'assistant',
+        content: msg.text || msg.content || ''
       }));
 
-    const chat = model.startChat({
-      history: historyToSend
+    const messages: any[] = [
+      { role: 'system', content: systemInstruction },
+      ...historyToSend,
+      { role: 'user', content: message },
+    ];
+
+    const result = await mistral.chat.complete({
+      model: 'mistral-large-latest',
+      messages,
     });
 
-    const result = await chat.sendMessage([{ text: message }]);
-    const response = result.response;
-    const text = response.text();
+    const content = result.choices?.[0]?.message?.content;
+    const text = typeof content === 'string'
+      ? content
+      : Array.isArray(content)
+        ? content.map((part: any) => part?.type === 'text' ? part.text : '').join('')
+        : '';
 
     return text || "I'm here to help! Could you tell me more about what you need?";
   } catch (error) {

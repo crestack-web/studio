@@ -84,7 +84,7 @@ export class VoiceProcessingService {
       try {
         const transcriptionResult = await transcribeAudio(audioBlob);
         transcript = transcriptionResult;
-        confidenceScore = undefined; // Gemini doesn't provide confidence scores directly
+        confidenceScore = undefined; // Mistral Voxtral doesn't provide confidence scores directly
         detectedLanguage = opts.enableLanguageDetection 
           ? (detectLanguageFromText(transcript) as SupportedLanguage) 
           : userLanguageHint;
@@ -130,7 +130,7 @@ export class VoiceProcessingService {
         consentGiven: true,
         consentTimestamp: new Date(),
         processingMetadata: {
-          apiUsed: 'gemini',
+          apiUsed: 'mistral',
           processingTimeMs: Date.now() - startTime,
           retryCount: 0
         }

@@ -28,23 +28,26 @@ QWEN_TEMPERATURE=0.7
 
 ---
 
-### 2. **Google AI (Gemini) Service** (Frontend)
-**File:** `src/ai/genkit.ts`
+### 2. **Mistral AI Service** (Frontend)
+**File:** `src/ai/mistral.ts`
 
 **Configuration:**
 ```typescript
-import {googleAI} from '@genkit-ai/google-genai';
-export const ai = genkit({
-  plugins: [googleAI()],
-  model: 'googleai/gemini-2.5-flash',
-});
+import { getMistralClient } from '@/ai/mistral';
+const mistral = getMistralClient();
 ```
 
-**API Key:** ⏳ **NEEDS CONFIGURATION**
-- Add to `.env.local`: `GOOGLE_GENAI_API_KEY=your-key-here`
-- Add to `functions/.env`: `GOOGLE_GENAI_API_KEY=your-key-here`
+**Models:**
+- Chat: `mistral-large-latest` (vision-capable, handles both text and images)
+- Fallbacks: `mistral-medium-latest`, `mistral-small-latest`
+- Speech-to-text: `voxtral-mini-latest`
 
-**Get Key:** https://makersuite.google.com/app/apikey
+**API Key:** ⏳ **NEEDS CONFIGURATION**
+- Add to `.env.local`: `MISTRAL_API_KEY=your-key-here`
+- Add to `functions/.env`: `MISTRAL_API_KEY=your-key-here`
+- Add to `functions` secrets: `firebase functions:secrets:set MISTRAL_API_KEY`
+
+**Get Key:** https://console.mistral.ai/api-keys
 
 ---
 
@@ -135,17 +138,17 @@ export const MO_ASK_CHIPS = [
 
 ---
 
-### **Test Google AI (Gemini):**
+### **Test Mistral AI:**
 
-1. **Get API Key:** https://makersuite.google.com/app/apikey
+1. **Get API Key:** https://console.mistral.ai/api-keys
 
 2. **Add to Environment:**
    ```bash
    # .env.local
-   GOOGLE_GENAI_API_KEY=your-key-here
-   
+   MISTRAL_API_KEY=your-key-here
+    
    # functions/.env
-   GOOGLE_GENAI_API_KEY=your-key-here
+   MISTRAL_API_KEY=your-key-here
    ```
 
 3. **Test Business Insights:**
@@ -200,14 +203,15 @@ const formattedReply = chip.reply.replace(/₦([\d,]+)/g, (match, amount) => {
 
 ---
 
-### **Google AI (Gemini)**
+### **Mistral AI**
 
 | Model | Cost | Speed |
 |-------|------|-------|
-| gemini-2.5-flash | Free (up to 1000 req/day) | Very Fast |
-| gemini-pro | $0.000125/1K tokens | Fast |
+| mistral-large-latest | ~$2/M input tokens | Fast |
+| mistral-small-latest | ~$0.2/M input tokens | Very Fast |
+| voxtral-mini-latest (STT) | $0.05/audio minute | Fast |
 
-**Your Config:** `gemini-2.5-flash` (FREE tier)
+**Your Config:** `mistral-large-latest` (chat + vision), `voxtral-mini-latest` (speech-to-text)
 
 **Estimated Monthly Cost:** $0 (within free tier)
 
@@ -218,10 +222,10 @@ const formattedReply = chip.reply.replace(/₦([\d,]+)/g, (match, amount) => {
 - [x] Qwen3.5 API key configured ✅
 - [x] Qwen service implemented ✅
 - [x] Cloud Functions routes created ✅
-- [x] Google AI (Gemini) configured ✅
+- [x] Mistral AI configured ✅
 - [x] Business insights flow implemented ✅
 - [x] MO ask chips updated with numeric values ✅
-- [ ] Google AI API key added to .env ⏳
+- [ ] Mistral AI API key added to .env ⏳
 - [ ] Multi-currency formatting for MO replies ⏳
 - [ ] Deployed to Firebase ⏳
 - [ ] Tested sale parsing ⏳
@@ -259,11 +263,11 @@ const formattedReply = chip.reply.replace(/₦([\d,]+)/g, (match, amount) => {
 
 ```bash
 # .env.local
-GOOGLE_GENAI_API_KEY=your-key-here
+MISTRAL_API_KEY=your-key-here
 
 # functions/.env
 DASHSCOPE_API_KEY=sk-27af2a883f5c4aca8f08ff33a4418d1d
-GOOGLE_GENAI_API_KEY=your-key-here
+MISTRAL_API_KEY=your-key-here
 QWEN_MODEL=qwen-max
 QWEN_MAX_TOKENS=2000
 QWEN_TEMPERATURE=0.7

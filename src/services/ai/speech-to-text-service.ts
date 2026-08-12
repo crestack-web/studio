@@ -1,7 +1,7 @@
 /**
  * Client-side transcription helper.
- * All actual Gemini API calls happen server-side via POST /api/transcribe
- * so that Buffer, process.env.GOOGLE_GENAI_API_KEY, etc. are never accessed
+ * All actual Mistral Voxtral API calls happen server-side via POST /api/transcribe
+ * so that Buffer, process.env.MISTRAL_API_KEY, etc. are never accessed
  * in the browser.
  */
 
