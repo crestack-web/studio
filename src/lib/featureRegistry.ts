@@ -377,20 +377,6 @@ export const FEATURE_REGISTRY: Record<string, Feature> = {
     isStandardOrPro: false,
   },
 
-  // ── E-commerce Features ───────────────────
-  'ecommerce-storefront': {
-    id: 'ecommerce-storefront',
-    name: 'E-commerce Storefront',
-    description: 'Online store for selling products',
-    icon: 'ShoppingBag',
-    category: 'ecommerce',
-    pageId: 'ecommerce-storefront',
-    requiredPlans: ['pro'],
-    isOptional: true,
-    isProOnly: true,
-    isStandardOrPro: false,
-  },
-
   // ── Marketing Features ───────────────────
   'email-campaigns': {
     id: 'email-campaigns',

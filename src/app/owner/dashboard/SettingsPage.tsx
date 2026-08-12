@@ -241,7 +241,6 @@ export default function SettingsPage() {
               setEnablePayment(configDoc.data().enablePayment || false);
             }
           }
-          }
 
           // Load subscription info
           const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));

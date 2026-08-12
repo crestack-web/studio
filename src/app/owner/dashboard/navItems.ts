@@ -91,11 +91,6 @@ export const NAV_ITEM_REQUIREMENTS: Record<string, {
     requiredCategories: ['manufacturing'],
     requiredPlan: 'pro',
   },
-  'ecommerce-storefront': {
-    requiredFeatures: ['E-commerce Storefront'],
-    requiredCategories: ['retail', 'fashion', 'electronics'],
-    requiredPlan: 'pro',
-  },
   'payroll': {
     requiredFeatures: ['Payroll Management'],
     requiredPlan: 'pro',
@@ -411,16 +406,6 @@ export const SIDEBAR_TRANSLATIONS: { [key: string]: { [key: string]: string } } 
     pt: 'Produção',         // Portuguese
     pcm: 'Production',      // Pidgin
   },
-  'E-commerce': {
-    en: 'E-commerce',
-    yo: 'Ètò Ìṣòwò Lórí Ayélujára', // Yoruba
-    ig: 'Ahịa Intanet',     // Igbo
-    ha: 'Kasuwanci akan layi', // Hausa
-    sw: 'Biashara ya Mtandaoni', // Swahili
-    fr: 'E-commerce',      // French
-    pt: 'E-commerce',       // Portuguese
-    pcm: 'E-commerce',      // Pidgin
-  },
   'Payroll': {
     en: 'Payroll',
     yo: 'Isánwó',          // Yoruba
@@ -463,7 +448,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { id: 'ingredient-tracking', label: 'Ingredients', tip: 'Ingredients', iconClass: 'ni-ingredient', badge: 'Standard' },
       { id: 'expiry-alerts', label: 'Expiry Alerts', tip: 'Expiry Alerts', iconClass: 'ni-expiry' },
       { id: 'production-tracking', label: 'Production', tip: 'Production', iconClass: 'ni-production', badge: 'Pro' },
-      { id: 'ecommerce-storefront', label: 'E-commerce', tip: 'E-commerce', iconClass: 'ni-ecommerce', badge: 'Pro' },
     ],
     icon: '',
     id: undefined

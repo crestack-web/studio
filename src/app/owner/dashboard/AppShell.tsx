@@ -36,7 +36,6 @@ import MenuManagementPage from './MenuManagementPage';
 import IngredientsPage from './IngredientsPage';
 import ExpiryAlertsPage from './ExpiryAlertsPage';
 import ProductionPage from './ProductionPage';
-import EcommercePage from './EcommercePage';
 import PayrollPage from './PayrollPage';
 import CustomersPage from './CustomersPage';
 import SuppliersPage from './SuppliersPage';
@@ -79,7 +78,6 @@ const PAGE_MAP: Record<string, React.ReactNode> = {
   'ingredient-tracking': <IngredientsPage />,
   'expiry-alerts': <ExpiryAlertsPage />,
   'production-tracking': <ProductionPage />,
-  'ecommerce-storefront': <EcommercePage />,
   'payroll': <PayrollPage />,
   'customer-management': <CustomersPage />,
   'supplier-management': <SuppliersPage />,

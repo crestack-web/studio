@@ -159,15 +159,6 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     featureId: 'production-tracking',
     requiredCategories: ['manufacturing'],
   },
-  {
-    id: 'ecommerce-storefront',
-    label: 'E-commerce',
-    tip: 'Online store',
-    iconClass: 'ShoppingBag',
-    section: 'Main',
-    featureId: 'ecommerce-storefront',
-    requiredCategories: ['retail', 'fashion', 'electronics'],
-  },
 
   // Growth Section
   {

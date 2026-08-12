@@ -44,7 +44,6 @@ const FEATURE_NAME_MAP: Record<string, string> = {
   'expiryAlerts': 'expiry-alerts',
   'productionTracking': 'production-tracking',
   'payrollManagement': 'payroll-management',
-  'ecommerceStorefront': 'ecommerce-storefront',
   // Onboarding feature names
   'Supplier Management': 'supplier-management',
   'Warehouse Management': 'warehouse-management',
@@ -55,7 +54,6 @@ const FEATURE_NAME_MAP: Record<string, string> = {
   'Multi-branch Support': 'multi-branch-support',
   'Production Tracking': 'production-tracking',
   'Payroll Management': 'payroll-management',
-  'E-commerce Storefront': 'ecommerce-storefront',
 };
 
 // Get Pro-only features from registry (for backward compatibility)

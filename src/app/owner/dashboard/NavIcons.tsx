@@ -107,8 +107,6 @@ export function NavIcons({ id, size = 14 }: NavIconsProps) {
       return <svg {...base} style={s}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
     case 'production-tracking':
       return <svg {...base} style={s}><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>;
-    case 'ecommerce-storefront':
-      return <svg {...base} style={s}><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>;
     case 'warehouse':
       return <svg {...base} style={s}><path d="M3 3v61l7 3 7-3 7 3 7-3V3H3z"/><path d="M10 3v61M17 3v61M24 3v61"/></svg>;
     case 'stock-transfers':

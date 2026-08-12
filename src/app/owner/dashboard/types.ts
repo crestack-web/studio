@@ -41,7 +41,6 @@ export type PageId =
   | 'ingredient-tracking'
   | 'expiry-alerts'
   | 'production-tracking'
-  | 'ecommerce-storefront'
   | 'warehouse'
   | 'stock-transfers'
   | 'audit-trail'

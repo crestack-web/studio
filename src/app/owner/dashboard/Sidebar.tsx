@@ -41,7 +41,6 @@ export function Sidebar() {
       'Ingredient Tracking': 'ingredient-tracking',
       'Expiry Alerts': 'expiry-alerts',
       'Production Tracking': 'production-tracking',
-      'E-commerce Storefront': 'ecommerce-storefront',
       'Payroll Management': 'payroll-management',
       'Customer Management': 'customer-management',
       'Supplier Management': 'supplier-management',
@@ -151,7 +150,6 @@ export function Sidebar() {
       'Ingredients': t('nav.ingredients'),
       'Expiry Alerts': t('nav.expiryAlerts'),
       'Production': t('nav.production'),
-      'E-commerce': t('nav.ecommerce'),
       'Payroll': t('nav.payroll'),
       'Settings': t('nav.settings'),
     };
