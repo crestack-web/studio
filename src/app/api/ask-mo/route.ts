@@ -1060,6 +1060,24 @@ ${processingResult.busmoAction.requiresConfirmation ? '(Requires confirmation)' 
 ${processingResult.nextAction}`;
     }
 
+    // Anti-fabrication guardrail: tell the AI exactly whether the backend
+    // executed any business action this turn, so it never invents sales,
+    // expenses, products, balances, or other transactions that did not happen.
+    const actionExecuted = !!actionResult && actionResult.success !== false && !actionResult.error;
+    systemPrompt += `
+
+📋 ACTION EXECUTION STATUS (CRITICAL - NEVER FABRICATE):
+- Backend action executed this turn: ${actionExecuted ? 'YES' : 'NO'}
+${actionExecuted && actionResult?.message ? `- Result: ${actionResult.message}` : ''}
+${actionExecuted && actionResult?.data ? `- Recorded details: ${JSON.stringify(actionResult.data)}` : ''}
+
+If an action was executed, you may confirm it using ONLY the details above.
+If NO action was executed, you MUST follow these rules:
+1. NEVER state that a sale, expense, product, payment, purchase, or any transaction was recorded, saved, or completed.
+2. NEVER say "Sale recorded", "I've recorded", "Done, recorded", "your cash balance is now X", or anything presenting a transaction as finished.
+3. NEVER invent prices, quantities, totals, profits, cash balances, or any business data not present in the context above.
+4. If the user described selling or recording something, respond conversationally: restate what you understood and explain the system will show a confirmation card before anything is recorded. If the product cannot be confidently matched to inventory, say you couldn't find it and ask them to confirm the exact product name.`;
+
     const mistral = getMistralClient();
 
     // Mistral uses a single vision-capable flagship model for both text and images

@@ -71,6 +71,8 @@ export function detectIntent(
     /(?:sold|sell)\s+(?:all|most|half)\s+/i,  // "sold all"
     /(?:recording|log(?:ging)?|adding)\s+(?:a\s+)?sale/i,  // "recording a sale"
     /(?:quick|quickly)\s+(?:record|log|add)\s+(?:a\s+)?sale/i,  // "quickly record a sale"
+    /(?:i\s+)?(?:just\s+)?sold\s+to\s+/i,  // "just sold to velvety smooth 6"
+    /^[\w\s&.,'-]+\(\d{1,3}\)(\s+₦?\d+(?:,\d+)*)?$/i,  // "velvety smooth (6)" / "smooth (6) 2"
   ];
 
   // Enhanced product patterns with more flexible matching
@@ -563,6 +565,23 @@ function parseSaleData(message: string): Record<string, any> {
     }
   }
 
+  // Fallback: "just sold to velvety smooth 6" (voice style, quantity last)
+  if (items.length === 0) {
+    const soldToPattern = /(?:i\s+)?(?:just\s+)?sold\s+to\s+(?:the\s+)?(.+?)\s+(\d{1,3})(?:\s+(?:for|at|@)\s+(?:₦?(\d+(?:,\d+)*)))?$/i;
+    const soldToMatch = message.match(soldToPattern);
+    if (soldToMatch) {
+      let productName = soldToMatch[1].trim();
+      productName = productName.replace(/\s+(at|for|each|per|₦|naira|\d+)$/i, '').trim();
+      if (productName && productName.length > 1) {
+        items.push({
+          productName,
+          quantity: parseInt(soldToMatch[2]) || 1,
+          price: soldToMatch[3] ? parseInt(soldToMatch[3].replace(/,/g, '')) : undefined,
+        });
+      }
+    }
+  }
+
   // Fallback: "sold product" without quantity (assume qty=1)
   if (items.length === 0) {
     const singleItemPattern = /(?:i\s+)?(?:just\s+)?sold\s+(?:some\s+)?(.+?)(?:\s+(?:at|for|@)\s+₦?(\d+(?:,\d+)*))/i;
@@ -576,6 +595,23 @@ function parseSaleData(message: string): Record<string, any> {
           productName,
           quantity: 1,
           price: singleMatch[2] ? parseInt(singleMatch[2].replace(/,/g, '')) : undefined,
+        });
+      }
+    }
+  }
+
+  // Fallback: "velvety smooth (6)" or "smooth (6) 2" (short/voice notation)
+  if (items.length === 0) {
+    const parenPattern = /^(.+?)\s*\((\d{1,3})\)(?:\s+(?:₦?(\d+(?:,\d+)*)))?$/i;
+    const parenMatch = message.match(parenPattern);
+    if (parenMatch) {
+      let productName = parenMatch[1].trim();
+      productName = productName.replace(/\s+(at|for|each|per|₦|naira|\d+)$/i, '').trim();
+      if (productName && productName.length > 1) {
+        items.push({
+          productName,
+          quantity: parseInt(parenMatch[2]) || 1,
+          price: parenMatch[3] ? parseInt(parenMatch[3].replace(/,/g, '')) : undefined,
         });
       }
     }
