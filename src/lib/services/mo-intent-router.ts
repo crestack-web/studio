@@ -460,14 +460,19 @@ function parseSaleData(message: string): Record<string, any> {
     // Pattern: "2 Coca-Cola ₦500" (quantity, product, price)
     /(\d+)\s+(.+?)\s+(?:₦?(\d+(?:,\d+)*))/gi,
     // Pattern: "I sold 10 Indomie at ₦200 each" - capture this specific format
-    /(?:i\s+)?sold\s+(\d+)\s+(.+?)\s+at\s+₦?(\d+(?:,\d+)*)\s+(?:each|per)/i,
+    // NOTE: must have the global flag, otherwise pattern.exec() always returns
+    // the first match and the while loop below spins forever (OOM/hang).
+    /(?:i\s+)?sold\s+(\d+)\s+(.+?)\s+at\s+₦?(\d+(?:,\d+)*)\s+(?:each|per)/gi,
   ];
+
+  const seenItems = new Set<string>();
 
   for (const pattern of itemPatterns) {
     let match;
     // Reset lastIndex for reuse of global regex
     pattern.lastIndex = 0;
     while ((match = pattern.exec(message)) !== null) {
+      const matchStart = pattern.lastIndex - match[0].length;
       const quantity = parseInt(match[1]) || parseInt(match[2]) || 1;
       let productName = match[2] || match[3] || match[4] || '';
       const priceStr = match[3] || match[4] || match[5] || match[6];
@@ -482,14 +487,27 @@ function parseSaleData(message: string): Record<string, any> {
 
       // Skip if product name is too generic (likely a false match)
       if (!productName || productName.trim().toLowerCase().match(/^(and|or|the|a|an|of|for|at|@)$/)) {
+        // Guard against non-progressing matches
+        if (pattern.lastIndex === matchStart) pattern.lastIndex = matchStart + 1;
         continue;
       }
 
-      items.push({
-        productName: productName.trim(),
-        quantity,
-        price,
-      });
+      // Skip duplicates parsed by multiple overlapping patterns
+      const itemKey = `${productName.trim().toLowerCase()}|${quantity}|${price ?? ''}`;
+      if (!seenItems.has(itemKey)) {
+        seenItems.add(itemKey);
+        items.push({
+          productName: productName.trim(),
+          quantity,
+          price,
+        });
+      }
+
+      // Guard against zero-length / non-progressing matches
+      if (pattern.lastIndex === matchStart) {
+        pattern.lastIndex = matchStart + 1;
+      }
+      if (items.length >= 20) break;
     }
   }
 
@@ -580,9 +598,26 @@ function parseSaleData(message: string): Record<string, any> {
     }
   }
 
+  // Fallback: "made a sale of N product" / "did a sale of N product"
+  if (items.length === 0) {
+    const madeSalePattern = /(?:made|did)\s+(?:a\s+)?sale\s+of\s+(\d+)\s+(.+?)$/i;
+    const madeSaleMatch = message.match(madeSalePattern);
+    if (madeSaleMatch) {
+      let productName = madeSaleMatch[2].trim();
+      productName = productName.replace(/\s+(at|for|each|per|₦|naira|\d+(?:,\d+)*)$/i, '').trim();
+      if (productName && productName.length > 1) {
+        items.push({
+          productName,
+          quantity: parseInt(madeSaleMatch[1]) || 1,
+          price: undefined,
+        });
+      }
+    }
+  }
+
   // Fallback: "new sale of X product" without quantity (assume qty=1)
   if (items.length === 0) {
-    const newSalePattern = /(?:record|log|add|make)\s+(?:a\s+)?(?:new\s+)?sale\s+of\s+(.+?)$/i;
+    const newSalePattern = /(?:record|log|add|make|made)\s+(?:a\s+)?(?:new\s+)?sale\s+of\s+(.+?)$/i;
     const newSaleMatch = message.match(newSalePattern);
     if (newSaleMatch) {
       let productName = newSaleMatch[1].trim();
