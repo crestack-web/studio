@@ -979,6 +979,55 @@ ${industryIntelligence ? `- Industry Intelligence: ${industryIntelligence}` : ''
 Use this context to provide tailored advice. Never ask for information already shown above.`;
     }
 
+    // Inject the real figures computed from the database so the AI answers from
+    // actual records instead of inventing numbers.
+    const realDataLines: string[] = [];
+    if (businessData.totalSales !== undefined) realDataLines.push(`- Total Sales (all time): ₦${businessData.totalSales.toLocaleString()}`);
+    if (businessData.totalProfit !== undefined) realDataLines.push(`- Total Profit (all time): ₦${businessData.totalProfit.toLocaleString()}`);
+    if (businessData.todaySales !== undefined) realDataLines.push(`- Today's Sales: ₦${businessData.todaySales.toLocaleString()}`);
+    if (businessData.todayProfit !== undefined) realDataLines.push(`- Today's Profit: ₦${businessData.todayProfit.toLocaleString()}`);
+    if (businessData.profitMargin !== undefined) realDataLines.push(`- Overall Profit Margin: ${businessData.profitMargin.toFixed(1)}%`);
+    if (businessData.averageTransactionValue !== undefined) realDataLines.push(`- Average Transaction Value: ₦${businessData.averageTransactionValue.toLocaleString()}`);
+    if (businessData.sales && businessData.sales.length) realDataLines.push(`- Sales records loaded: ${businessData.sales.length}`);
+    if (businessData.products && businessData.products.length) realDataLines.push(`- Products in inventory: ${businessData.products.length}`);
+    if (businessData.expenses && businessData.expenses.length) {
+      const totalExpenses = businessData.expenses.reduce((sum: number, e: any) => sum + (parseFloat(e.amount) || parseFloat(e.total) || 0), 0);
+      realDataLines.push(`- Total Expenses (loaded records): ₦${totalExpenses.toLocaleString()}`);
+      if (businessData.expenseCategories && businessData.expenseCategories.length) {
+        const topExpense = businessData.expenseCategories[0];
+        realDataLines.push(`- Top expense category: ${topExpense.category} (₦${topExpense.amount.toLocaleString()})`);
+      }
+    }
+    if (businessData.outOfStockProducts && businessData.outOfStockProducts.length) {
+      realDataLines.push(`- Out of stock: ${businessData.outOfStockProducts.map((p: any) => p.name).join(', ')}`);
+    }
+    if (businessData.lowStockProducts && businessData.lowStockProducts.length) {
+      realDataLines.push(`- Low stock (${businessData.lowStockProducts.length}): ${businessData.lowStockProducts.slice(0, 10).map((p: any) => `${p.name} (${p.quantity} left)`).join(', ')}`);
+    }
+    if (businessData.topSellingProducts && businessData.topSellingProducts.length) {
+      realDataLines.push(`- Top selling products: ${businessData.topSellingProducts.slice(0, 5).map((p: any) => `${p.name} (₦${p.revenue.toLocaleString()})`).join(', ')}`);
+    }
+    if (businessData.customers && businessData.customers.length) realDataLines.push(`- Credit customers on file: ${businessData.customers.length}`);
+
+    if (realDataLines.length > 0) {
+      systemPrompt += `
+
+📋 REAL BUSINESS DATA (FROM THE DATABASE):
+These are the ONLY figures you may quote. All values are actual records.
+${realDataLines.join('\n')}
+
+TRUTHFULNESS RULES (STRICTLY OBEY):
+1. NEVER invent, estimate, or guess sales totals, profit, balances, counts, percentages, or prices. If a figure the user asks for is NOT listed in REAL BUSINESS DATA or CURRENT BUSINESS CONTEXT, you do not have it.
+2. If you cannot see the exact figure requested, reply that you don't have that data yet and suggest how it can be provided or where to check in the app.
+3. Never present a fabricated number as real. If you offer an estimate, label it clearly as "an estimate (not from records)".
+4. When giving amounts, always use the exact figures from the lists above — never round, inflate, or combine them into numbers that don't appear.`;
+    } else {
+      systemPrompt += `
+
+⚠️ DATA AVAILABILITY NOTICE:
+The database returned no business records for this query. If the user asks for any specific sales, profit, balance, count, or percentage, tell them you don't have that data on record yet and suggest the exact way to capture it (record sales, log expenses, add products). NEVER invent any number.`;
+    }
+
 
     // Add calculation results to system prompt if available
     if (processingResult.calculations.length > 0) {

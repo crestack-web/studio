@@ -62,6 +62,9 @@ next-env.d.ts
 temp/
 tmp/
 
+# Supabase
+supabase/migration-data/
+
 # WhatsApp bot
 busmo-whatsapp/node_modules/
 busmo-whatsapp/logs/
