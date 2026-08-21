@@ -6,6 +6,9 @@
  *
  * CRITICAL: Never throw during module evaluation or during SSR.
  * Auth pages import this module; a throw breaks client rendering.
+ *
+ * NEXT_PUBLIC_* vars are inlined at BUILD time by Next.js.
+ * After adding/changing them in Vercel, you must Redeploy.
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
@@ -19,14 +22,35 @@ function normalizeUrl(url: string): string {
   return trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
 }
 
+/** Diagnostic: which public Supabase env keys are present (no values). */
+export function getSupabasePublicEnvStatus(): {
+  hasUrl: boolean;
+  hasAnonKey: boolean;
+} {
+  return {
+    hasUrl: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()),
+    hasAnonKey: Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()),
+  };
+}
+
+export function getSupabaseConfigErrorMessage(): string {
+  const { hasUrl, hasAnonKey } = getSupabasePublicEnvStatus();
+  if (hasUrl && hasAnonKey) return '';
+  const missing: string[] = [];
+  if (!hasUrl) missing.push('NEXT_PUBLIC_SUPABASE_URL');
+  if (!hasAnonKey) missing.push('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+  return (
+    `Authentication is not configured (missing ${missing.join(' and ')}). ` +
+    'Set these in Vercel → Project → Settings → Environment Variables for Production, then Redeploy.'
+  );
+}
+
 function createBrowserClient(): SupabaseClient {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error(
-      'Supabase not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your environment.'
-    );
+    throw new Error(getSupabaseConfigErrorMessage());
   }
 
   return createClient(normalizeUrl(supabaseUrl), supabaseAnonKey, {
@@ -41,15 +65,11 @@ function createBrowserClient(): SupabaseClient {
 /**
  * Lazy browser singleton.
  * - Safe to import anywhere (including SSR) — does not throw at import time.
- * - Returns null on the server (SSR) so render can complete.
+ * - On the server returns a no-op stub so render can complete.
  * - Throws only when called in the browser without env vars.
  */
 export function getSupabase(): SupabaseClient {
-  // During SSR / RSC, never create a browser client and never throw.
   if (typeof window === 'undefined') {
-    // Callers on the server should use @/lib/supabase-server.
-    // Returning a proxy that no-ops prevents render crashes if something
-    // accidentally calls this during SSR.
     return createSsrStub();
   }
 
@@ -65,19 +85,16 @@ export function getSupabase(): SupabaseClient {
   }
 }
 
-/** True when browser env is present. Safe during SSR (returns false). */
+/** True when browser env is present. Safe during SSR. */
 export function isSupabaseConfigured(): boolean {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
+  const { hasUrl, hasAnonKey } = getSupabasePublicEnvStatus();
+  return hasUrl && hasAnonKey;
 }
 
 export function getSupabaseBrowser() {
   return getSupabase();
 }
 
-// Minimal stub so accidental SSR access does not crash the tree.
 function createSsrStub(): SupabaseClient {
   const handler: ProxyHandler<object> = {
     get(_t, prop) {
@@ -117,10 +134,6 @@ function createSsrStub(): SupabaseClient {
   return new Proxy({}, handler) as SupabaseClient;
 }
 
-/**
- * Lazy accessor for components that prefer a property-style API.
- * Does not initialize until first property access in the browser.
- */
 export const supabase = new Proxy({} as SupabaseClient, {
   get(_target, prop, receiver) {
     const instance = getSupabase();
