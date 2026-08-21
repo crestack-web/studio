@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import axios from 'axios';
+import { sendTransactionalEmail } from '@/services/email/brevo-service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,28 +13,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Brevo configuration from environment
-    const brevoApiKey = process.env.BREVO_API_KEY || process.env.Brevo_API_key;
-    
-    if (!brevoApiKey) {
-      console.error('BREVO_API_KEY not configured');
-      return NextResponse.json(
-        { error: 'Email service not configured' },
-        { status: 500 }
-      );
-    }
-
-    const brevoApiUrl = 'https://api.brevo.com/v3';
-
-    // Hausa welcome email content
-    const emailData = {
-      to: [{ email: to, name }],
-      from: {
-        email: 'noreply@busmo.io',
-        name: 'Busmo Team'
-      },
-      subject: `🎉 Barka da Zuwa Busmo! - An Minku Zuwa Shakarwa (${planTo || 'Standard'}) Plan`,
-      htmlContent: `
+    // Hausa welcome email content (sent via Resend)
+    const subject = `🎉 Barka da Zuwa Busmo! - An Minku Zuwa Shakarwa (${planTo || 'Standard'}) Plan`;
+    const htmlContent = `
         <!DOCTYPE html>
         <html>
         <head>
@@ -236,28 +217,21 @@ export async function POST(request: NextRequest) {
           </div>
         </body>
         </html>
-      `
-    };
+      `;
 
-    // Send email via Brevo API
-    const response = await axios.post(
-      `${brevoApiUrl}/smtp/email`,
-      emailData,
-      {
-        headers: {
-          'api-key': brevoApiKey,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      }
-    );
+    const result = await sendTransactionalEmail({
+      to: [{ email: to, name }],
+      subject,
+      htmlContent,
+      sender: { name: 'Busmo Team', email: 'noreply@busmo.io' },
+    });
 
-    console.log('✅ Email sent successfully:', response.data.messageId);
+    console.log('✅ Email sent successfully via Resend:', result.id);
 
     return NextResponse.json(
       { 
         success: true, 
-        messageId: response.data.messageId,
+        messageId: result.id,
         message: 'Email sent successfully'
       },
       { status: 200 }
