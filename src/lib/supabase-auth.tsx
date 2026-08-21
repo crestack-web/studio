@@ -11,7 +11,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { getSupabase } from '@/lib/supabase';
 
-// ── Public types ──────────────────────────────────────────────
+// ── Public types ──────────────────────────────
 
 export interface SupabaseAuthUser {
   uid: string;
@@ -36,7 +36,7 @@ export interface SupabaseAuthContextState {
   supabase: ReturnType<typeof getSupabase>;
 }
 
-// ── Context ───────────────────────────────────────────────────
+// ── Context ─────────────────────────────────────────────
 
 const SupabaseAuthContext = createContext<SupabaseAuthContextState | undefined>(undefined);
 
@@ -52,7 +52,7 @@ function mapUser(supabaseUser: SupabaseUser | null): SupabaseAuthUser | null {
   };
 }
 
-// ── Provider ──────────────────────────────────────────────────
+// ── Provider ─────────────────────────────────────────────
 
 export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SupabaseAuthUser | null>(null);
@@ -60,10 +60,23 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   const [isUserLoading, setIsUserLoading] = useState(true);
   const [userError, setUserError] = useState<Error | null>(null);
 
-  const supabase = useMemo(() => getSupabase(), []);
+  const supabase = useMemo(() => {
+    try {
+      return getSupabase();
+    } catch {
+      // Return a minimal stub so the provider can still mount; real calls will fail clearly.
+      return null as unknown as ReturnType<typeof getSupabase>;
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
+
+    if (!supabase) {
+      setUserError(new Error('Supabase not configured'));
+      setIsUserLoading(false);
+      return;
+    }
 
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       if (!mounted) return;
@@ -101,7 +114,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// ── Hooks ─────────────────────────────────────────────────────
+// ── Hooks ───────────────────────────────────────────────
 
 export function useSupabaseAuth(): SupabaseAuthContextState {
   const ctx = useContext(SupabaseAuthContext);
