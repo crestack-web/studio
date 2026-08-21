@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -26,7 +25,13 @@ function FinishSignInPageContent() {
 
     useEffect(() => {
         const finishSignIn = async () => {
-            const supabase = getSupabase();
+            let supabase;
+            try {
+                supabase = getSupabase();
+            } catch (e) {
+                setError("Authentication is not configured. Please contact support.");
+                return;
+            }
             
             // Supabase handles email link sign-in via the URL hash
             // The session is automatically set when the user clicks the link
