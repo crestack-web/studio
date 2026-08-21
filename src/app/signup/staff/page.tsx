@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import { useState } from "react";
 import { getSupabase, isSupabaseConfigured, getSupabaseConfigErrorMessage } from "@/lib/supabase";
@@ -15,6 +15,7 @@ export default function StaffSignupPage() {
   const [businessId, setBusinessId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [needsEmailConfirm, setNeedsEmailConfirm] = useState(false);
 
   const valid = email.trim().length > 5 && email.includes('@') && password.length >= 6 && name.trim().length > 1 && businessId.trim().length > 0;
 
@@ -30,7 +31,6 @@ export default function StaffSignupPage() {
       const { firestore } = initializeFirebase();
       const bizId = businessId.trim();
 
-      // Look for a matching staff invite under businesses/{bizId}/staff where email matches
       const staffSnap = await getDocs(
         query(collection(firestore, "businesses", bizId, "staff"), where("email", "==", email.trim()))
       );
@@ -43,9 +43,7 @@ export default function StaffSignupPage() {
         inviteDocId = inviteDoc.id;
         inviteData = inviteDoc.data();
       }
-      // Allow signup even without an invite (owner may add later)
 
-      // Create Supabase Auth account
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
         password: password,
@@ -60,7 +58,6 @@ export default function StaffSignupPage() {
       const userId = signUpData.user?.id;
       if (!userId) throw new Error('No user ID returned');
 
-      // Create user profile in users collection
       await setDoc(doc(firestore, "users", userId), {
         fullName: name.trim(),
         displayName: name.trim(),
@@ -78,7 +75,6 @@ export default function StaffSignupPage() {
         },
       });
 
-      // Link auth uid back to the staff invite doc
       if (inviteDocId) {
         await updateDoc(doc(firestore, "businesses", bizId, "staff", inviteDocId), {
           uid: userId,
@@ -87,16 +83,30 @@ export default function StaffSignupPage() {
         });
       }
 
-      // Send welcome email series (non-blocking)
       sendWelcomeEmailSeries({
         email: email.trim(),
         name: name.trim(),
       }).catch((emailError) => {
         console.error('Failed to send welcome email series:', emailError);
-        // Non-critical: user can still use the app even if emails fail
       });
 
-      router.push("/staff/home");
+      try {
+        await fetch('/api/auth/send-confirmation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: email.trim(),
+            userId,
+            name: name.trim(),
+          }),
+        });
+      } catch (confErr) {
+        console.error('Failed to send confirmation email:', confErr);
+      }
+      try {
+        await supabase.auth.signOut();
+      } catch (_) {}
+      setNeedsEmailConfirm(true);
     } catch (err: any) {
       console.error('Signup error:', err);
       if (err.code === 'auth/email-already-in-use' || (err.message || '').toLowerCase().includes('already registered') || (err.message || '').toLowerCase().includes('already been registered')) {
@@ -110,6 +120,40 @@ export default function StaffSignupPage() {
       setLoading(false);
     }
   };
+
+  if (needsEmailConfirm) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '32px 16px',
+        background: 'radial-gradient(ellipse 80% 55% at 50% -10%, rgba(22,163,74,0.07) 0%, transparent 65%), #F4F4F8',
+        fontFamily: "'DM Sans', system-ui, sans-serif",
+      }}>
+        <div style={{
+          maxWidth: 420, width: '100%', background: 'white', borderRadius: 20,
+          padding: 32, border: '1px solid #E8E8F0', textAlign: 'center',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
+        }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>✉️</div>
+          <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 10, color: '#0A0A0F' }}>
+            Confirm your email
+          </h1>
+          <p style={{ fontSize: 15, color: '#555568', lineHeight: 1.55, marginBottom: 20 }}>
+            We sent a confirmation link to <strong>{email}</strong>. Click it to activate your staff account, then log in.
+          </p>
+          <a href="/login/staff" style={{
+            display: 'inline-block', padding: '13px 24px', borderRadius: 12,
+            background: '#16A34A', color: 'white', fontWeight: 700, textDecoration: 'none',
+          }}>
+            Go to staff login
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
