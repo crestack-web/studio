@@ -42,6 +42,44 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate, onWatchDemo }) => {
 
   return (
     <div className="hero">
+      <style>{`
+        .hero-desc-desktop { display: block; }
+        .hero-desc-mobile { display: none; }
+        .hero-headline-rotator {
+          min-height: 5.2rem;
+          margin-bottom: 14px;
+        }
+        @media (max-width: 640px) {
+          .hero-desc-desktop { display: none; }
+          .hero-desc-mobile {
+            display: block;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 20px;
+            max-width: 340px;
+          }
+          .hero-headline-rotator {
+            min-height: 4.2rem;
+            margin-bottom: 10px;
+          }
+          .hero-badge {
+            margin-bottom: 14px !important;
+            font-size: 0.7rem !important;
+            padding: 4px 12px !important;
+          }
+          .hero h1 {
+            font-size: 1.35rem !important;
+            margin-bottom: 0 !important;
+          }
+          .hero-cta {
+            margin-bottom: 16px !important;
+          }
+          .hero-note {
+            font-size: 0.7rem !important;
+          }
+        }
+      `}</style>
+
       <div className="hero-bg" />
       <div className="hero-inner">
         <div className="hero-content-wrapper">
@@ -51,7 +89,6 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate, onWatchDemo }) => {
               Africa's SME Operating System
             </div>
 
-            {/* Animated cycling headlines */}
             <div className="hero-headline-rotator">
               <AnimatePresence mode="wait">
                 <motion.h1
@@ -69,7 +106,7 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate, onWatchDemo }) => {
               </AnimatePresence>
             </div>
 
-            {/* Desktop description */}
+            {/* Full description — desktop only */}
             <p className="hero-desc-desktop">
               Busmo is the data-first platform for African SMEs. Track revenue, costs and profit with
               verified records. Sell online, access microfinance and raise capital through
@@ -77,7 +114,7 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate, onWatchDemo }) => {
               MO, your AI assistant, lets you record sales and get insights in plain language.
             </p>
 
-            {/* Mobile description — kept minimal */}
+            {/* Short description — mobile only */}
             <p className="hero-desc-mobile">
               Track real profit. Raise capital. Sell online. All driven by live business data.
             </p>
