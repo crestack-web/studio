@@ -52,7 +52,7 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate, onWatchDemo }) => {
             </div>
 
             {/* Animated cycling headlines */}
-            <div className="hero-headline-rotator" style={{ minHeight: '5.2rem', marginBottom: 14 }}>
+            <div className="hero-headline-rotator">
               <AnimatePresence mode="wait">
                 <motion.h1
                   key={index}
@@ -69,11 +69,17 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate, onWatchDemo }) => {
               </AnimatePresence>
             </div>
 
-            <p>
+            {/* Desktop description */}
+            <p className="hero-desc-desktop">
               Busmo is the data-first platform for African SMEs. Track revenue, costs and profit with
               verified records. Sell online, access microfinance and raise capital through
               profit-sharing or equity — all driven by live business performance, not promises.
               MO, your AI assistant, lets you record sales and get insights in plain language.
+            </p>
+
+            {/* Mobile description — kept minimal */}
+            <p className="hero-desc-mobile">
+              Track real profit. Raise capital. Sell online. All driven by live business data.
             </p>
 
             <div className="hero-cta">
