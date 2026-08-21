@@ -1,4 +1,4 @@
-// Core Brevo Service
+// Core email service (Resend — file kept as brevo-service for import paths)
 export {
   sendTransactionalEmail,
   sendCampaign,
