@@ -51,6 +51,7 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate, onWatchDemo }) => {
               Africa's SME Operating System
             </div>
 
+            {/* Animated cycling headlines */}
             <div className="hero-headline-rotator" style={{ minHeight: '5.2rem', marginBottom: 14 }}>
               <AnimatePresence mode="wait">
                 <motion.h1
