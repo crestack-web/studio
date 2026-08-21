@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { initializeFirebase } from '@/firebase';
+import { getAuthCurrentUser } from '@/lib/supabase-auth';
 import { getFirestore, doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { fetchTodaysSales, fetchProducts } from './services/dataService';
 import type { Permissions, PageId } from './types';
@@ -100,8 +101,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   useEffect(() => {
     async function loadData() {
       try {
-        const { auth } = initializeFirebase();
-        const user = auth.currentUser;
+        const user = getAuthCurrentUser();
         
         if (!user) return;
 
