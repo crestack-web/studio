@@ -86,11 +86,11 @@ export async function POST(request: NextRequest) {
     const confirmUrl = buildConfirmEmailUrl(token, origin);
     const htmlContent = buildConfirmationEmailHtml({ name, confirmUrl });
 
+    // Use EMAIL_FROM / RESEND_FROM env (must be a domain verified in Resend)
     await sendTransactionalEmail({
       to: [{ email, name }],
       subject: 'Confirm your Busmo email address',
       htmlContent,
-      sender: { name: 'Busmo', email: 'noreply@busmo.io' },
     });
 
     return NextResponse.json({
