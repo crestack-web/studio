@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getSupabase } from "@/lib/supabase";
-import { sendLoginAlertEmail } from "@/services/email/security-emails";
+import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 import posthog from 'posthog-js';
 
 // Helper function to get device information
@@ -34,7 +33,7 @@ function getDeviceInfo() {
   return { device, browser };
 }
 
-// ── App Logo ───────────────────────────────────
+// ── App Logo ─────────────────────────────────
 function AppLogo({ size = 50 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -64,7 +63,7 @@ function AppLogo({ size = 50 }: { size?: number }) {
   );
 }
 
-// ── Field ──────────────────────────────────────
+// ── Field ────────────────────────────────────
 function Field({
   label, id, type = "text", value, onChange, placeholder, autoComplete,
 }: {
@@ -105,7 +104,7 @@ function Field({
   );
 }
 
-// ── Primary Button ─────────────────────────────
+// ── Primary Button ────────────────────────────
 function PrimaryBtn({ children, onClick, disabled = false }: {
   children: React.ReactNode; onClick?: () => void; disabled?: boolean;
 }) {
@@ -143,7 +142,7 @@ function PrimaryBtn({ children, onClick, disabled = false }: {
   );
 }
 
-// ── Shell ──────────────────────────────────────
+// ── Shell ───────────────────────────────────
 function LoginShell({ children }: { children: React.ReactNode }) {
   return (
     <div
@@ -191,13 +190,19 @@ export default function BusmoLogin() {
 
   // Handle OAuth callback - redirect if session exists
   useEffect(() => {
-    const supabase = getSupabase();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        // Session exists from OAuth callback - redirect to owner dashboard
-        window.location.href = '/owner';
-      }
-    });
+    if (!isSupabaseConfigured()) return;
+    try {
+      const supabase = getSupabase();
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) {
+          window.location.href = '/owner';
+        }
+      }).catch(() => {
+        // leave user on login form
+      });
+    } catch {
+      // env missing — page still renders
+    }
   }, []);
 
   const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && password.length >= 6;
@@ -206,6 +211,9 @@ export default function BusmoLogin() {
     setLoading(true);
     setError("");
     try {
+      if (!isSupabaseConfigured()) {
+        throw new Error('Authentication is not configured. Please contact support.');
+      }
       const supabase = getSupabase();
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
@@ -217,7 +225,7 @@ export default function BusmoLogin() {
       const user = data.user;
       if (!user) throw new Error('No user returned');
 
-      // Fetch user role from Firestore (via Supabase facade)
+      // Fetch user role from Firestore (via Firebase client)
       const { doc, getDoc } = await import('firebase/firestore');
       const { initializeFirebase } = await import('@/firebase');
       const { firestore } = initializeFirebase();
@@ -228,40 +236,46 @@ export default function BusmoLogin() {
         const userData = userDoc.data();
         const role = userData?.role || 'Owner';
 
-        // Send login alert email (non-blocking)
+        // Login alert email is best-effort and must not break login
         try {
           const deviceInfo = getDeviceInfo();
-          await sendLoginAlertEmail({
-            email: user.email || email,
-            name: userData?.fullName || userData?.displayName || 'User',
-            device: deviceInfo.device,
-            browser: deviceInfo.browser,
-            location: 'Unknown',
-            loginTime: new Date().toLocaleString(),
-            ipAddress: 'Unknown',
-          });
-        } catch (emailError) {
-          console.error('Failed to send login alert email:', emailError);
+          void fetch('/api/email/login-alert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: user.email || email,
+              name: userData?.fullName || userData?.displayName || 'User',
+              device: deviceInfo.device,
+              browser: deviceInfo.browser,
+              location: 'Unknown',
+              loginTime: new Date().toLocaleString(),
+              ipAddress: 'Unknown',
+            }),
+          }).catch(() => {});
+        } catch {
+          // ignore
         }
 
-        posthog.identify(user.id, {
-          email: user.email || email,
-          role,
-        });
-        posthog.capture('user_logged_in', { authentication_method: 'password', role });
+        try {
+          posthog.identify(user.id, {
+            email: user.email || email,
+            role,
+          });
+          posthog.capture('user_logged_in', { authentication_method: 'password', role });
+        } catch {
+          // analytics must not block login
+        }
 
-        // Redirect based on role
         if (!['Owner', 'Admin'].includes(role)) {
           window.location.href = '/staff/home';
         } else {
           window.location.href = '/owner';
         }
       } else {
-        // Default to owner dashboard if user doc not found
         window.location.href = '/owner';
       }
-    } catch (error: any) {
-      setError("Invalid email or password.");
+    } catch (err: any) {
+      setError(err?.message || "Invalid email or password.");
     } finally {
       setLoading(false);
     }
@@ -271,8 +285,11 @@ export default function BusmoLogin() {
     setLoading(true);
     setError("");
     try {
+      if (!isSupabaseConfigured()) {
+        throw new Error('Authentication is not configured. Please contact support.');
+      }
       const supabase = getSupabase();
-      const { data, error: authError } = await supabase.auth.signInWithOAuth({
+      const { error: authError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/owner`,
@@ -280,9 +297,8 @@ export default function BusmoLogin() {
       });
 
       if (authError) throw authError;
-      // OAuth redirect happens automatically - no further code needed
-    } catch (error: any) {
-      setError("Google sign-in failed. Please try again.");
+    } catch (err: any) {
+      setError(err?.message || "Google sign-in failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -290,7 +306,6 @@ export default function BusmoLogin() {
 
   return (
     <LoginShell>
-      {/* Top bar */}
       <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
         <AppLogo size={30} />
       </div>
