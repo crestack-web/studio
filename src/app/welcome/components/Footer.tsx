@@ -77,11 +77,6 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, minimal = false }) =
       <div className="footer-bottom">
         <div className="footer-bottom-content">
           <div className="footer-copy">© 2026 Busmo. All rights reserved.</div>
-          <div className="footer-bottom-links">
-            <a className="footer-link">Made with ❤️ for Africa</a>
-            <span className="footer-separator">•</span>
-            <a className="footer-link">Offline-First</a>
-          </div>
         </div>
       </div>
       <style jsx>{`
@@ -130,42 +125,10 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, minimal = false }) =
           flex-wrap: wrap;
         }
 
-        .footer-bottom-links {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          flex-wrap: wrap;
-        }
-
-        .footer-separator {
-          color: rgba(255, 255, 255, 0.3);
-        }
-
-        .footer-link {
-          color: rgba(255, 255, 255, 0.7);
-          text-decoration: none;
-          font-size: 0.85rem;
-          transition: color 0.3s ease;
-        }
-
-        .footer-link:hover {
-          color: white;
-        }
-
         @media (max-width: 768px) {
           .footer-bottom-content {
             flex-direction: column;
             align-items: flex-start;
-          }
-
-          .footer-bottom-links {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 8px;
-          }
-
-          .footer-separator {
-            display: none;
           }
         }
       `}</style>
