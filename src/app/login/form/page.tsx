@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
+import { getSupabase, isSupabaseConfigured, getSupabaseConfigErrorMessage } from "@/lib/supabase";
 import posthog from 'posthog-js';
 
 // Helper function to get device information
@@ -212,7 +212,7 @@ export default function BusmoLogin() {
     setError("");
     try {
       if (!isSupabaseConfigured()) {
-        throw new Error('Authentication is not configured. Please contact support.');
+        throw new Error(getSupabaseConfigErrorMessage());
       }
       const supabase = getSupabase();
       const { data, error: authError } = await supabase.auth.signInWithPassword({
@@ -286,7 +286,7 @@ export default function BusmoLogin() {
     setError("");
     try {
       if (!isSupabaseConfigured()) {
-        throw new Error('Authentication is not configured. Please contact support.');
+        throw new Error(getSupabaseConfigErrorMessage());
       }
       const supabase = getSupabase();
       const { error: authError } = await supabase.auth.signInWithOAuth({
