@@ -1,7 +1,7 @@
  "use client";
 
 import { useState } from "react";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabase, isSupabaseConfigured, getSupabaseConfigErrorMessage } from "@/lib/supabase";
 import { initializeFirebase } from "@/firebase";
 import { doc, setDoc, getDocs, collection, query, where, updateDoc, Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
@@ -22,6 +22,10 @@ export default function StaffSignupPage() {
     setLoading(true);
     setError("");
     try {
+      if (!isSupabaseConfigured()) {
+        setError(getSupabaseConfigErrorMessage() || "Authentication is not configured. Please contact support.");
+        return;
+      }
       const supabase = getSupabase();
       const { firestore } = initializeFirebase();
       const bizId = businessId.trim();
@@ -95,12 +99,12 @@ export default function StaffSignupPage() {
       router.push("/staff/home");
     } catch (err: any) {
       console.error('Signup error:', err);
-      if (err.code === 'auth/email-already-in-use') {
+      if (err.code === 'auth/email-already-in-use' || (err.message || '').toLowerCase().includes('already registered') || (err.message || '').toLowerCase().includes('already been registered')) {
         setError("This email is already registered. Please log in instead.");
-      } else if (err.code === 'auth/invalid-email') {
+      } else if (err.code === 'auth/invalid-email' || (err.message || '').toLowerCase().includes('invalid email')) {
         setError("Please enter a valid email address.");
       } else {
-        setError("Failed to create account. Please try again.");
+        setError(err.message || "Failed to create account. Please try again.");
       }
     } finally {
       setLoading(false);
@@ -108,85 +112,113 @@ export default function StaffSignupPage() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F4F4F8', padding: 20 }}>
-      <div style={{ width: '100%', maxWidth: 400, background: 'white', borderRadius: 16, padding: 32, boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8, color: '#0A0A0F' }}>Staff Signup</h1>
-        <p style={{ fontSize: 14, color: '#555568', marginBottom: 24 }}>Create your staff account</p>
-
-        {error && (
-          <div style={{ background: '#FEE2E2', color: '#DC2626', padding: 12, borderRadius: 8, marginBottom: 16, fontSize: 14 }}>
-            {error}
-          </div>
-        )}
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#555568', marginBottom: 6, display: 'block' }}>Full Name</label>
-            <input
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="John Doe"
-              style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #E8E8F0', fontSize: 15, outline: 'none' }}
-            />
-          </div>
-
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#555568', marginBottom: 6, display: 'block' }}>Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="you@company.com"
-              style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #E8E8F0', fontSize: 15, outline: 'none' }}
-            />
-          </div>
-
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#555568', marginBottom: 6, display: 'block' }}>Business ID</label>
-            <input
-              type="text"
-              value={businessId}
-              onChange={e => setBusinessId(e.target.value)}
-              placeholder="Get this from your employer"
-              style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #E8E8F0', fontSize: 15, outline: 'none' }}
-            />
-            <p style={{ fontSize: 12, color: '#8888A0', marginTop: 4 }}>Ask your business owner for the Business ID</p>
-          </div>
-
-          <div>
-            <label style={{ fontSize: 13, fontWeight: 600, color: '#555568', marginBottom: 6, display: 'block' }}>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="Min 6 characters"
-              style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #E8E8F0', fontSize: 15, outline: 'none' }}
-            />
-          </div>
-
-          <button
-            onClick={handleSignup}
-            disabled={!valid || loading}
-            style={{
-              width: '100%',
-              padding: '14px',
-              borderRadius: 12,
-              background: valid && !loading ? '#16A34A' : '#E8E8F0',
-              color: valid && !loading ? 'white' : '#8888A0',
-              border: 'none',
-              fontSize: 16,
-              fontWeight: 600,
-              cursor: valid && !loading ? 'pointer' : 'not-allowed',
-              marginTop: 8
-            }}
-          >
-            {loading ? 'Creating Account...' : 'Create Staff Account'}
-          </button>
-
-          <p style={{ textAlign: 'center', fontSize: 14, color: '#555568' }}>
-            Already have an account? <a href="/login/staff" style={{ color: '#16A34A', textDecoration: 'none' }}>Log in</a>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '32px 16px',
+      background: 'radial-gradient(ellipse 80% 55% at 50% -10%, rgba(22,163,74,0.07) 0%, transparent 65%), #F4F4F8',
+      fontFamily: "'DM Sans', system-ui, sans-serif",
+    }}>
+      <div style={{ maxWidth: 460, width: '100%' }}>
+        <div style={{
+          background: 'white',
+          borderRadius: 28,
+          padding: '28px 26px',
+          border: '1px solid #E8E8F0',
+          boxShadow: '0 4px 6px rgba(0,0,0,0.04), 0 20px 48px rgba(22,163,74,0.09)',
+        }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0A0A0F', marginBottom: 8, fontFamily: "'Sora', sans-serif" }}>
+            Staff Signup
+          </h1>
+          <p style={{ fontSize: 14, color: '#16A34A', marginBottom: 20 }}>
+            Create your staff account with the Business ID from your employer.
           </p>
+
+          {error && (
+            <div style={{
+              padding: '12px 14px',
+              borderRadius: 10,
+              background: '#FEF2F2',
+              border: '1px solid #FECACA',
+              color: '#B91C1C',
+              fontSize: 13,
+              marginBottom: 16,
+            }}>
+              {error}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#555568', marginBottom: 6, display: 'block' }}>Full name</label>
+              <input
+                type="text"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="Your name"
+                style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #E8E8F0', fontSize: 15, outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#555568', marginBottom: 6, display: 'block' }}>Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="you@company.com"
+                style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #E8E8F0', fontSize: 15, outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#555568', marginBottom: 6, display: 'block' }}>Business ID</label>
+              <input
+                type="text"
+                value={businessId}
+                onChange={e => setBusinessId(e.target.value)}
+                placeholder="Get this from your employer"
+                style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #E8E8F0', fontSize: 15, outline: 'none', boxSizing: 'border-box' }}
+              />
+              <p style={{ fontSize: 12, color: '#8888A0', marginTop: 4 }}>Ask your business owner for the Business ID</p>
+            </div>
+
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#555568', marginBottom: 6, display: 'block' }}>Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="Min 6 characters"
+                style={{ width: '100%', padding: '12px 16px', borderRadius: 12, border: '1.5px solid #E8E8F0', fontSize: 15, outline: 'none', boxSizing: 'border-box' }}
+              />
+            </div>
+
+            <button
+              onClick={handleSignup}
+              disabled={!valid || loading}
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: 12,
+                background: valid && !loading ? '#16A34A' : '#E8E8F0',
+                color: valid && !loading ? 'white' : '#8888A0',
+                border: 'none',
+                fontSize: 16,
+                fontWeight: 600,
+                cursor: valid && !loading ? 'pointer' : 'not-allowed',
+                marginTop: 8
+              }}
+            >
+              {loading ? 'Creating Account...' : 'Create Staff Account'}
+            </button>
+
+            <p style={{ textAlign: 'center', fontSize: 14, color: '#555568' }}>
+              Already have an account? <a href="/login/staff" style={{ color: '#16A34A', textDecoration: 'none' }}>Log in</a>
+            </p>
+          </div>
         </div>
       </div>
     </div>
