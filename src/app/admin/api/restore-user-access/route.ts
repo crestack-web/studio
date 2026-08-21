@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import admin from 'firebase-admin';
+import { getSupabaseAdmin } from '@/lib/supabase-server';
+import { getAdminDb } from '@/lib/firebase-admin';
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,55 +10,50 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
-    // Initialize Firebase Admin SDK only when needed
-    if (!admin.apps.length) {
-      const projectId = process.env.FIREBASE_PROJECT_ID || 'bizassistant2-62305643-adad7';
-      const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-      const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-
-      if (clientEmail && privateKey) {
-        admin.initializeApp({
-          credential: admin.credential.cert({
-            projectId,
-            clientEmail,
-            privateKey,
-          }),
-        });
-      }
-    }
-
-    const db = admin.firestore();
+    const supabase = getSupabaseAdmin();
+    const adminDb = getAdminDb();
 
     console.log('🔍 [restore-user-access] Attempting to restore access for email:', email);
     
-    // Find user by email
-    const usersSnapshot = await db.collection('users').where('email', '==', email).get();
+    // Find user by email in Supabase auth
+    const { data: users, error: listError } = await supabase.auth.admin.listUsers();
+    if (listError) throw listError;
 
-    if (usersSnapshot.empty) {
+    const supabaseUser = users.users.find(u => u.email === email);
+    if (!supabaseUser) {
       console.error('❌ [restore-user-access] User not found with email:', email);
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const userDoc = usersSnapshot.docs[0];
-    const userId = userDoc.id;
-    const userData = userDoc.data();
+    const userId = supabaseUser.id;
 
-    console.log('✅ [restore-user-access] User found:', { userId, currentPlan: userData.plan });
+    // Also check Firestore via Supabase facade for user data
+    const usersSnapshot = await adminDb.collection('users').where('email', '==', email).get();
+
+    let currentPlan = 'standard';
+    if (!usersSnapshot.empty) {
+      const userData = usersSnapshot.docs[0].data();
+      currentPlan = userData.plan || 'standard';
+    }
+
+    console.log('✅ [restore-user-access] User found:', { userId, currentPlan });
 
     // Calculate subscription end date (default to 1 year from now)
     const subscriptionEndDate = new Date();
     subscriptionEndDate.setFullYear(subscriptionEndDate.getFullYear() + 1);
 
-    // Update user's plan
-    const targetPlan = plan || userData.plan || 'standard';
+    // Update user's plan in Firestore (via Supabase facade)
+    const targetPlan = plan || currentPlan;
     
-    await db.collection('users').doc(userId).update({
-      plan: targetPlan,
-      subscriptionStatus: 'active',
-      subscriptionStartDate: new Date(),
-      subscriptionEndDate: subscriptionEndDate,
-      updatedAt: new Date(),
-    });
+    if (!usersSnapshot.empty) {
+      await adminDb.collection('users').doc(userId).update({
+        plan: targetPlan,
+        subscriptionStatus: 'active',
+        subscriptionStartDate: new Date(),
+        subscriptionEndDate: subscriptionEndDate,
+        updatedAt: new Date(),
+      });
+    }
 
     console.log('✅ [restore-user-access] User access restored successfully:', { userId, plan: targetPlan });
 

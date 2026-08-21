@@ -4,9 +4,9 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { StaffDashboard } from './StaffDashboard';
 import type { StaffUser, Permissions } from './types';
+import { getSupabase } from '@/lib/supabase';
 import { initializeFirebase } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
 import './busmo.css';
 
 export default function StaffHomePage() {
@@ -16,16 +16,18 @@ export default function StaffHomePage() {
   const [permissions, setPermissions] = useState<Permissions | null>(null);
 
   useEffect(() => {
-    const { auth, firestore } = initializeFirebase();
+    const supabase = getSupabase();
+    const { firestore } = initializeFirebase();
 
-    const unsubscribe = onAuthStateChanged(auth, async (user: import('firebase/auth').User | null) => {
-      if (!user) {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) {
         router.push('/login/staff');
         return;
       }
 
-      try {
-        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+      const user = session.user;
+
+      getDoc(doc(firestore, 'users', user.id)).then((userDoc) => {
         if (userDoc.exists()) {
           const data = userDoc.data();
           if (['Owner', 'Admin'].includes(data.role)) {
@@ -34,14 +36,13 @@ export default function StaffHomePage() {
           }
 
           setStaffUser({
-            id: user.uid,
-            initials: data.initials || user.displayName?.substring(0, 2) || 'ST',
-            name: data.displayName || user.displayName || 'Staff Member',
-            firstName: data.firstName || user.displayName?.split(' ')[0] || 'Staff',
+            id: user.id,
+            initials: data.initials || user.user_metadata?.full_name?.substring(0, 2) || 'ST',
+            name: data.displayName || user.user_metadata?.full_name || 'Staff Member',
+            firstName: data.firstName || user.user_metadata?.full_name?.split(' ')[0] || 'Staff',
             role: data.role || 'Staff',
           });
 
-          // Get permissions from Firestore
           setPermissions(data.permissions || {
             sale: true,
             inv: false,
@@ -53,15 +54,16 @@ export default function StaffHomePage() {
         } else {
           router.push('/login/staff');
         }
-      } catch (error) {
+      }).catch((error) => {
         console.error('Error fetching staff data:', error);
         router.push('/login/staff');
-      } finally {
+      }).finally(() => {
         setIsLoading(false);
-      }
+      });
+    }).catch(() => {
+      router.push('/login/staff');
+      setIsLoading(false);
     });
-
-    return () => unsubscribe();
   }, [router]);
 
   if (isLoading) {
@@ -84,8 +86,8 @@ export default function StaffHomePage() {
       staff={staffUser}
       permissions={permissions}
       onLogout={async () => {
-        const { auth } = initializeFirebase();
-        await auth.signOut();
+        const supabase = getSupabase();
+        await supabase.auth.signOut();
         router.push('/login/staff');
       }}
     />

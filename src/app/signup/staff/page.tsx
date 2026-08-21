@@ -1,8 +1,8 @@
  "use client";
 
 import { useState } from "react";
+import { getSupabase } from "@/lib/supabase";
 import { initializeFirebase } from "@/firebase";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { doc, setDoc, getDocs, collection, query, where, updateDoc, Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { sendWelcomeEmailSeries } from "@/services/email/welcome-series";
@@ -22,7 +22,8 @@ export default function StaffSignupPage() {
     setLoading(true);
     setError("");
     try {
-      const { auth, firestore } = initializeFirebase();
+      const supabase = getSupabase();
+      const { firestore } = initializeFirebase();
       const bizId = businessId.trim();
 
       // Look for a matching staff invite under businesses/{bizId}/staff where email matches
@@ -40,15 +41,23 @@ export default function StaffSignupPage() {
       }
       // Allow signup even without an invite (owner may add later)
 
-      // Create Firebase Auth account
-      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-      const firebaseUser = userCredential.user;
+      // Create Supabase Auth account
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: email.trim(),
+        password: password,
+        options: {
+          data: {
+            full_name: name.trim(),
+          },
+        },
+      });
 
-      // Set displayName on auth profile
-      await updateProfile(firebaseUser, { displayName: name.trim() });
+      if (signUpError) throw signUpError;
+      const userId = signUpData.user?.id;
+      if (!userId) throw new Error('No user ID returned');
 
       // Create user profile in users collection
-      await setDoc(doc(firestore, "users", firebaseUser.uid), {
+      await setDoc(doc(firestore, "users", userId), {
         fullName: name.trim(),
         displayName: name.trim(),
         email: email.trim(),
@@ -68,7 +77,7 @@ export default function StaffSignupPage() {
       // Link auth uid back to the staff invite doc
       if (inviteDocId) {
         await updateDoc(doc(firestore, "businesses", bizId, "staff", inviteDocId), {
-          uid: firebaseUser.uid,
+          uid: userId,
           status: 'active',
           name: name.trim(),
         });

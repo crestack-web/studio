@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getSupabase } from '@/lib/supabase';
 import { initializeFirebase } from '@/firebase';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { formatCurrency, getUserCountryCode, convertFromUsd, getCurrencyName } from '@/lib/currency';
 import posthog from 'posthog-js';
 
@@ -78,29 +78,32 @@ export default function SubscribePage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
   useEffect(() => {
-    const { auth, firestore } = initializeFirebase();
+    const supabase = getSupabase();
+    const { firestore } = initializeFirebase();
 
-    const unsubscribe = onAuthStateChanged(auth, async (user: import('firebase/auth').User | null) => {
-      if (!user) {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) {
         router.replace('/login');
         return;
       }
 
-      try {
-        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+      const user = session.user;
+
+      getDoc(doc(firestore, 'users', user.id)).then((userDoc) => {
         if (userDoc.exists()) {
           const userData = userDoc.data();
           setUserPlan(userData.plan || 'starter');
           setSelectedPlan(userData.plan || 'starter');
         }
-      } catch (error) {
+      }).catch((error) => {
         console.error('Error loading user plan:', error);
-      } finally {
+      }).finally(() => {
         setLoading(false);
-      }
+      });
+    }).catch(() => {
+      router.replace('/login');
+      setLoading(false);
     });
-
-    return () => unsubscribe();
   }, [router]);
 
   // Detect user country code on mount
@@ -113,10 +116,11 @@ export default function SubscribePage() {
     console.log('Payment button clicked');
     setIsProcessing(true);
     try {
-      const { auth, firestore } = initializeFirebase();
-      const user = auth.currentUser;
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
 
-      console.log('User:', user?.uid);
+      console.log('User:', user?.id);
 
       if (!user) {
         console.error('No user found');
@@ -134,7 +138,8 @@ export default function SubscribePage() {
       console.log('Selected plan:', selectedPlanData);
 
       // Get user email
-      const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+      const { firestore } = initializeFirebase();
+      const userDoc = await getDoc(doc(firestore, 'users', user.id));
       const userData = userDoc.data();
       const userEmail = userData?.email || user.email;
 
@@ -151,7 +156,6 @@ export default function SubscribePage() {
       });
 
       // Call Firebase Function to initialize subscription payment
-      // Use production URL for callback to avoid localhost redirects
       const callbackUrl = 'https://busmo.web.app/subscribe/success';
       console.log('🔗 [Subscribe] Callback URL:', callbackUrl);
       
@@ -160,16 +164,16 @@ export default function SubscribePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           plan: selectedPlan,
-          userId: user.uid,
+          userId: user.id,
           email: userEmail,
-          amount: amount, // Send amount in Naira
+          amount: amount,
           currency: 'NGN',
           billing: billingCycle,
-          callback_url: callbackUrl, // Explicitly set callback URL
+          callback_url: callbackUrl,
           metadata: {
             plan: selectedPlan,
             billing: billingCycle,
-            userId: user.uid,
+            userId: user.id,
           },
         }),
       });

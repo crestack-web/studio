@@ -1,22 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
-import { initializeFirebase } from "@/firebase";
-import { sendPasswordResetEmail as firebaseSendPasswordResetEmail, Auth } from "firebase/auth";
+import { getSupabase } from "@/lib/supabase";
 
 export default function StaffForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [auth, setAuth] = useState<Auth | null>(null);
-
-  useEffect(() => {
-    // Initialize Firebase once on component mount
-    const { auth: firebaseAuth } = initializeFirebase();
-    setAuth(firebaseAuth);
-  }, []);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,15 +16,14 @@ export default function StaffForgotPasswordPage() {
     setError(null);
 
     try {
-      if (!auth) {
-        throw new Error("Firebase not initialized");
-      }
+      const supabase = getSupabase();
       
-      // Send password reset email via Firebase Auth
-      await firebaseSendPasswordResetEmail(auth, email, {
-        url: `${window.location.origin}/staff/login`,
-        handleCodeInApp: false,
+      // Send password reset email via Supabase Auth
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/staff/login`,
       });
+      
+      if (error) throw error;
       
       setSuccess(true);
     } catch (err: any) {

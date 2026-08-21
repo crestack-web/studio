@@ -4,60 +4,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import admin from 'firebase-admin';
-import { getFirestore } from 'firebase-admin/firestore';
-
-// Initialize Firebase Admin for server-side use
-let db: ReturnType<typeof getFirestore> | null = null;
-let adminInitialized = false;
-
-// Load environment variables explicitly
-const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, '\n');
-const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-
-console.log('🔍 AI Security Firebase Admin Environment Check:', {
-  hasProjectId: !!projectId,
-  hasPrivateKey: !!privateKey,
-  hasClientEmail: !!clientEmail,
-  projectId: projectId || 'missing',
-  clientEmail: clientEmail || 'missing',
-  privateKeyLength: privateKey?.length || 0
-});
-
-try {
-  if (!admin.apps.length) {
-    const serviceAccount = {
-      projectId: projectId,
-      privateKey: privateKey,
-      clientEmail: clientEmail,
-    };
-    
-    if (serviceAccount.projectId && serviceAccount.privateKey && serviceAccount.clientEmail) {
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-      });
-      adminInitialized = true;
-      console.log('✅ Firebase Admin initialized for AI Security');
-    } else {
-      console.warn('⚠️ Firebase Admin credentials missing for AI Security:', {
-        hasProjectId: !!serviceAccount.projectId,
-        hasPrivateKey: !!serviceAccount.privateKey,
-        hasClientEmail: !!serviceAccount.clientEmail,
-      });
-    }
-  } else {
-    adminInitialized = true;
-    console.log('✅ Firebase Admin already initialized for AI Security');
-  }
-  
-  if (adminInitialized) {
-    db = getFirestore();
-    console.log('✅ Firestore initialized for AI Security');
-  }
-} catch (error) {
-  console.error('❌ Firebase Admin initialization error for AI Security:', error);
-}
+import { getAdminDb } from '@/lib/firebase-admin';
 
 // Rate limiting storage (in-memory for development, should use Redis in production)
 const rateLimitStore = new Map<string, {
@@ -198,11 +145,7 @@ export async function validateAIRequest(req: NextRequest, body?: any): Promise<{
     }
     
     // Validate user exists and is authenticated
-    if (!db) {
-      return { valid: false, error: 'Database not initialized' };
-    }
-    
-    const userDoc = await db.collection('users').doc(userId).get();
+    const userDoc = await getAdminDb().collection('users').doc(userId).get();
     if (!userDoc.exists) {
       return { valid: false, error: 'User not found' };
     }
@@ -218,7 +161,7 @@ export async function validateAIRequest(req: NextRequest, body?: any): Promise<{
     }
     
     // Verify business ownership or staff access
-    const businessDoc = await db.collection('businesses').doc(businessId).get();
+    const businessDoc = await getAdminDb().collection('businesses').doc(businessId).get();
     if (!businessDoc.exists) {
       return { valid: false, error: 'Business not found' };
     }
@@ -231,7 +174,7 @@ export async function validateAIRequest(req: NextRequest, body?: any): Promise<{
     // Check if user owns the business or is staff
     if (businessData.ownerId !== userId) {
       // Check if user is staff
-      const staffQuery = db.collection('businesses').doc(businessId).collection('staff')
+      const staffQuery = getAdminDb().collection('businesses').doc(businessId).collection('staff')
         .where('userId', '==', userId)
         .where('active', '==', true);
       const staffSnapshot = await staffQuery.get();
@@ -260,10 +203,8 @@ export async function checkAndDeductCredits(
   businessId: string,
   estimatedTokens: number
 ): Promise<{ allowed: boolean; creditsRemaining?: number; error?: string }> {
-  if (!db) {
-    return { allowed: false, error: 'Database not initialized' };
-  }
-  
+  const db = getAdminDb();
+
   try {
     const userDoc = await db.collection('users').doc(userId).get();
     if (!userDoc.exists) {
@@ -289,8 +230,8 @@ export async function checkAndDeductCredits(
     
     // Deduct credits
     await db.collection('users').doc(userId).update({
-      moCreditsRemaining: admin.firestore.FieldValue.increment(-estimatedCost),
-      moCreditsUsed: admin.firestore.FieldValue.increment(estimatedCost),
+      moCreditsRemaining: db.FieldValue.increment(-estimatedCost),
+      moCreditsUsed: db.FieldValue.increment(estimatedCost),
     });
     
     // Log usage
@@ -298,7 +239,7 @@ export async function checkAndDeductCredits(
       businessId,
       tokensUsed: estimatedTokens,
       cost: estimatedCost,
-      timestamp: admin.firestore.Timestamp.now(),
+      timestamp: db.Timestamp.now(),
     });
     
     return {

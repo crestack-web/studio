@@ -6,7 +6,7 @@ import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { collection, addDoc, Timestamp, doc, getDoc, getDocs, getFirestore, query, where } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import { getAuth } from 'firebase/auth';
+import { getAuthCurrentUser } from '@/lib/supabase-auth';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import styles from './Addproductpage.module.css';
 import { isRestaurantBusiness, ProductType, DishCategory, IngredientUnit, getDishCategories, getIngredientUnits } from './utils/restaurantHelpers';
@@ -114,8 +114,8 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
   useEffect(() => {
     async function fetchBusinessId() {
       try {
-        const { auth, firestore: freshFirestore } = initializeFirebase();
-        const user = auth.currentUser;
+        const { firestore: freshFirestore } = initializeFirebase();
+        const user = getAuthCurrentUser();
         
         if (!user) return;
 

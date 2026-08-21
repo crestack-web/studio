@@ -10,9 +10,9 @@ import React, {
   ReactNode,
 } from 'react';
 import { LangProvider } from './LangContext';
+import { getSupabase } from '@/lib/supabase';
 import { initializeFirebase } from '@/firebase';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 
 type User = {
   initials: string;
@@ -143,7 +143,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }, 2800);
   }, []);
 
-  // Load user from Firebase Auth
+  // Load user from Supabase Auth
   const [user, setUser] = useState<User>({
     initials: '..',
     shortName: 'Loading...',
@@ -158,61 +158,73 @@ export function AppProvider({ children }: { children: ReactNode }) {
     businessId: undefined,
   });
 
+  const loadUser = useCallback(async (userId: string, userEmail: string, metadata: Record<string, any> | undefined, firestore: any) => {
+    try {
+      const userDoc = await getDoc(doc(firestore, 'users', userId));
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        const displayName = (metadata?.full_name || metadata?.name) || data.displayName || data.businessName || (data.firstName ? data.firstName + ' ' + (data.lastName || '') : '') || 'User';
+        const firstName = displayName.split(' ')[0];
+        
+        setUser({
+          initials: (firstName.charAt(0) + (displayName.split(' ')[1]?.charAt(0) || '')).toUpperCase(),
+          shortName: firstName,
+          role: data.role || 'Owner',
+          plan: data.plan || 'Free',
+          id: userId,
+          name: displayName,
+          email: userEmail || data.email || '',
+          avatarContent: data.photoURL || data.avatarContent || '👤',
+          avatarStyle: { 
+            background: data.photoURL || data.avatarBg || '#6B3FE7', 
+            color: data.avatarColor || '#fff' 
+          },
+          photoURL: data.photoURL,
+          businessId: data.businessId,
+        });
+      } else {
+        const displayName = (metadata?.full_name || metadata?.name) || userEmail.split('@')[0] || 'User';
+        const firstName = displayName.split(' ')[0];
+        
+        setUser({
+          initials: (firstName.charAt(0) + (displayName.split(' ')[1]?.charAt(0) || '')).toUpperCase(),
+          shortName: firstName,
+          role: 'Owner',
+          plan: 'Free',
+          id: userId,
+          name: displayName,
+          email: userEmail || '',
+          avatarContent: '👤',
+          avatarStyle: { background: '#6B3FE7', color: '#fff' },
+          photoURL: undefined,
+          businessId: undefined,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
+  }, []);
+
   useEffect(() => {
-    const { auth, firestore } = initializeFirebase();
+    const supabase = getSupabase();
+    const { firestore } = initializeFirebase();
     
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: import('firebase/auth').User | null) => {
-      if (firebaseUser) {
-        try {
-          const userDoc = await getDoc(doc(firestore, 'users', firebaseUser.uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            const displayName = firebaseUser.displayName || data.displayName || data.businessName || data.firstName + ' ' + data.lastName || 'User';
-            const firstName = displayName.split(' ')[0];
-            
-            setUser({
-              initials: (firstName.charAt(0) + (displayName.split(' ')[1]?.charAt(0) || '')).toUpperCase(),
-              shortName: firstName,
-              role: data.role || 'Owner',
-              plan: data.plan || 'Free',
-              id: firebaseUser.uid,
-              name: displayName,
-              email: firebaseUser.email || data.email || '',
-              avatarContent: data.photoURL || data.avatarContent || '👤',
-              avatarStyle: { 
-                background: data.photoURL || data.avatarBg || '#6B3FE7', 
-                color: data.avatarColor || '#fff' 
-              },
-              photoURL: data.photoURL,
-              businessId: data.businessId,
-            });
-          } else {
-            // Fallback if user doc doesn't exist
-            const displayName = firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User';
-            const firstName = displayName.split(' ')[0];
-            
-            setUser({
-              initials: (firstName.charAt(0) + (displayName.split(' ')[1]?.charAt(0) || '')).toUpperCase(),
-              shortName: firstName,
-              role: 'Owner',
-              plan: 'Free',
-              id: firebaseUser.uid,
-              name: displayName,
-              email: firebaseUser.email || '',
-              avatarContent: '👤',
-              avatarStyle: { background: '#6B3FE7', color: '#fff' },
-              photoURL: undefined,
-              businessId: undefined,
-            });
-          }
-        } catch (error) {
-          console.error('Error loading user data:', error);
-        }
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        loadUser(session.user.id, session.user.email || '', session.user.user_metadata, firestore);
       }
     });
 
-    return () => unsubscribe();
-  }, []);
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        loadUser(session.user.id, session.user.email || '', session.user.user_metadata, firestore);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [loadUser]);
 
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
   const openAvatarModal  = useCallback(() => setAvatarModalOpen(true), []);

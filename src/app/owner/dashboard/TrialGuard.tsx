@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState, createContext, useContext } from 'react';
 import { useRouter } from 'next/navigation';
+import { getSupabase } from '@/lib/supabase';
 import { initializeFirebase } from '@/firebase';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { BusmoLogoLoadingSpinner } from '@/components/BusmoLogoLoadingSpinner';
 
 interface TrialGuardProps {
@@ -31,161 +31,161 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
   const [isExpired, setIsExpired] = useState(false);
 
   useEffect(() => {
-    const { auth, firestore } = initializeFirebase();
+    const supabase = getSupabase();
+    const { firestore } = initializeFirebase();
 
-    const unsubscribe = onAuthStateChanged(auth, async (user: import('firebase/auth').User | null) => {
-      if (!user) {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) {
         router.replace('/login');
         return;
       }
 
-      try {
-        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
-        
-        if (!userDoc.exists()) {
-          router.replace('/login');
-          return;
-        }
+      const user = session.user;
 
-        const userData = userDoc.data();
-        const trialEndDate = userData.trialEndDate?.toDate();
-        const subscriptionStatus = userData.subscriptionStatus;
-        const subscriptionEndDate = userData.subscriptionEndDate?.toDate();
-        const userRole = userData.role;
-        const lifetimeAccess = userData.lifetimeAccess;
-        const now = new Date();
+      const loadTrial = async () => {
+        try {
+          const userDoc = await getDoc(doc(firestore, 'users', user.id));
+          
+          if (!userDoc.exists()) {
+            router.replace('/login');
+            return;
+          }
 
-        // Users with lifetime access can bypass all subscription checks
-        if (lifetimeAccess === true) {
-          setIsLoading(false);
-          return;
-        }
+          const userData = userDoc.data();
+          const trialEndDate = userData.trialEndDate?.toDate();
+          const subscriptionStatus = userData.subscriptionStatus;
+          const subscriptionEndDate = userData.subscriptionEndDate?.toDate();
+          const userRole = userData.role;
+          const lifetimeAccess = userData.lifetimeAccess;
+          const now = new Date();
 
-        // Staff users don't need trial - they can access dashboard
-        if (userRole === 'Staff') {
-          setIsLoading(false);
-          return;
-        }
+          if (lifetimeAccess === true) {
+            setIsLoading(false);
+            return;
+          }
 
-        // If user is in trial mode, check if trial is still valid
-        if (subscriptionStatus === 'trial') {
-          if (!trialEndDate) {
-            // Trial status but no end date - set default 3-day trial
+          if (userRole === 'Staff') {
+            setIsLoading(false);
+            return;
+          }
+
+          if (subscriptionStatus === 'trial') {
+            if (!trialEndDate) {
+              const defaultTrialEnd = new Date(Date.now() + (3 * 24 * 60 * 60 * 1000));
+              await updateDoc(doc(firestore, 'users', user.id), {
+                trialEndDate: serverTimestamp(),
+                trialStartDate: serverTimestamp(),
+              });
+              setIsLoading(false);
+              return;
+            }
+            
+            if (trialEndDate > now) {
+              const timeDiff = trialEndDate.getTime() - now.getTime();
+              const daysRemaining = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+              const hoursRemaining = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+              const minutesRemaining = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+
+              setTrialInfo({
+                daysRemaining,
+                hoursRemaining,
+                minutesRemaining,
+                isExpired: false,
+                trialEndDate,
+              });
+              setIsLoading(false);
+              return;
+            } else {
+              setIsExpired(true);
+              await updateDoc(doc(firestore, 'users', user.id), {
+                subscriptionStatus: 'expired',
+              });
+              return;
+            }
+          }
+
+          if (subscriptionStatus === 'active') {
+            if (subscriptionEndDate && subscriptionEndDate < now) {
+              setIsExpired(true);
+              await updateDoc(doc(firestore, 'users', user.id), {
+                subscriptionStatus: 'expired',
+              });
+              return;
+            }
+            setIsLoading(false);
+            return;
+          }
+
+          if (subscriptionStatus === 'expired') {
+            setIsExpired(true);
+            setIsLoading(false);
+            return;
+          }
+
+          if (subscriptionStatus === 'pending_payment') {
+            setIsExpired(true);
+            setIsLoading(false);
+            return;
+          }
+
+          if (!subscriptionStatus && !trialEndDate) {
             const defaultTrialEnd = new Date(Date.now() + (3 * 24 * 60 * 60 * 1000));
-            await updateDoc(doc(firestore, 'users', user.uid), {
+            await updateDoc(doc(firestore, 'users', user.id), {
               trialEndDate: serverTimestamp(),
               trialStartDate: serverTimestamp(),
+              subscriptionStatus: 'trial',
             });
             setIsLoading(false);
             return;
           }
-          
-          if (trialEndDate > now) {
-            // Trial is still active
+
+          if (trialEndDate && !subscriptionStatus) {
             const timeDiff = trialEndDate.getTime() - now.getTime();
-            const daysRemaining = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
-            const hoursRemaining = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutesRemaining = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+            
+            if (timeDiff > 0) {
+              const daysRemaining = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+              const hoursRemaining = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+              const minutesRemaining = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
 
-            setTrialInfo({
-              daysRemaining,
-              hoursRemaining,
-              minutesRemaining,
-              isExpired: false,
-              trialEndDate,
-            });
-            setIsLoading(false);
-            return;
-          } else {
-            // Trial has expired
-            setIsExpired(true);
-            await updateDoc(doc(firestore, 'users', user.uid), {
-              subscriptionStatus: 'expired',
-            });
-            return;
+              setTrialInfo({
+                daysRemaining,
+                hoursRemaining,
+                minutesRemaining,
+                isExpired: false,
+                trialEndDate,
+              });
+              setIsLoading(false);
+              return;
+            } else {
+              setIsExpired(true);
+              await updateDoc(doc(firestore, 'users', user.id), {
+                subscriptionStatus: 'expired',
+              });
+              return;
+            }
           }
-        }
 
-        // If already subscribed, check if subscription is still valid
-        if (subscriptionStatus === 'active') {
-          if (subscriptionEndDate && subscriptionEndDate < now) {
-            // Subscription has expired
-            setIsExpired(true);
-            await updateDoc(doc(firestore, 'users', user.uid), {
-              subscriptionStatus: 'expired',
-            });
-            return;
-          }
-          // Subscription is still valid
           setIsLoading(false);
-          return;
-        }
-
-        // If subscription is expired, show expired screen
-        if (subscriptionStatus === 'expired') {
-          setIsExpired(true);
+        } catch (error) {
+          console.error('Trial guard error:', error);
+        } finally {
           setIsLoading(false);
-          return;
         }
+      };
 
-        // If payment is pending, show expired screen
-        if (subscriptionStatus === 'pending_payment') {
-          setIsExpired(true);
-          setIsLoading(false);
-          return;
-        }
+      loadTrial();
+    }).catch(() => {
+      router.replace('/login');
+      setIsLoading(false);
+    });
 
-        // If no subscription status and no trial end date, set up trial
-        if (!subscriptionStatus && !trialEndDate) {
-          const defaultTrialEnd = new Date(Date.now() + (3 * 24 * 60 * 60 * 1000));
-          await updateDoc(doc(firestore, 'users', user.uid), {
-            trialEndDate: serverTimestamp(),
-            trialStartDate: serverTimestamp(),
-            subscriptionStatus: 'trial',
-          });
-          setIsLoading(false);
-          return;
-        }
-
-        // If we have a trial end date but no subscription status, check if trial is valid
-        if (trialEndDate && !subscriptionStatus) {
-          const timeDiff = trialEndDate.getTime() - now.getTime();
-          
-          if (timeDiff > 0) {
-            // Trial is still active
-            const daysRemaining = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
-            const hoursRemaining = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutesRemaining = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
-
-            setTrialInfo({
-              daysRemaining,
-              hoursRemaining,
-              minutesRemaining,
-              isExpired: false,
-              trialEndDate,
-            });
-            setIsLoading(false);
-            return;
-          } else {
-            // Trial has expired
-            setIsExpired(true);
-            await updateDoc(doc(firestore, 'users', user.uid), {
-              subscriptionStatus: 'expired',
-            });
-            return;
-          }
-        }
-
-        // Default: allow access
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Trial guard error:', error);
-      } finally {
-        setIsLoading(false);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) {
+        router.replace('/login');
       }
     });
 
-    return () => unsubscribe();
+    return () => subscription.unsubscribe();
   }, [router]);
 
   // Show loading state

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin';
+import { getSupabaseAdmin } from '@/lib/supabase-server';
+import { getAdminDb } from '@/lib/firebase-admin';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,49 +17,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const adminAuth = getAdminAuth();
+    const supabase = getSupabaseAdmin();
     const adminDb = getAdminDb();
 
-    // Create user with Firebase Admin SDK
-    let userRecord;
+    // Create user with Supabase Auth Admin SDK
+    let userId: string;
     let isNewUser = true;
 
     try {
-      userRecord = await adminAuth.createUser({
-        email: email.trim(),
-        password: password,
-        displayName: name.trim(),
-      });
-      console.log('✅ [API] User created successfully:', userRecord.uid);
-    } catch (error: any) {
-      // Check if user already exists
-      if (error.code === 'auth/email-already-exists') {
-        // Try to get existing user
-        try {
-          const existingUser = await adminAuth.getUserByEmail(email.trim());
-          userRecord = existingUser;
-          isNewUser = false;
-          // Update password for existing user so the generated credentials work
-          await adminAuth.updateUser(userRecord.uid, { password: password });
-          console.log('✅ [API] Updated password for existing user:', userRecord.uid);
-        } catch (getUserError) {
-          console.error('❌ [API] Error getting existing user:', getUserError);
-          return NextResponse.json(
-            { error: 'Email already exists but could not retrieve user' },
-            { status: 400 }
-          );
-        }
+      const { data: existingUsers } = await supabase.auth.admin.listUsers();
+      const existingUser = existingUsers?.users?.find(u => u.email === email.trim());
+
+      if (existingUser) {
+        // User already exists - update password
+        userId = existingUser.id;
+        isNewUser = false;
+        await supabase.auth.admin.updateUserById(userId, { password: password });
+        console.log('✅ [API] Updated password for existing user:', userId);
       } else {
-        console.error('❌ [API] Error creating user:', error);
-        return NextResponse.json(
-          { error: error.message || 'Failed to create user' },
-          { status: 500 }
-        );
+        // Create new user
+        const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
+          email: email.trim(),
+          password: password,
+          email_confirm: true,
+          user_metadata: {
+            full_name: name.trim(),
+          },
+        });
+
+        if (createError) throw createError;
+        userId = newUser!.user!.id;
+        console.log('✅ [API] User created successfully:', userId);
       }
+    } catch (error: any) {
+      console.error('❌ [API] Error creating/updating user:', error);
+      return NextResponse.json(
+        { error: error.message || 'Failed to create user' },
+        { status: 500 }
+      );
     }
 
-    // Create/update staff document in Firestore
-    const staffRef = adminDb.collection('businesses').doc(businessId).collection('staff').doc(userRecord.uid);
+    // Create/update staff document in Firestore (via Supabase facade)
+    const staffRef = adminDb.collection('businesses').doc(businessId).collection('staff').doc(userId);
     await staffRef.set({
       staffId,
       name: name.trim(),
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     }, { merge: true });
 
     // Create/update user document
-    const userRef = adminDb.collection('users').doc(userRecord.uid);
+    const userRef = adminDb.collection('users').doc(userId);
     const userData = {
       name: name.trim(),
       email: email.trim(),
@@ -81,14 +81,14 @@ export async function POST(request: NextRequest) {
       status: 'active',
     };
     await userRef.set(userData, { merge: true });
-    console.log('✅ [API] User document created/updated:', userRecord.uid, userData);
+    console.log('✅ [API] User document created/updated:', userId, userData);
 
-    console.log('✅ [API] Staff created successfully:', userRecord.uid);
+    console.log('✅ [API] Staff created successfully:', userId);
 
     return NextResponse.json({
-      uid: userRecord.uid,
+      uid: userId,
       isNewUser,
-      email: userRecord.email,
+      email: email.trim(),
       generatedPassword: password,
     });
   } catch (error) {

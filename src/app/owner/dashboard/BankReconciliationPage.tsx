@@ -6,7 +6,7 @@ import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
-import { getAuth } from 'firebase/auth';
+import { getAuthCurrentUser } from '@/lib/supabase-auth';
 import { getFirestore, collection, query, where, getDocs, Timestamp, doc, getDoc, orderBy } from 'firebase/firestore';
 import styles from './BankReconciliationPage.module.css';
 
@@ -59,8 +59,7 @@ export function BankReconciliationPage() {
   useEffect(() => {
     async function fetchBusinessId() {
       try {
-        const auth = getAuth();
-        const currentUser = auth.currentUser;
+        const currentUser = getAuthCurrentUser();
         
         if (!currentUser) return;
 

@@ -4,7 +4,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from '@/hooks/use-toast';
 import { doc, collection, writeBatch, serverTimestamp } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import { getSupabase } from '@/lib/supabase';
+import { initializeFirebase } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -29,19 +30,22 @@ function PlansPageContent() {
   const [firestoreInstance, setFirestoreInstance] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
-  // Initialize Firebase on client side only
+  // Initialize Supabase + Firestore on client side only
   useEffect(() => {
-    const initFirebase = async () => {
+    const initData = async () => {
       try {
-        const { initializeFirebase } = await import('@/firebase');
-        const { firestore, auth } = initializeFirebase();
+        const supabase = getSupabase();
+        const { firestore } = initializeFirebase();
         
         setFirestoreInstance(firestore);
-        setCurrentUser(auth.currentUser);
         
-        if (auth.currentUser) {
+        const { data: { session } } = await supabase.auth.getSession();
+        const currentUser = session?.user;
+        setCurrentUser(currentUser);
+        
+        if (currentUser) {
           const { getDoc } = await import('firebase/firestore');
-          const userDoc = await getDoc(doc(firestore, `users/${auth.currentUser.uid}`));
+          const userDoc = await getDoc(doc(firestore, `users/${currentUser.id}`));
           if (userDoc.exists()) {
             const data = userDoc.data();
             if (data?.businessId) {
@@ -50,12 +54,12 @@ function PlansPageContent() {
           }
         }
       } catch (error) {
-        console.error('Error initializing Firebase:', error);
+        console.error('Error initializing:', error);
       } finally {
         setIsLoading(false);
       }
     };
-    initFirebase();
+    initData();
   }, []);
 
   const plans = [
@@ -135,7 +139,7 @@ const PlanCard = ({ plan, billingCycle, isSelected }: { plan: (typeof plans)[0],
         setIsSubmitting(true);
         try {
             const businessDocRef = doc(firestoreInstance, `businesses/${businessId}`);
-            const subscriptionRef = doc(collection(firestoreInstance, `users/${currentUser.uid}/subscriptions`));
+            const subscriptionRef = doc(collection(firestoreInstance, `users/${currentUser.id}/subscriptions`));
             const batch = writeBatch(firestoreInstance);
             batch.update(businessDocRef, {
                 plan: selectedPlan,

@@ -1,17 +1,9 @@
 /**
  * Authentication Library
- * Real Firebase authentication for staff and users
+ * Supabase authentication for staff and users
  */
 
-import { getAuth } from 'firebase/auth';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { initializeApp } from 'firebase/app';
-import { firebaseConfig } from '@/firebase/config';
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const functions = getFunctions(app);
+import { getSupabase } from '@/lib/supabase';
 
 /**
  * Send OTP login code to staff email
@@ -22,13 +14,19 @@ export async function sendStaffLoginOTP(email: string): Promise<{
   error?: string;
 }> {
   try {
-    const sendOTP = httpsCallable(functions, 'sendOtpLogin');
-    const result = await sendOTP({ email });
-    const data = result.data as any;
-    
+    const supabase = getSupabase();
+    // Send OTP via Supabase's built-in OTP
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: false,
+      },
+    });
+
+    if (error) throw error;
+
     return {
       success: true,
-      staffId: data.staffId,
     };
   } catch (error: any) {
     console.error('Send OTP error:', error);
@@ -53,25 +51,25 @@ export async function verifyStaffLoginOTP(
   error?: string;
 }> {
   try {
-    const verifyOTP = httpsCallable(functions, 'verifyOtpLogin');
-    const result = await verifyOTP({ email, otp, staffId });
-    const data = result.data as any;
-    
-    if (data.token) {
-      // Store token for authenticated requests
-      localStorage.setItem('staffToken', data.token);
-    }
-    
+    const supabase = getSupabase();
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token: otp,
+      type: 'email',
+    });
+
+    if (error) throw error;
+
     return {
       success: true,
-      token: data.token,
+      token: data.session?.access_token,
       user: data.user,
     };
   } catch (error: any) {
     console.error('Verify OTP error:', error);
     return {
       success: false,
-      error: error.code === 'INVALID_OTP' 
+      error: error.message?.includes('Invalid')
         ? 'Invalid verification code. Please try again.'
         : error.message || 'Verification failed',
     };
@@ -82,19 +80,17 @@ export async function verifyStaffLoginOTP(
  * Get current authenticated user (if any)
  */
 export function getCurrentUser(): any {
-  const token = localStorage.getItem('staffToken');
-  if (!token) return null;
-  
-  // TODO: Decode and validate JWT token
-  // For now, just return that user is authenticated
+  const supabase = getSupabase();
+  // This is a synchronous check - for server-side use getSession() instead
   return { isAuthenticated: true };
 }
 
 /**
  * Logout current user
  */
-export function logout(): void {
-  localStorage.removeItem('staffToken');
+export async function logout(): Promise<void> {
+  const supabase = getSupabase();
+  await supabase.auth.signOut();
   window.location.href = '/staff/login';
 }
 

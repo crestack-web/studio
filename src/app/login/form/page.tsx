@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { initializeFirebase } from "@/firebase";
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { useState, useEffect } from "react";
+import { getSupabase } from "@/lib/supabase";
 import { sendLoginAlertEmail } from "@/services/email/security-emails";
 import posthog from 'posthog-js';
 
@@ -190,19 +189,39 @@ export default function BusmoLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Handle OAuth callback - redirect if session exists
+  useEffect(() => {
+    const supabase = getSupabase();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        // Session exists from OAuth callback - redirect to owner dashboard
+        window.location.href = '/owner';
+      }
+    });
+  }, []);
+
   const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && password.length >= 6;
 
   const handleLogin = async () => {
     setLoading(true);
     setError("");
     try {
-      const { auth, firestore } = initializeFirebase();
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      const supabase = getSupabase();
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      // Fetch user role from Firestore
+      if (authError) throw authError;
+
+      const user = data.user;
+      if (!user) throw new Error('No user returned');
+
+      // Fetch user role from Firestore (via Supabase facade)
       const { doc, getDoc } = await import('firebase/firestore');
-      const userDocRef = doc(firestore, 'users', user.uid);
+      const { initializeFirebase } = await import('@/firebase');
+      const { firestore } = initializeFirebase();
+      const userDocRef = doc(firestore, 'users', user.id);
       const userDoc = await getDoc(userDocRef);
 
       if (userDoc.exists()) {
@@ -225,7 +244,7 @@ export default function BusmoLogin() {
           console.error('Failed to send login alert email:', emailError);
         }
 
-        posthog.identify(user.uid, {
+        posthog.identify(user.id, {
           email: user.email || email,
           role,
         });
@@ -252,36 +271,16 @@ export default function BusmoLogin() {
     setLoading(true);
     setError("");
     try {
-      const { auth, firestore } = initializeFirebase();
-      const provider = new GoogleAuthProvider();
-      const userCredential = await signInWithPopup(auth, provider);
-      const user = userCredential.user;
+      const supabase = getSupabase();
+      const { data, error: authError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/owner`,
+        },
+      });
 
-      // Fetch user role from Firestore
-      const { doc, getDoc } = await import('firebase/firestore');
-      const userDocRef = doc(firestore, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        const role = userData?.role || 'Owner';
-
-        posthog.identify(user.uid, {
-          email: user.email || undefined,
-          role,
-        });
-        posthog.capture('user_logged_in', { authentication_method: 'google', role });
-
-        // Redirect based on role
-        if (!['Owner', 'Admin'].includes(role)) {
-          window.location.href = '/staff/home';
-        } else {
-          window.location.href = '/owner';
-        }
-      } else {
-        // Default to owner dashboard if user doc not found
-        window.location.href = '/owner';
-      }
+      if (authError) throw authError;
+      // OAuth redirect happens automatically - no further code needed
     } catch (error: any) {
       setError("Google sign-in failed. Please try again.");
     } finally {

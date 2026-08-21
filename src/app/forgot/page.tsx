@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { initializeFirebase } from "@/firebase";
-import { sendPasswordResetEmail as firebaseSendPasswordResetEmail } from "firebase/auth";
+import { getSupabase } from "@/lib/supabase";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -19,13 +18,14 @@ export default function ForgotPasswordPage() {
     setError(null);
 
     try {
-      const { auth } = initializeFirebase();
+      const supabase = getSupabase();
       
-      // Send password reset email via Firebase Auth
-      await firebaseSendPasswordResetEmail(auth, email, {
-        url: `${window.location.origin}/login`,
-        handleCodeInApp: false,
+      // Send password reset email via Supabase Auth
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/login`,
       });
+      
+      if (error) throw error;
       
       setSuccess(true);
     } catch (err: any) {

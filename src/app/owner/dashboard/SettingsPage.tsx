@@ -18,7 +18,8 @@ import { useCurrency } from './CurrencyContext';
 import { LANGUAGES, LangCode } from './translations';
 import { CURRENCIES_SORTED, COUNTRY_LIST, formatMoney } from './currencies';
 import { initializeFirebase } from '@/firebase';
-import { getAuth, signOut } from 'firebase/auth';
+import { getSupabase } from '@/lib/supabase';
+import { getAuthCurrentUser } from '@/lib/supabase-auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { DocumentTemplateManager } from './documentTemplates';
 import { checkIsAdmin } from '@/lib/adminAuth';
@@ -104,8 +105,8 @@ export default function SettingsPage() {
   // Handle logout
   const handleLogout = async () => {
     try {
-      const auth = getAuth();
-      await signOut(auth);
+      const supabase = getSupabase();
+      await supabase.auth.signOut();
       showToast(t('toast.loggedOutSuccess'));
       // Redirect to login page
       window.location.href = '/login';
@@ -140,7 +141,7 @@ export default function SettingsPage() {
     const loadNotifPreferences = async () => {
       try {
         const { firestore } = initializeFirebase();
-        const user = getAuth().currentUser;
+        const user = getAuthCurrentUser();
         if (user) {
           const userDoc = await getDoc(doc(firestore, 'users', user.uid));
           if (userDoc.exists()) {
@@ -163,7 +164,7 @@ export default function SettingsPage() {
     setNotif(prev => ({ ...prev, [key]: value }));
     try {
       const { firestore } = initializeFirebase();
-      const user = getAuth().currentUser;
+      const user = getAuthCurrentUser();
       if (user) {
         await updateDoc(doc(firestore, 'users', user.uid), {
           emailPreferences: {
@@ -212,8 +213,7 @@ export default function SettingsPage() {
     const loadData = async () => {
       try {
         const { firestore } = initializeFirebase();
-        const auth = getAuth();
-        const currentUser = auth.currentUser;
+        const currentUser = getAuthCurrentUser();
         
         if (currentUser) {
           // Load business profile
@@ -325,8 +325,7 @@ export default function SettingsPage() {
 
     try {
       const { firestore } = initializeFirebase();
-      const auth = getAuth();
-      const currentUser = auth.currentUser;
+      const currentUser = getAuthCurrentUser();
 
       if (currentUser) {
         await updateDoc(doc(firestore, 'users', currentUser.uid), {

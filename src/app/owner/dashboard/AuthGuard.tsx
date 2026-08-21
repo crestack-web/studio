@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { getSupabase } from '@/lib/supabase';
 import { initializeFirebase } from '@/firebase';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { BusmoLogoLoadingSpinner } from '@/components/BusmoLogoLoadingSpinner';
 
 interface AuthGuardProps {
@@ -19,21 +19,19 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requiredRole = '
   const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
-    const { auth, firestore } = initializeFirebase();
+    const supabase = getSupabase();
+    const { firestore } = initializeFirebase();
 
-    const unsubscribe = onAuthStateChanged(auth, async (user: import('firebase/auth').User | null) => {
-      if (!user) {
-        // Not authenticated - redirect to login
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session?.user) {
         router.replace('/login');
         return;
       }
 
-      try {
-        // Fetch user role from Firestore
-        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
-        
+      const user = session.user;
+
+      getDoc(doc(firestore, 'users', user.id)).then((userDoc) => {
         if (!userDoc.exists()) {
-          // User document doesn't exist - redirect to login
           console.error('User document not found');
           router.replace('/login');
           return;
@@ -43,33 +41,37 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requiredRole = '
         const role = userData?.role || 'Owner';
         setUserRole(role);
 
-        // Check if user has the required role
         if (requiredRole === 'Owner' && ['Staff', 'Admin'].includes(role)) {
-          // Staff trying to access owner area
           router.replace('/staff/home');
           return;
         }
 
         if (requiredRole === 'Staff' && ['Owner', 'Admin'].includes(role)) {
-          // Owner trying to access staff area
           router.replace('/owner/dashboard');
           return;
         }
 
-        // User is authorized
         setIsAuthorized(true);
-      } catch (error) {
+      }).catch((error) => {
         console.error('Auth guard error:', error);
         router.replace('/login');
-      } finally {
+      }).finally(() => {
         setIsLoading(false);
+      });
+    }).catch(() => {
+      router.replace('/login');
+      setIsLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session?.user) {
+        router.replace('/login');
       }
     });
 
-    return () => unsubscribe();
+    return () => subscription.unsubscribe();
   }, [router, requiredRole]);
 
-  // Show loading state
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#F4F4F8] to-[#E8E8F0]">
@@ -78,7 +80,6 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requiredRole = '
     );
   }
 
-  // Don't render children if not authorized (will redirect)
   if (!isAuthorized) {
     return null;
   }

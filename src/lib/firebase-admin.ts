@@ -1,11 +1,17 @@
 /**
  * Firebase Admin SDK Initialization
  * Centralized initialization for server-side Firebase Admin operations
+ *
+ * Data access (getAdminDb) now returns a Supabase-backed Firestore-compatible
+ * facade (see supabase-firestore.ts) so the whole server data layer reads and
+ * writes Postgres. Firebase Admin is retained only for Auth (getAdminAuth) and
+ * Storage (getAdminStorage) until those are migrated too.
  */
 
 import admin from 'firebase-admin';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
+import { getSupabaseDb, FirestoreFacade } from '@/lib/supabase-firestore';
 
 let db: ReturnType<typeof getFirestore> | null = null;
 let storage: ReturnType<typeof getStorage> | null = null;
@@ -44,11 +50,9 @@ try {
   console.error('Firebase Admin initialization error:', error);
 }
 
-export function getAdminDb() {
-  if (!db) {
-    throw new Error('Firebase Admin not initialized. Check environment variables: NEXT_PUBLIC_FIREBASE_PROJECT_ID, FIREBASE_ADMIN_PRIVATE_KEY, FIREBASE_ADMIN_CLIENT_EMAIL');
-  }
-  return db;
+export function getAdminDb(): FirestoreFacade {
+  // Supabase-backed facade: same Firestore-style API, backed by Postgres.
+  return getSupabaseDb();
 }
 
 export function getAdminStorage() {

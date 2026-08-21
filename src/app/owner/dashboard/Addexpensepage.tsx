@@ -7,7 +7,7 @@ import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
 import { collection, addDoc, Timestamp, doc, getDoc, query, where, getDocs, getDocsFromServer } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import { getAuth } from 'firebase/auth';
+import { getAuthCurrentUser } from '@/lib/supabase-auth';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { subscribeToActionEvents } from '@/utils/dataRefresh';
 import { sendLargeExpenseAlertEmail, sendUnusualSpendingAlertEmail } from '@/services/email/cashflow-emails';
@@ -111,8 +111,7 @@ export function AddExpensePage() {
 
     try {
       // Get business ID for storage path
-      const auth = getAuth();
-      const currentUser = auth.currentUser;
+      const currentUser = getAuthCurrentUser();
       if (!currentUser) {
         showToast('⚠️ User not authenticated');
         return;
@@ -169,8 +168,7 @@ export function AddExpensePage() {
 
     try {
       // Get business ID from user document
-      const auth = getAuth();
-      const currentUser = auth.currentUser;
+      const currentUser = getAuthCurrentUser();
       
       if (!currentUser) {
         showToast('⚠️ User not authenticated');

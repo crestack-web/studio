@@ -10,7 +10,6 @@ import { NavIcons } from './NavIcons';
 import styles from './StaffPage.module.css';
 import { ChatPanel } from './ChatPanel';
 import { initializeFirebase } from '@/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDoc, getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
 import { BrevoService } from '@/services/email/brevo-service';
 import { sendStaffRoleUpdatedEmail, sendStaffRemovedEmail } from '@/services/email/team-management-emails';

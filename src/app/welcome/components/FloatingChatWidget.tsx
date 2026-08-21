@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, X, Send, Search, MessageSquare, HelpCircle, User, Bot, ChevronRight, Paperclip, Image, FileText, Mic, Smile, Phone, Mail, Clock, Check, CheckCheck, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 import { MoIcon } from '../../owner/dashboard/NavIcons';
 import { initializeFirebase } from '@/firebase';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { getSupabase } from '@/lib/supabase';
 import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion, query, orderBy, limit, getDocs, onSnapshot } from 'firebase/firestore';
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -113,18 +113,18 @@ export const FloatingChatWidget = () => {
   }, []);
 
   useEffect(() => {
-    // Initialize Firebase first
-    const { auth } = initializeFirebase();
-    const unsubscribe = onAuthStateChanged(auth, async (user: any) => {
+    const supabase = getSupabase();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const user = session?.user;
       if (user) {
         setUserEmail(user.email || 'user');
-        setUserId(user.uid);
-        setUserName(user.displayName?.split(' ')[0] || 'there');
+        setUserId(user.id);
+        setUserName(user.user_metadata?.full_name?.split(' ')[0] || user.user_metadata?.name?.split(' ')[0] || 'there');
         
         try {
           const { firestore } = initializeFirebase();
           if (firestore) {
-            const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+            const userDoc = await getDoc(doc(firestore, 'users', user.id));
             if (userDoc.exists()) {
               const data = userDoc.data();
               setBusinessId(data.businessId || null);
@@ -136,7 +136,9 @@ export const FloatingChatWidget = () => {
         }
       }
     });
-    return () => unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {

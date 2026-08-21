@@ -2,8 +2,8 @@
 
 // import { StepId } from "framer-motion"; // removed - not exported
 import { useState, useCallback, useEffect } from "react";
+import { getSupabase } from "@/lib/supabase";
 import { initializeFirebase } from "@/firebase";
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { doc, setDoc, Timestamp, collection, addDoc, getDoc } from "firebase/firestore";
 import { formatCurrency } from "@/lib/currency";
 import { sendOwnerWelcomeEmailSeries } from "@/services/email/owner-welcome-series";
@@ -1052,6 +1052,29 @@ export default function BusmoOnboarding() {
       console.log('Referral code captured:', ref);
     }
     
+    // Handle Google OAuth callback
+    const googleCallback = searchParams.get('google');
+    if (googleCallback === 'callback') {
+      const handleGoogleCallback = async () => {
+        const supabase = getSupabase();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setData(prev => ({
+            ...prev,
+            email: session.user.email || prev.email,
+            fullName: session.user.user_metadata?.full_name || session.user.user_metadata?.name || prev.fullName,
+            businessName: prev.businessName || `${session.user.user_metadata?.full_name || 'My'} Business`,
+            selectedCategory: prev.selectedCategory || "retail",
+            selectedFeatures: Array.isArray(prev.selectedFeatures) ? prev.selectedFeatures : CATEGORY_FEATURES["retail"],
+            googleUserId: session.user.id,
+          }));
+          setIsGoogleAuth(true);
+          setStep(2);
+        }
+      };
+      handleGoogleCallback();
+    }
+    
     if (isTrial === 'true') {
       const trialInfoStr = localStorage.getItem('busmo_trial_info');
       if (trialInfoStr) {
@@ -1154,9 +1177,10 @@ export default function BusmoOnboarding() {
 
         while (retryCount < maxRetries && (!userCreated || !businessCreated)) {
           try {
-            const { auth, firestore } = initializeFirebase();
+            const supabase = getSupabase();
+            const { firestore } = initializeFirebase();
             
-            // Step 1: Handle Firebase Auth user creation
+            // Step 1: Handle Supabase Auth user creation
             if (!userCreated && !userId) {
               try {
                 // For Google auth users, use the Google user ID directly
@@ -1166,33 +1190,50 @@ export default function BusmoOnboarding() {
                   console.log('Using Google authenticated user ID:', userId);
                 } else {
                   // Check if user is already authenticated
-                  const currentUser = auth.currentUser;
+                  const { data: { session } } = await supabase.auth.getSession();
+                  const currentUser = session?.user;
                   if (currentUser && currentUser.email === data.email) {
-                    userId = currentUser.uid;
+                    userId = currentUser.id;
                     userCreated = true;
                     console.log('User already authenticated:', userId);
                   } else {
                     // Create new user with email/password
-                    const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-                    userId = userCredential.user.uid;
+                    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                      email: data.email,
+                      password: data.password,
+                      options: {
+                        data: {
+                          full_name: data.fullName,
+                        },
+                      },
+                    });
+
+                    if (signUpError) throw signUpError;
+                    userId = signUpData.user?.id ?? null;
                     userCreated = true;
                     console.log('User created successfully:', userId);
                   }
                 }
               } catch (authError: any) {
-                if (authError.code === 'auth/email-already-in-use' && !data.googleUserId) {
+                const errorCode = authError.message || authError.error_description || '';
+                if (errorCode.includes('already') && !data.googleUserId) {
                   // User already exists - try to sign them in instead
                   console.log('User already exists, attempting to sign in...');
                   try {
-                    const { signInWithEmailAndPassword } = await import('firebase/auth');
-                    const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-                    userId = userCredential.user.uid;
+                    const { error: signInError } = await supabase.auth.signInWithPassword({
+                      email: data.email,
+                      password: data.password,
+                    });
+
+                    if (signInError) throw signInError;
+
+                    const { data: { session } } = await supabase.auth.getSession();
+                    userId = session?.user?.id ?? null;
                     userCreated = true;
                     console.log('Existing user signed in:', userId);
                   } catch (signInError: any) {
                     console.error('Failed to sign in existing user:', signInError);
                     if (retryCount === maxRetries - 1) {
-                      // Last retry failed, but we'll still let them proceed
                       userId = 'fallback-' + Date.now();
                       userCreated = true;
                       console.log('Using fallback user ID:', userId);
@@ -1201,7 +1242,6 @@ export default function BusmoOnboarding() {
                     }
                   }
                 } else if (data.googleUserId) {
-                  // For Google auth users, use the Google ID even if other errors occur
                   console.log('Using Google ID despite error:', data.googleUserId);
                   userId = data.googleUserId;
                   userCreated = true;
@@ -1390,27 +1430,20 @@ export default function BusmoOnboarding() {
     setIsLoading(true);
     setError(null);
     try {
-      const { auth, firestore } = initializeFirebase();
-      const provider = new GoogleAuthProvider();
-      const userCredential = await signInWithPopup(auth, provider);
-      const user = userCredential.user;
+      const supabase = getSupabase();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/welcome/signup?google=callback`,
+          queryParams: {
+            prompt: 'select_account',
+          },
+        },
+      });
 
-      // Update form data with Google user info and default category/features
-      setData(prev => ({
-        ...prev,
-        email: user.email || prev.email,
-        fullName: user.displayName || prev.fullName,
-        businessName: prev.businessName || `${user.displayName || 'My'} Business`,
-        selectedCategory: prev.selectedCategory || "retail",
-        selectedFeatures: Array.isArray(prev.selectedFeatures) ? prev.selectedFeatures : CATEGORY_FEATURES["retail"],
-        googleUserId: user.uid,
-      }));
+      if (error) throw error;
 
-      // Set Google auth flag
-      setIsGoogleAuth(true);
-
-      // Auto-advance to step 2 after Google auth
-      setStep(2);
+      // OAuth redirect happens automatically
     } catch (error: any) {
       setError("Google sign-up failed. Please try again.");
     } finally {

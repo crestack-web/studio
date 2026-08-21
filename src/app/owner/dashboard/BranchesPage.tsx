@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { Button } from './Button';
 import { initializeFirebase } from '@/firebase';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { getAuthCurrentUser } from '@/lib/supabase-auth';
 import { getFirestore, doc, getDoc, collection, addDoc, updateDoc, deleteDoc, Timestamp, query, where, getDocs } from 'firebase/firestore';
 import { MOLoadingSpinner } from '@/components/MOLoadingSpinner';
 import styles from './BranchesPage.module.css';
@@ -55,8 +55,8 @@ export function BranchesPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const { auth, firestore } = initializeFirebase();
-        const currentUser = auth.currentUser;
+        const { firestore } = initializeFirebase();
+        const currentUser = getAuthCurrentUser();
 
         if (!currentUser) {
           showToast('❌ Please log in');
@@ -135,8 +135,8 @@ export function BranchesPage() {
   const handleCreateBranch = async (branchData: any) => {
     setIsCreatingBranch(true);
     try {
-      const { auth, firestore } = initializeFirebase();
-      const currentUser = auth.currentUser;
+      const { firestore } = initializeFirebase();
+      const currentUser = getAuthCurrentUser();
 
       if (!currentUser) return;
 
@@ -171,7 +171,7 @@ export function BranchesPage() {
     setIsAssigningStaff(true);
     try {
       const { firestore } = initializeFirebase();
-      const currentUser = getAuth().currentUser;
+      const currentUser = getAuthCurrentUser();
 
       if (!currentUser) return;
 
@@ -203,7 +203,7 @@ export function BranchesPage() {
     setIsDeletingBranch(true);
     try {
       const { firestore } = initializeFirebase();
-      const currentUser = getAuth().currentUser;
+      const currentUser = getAuthCurrentUser();
 
       if (!currentUser) return;
 

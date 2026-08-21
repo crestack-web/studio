@@ -2,13 +2,12 @@
 'use client';
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { firebaseConfig } from '@/firebase/config';
+import { getAuthCurrentUser } from '@/lib/supabase-auth';
 
 // Initialize Firebase app if not already initialized
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const auth = getAuth(app);
 const functions = getFunctions(app, 'us-central1');
 
 // A mapping of our internal function names to their proxied API paths.
@@ -48,8 +47,7 @@ export function getFunctionUrl(functionName: keyof typeof functionPathMap): stri
 }
 
 export const addProduct = async (productData: any) => {
-  const auth = getAuth();
-  const user = auth.currentUser;
+  const user = getAuthCurrentUser();
 
   if (!user) {
     throw new Error('User not authenticated');
@@ -71,8 +69,7 @@ export const addProduct = async (productData: any) => {
 };
 
 export const getProducts = async () => {
-  const auth = getAuth();
-  const user = auth.currentUser;
+  const user = getAuthCurrentUser();
 
   if (!user) {
     throw new Error('User not authenticated');

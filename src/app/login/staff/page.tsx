@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { getSupabase } from "@/lib/supabase";
 import { initializeFirebase } from "@/firebase";
-import { signInWithEmailAndPassword } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 
 // ── Staff Logo ────────────────────────────────
@@ -158,12 +158,20 @@ export default function StaffLogin() {
     setError("");
     try {
       console.log('🔐 [Staff Login] Attempting login with:', email);
-      const { auth, firestore } = initializeFirebase();
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      console.log('✅ [Staff Login] Firebase auth successful:', user.uid);
+      const supabase = getSupabase();
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      const userDocRef = doc(firestore, "users", user.uid);
+      if (authError) throw authError;
+
+      const user = data.user;
+      if (!user) throw new Error('No user returned');
+      console.log('✅ [Staff Login] Supabase auth successful:', user.id);
+
+      const { firestore } = initializeFirebase();
+      const userDocRef = doc(firestore, "users", user.id);
       const userDoc = await getDoc(userDocRef);
       console.log('📄 [Staff Login] User doc exists:', userDoc.exists());
 
@@ -174,7 +182,7 @@ export default function StaffLogin() {
         if (['Owner', 'Admin'].includes(userData.role)) {
           console.warn('⚠️ [Staff Login] User is Owner/Admin, denying access');
           setError("You are not authorized to access the staff portal. Please contact your business owner.");
-          await auth.signOut();
+          await supabase.auth.signOut();
         } else {
           console.log('✅ [Staff Login] Redirecting to staff home');
           window.location.href = "/staff/home";
@@ -182,15 +190,15 @@ export default function StaffLogin() {
       } else {
         console.error('❌ [Staff Login] User document not found in Firestore');
         setError("User account not found. Please contact your business owner.");
-        await auth.signOut();
+        await supabase.auth.signOut();
       }
     } catch (error: any) {
       console.error('❌ [Staff Login] Login error:', error);
       console.error('Error code:', error.code);
       console.error('Error message:', error.message);
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.message?.includes('Invalid login')) {
         setError("Invalid email or password. Please try again.");
-      } else if (error.code === 'auth/too-many-requests') {
+      } else if (error.code === 'auth/too-many-requests' || error.message?.includes('rate limit')) {
         setError("Too many failed attempts. Please try again later.");
       } else {
         setError("Login failed. Please try again.");

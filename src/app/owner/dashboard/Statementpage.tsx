@@ -7,7 +7,7 @@ import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
 import { collection, getDocs, query, orderBy, limit, Timestamp, doc, getDoc, where, updateDoc, runTransaction } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import { getAuth } from 'firebase/auth';
+import { getAuthCurrentUser } from '@/lib/supabase-auth';
 import styles from './Statementpage.module.css';
 
 // ═══════════════════════════════════════════
@@ -103,8 +103,7 @@ export function StatementPage() {
         setLoading(true);
 
         // Get user's business ID
-      const { auth } = initializeFirebase();
-      const user = auth.currentUser;
+        const user = getAuthCurrentUser();
         
         if (!user) {
           console.warn('User not authenticated');

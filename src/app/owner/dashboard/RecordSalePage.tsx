@@ -9,7 +9,7 @@ import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { Product, CartItem, PaymentMethod, PaymentBreakdown, CreditCustomer } from './types';
 import { initializeFirebase } from '@/firebase';
-import { getAuth } from 'firebase/auth';
+import { getAuthCurrentUser } from '@/lib/supabase-auth';
 import { BrevoService } from '@/services/email/brevo-service';
 import { sendFirstSaleCelebrationEmail } from '@/services/email/business-activity-emails';
 import { ReceiptGenerator } from './ReceiptGenerator';
@@ -121,8 +121,7 @@ export function RecordSalePage() {
         setLoading(true);
 
         // First, get the user's business ID
-        const auth = getAuth();
-        const user = auth.currentUser;
+        const user = getAuthCurrentUser();
         
         if (!user) {
           console.warn('User not authenticated');
@@ -439,8 +438,8 @@ export function RecordSalePage() {
     setIsProcessingSale(true);
     
     try {
-      const { auth, firestore } = initializeFirebase();
-      const user = auth.currentUser;
+      const { firestore } = initializeFirebase();
+      const user = getAuthCurrentUser();
       
       if (!user || !firestore) {
         showToast('Authentication required');

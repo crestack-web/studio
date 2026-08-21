@@ -8,7 +8,6 @@ import { templateManager } from './documentTemplates/templateManager';
 import { DocumentTemplate, InvoiceData, CATEGORY_DEFAULT_TEMPLATES } from './documentTemplates/types';
 import { getTemplateComponent } from './documentTemplates/templates';
 import { initializeFirebase } from '@/firebase';
-import { getAuth } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import styles from './ReceiptGenerator.module.css';
 

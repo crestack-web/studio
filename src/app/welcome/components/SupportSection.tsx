@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeFirebase } from '@/firebase';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { getSupabase } from '@/lib/supabase';
 import { doc, getDoc, collection, addDoc, serverTimestamp, updateDoc, arrayUnion } from 'firebase/firestore';
 
 interface SupportMessage {
@@ -54,18 +54,18 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate, exte
   }, [messages]);
 
   useEffect(() => {
-    // Check if user is authenticated
-    const auth = getAuth();
-    const unsubscribe = onAuthStateChanged(auth, async (user: import('firebase/auth').User | null) => {
+    const supabase = getSupabase();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const user = session?.user;
       if (user) {
         setUserEmail(user.email || 'user');
-        setUserId(user.uid);
+        setUserId(user.id);
         
         // Fetch user's business data
         try {
           const { firestore } = initializeFirebase();
           if (firestore) {
-            const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+            const userDoc = await getDoc(doc(firestore, 'users', user.id));
             if (userDoc.exists()) {
               const data = userDoc.data();
               setBusinessId(data.businessId || null);
@@ -78,7 +78,9 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate, exte
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const saveMessageToFirestore = async (text: string, sender: 'user' | 'support', parentMessageId?: string) => {
