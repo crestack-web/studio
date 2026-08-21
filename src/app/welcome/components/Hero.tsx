@@ -34,7 +34,7 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate, onWatchDemo }) => {
   useEffect(() => {
     const timer = setInterval(() => {
       setIndex((prev) => (prev + 1) % HEADLINES.length);
-    }, 3800);
+    }, 4200);
     return () => clearInterval(timer);
   }, []);
 
@@ -47,7 +47,7 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate, onWatchDemo }) => {
         .hero-desc-mobile { display: none; }
         .hero-headline-rotator {
           min-height: 5.2rem;
-          margin-bottom: 14px;
+          margin-bottom: 16px;
         }
         @media (max-width: 640px) {
           .hero-desc-desktop { display: none; }
@@ -59,16 +59,12 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate, onWatchDemo }) => {
             max-width: 340px;
           }
           .hero-headline-rotator {
-            min-height: 4.2rem;
-            margin-bottom: 10px;
-          }
-          .hero-badge {
-            margin-bottom: 14px !important;
-            font-size: 0.7rem !important;
-            padding: 4px 12px !important;
+            min-height: 3.6rem;
+            margin-bottom: 12px;
           }
           .hero h1 {
-            font-size: 1.35rem !important;
+            font-size: 1.15rem !important;
+            line-height: 1.3 !important;
             margin-bottom: 0 !important;
           }
           .hero-cta {
@@ -84,19 +80,14 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate, onWatchDemo }) => {
       <div className="hero-inner">
         <div className="hero-content-wrapper">
           <div className="hero-text-content">
-            <div className="hero-badge">
-              <span />
-              Africa's SME Operating System
-            </div>
-
             <div className="hero-headline-rotator">
               <AnimatePresence mode="wait">
                 <motion.h1
                   key={index}
-                  initial={{ opacity: 0, y: 18 }}
+                  initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -18 }}
-                  transition={{ duration: 0.45, ease: 'easeOut' }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
                   style={{ margin: 0 }}
                 >
                   {current.main}
