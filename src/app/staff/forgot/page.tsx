@@ -20,7 +20,7 @@ export default function StaffForgotPasswordPage() {
       
       // Send password reset email via Supabase Auth
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/staff/login`,
+        redirectTo: `${window.location.origin}/login/staff`,
       });
       
       if (error) throw error;
@@ -59,46 +59,12 @@ export default function StaffForgotPasswordPage() {
           }}>
             ✉️
           </div>
-          
-          <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12, color: "#0A1F14" }}>
-            Check Your Email
-          </h2>
-          
-          <p style={{ fontSize: 15, color: "#3D6652", marginBottom: 24, lineHeight: 1.6 }}>
-            We've sent a password reset link to <strong>{email}</strong>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: "#0A0A0F", marginBottom: 12 }}>Check your email</h2>
+          <p style={{ fontSize: 15, color: "#555568", lineHeight: 1.6, marginBottom: 24 }}>
+            We sent a password reset link to <strong>{email}</strong>. Click the link to set a new password.
           </p>
-          
-          <div style={{
-            padding: 16,
-            background: "#F0F9FF",
-            border: "1px solid #BAE6FD",
-            borderRadius: 10,
-            marginBottom: 24,
-            textAlign: "left",
-          }}>
-            <p style={{ fontSize: 13, color: "#0369A1", margin: 0 }}>
-              <strong>Didn't receive the email?</strong>
-              <br />
-              • Check your spam folder<br />
-              • Make sure you entered the correct email<br />
-              • Contact your business owner for help
-            </p>
-          </div>
-          
-          <Link
-            href="/staff/login"
-            style={{
-              display: "inline-block",
-              background: "#16A34A",
-              color: "#fff",
-              textDecoration: "none",
-              borderRadius: 10,
-              padding: "12px 32px",
-              fontWeight: 700,
-              fontSize: 15,
-            }}
-          >
-            Back to Login
+          <Link href="/login/staff" style={{ color: "#16A34A", fontWeight: 600, textDecoration: "none" }}>
+            ← Back to staff login
           </Link>
         </div>
       </div>
@@ -115,108 +81,70 @@ export default function StaffForgotPasswordPage() {
       background: "radial-gradient(ellipse 80% 55% at 50% -10%, rgba(22,163,74,0.07) 0%, transparent 65%), #F4F4F8",
       fontFamily: "'DM Sans', system-ui, sans-serif",
     }}>
-      <div style={{ 
-        position: "relative", 
-        width: "100%", 
-        maxWidth: 460, 
-        zIndex: 1,
-        display: "flex", 
-        flexDirection: "column", 
-        gap: 12 
-      }}>
-        <div style={{
-          background: "white", 
-          borderRadius: 28, 
-          padding: "28px 26px",
-          border: "1px solid #E8E8F0",
-          boxShadow: "0 4px 6px rgba(0,0,0,0.04), 0 20px 48px rgba(22,163,74,0.09)",
-          display: "flex", 
-          flexDirection: "column", 
-          gap: 20,
-        }}>
-          <div style={{ textAlign: "center", marginBottom: 8 }}>
-            <h2 style={{ fontSize: 22, fontWeight: 700, color: "#0A1F14", marginBottom: 8 }}>
-              Forgot Password?
-            </h2>
-            <p style={{ fontSize: 14, color: "#82A993", margin: 0 }}>
-              No worries! We'll send you reset instructions.
-            </p>
-          </div>
+      <div style={{ maxWidth: 400, width: "100%", padding: 32, background: "#fff", borderRadius: 16, boxShadow: "0 2px 16px #e8e8f0" }}>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0A0A0F", marginBottom: 8 }}>Reset password</h1>
+        <p style={{ fontSize: 14, color: "#555568", marginBottom: 24 }}>
+          Enter your staff email and we&apos;ll send you a reset link.
+        </p>
 
-          <form onSubmit={handleResetPassword} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <div>
-              <label htmlFor="email" style={{ display: "block", fontWeight: 600, color: "#0A1F14", marginBottom: 8 }}>
-                Email Address
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                style={{
-                  width: "100%",
-                  borderRadius: 10,
-                  padding: "12px 14px",
-                  border: "1.5px solid #E8E8F0",
-                  fontSize: 15,
-                  outline: "none",
-                  boxSizing: "border-box",
-                }}
-              />
+        <form onSubmit={handleResetPassword}>
+          <label style={{ fontSize: 13, fontWeight: 600, color: "#16A34A", display: "block", marginBottom: 6 }}>
+            Email
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            placeholder="you@company.com"
+            style={{
+              width: "100%",
+              padding: "13px 16px",
+              borderRadius: 12,
+              border: "1.5px solid #E8E8F0",
+              fontSize: 15,
+              marginBottom: 16,
+              boxSizing: "border-box",
+            }}
+          />
+
+          {error && (
+            <div style={{
+              padding: "12px 14px",
+              borderRadius: 10,
+              background: "#FEF2F2",
+              border: "1px solid #FECACA",
+              color: "#B91C1C",
+              fontSize: 13,
+              marginBottom: 16,
+            }}>
+              {error}
             </div>
+          )}
 
-            {error && (
-              <div style={{
-                padding: "10px 12px",
-                background: "#FEF2F2",
-                border: "1px solid #FECACA",
-                borderRadius: 8,
-                color: "#DC2626",
-                fontSize: 13,
-              }}>
-                {error}
-              </div>
-            )}
+          <button
+            type="submit"
+            disabled={loading || !email.includes("@")}
+            style={{
+              width: "100%",
+              padding: "13px",
+              borderRadius: 12,
+              background: loading ? "#A7F3D0" : "#16A34A",
+              color: "white",
+              border: "none",
+              fontSize: 15,
+              fontWeight: 700,
+              cursor: loading ? "not-allowed" : "pointer",
+            }}
+          >
+            {loading ? "Sending…" : "Send reset link"}
+          </button>
+        </form>
 
-            <button
-              type="submit"
-              disabled={loading || !email}
-              style={{
-                width: "100%",
-                background: "#16A34A",
-                color: "#fff",
-                border: "none",
-                borderRadius: 10,
-                padding: "12px 0",
-                fontWeight: 700,
-                fontSize: 15,
-                cursor: loading ? "not-allowed" : "pointer",
-                opacity: loading ? 0.7 : 1,
-              }}
-            >
-              {loading ? "Sending..." : "Send Reset Link"}
-            </button>
-          </form>
-
-          <div style={{ marginTop: 8, textAlign: "center" }}>
-            <Link
-              href="/staff/login"
-              style={{
-                color: "#16A34A",
-                textDecoration: "none",
-                fontSize: 14,
-                fontWeight: 500,
-              }}
-            >
-              ← Back to Login
-            </Link>
-          </div>
-        </div>
-        
-        <p style={{ textAlign: "center", fontSize: 11, color: "#8888A0" }}>
-          © {new Date().getFullYear()} Busmo · Built for African commerce
+        <p style={{ textAlign: "center", marginTop: 20, fontSize: 13, color: "#6B7280" }}>
+          <Link href="/login/staff" style={{ color: "#16A34A", fontWeight: 600, textDecoration: "none" }}>
+            ← Back to staff login
+          </Link>
         </p>
       </div>
     </div>
