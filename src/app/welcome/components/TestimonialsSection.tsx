@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 
-/** Qualitative owner themes only — no invented metrics or named businesses. */
+/** Qualitative owner themes — uses existing testi-* CSS classes. */
 const TESTIMONIALS = [
   {
     quote: '"I make sales every day, but I used to struggle to know whether cash and stock still matched what happened in the shop."',
@@ -43,34 +43,45 @@ export const TestimonialsSection: React.FC = () => {
   useEffect(() => {
     if (trackRef.current) {
       const cardWidth = trackRef.current.firstChild as HTMLElement;
-      if (cardWidth) {
-        const gap = 16;
-        const scrollPos = currentIndex * (cardWidth.offsetWidth + gap);
-        trackRef.current.scrollTo({ left: scrollPos, behavior: 'smooth' });
-      }
+      const scrollAmount = cardWidth ? cardWidth.offsetWidth + 20 : 0;
+      trackRef.current.scrollTo({
+        left: currentIndex * scrollAmount,
+        behavior: 'smooth',
+      });
     }
   }, [currentIndex]);
 
   return (
     <section className="testimonials-section">
-      <div className="max-w">
-        <div className="section-head center">
-          <div className="section-label">What owners care about</div>
-          <h2 className="section-title">
-            The same problems show up in growing businesses
-          </h2>
-          <p className="section-sub">
-            Sales without clarity. Stock without certainty. Cash without a clear trail.
-          </p>
-        </div>
-        <div className="testimonials-track" ref={trackRef}>
-          {TESTIMONIALS.map((t, i) => (
-            <div key={i} className="testimonial-card">
-              <p className="testimonial-quote">{t.quote}</p>
-              <div className="testimonial-biz">{t.theme}</div>
-            </div>
-          ))}
-        </div>
+      <div className="section-head center">
+        <div className="section-label">What owners care about</div>
+        <h2 className="section-title">
+          The same problems show up<br />in growing businesses.
+        </h2>
+        <p className="section-sub">
+          Sales without clarity. Stock without certainty. Cash without a clear trail.
+        </p>
+      </div>
+
+      <div className="testi-track" ref={trackRef}>
+        {TESTIMONIALS.map((t, i) => (
+          <div key={i} className="testi-card">
+            <div className="testi-quote">{t.quote}</div>
+            <div className="testi-biz">{t.theme}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="testi-dots">
+        {TESTIMONIALS.map((_, i) => (
+          <button
+            key={i}
+            type="button"
+            className={`testi-dot ${i === currentIndex ? 'active' : ''}`}
+            onClick={() => setCurrentIndex(i)}
+            aria-label={`Go to card ${i + 1}`}
+          />
+        ))}
       </div>
     </section>
   );
