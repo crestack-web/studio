@@ -13,7 +13,7 @@ export function PricingPreview({ onNavigate }: PricingPreviewProps) {
     name: p.name,
     price: formatNaira(p.monthlyPrice),
     period: '/month',
-    tagline: p.description,
+    tagline: p.tagline,
     popular: !!p.popular,
     features: p.features.slice(0, 5),
     cta: p.cta,
@@ -24,8 +24,12 @@ export function PricingPreview({ onNavigate }: PricingPreviewProps) {
       <div className="max-w">
         <div className="section-head center">
           <div className="section-label">Pricing</div>
-          <h2 className="section-title">Control over sales, stock, <em>cash and staff</em></h2>
-          <p className="section-sub">{POSITIONING.headline} All plans include a 3-day free trial.</p>
+          <h2 className="section-title">
+            Plans built for <em>business control</em>
+          </h2>
+          <p className="section-sub">
+            {POSITIONING.subhead} 3-day free trial on all plans.
+          </p>
         </div>
 
         <div className="pricing-preview-grid">
@@ -34,8 +38,8 @@ export function PricingPreview({ onNavigate }: PricingPreviewProps) {
               key={index}
               className={`pricing-preview-card ${plan.popular ? 'popular' : ''}`}
             >
-              {plan.popular && <div className="pricing-preview-badge">Most Popular</div>}
-              
+              {plan.popular && <div className="pricing-preview-badge">Recommended</div>}
+
               <div className="pricing-preview-header">
                 <div className="pricing-preview-name">{plan.name}</div>
                 <div className="pricing-preview-tagline">{plan.tagline}</div>
@@ -67,19 +71,19 @@ export function PricingPreview({ onNavigate }: PricingPreviewProps) {
 
         <div className="pricing-preview-footer">
           <p>
-            Need a custom plan?{' '}
-            <button 
+            Enterprise or complex operations?{' '}
+            <button
               className="pricing-preview-link"
               onClick={() => onNavigate('signup')}
             >
-              Contact us
+              Talk to us
             </button>
           </p>
-          <button 
+          <button
             className="pricing-preview-all"
-            onClick={() => window.location.href = '/pricing'}
+            onClick={() => { window.location.href = '/pricing'; }}
           >
-            View All Plans & Details →
+            View all plans &amp; details →
           </button>
         </div>
       </div>

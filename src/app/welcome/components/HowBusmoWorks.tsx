@@ -2,36 +2,36 @@
 
 import React from 'react';
 
-const STEPS = [
+const AREAS = [
   {
     number: 1,
-    title: "Record Sales",
-    description: "Add sales in seconds — even offline. Track what you sold, quantity, and profit per product.",
+    title: "Sales",
+    description: "Know what is being sold and when — by who, and for how much.",
     icon: "https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785009550/IMG_2411_zblrqq.png"
   },
   {
     number: 2,
-    title: "Record Expenses",
-    description: "Log daily expenses and inventory costs. See how they affect your profit in real time.",
-    icon: "https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785009550/IMG_2414_ggelsf.png"
-  },
-  {
-    number: 3,
-    title: "Track Inventory",
-    description: "Add products with cost and quantity. Get alerts before you run out of your best sellers.",
+    title: "Stock",
+    description: "Know what you have, what is moving, and what it is worth.",
     icon: "https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785009549/IMG_2412_gixq0q.png"
   },
   {
+    number: 3,
+    title: "Cash",
+    description: "Track where money comes from and where it goes.",
+    icon: "https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785009550/IMG_2414_ggelsf.png"
+  },
+  {
     number: 4,
-    title: "See Profit Automatically",
-    description: "Your profit is calculated automatically. No more guessing or manual calculations.",
-    icon: "https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785009549/IMG_2410_uos5yq.png"
+    title: "Staff",
+    description: "Know who is handling sales, cash and business activity.",
+    icon: "https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785009550/IMG_2413_esqkdh.png"
   },
   {
     number: 5,
-    title: "Ask MO Anything",
-    description: "Ask questions like 'How much profit did I make today?' and get instant answers.",
-    icon: "https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785009550/IMG_2413_esqkdh.png"
+    title: "Profit",
+    description: "Understand what your business is actually making.",
+    icon: "https://res.cloudinary.com/dzjoqbg2u/image/upload/v1785009549/IMG_2410_uos5yq.png"
   }
 ];
 
@@ -39,17 +39,17 @@ export const HowBusmoWorks: React.FC = () => (
   <section className="how-busmo-works-section">
     <div className="max-w">
       <div className="section-head center">
-        <div className="section-label">How Busmo Works</div>
+        <div className="section-label">The Busmo System</div>
         <h2 className="section-title">
-          5 Simple Steps to <em style={{ color: 'var(--purple-mid)' }}>Business Clarity</em>
+          One system. <em style={{ color: 'var(--purple-mid)' }}>Complete business visibility.</em>
         </h2>
         <p className="section-sub">
-          Get started in minutes. No accounting degree required.
+          Busmo connects sales, stock, cash, staff and profit so you always know what is happening inside your business.
         </p>
       </div>
 
       <div className="steps-container">
-        {STEPS.map((step, index) => (
+        {AREAS.map((step, index) => (
           <div key={index} className="step-item">
             <div className="step-number">{step.number}</div>
             <div className="step-icon">
@@ -59,7 +59,7 @@ export const HowBusmoWorks: React.FC = () => (
               <h3 className="step-title">{step.title}</h3>
               <p className="step-description">{step.description}</p>
             </div>
-            {index < STEPS.length - 1 && <div className="step-connector">→</div>}
+            {index < AREAS.length - 1 && <div className="step-connector">→</div>}
           </div>
         ))}
       </div>

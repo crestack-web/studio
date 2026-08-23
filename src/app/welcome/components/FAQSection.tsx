@@ -2,28 +2,32 @@ import React, { useState } from 'react';
 
 const FAQS = [
   {
+    q: 'What is Busmo?',
+    a: 'Busmo is a business control system for growing African businesses. It connects sales, stock, cash, staff and profit so you can see what is happening inside your business — even when you are not there.',
+  },
+  {
+    q: 'Is Busmo another POS or accounting app?',
+    a: 'No. A POS records transactions. Accounting software produces reports for accountants. Busmo is built for the owner: operational control over sales, inventory, money movement, staff activity and real profit — in plain language.',
+  },
+  {
+    q: 'What is Money Control?',
+    a: 'Money Control helps you connect sales activity with the money your business should have received. It improves visibility and accountability so you can identify discrepancies — not a guarantee of zero losses, but clearer control.',
+  },
+  {
+    q: 'Can I use Busmo offline?',
+    a: 'Yes. You can record sales and keep working without internet. Data syncs when you reconnect.',
+  },
+  {
+    q: 'Who is Busmo for?',
+    a: 'Growing businesses that have moved beyond notebooks, spreadsheets and memory — retail, wholesale, fashion, restaurants, supermarkets, multi-staff and multi-location operations.',
+  },
+  {
     q: 'How does the free trial work?',
-    a: 'All plans come with a 3-day free trial. No credit card is required to start. You get full access to all features during the trial. At the end of your trial, choose the plan that fits your business — or cancel anytime.',
+    a: 'All plans include a 3-day free trial. No credit card required to start. Cancel anytime.',
   },
   {
-    q: 'Is Busmo another accounting app?',
-    a: 'No. Busmo is a clarity and decision-making tool. While accounting software generates reports for accountants, Busmo answers your real questions instantly — "Did I make profit today?", "Which product should I restock?" We speak your language, not accounting jargon.',
-  },
-  {
-    q: 'Can I use Busmo if I work offline?',
-    a: 'Yes! Busmo is offline-first. You can record sales, add products, log expenses, and manage inventory without an internet connection. Your data syncs automatically when you\'re back online.',
-  },
-  {
-    q: 'Is my business data safe?',
-    a: 'Absolutely. Your data is encrypted and stored securely. Only you and the staff members you invite have access to your business data. We never share your data with third parties without your consent.',
-  },
-  {
-    q: 'What if I sell services, not products?',
-    a: 'Busmo is currently optimised for product-based businesses — shops, grocers, food stalls, manufacturers, and market sellers. Service-based business support is on our roadmap.',
-  },
-  {
-    q: 'Can I upgrade or downgrade my plan later?',
-    a: 'Yes. You can upgrade or downgrade your plan at any time. Changes take effect at the start of your next billing cycle.',
+    q: 'What is Mo-sell?',
+    a: 'Mo-sell is the online storefront path in the Busmo ecosystem — for selling through social media, WhatsApp and your audience. Busmo is where you understand and control the business; Mo-sell is where you sell online.',
   },
 ];
 
