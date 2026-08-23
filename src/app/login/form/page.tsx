@@ -275,7 +275,18 @@ export default function BusmoLogin() {
         window.location.href = '/owner';
       }
     } catch (err: any) {
-      setError(err?.message || "Invalid email or password.");
+      const msg = err?.message || '';
+      if (msg.includes('Email not confirmed') || msg.includes('email_not_confirmed')) {
+        setError('Email not confirmed. Check your inbox for the verification link, or we can resend it.');
+        try {
+          const supabase = getSupabase();
+          await supabase.auth.resend({ email, type: 'signup' });
+        } catch {
+          // ignore resend errors
+        }
+      } else {
+        setError("Invalid email or password.");
+      }
     } finally {
       setLoading(false);
     }

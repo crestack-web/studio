@@ -27,48 +27,24 @@ export async function POST(request: NextRequest) {
     let userId: string | null = null;
     let name = 'there';
 
-    const byEmail = (admin.auth.admin as any).getUserByEmail;
-    if (typeof byEmail === 'function') {
-      const { data, error } = await admin.auth.admin.getUserByEmail(email);
-      if (error || !data?.user) {
-        return NextResponse.json({
-          success: true,
-          message: 'If an account exists for this email, a confirmation link was sent.',
-        });
-      }
-      userId = data.user.id;
-      name =
-        data.user.user_metadata?.full_name ||
-        data.user.user_metadata?.name ||
-        'there';
-      if (data.user.email_confirmed_at) {
-        return NextResponse.json({
-          success: true,
-          alreadyConfirmed: true,
-          message: 'This email is already confirmed. You can log in.',
-        });
-      }
-    } else {
-      const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      if (error) throw error;
-      const found = data.users.find((u) => u.email?.toLowerCase() === email);
-      if (!found) {
-        return NextResponse.json({
-          success: true,
-          message: 'If an account exists for this email, a confirmation link was sent.',
-        });
-      }
-      if (found.email_confirmed_at) {
-        return NextResponse.json({
-          success: true,
-          alreadyConfirmed: true,
-          message: 'This email is already confirmed. You can log in.',
-        });
-      }
-      userId = found.id;
-      name =
-        found.user_metadata?.full_name || found.user_metadata?.name || 'there';
+    const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    if (error) throw error;
+    const found = data.users.find((u) => u.email?.toLowerCase() === email);
+    if (!found) {
+      return NextResponse.json({
+        success: true,
+        message: 'If an account exists for this email, a confirmation link was sent.',
+      });
     }
+    if (found.email_confirmed_at) {
+      return NextResponse.json({
+        success: true,
+        alreadyConfirmed: true,
+        message: 'This email is already confirmed. You can log in.',
+      });
+    }
+    userId = found.id;
+    name = found.user_metadata?.full_name || found.user_metadata?.name || 'there';
 
     if (!userId) {
       return NextResponse.json({
