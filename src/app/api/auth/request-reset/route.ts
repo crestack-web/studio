@@ -32,13 +32,32 @@ export async function POST(request: NextRequest) {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Look up user by email
-    const { data: userData, error: lookupErr } =
-      await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    // Look up user by email (paginate until found or exhausted)
+    let user: { id: string; email: string; user_metadata: Record<string, any> } | null = null;
+    let page = 1;
+    const maxPages = 20; // safety cap
 
-    const user = userData?.users.find(
-      (u) => u.email?.toLowerCase() === email
-    );
+    while (page <= maxPages) {
+      const { data: userData, error: lookupErr } =
+        await supabase.auth.admin.listUsers({ page, perPage: 1000 });
+
+      if (lookupErr) {
+        console.error('[request-reset] listUsers error:', lookupErr);
+        throw new Error(`Failed to look up user: ${lookupErr.message}`);
+      }
+
+      const found = userData?.users.find(
+        (u) => u.email?.toLowerCase() === email
+      );
+
+      if (found) {
+        user = found as any;
+        break;
+      }
+
+      if (!userData?.users || userData.users.length < 1000) break;
+      page++;
+    }
 
     if (!user) {
       // Don't reveal whether the email exists
@@ -75,12 +94,26 @@ export async function POST(request: NextRequest) {
       message: 'If an account exists with that email, a reset link has been sent.',
     });
   } catch (err: any) {
-    console.error('[request-reset]', err);
+    const msg = err?.message || String(err);
+    console.error('[request-reset] Error:', msg, err);
+
+    // Surface specific errors to help debug
+    if (msg.includes('RESEND_API_KEY') || msg.includes('Resend is not configured')) {
+      return NextResponse.json(
+        { error: 'Email service is not configured. Please contact support.' },
+        { status: 500 }
+      );
+    }
+
+    if (msg.includes('EMAIL_CONFIRM_SECRET') || msg.includes('required for password')) {
+      return NextResponse.json(
+        { error: 'Server configuration error. Please contact support.' },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json(
-      {
-        error: 'Failed to process password reset',
-        details: err?.message || String(err),
-      },
+      { error: 'Failed to process password reset. Please try again or contact support.' },
       { status: 500 }
     );
   }
