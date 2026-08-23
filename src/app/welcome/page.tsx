@@ -19,6 +19,7 @@ import { BeforeAfterComparison } from './components/BeforeAfterComparison';
 import { FAQSection } from './components/FAQSection';
 import { BusinessCategoriesSlider } from './components/BusinessCategoriesSlider';
 import { Footer } from './components/Footer';
+import { AnnouncementBar } from './components/AnnouncementBar';
 
 export default function WelcomePage() {
   const [showDemoVideo, setShowDemoVideo] = useState(false);
@@ -48,6 +49,7 @@ export default function WelcomePage() {
 
   return (
     <main className="min-h-screen">
+      <AnnouncementBar />
       {/* HEADER */}
       <Navbar currentPage="home" onNavigate={(page) => handleNavigate(page)} />
 
