@@ -225,6 +225,9 @@ export default function BusmoLogin() {
       const user = data.user;
       if (!user) throw new Error('No user returned');
 
+      // Read role from Supabase user_metadata (not Firestore)
+      const role = (user.user_metadata?.role as string) || 'Owner';
+
       // Send login alert (best-effort, must not block login)
       try {
         const deviceInfo = getDeviceInfo();
@@ -248,24 +251,11 @@ export default function BusmoLogin() {
       try {
         posthog.identify(user.id, {
           email: user.email || email,
+          role,
         });
-        posthog.capture('user_logged_in', { authentication_method: 'password' });
+        posthog.capture('user_logged_in', { authentication_method: 'password', role });
       } catch {
         // analytics must not block login
-      }
-
-      // Determine role from Firestore (best-effort; default to Owner)
-      let role = 'Owner';
-      try {
-        const { doc, getDoc } = await import('firebase/firestore');
-        const { initializeFirebase } = await import('@/firebase');
-        const { firestore } = initializeFirebase();
-        const userDoc = await getDoc(doc(firestore, 'users', user.id));
-        if (userDoc.exists()) {
-          role = userDoc.data()?.role || 'Owner';
-        }
-      } catch {
-        // Firestore unavailable — default to Owner
       }
 
       if (!['Owner', 'Admin'].includes(role)) {

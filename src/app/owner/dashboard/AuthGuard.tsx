@@ -3,8 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabase } from '@/lib/supabase';
-import { initializeFirebase } from '@/firebase';
-import { doc, getDoc } from 'firebase/firestore';
 import { BusmoLogoLoadingSpinner } from '@/components/BusmoLogoLoadingSpinner';
 
 interface AuthGuardProps {
@@ -20,7 +18,6 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requiredRole = '
 
   useEffect(() => {
     const supabase = getSupabase();
-    const { firestore } = initializeFirebase();
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.user) {
@@ -29,34 +26,24 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requiredRole = '
       }
 
       const user = session.user;
+      // Read role from Supabase user_metadata (not Firestore)
+      const role = (user.user_metadata?.role as string) || 'Owner';
+      setUserRole(role);
 
-      getDoc(doc(firestore, 'users', user.id)).then((userDoc) => {
-        // If no Firestore doc, treat as Owner (migrated Supabase users)
-        const userData = userDoc.exists() ? userDoc.data() : {};
-        const role = userData?.role || 'Owner';
-        setUserRole(role);
+      if (requiredRole === 'Owner' && ['Staff', 'Admin'].includes(role)) {
+        router.replace('/staff/home');
+        return;
+      }
 
-        if (requiredRole === 'Owner' && ['Staff', 'Admin'].includes(role)) {
-          router.replace('/staff/home');
-          return;
-        }
+      if (requiredRole === 'Staff' && ['Owner', 'Admin'].includes(role)) {
+        router.replace('/owner/dashboard');
+        return;
+      }
 
-        if (requiredRole === 'Staff' && ['Owner', 'Admin'].includes(role)) {
-          router.replace('/owner/dashboard');
-          return;
-        }
-
-        setIsAuthorized(true);
-      }).catch((error) => {
-        // Firestore read failed — allow access as Owner
-        console.warn('Auth guard Firestore read failed, allowing as Owner:', error);
-        setUserRole('Owner');
-        setIsAuthorized(true);
-      }).finally(() => {
-        setIsLoading(false);
-      });
+      setIsAuthorized(true);
     }).catch(() => {
       router.replace('/login');
+    }).finally(() => {
       setIsLoading(false);
     });
 
@@ -85,4 +72,3 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requiredRole = '
 };
 
 export default AuthGuard;
-

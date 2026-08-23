@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { getSupabase, isSupabaseConfigured, getSupabaseConfigErrorMessage } from "@/lib/supabase";
-import { initializeFirebase } from "@/firebase";
-import { doc, getDoc } from "firebase/firestore";
 
 // ── Staff Logo ────────────────────────────────
 function StaffLogo({ size = 32 }: { size?: number }) {
@@ -174,28 +172,19 @@ export default function StaffLogin() {
       if (!user) throw new Error('No user returned');
       console.log('✅ [Staff Login] Supabase auth successful:', user.id);
 
-      const { firestore } = initializeFirebase();
+      // Read role from Supabase user_metadata (not Firestore)
+      const role = (user.user_metadata?.role as string) || 'Owner';
 
-      const userDoc = await getDoc(doc(firestore, 'users', user.id));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        console.log('📋 [Staff Login] User role:', data.role);
-
-        if (['Owner', 'Admin'].includes(data.role)) {
-          console.log('⚠️ [Staff Login] Owner/Admin tried staff portal — redirecting');
-          setError("This account is an owner account. Please use the owner login.");
-          await supabase.auth.signOut();
-        } else if (data.role !== 'Staff') {
-          setError("You are not authorized to access the staff portal. Please contact your business owner.");
-          await supabase.auth.signOut();
-        } else {
-          console.log('✅ [Staff Login] Redirecting to staff home');
-          window.location.href = "/staff/home";
-        }
-      } else {
-        console.error('❌ [Staff Login] User document not found in Firestore');
-        setError("User account not found. Please contact your business owner.");
+      if (['Owner', 'Admin'].includes(role)) {
+        console.log('⚠️ [Staff Login] Owner/Admin tried staff portal — redirecting');
+        setError("This account is an owner account. Please use the owner login.");
         await supabase.auth.signOut();
+      } else if (role !== 'Staff') {
+        setError("You are not authorized to access the staff portal. Please contact your business owner.");
+        await supabase.auth.signOut();
+      } else {
+        console.log('✅ [Staff Login] Redirecting to staff home');
+        window.location.href = "/staff/home";
       }
     } catch (error: any) {
       console.error('❌ [Staff Login] Login error:', error);

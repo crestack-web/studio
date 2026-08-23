@@ -47,7 +47,8 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
           const userDoc = await getDoc(doc(firestore, 'users', user.id));
           
           if (!userDoc.exists()) {
-            router.replace('/login');
+            // No Firestore doc (migrated user) — allow access with default trial
+            setIsLoading(false);
             return;
           }
 
@@ -167,7 +168,8 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
 
           setIsLoading(false);
         } catch (error) {
-          console.error('Trial guard error:', error);
+          console.warn('Trial guard Firestore read failed, allowing access:', error);
+          // Don't block access if Firestore is unavailable
         } finally {
           setIsLoading(false);
         }
