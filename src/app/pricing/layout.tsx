@@ -1,6 +1,12 @@
 import '../welcome/styles/globals.css';
 import React from 'react';
+import { AnnouncementBar } from '../welcome/components/AnnouncementBar';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return (
+    <>
+      <AnnouncementBar />
+      {children}
+    </>
+  );
 }
