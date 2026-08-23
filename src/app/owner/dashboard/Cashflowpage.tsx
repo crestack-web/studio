@@ -7,12 +7,8 @@ import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, orderBy, limit, addDoc, Timestamp, doc, getDoc, updateDoc, runTransaction } from 'firebase/firestore';
-import { Building2, Package, TrendingDown, Wallet, ArrowUpRight, X, Plus, ShoppingCart } from 'lucide-react';
+import { Building2, Package, TrendingDown, Wallet, ArrowUpRight, X, Plus, ShoppingCart, TrendingUp, Banknote } from 'lucide-react';
 import styles from './Cashflowpage.module.css';
-
-// ═══════════════════════════════════════════
-//  CashflowPage — Bank accounts + stock + cash flow tracking
-// ═══════════════════════════════════════════
 
 type ActionId = 'add-purchase' | 'reduce-stock' | 'add-money' | 'take-money' | 'add-account' | 'pay-supplier' | null;
 type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
@@ -84,7 +80,6 @@ export default function Cashflowpage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isAddingPurchase, setIsAddingPurchase] = useState(false);
 
-  // Form states
   const [newAccount, setNewAccount] = useState({ accountName: '', bankName: '', initialBalance: 0, isPosDefault: false });
   const [moneyTransaction, setMoneyTransaction] = useState({ accountId: '', amount: 0, description: '', category: '' });
   const [stockReduction, setStockReduction] = useState({ productId: '', quantity: 0, reason: '' });
@@ -103,7 +98,6 @@ export default function Cashflowpage() {
     notes: ''
   });
   
-  // New product form state
   const [showNewProductForm, setShowNewProductForm] = useState(false);
   const [newProduct, setNewProduct] = useState({
     name: '',
@@ -113,7 +107,6 @@ export default function Cashflowpage() {
     unit: 'piece'
   });
   
-  // Supplier payment form
   const [supplierPayment, setSupplierPayment] = useState({
     supplierId: '',
     amount: 0,
@@ -232,16 +225,10 @@ export default function Cashflowpage() {
         createdByName: user?.name || 'System',
       });
 
-      // Reload products to include the new one
       await loadProducts();
-
-      // Select the newly created product
       setStockAddition({ ...stockAddition, productId: productRef.id, costPrice: newProduct.costPrice });
-
-      // Reset new product form
       setNewProduct({ name: '', costPrice: 0, sellingPrice: 0, category: '', unit: 'piece' });
       setShowNewProductForm(false);
-
       showToast('Product created successfully');
     } catch (error) {
       console.error('Error creating product:', error);
@@ -287,7 +274,6 @@ export default function Cashflowpage() {
     try {
       setLoading(true);
       
-      // Load bank accounts
       const accountsQuery = query(
         collection(firestore, 'businesses', businessId, 'bankAccounts'),
         where('isActive', '==', true)
@@ -311,7 +297,6 @@ export default function Cashflowpage() {
       
       setBankAccounts(accountsList);
       
-      // Fetch bank transactions with date filtering
       const dateRange = getDateRange();
       let transactionsQuery = query(
         collection(firestore, 'businesses', businessId, 'bankTransactions'),
@@ -319,7 +304,6 @@ export default function Cashflowpage() {
         limit(50)
       );
 
-      // Apply date filter to Firestore query if specified
       if (dateRange && dateFilter !== 'all') {
         transactionsQuery = query(
           collection(firestore, 'businesses', businessId, 'bankTransactions'),
@@ -332,7 +316,6 @@ export default function Cashflowpage() {
 
       const snapshot = await getDocs(transactionsQuery);
       
-      // Use a Map to deduplicate transactions by ID
       const transactionMap = new Map<string, Transaction>();
       const saleIdsInBankTx = new Set<string>();
       let cashBalance = 0;
@@ -358,7 +341,6 @@ export default function Cashflowpage() {
           accountName: data.accountName,
         });
 
-        // Track sale IDs already recorded as bank transactions to avoid double-counting
         if (data.saleId) saleIdsInBankTx.add(data.saleId);
         
         if (isCredit) {
@@ -370,14 +352,12 @@ export default function Cashflowpage() {
         }
       });
 
-      // Fetch recent sales with date filtering
       let salesQuery = query(
         collection(firestore, 'businesses', businessId, 'sales'),
         orderBy('createdAt', 'desc'),
         limit(50)
       );
 
-      // Apply date filter to Firestore query if specified
       if (dateRange && dateFilter !== 'all') {
         salesQuery = query(
           collection(firestore, 'businesses', businessId, 'sales'),
@@ -395,7 +375,6 @@ export default function Cashflowpage() {
         const amount = data.totalRevenue || data.totalAmount || 0;
         const date = data.createdAt?.toDate() || new Date();
 
-        // Calculate payment breakdown totals
         const paymentBreakdown = data.paymentBreakdown || [];
         const bankPayment = paymentBreakdown
           .filter((p: any) => ['transfer', 'card', 'pos'].includes(p.method))
@@ -407,7 +386,6 @@ export default function Cashflowpage() {
           .filter((p: any) => p.method === 'credit')
           .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
         
-        // Add bank/POS portion to transactions
         if (bankPayment > 0) {
           transactionMap.set(`sale-${doc.id}`, {
             id: `sale-${doc.id}`,
@@ -419,14 +397,12 @@ export default function Cashflowpage() {
             accountName: data.bankAccountId ? accountsList.find(a => a.id === data.bankAccountId)?.accountName : 'Default Account',
           });
           
-          // Avoid double-counting when sale already exists in bankTransactions
           if (!saleIdsInBankTx.has(doc.id)) {
             cashBalance += bankPayment;
             if (date >= monthStart) monthIn += bankPayment;
           }
         }
         
-        // For cash sales, add as transaction too (to show in recent transactions)
         if (cashPayment > 0) {
           transactionMap.set(`sale-cash-${doc.id}`, {
             id: `sale-cash-${doc.id}`,
@@ -441,20 +417,17 @@ export default function Cashflowpage() {
           if (date >= monthStart) monthIn += cashPayment;
         }
         
-        // Track credit sales separately in monthIn
         if (creditPayment > 0 && date >= monthStart) {
           monthIn += creditPayment;
         }
       });
       
-      // Fetch expenses and integrate them into cashflow
       let expensesQuery = query(
         collection(firestore, 'businesses', businessId, 'expenses'),
         orderBy('createdAt', 'desc'),
         limit(100)
       );
 
-      // Apply date filter to Firestore query if specified
       if (dateRange && dateFilter !== 'all') {
         expensesQuery = query(
           collection(firestore, 'businesses', businessId, 'expenses'),
@@ -467,17 +440,14 @@ export default function Cashflowpage() {
 
       const expensesSnapshot = await getDocs(expensesQuery);
       
-      // Process expenses with for...of to support async operations
       for (const expenseDoc of expensesSnapshot.docs) {
         const data = expenseDoc.data();
         const amount = data.amount || 0;
         const date = data.createdAt?.toDate() || new Date();
 
-        // Determine if this is a bank payment
         const isBankPayment = data.paymentMethod === 'Bank Transfer' || 
                               data.paymentMethod === 'POS / Card';
         
-        // Add expense to transactions
         transactionMap.set(`expense-${expenseDoc.id}`, {
           id: `expense-${expenseDoc.id}`,
           date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
@@ -488,10 +458,8 @@ export default function Cashflowpage() {
           accountName: isBankPayment ? accountsList.find(a => a.isDefault || a.isPosDefault)?.accountName : 'Cash',
         });
         
-        // Deduct from monthly out
         if (date >= monthStart) monthOut += amount;
         
-        // If bank payment, deduct from bank balance and record bank transaction
         if (isBankPayment) {
           const defaultAccount = accountsList.find(a => a.isDefault || a.isPosDefault) || accountsList[0];
           if (defaultAccount && defaultAccount.currentBalance >= amount) {
@@ -516,7 +484,6 @@ export default function Cashflowpage() {
         }
       }
       
-      // Add purchases to transactions
       purchases.forEach(purchase => {
         const purchaseDate = purchase.createdAt?.toDate() || new Date();
         transactionMap.set(`purchase-${purchase.id}`, {
@@ -530,7 +497,6 @@ export default function Cashflowpage() {
         });
       });
 
-      // Convert map to array and sort transactions by date (most recent first)
       const sortedTransactions = Array.from(transactionMap.values()).sort((a, b) => {
         const dateA = new Date(a.date);
         const dateB = new Date(b.date);
@@ -539,14 +505,12 @@ export default function Cashflowpage() {
       
       setTransactions(sortedTransactions);
 
-      // Calculate stock value from products using costPrice
       const stockValue = products.reduce((sum: number, product: any) => {
         const stock = product.stock || 0;
         const costPrice = product.costPrice || product.cost || 0;
         return sum + (stock * costPrice);
       }, 0);
       
-      // Calculate total cash balance (sum of all bank accounts)
       const totalBankBalance = accountsList.reduce((sum, a) => sum + (a.currentBalance || 0), 0);
       
       setStats({
@@ -575,7 +539,6 @@ export default function Cashflowpage() {
   const handleAddAccount = async () => {
     if (!businessId || !firestore) return;
     
-    // Prevent duplicate accounts
     const duplicate = bankAccounts.find(
       acc => acc.accountName.toLowerCase() === newAccount.accountName.toLowerCase() && 
              acc.bankName.toLowerCase() === newAccount.bankName.toLowerCase()
@@ -711,7 +674,6 @@ export default function Cashflowpage() {
         stock: newStock,
       });
 
-      // Record as expense transaction
       if (bankAccounts.length > 0) {
         const defaultAccount = bankAccounts.find(a => a.isDefault) || bankAccounts[0];
         const transactionData = {
@@ -752,12 +714,10 @@ export default function Cashflowpage() {
 
       const purchaseAmount = stockAddition.costPrice * stockAddition.quantity;
       
-      // Calculate payment amounts before transaction
       let paidAmount = 0;
       let creditAmount = 0;
       let paymentMethod = 'cash';
 
-      // Validate payment amount for partial payment
       if (stockAddition.paymentMethod === 'partial') {
         if (stockAddition.paymentAmount <= 0 || stockAddition.paymentAmount >= purchaseAmount) {
           showToast('❌ Partial payment amount must be greater than 0 and less than total');
@@ -777,9 +737,7 @@ export default function Cashflowpage() {
         paymentMethod = 'credit';
       }
 
-      // Use Firestore transaction for atomic updates
       await runTransaction(firestore, async (transaction) => {
-        // PHASE 1: All reads first
         const productRef = doc(firestore, 'businesses', businessId, 'products', stockAddition.productId);
         const productDoc = await transaction.get(productRef);
         
@@ -797,8 +755,6 @@ export default function Cashflowpage() {
           supplierDoc = await transaction.get(supplierRef);
         }
 
-        // PHASE 2: All writes after reads
-        // Update product stock
         if (productDoc.exists()) {
           const currentStock = productDoc.data().stock || 0;
           transaction.update(productRef, {
@@ -806,9 +762,7 @@ export default function Cashflowpage() {
           });
         }
 
-        // Handle payment based on method
         if (stockAddition.paymentMethod === 'cash' || stockAddition.paymentMethod === 'partial') {
-          // If bank account selected, deduct from bank
           if (stockAddition.bankAccountId && accountDoc && accountDoc.exists()) {
             const currentBalance = accountDoc.data().currentBalance || 0;
             if (currentBalance < paidAmount) {
@@ -818,7 +772,6 @@ export default function Cashflowpage() {
               currentBalance: currentBalance - paidAmount,
             });
 
-            // Record bank transaction
             const bankTxnRef = doc(collection(firestore, 'businesses', businessId, 'bankTransactions'));
             transaction.set(bankTxnRef, {
               transactionNumber: `TXN-${Date.now()}`,
@@ -836,7 +789,6 @@ export default function Cashflowpage() {
           }
         }
 
-        // If supplier is selected, update supplier balance and create ledger entry
         let supplierName = 'No Supplier';
         if (stockAddition.supplierId && supplierDoc && supplierDoc.exists()) {
           const supplierData = supplierDoc.data();
@@ -854,7 +806,6 @@ export default function Cashflowpage() {
             lastPaymentDate: paidAmount > 0 ? Timestamp.now() : supplierData.lastPaymentDate,
           });
 
-          // Create supplier ledger entry for purchase
           const ledgerRef = doc(collection(firestore, 'businesses', businessId, 'supplierLedger'));
           transaction.set(ledgerRef, {
             supplierId: stockAddition.supplierId,
@@ -881,7 +832,6 @@ export default function Cashflowpage() {
             },
           });
 
-          // If payment was made, create payment ledger entry
           if (paidAmount > 0) {
             const paymentLedgerRef = doc(collection(firestore, 'businesses', businessId, 'supplierLedger'));
             transaction.set(paymentLedgerRef, {
@@ -905,7 +855,6 @@ export default function Cashflowpage() {
           }
         }
 
-        // Create stock receipt (always create, regardless of supplier)
         const receiptRef = doc(collection(firestore, 'businesses', businessId, 'stockReceipts'));
         transaction.set(receiptRef, {
           receiptNumber: stockAddition.referenceNumber,
@@ -981,9 +930,7 @@ export default function Cashflowpage() {
       const paymentAmount = supplierPayment.amount;
       const newBalance = (supplier.currentBalance || 0) - paymentAmount;
 
-      // Use Firestore transaction for atomic updates
       await runTransaction(firestore, async (transaction) => {
-        // Update supplier balance
         const supplierRef = doc(firestore, 'businesses', businessId, 'suppliers', supplierPayment.supplierId);
         const supplierDoc = await transaction.get(supplierRef);
         
@@ -996,7 +943,6 @@ export default function Cashflowpage() {
             lastPaymentDate: Timestamp.now(),
           });
 
-          // Create supplier ledger entry for payment
           const ledgerRef = doc(collection(firestore, 'businesses', businessId, 'supplierLedger'));
           transaction.set(ledgerRef, {
             supplierId: supplierPayment.supplierId,
@@ -1015,7 +961,6 @@ export default function Cashflowpage() {
             },
           });
 
-          // If bank account selected, deduct from bank
           if (supplierPayment.bankAccountId && (supplierPayment.paymentMethod === 'cash' || supplierPayment.paymentMethod === 'transfer' || supplierPayment.paymentMethod === 'pos')) {
             const accountRef = doc(firestore, 'businesses', businessId, 'bankAccounts', supplierPayment.bankAccountId);
             const accountDoc = await transaction.get(accountRef);
@@ -1028,7 +973,6 @@ export default function Cashflowpage() {
                 currentBalance: currentBalance - paymentAmount,
               });
 
-              // Record bank transaction
               const bankTxnRef = doc(collection(firestore, 'businesses', businessId, 'bankTransactions'));
               transaction.set(bankTxnRef, {
                 transactionNumber: `TXN-${Date.now()}`,
@@ -1077,20 +1021,17 @@ export default function Cashflowpage() {
     confirm(`${action}: ${description} - ${formatMoney(parseFloat(amount))}`);
   }
 
-  // Get unique transaction types
   const getTransactionTypes = (): string[] => {
     const types = new Set<string>();
     transactions.forEach(t => types.add(t.type));
     return Array.from(types).sort();
   };
 
-  // Filter transactions by type
   const getFilteredTransactions = () => {
     if (transactionTypeFilter === 'all') return transactions;
     return transactions.filter(t => t.type === transactionTypeFilter);
   };
 
-  // Download cashflow statement as text file
   const handleDownloadPDF = async () => {
     setIsDownloading(true);
     try {
@@ -1119,6 +1060,7 @@ export default function Cashflowpage() {
 
   return (
     <div className={styles.page}>
+      {/* ── HEADER ── */}
       <div className={styles.headerRow}>
         <div>
           <h1 className={styles.heading}>{t('cashflow.title')}</h1>
@@ -1134,20 +1076,22 @@ export default function Cashflowpage() {
       </div>
 
       {/* ── DATE FILTER ── */}
-      <div className={styles.dateFilterContainer}>
-        <label className={styles.filterLabel}>Time Period:</label>
-        <select
-          className={styles.filterSelect}
-          value={dateFilter}
-          onChange={(e) => setDateFilter(e.target.value as DateFilter)}
+      <div className={styles.dateFilterBar}>
+        {(['all', 'today', 'week', 'month'] as DateFilter[]).map(f => (
+          <button
+            key={f}
+            className={`${styles.filterChip} ${dateFilter === f ? styles.filterChipActive : ''}`}
+            onClick={() => setDateFilter(f)}
+          >
+            {f === 'all' ? 'All Time' : f === 'today' ? 'Today' : f === 'week' ? 'This Week' : 'This Month'}
+          </button>
+        ))}
+        <button
+          className={`${styles.filterChip} ${dateFilter === 'custom' ? styles.filterChipActive : ''}`}
+          onClick={() => setDateFilter('custom')}
         >
-          <option value="all">All Time</option>
-          <option value="today">Today</option>
-          <option value="week">This Week</option>
-          <option value="month">This Month</option>
-          <option value="custom">Custom Range</option>
-        </select>
-
+          Custom
+        </button>
         {dateFilter === 'custom' && (
           <div className={styles.customDateRange}>
             <input
@@ -1167,24 +1111,49 @@ export default function Cashflowpage() {
         )}
       </div>
 
-      {/* ── QUICK STATS ── */}
-      <div className={styles.statsGrid}>
+      {/* ── STATS ── */}
+      <div className={styles.statsRow}>
         {loading ? (
-          <div className={styles.loadingState}>
-            {t('common.loading')}...
-          </div>
+          <div className={styles.loadingState}>Loading...</div>
         ) : (
-          [
-            { label: t('cashflow.cashBalance'),    value: formatMoney(stats.cashBalance),  color: 'var(--green,#1A7A50)' },
-            { label: t('cashflow.stockValue'),     value: formatMoney(stats.stockValue), color: 'var(--text-1)' },
-            { label: t('cashflow.monthIn'),   value: '+' + formatMoney(stats.monthIn), color: 'var(--green,#1A7A50)' },
-            { label: t('cashflow.monthOut'),  value: '-' + formatMoney(stats.monthOut), color: 'var(--red,#C0392B)' },
-          ].map(s => (
-            <div key={s.label} className={styles.statCard}>
-              <div className={styles.statLabel}>{s.label}</div>
-              <div className={styles.statValue} style={{ color: s.color }}>{s.value}</div>
+          <>
+            <div className={styles.statCard}>
+              <div className={styles.statTop}>
+                <span className={styles.statLabel}>{t('cashflow.cashBalance')}</span>
+                <span className={`${styles.statIcon} ${styles.statIconGreen}`}>
+                  <Banknote size={16} />
+                </span>
+              </div>
+              <div className={styles.statValue} style={{ color: 'var(--green,#10B981)' }}>{formatMoney(stats.cashBalance)}</div>
             </div>
-          ))
+            <div className={styles.statCard}>
+              <div className={styles.statTop}>
+                <span className={styles.statLabel}>{t('cashflow.stockValue')}</span>
+                <span className={`${styles.statIcon} ${styles.statIconBlue}`}>
+                  <Package size={16} />
+                </span>
+              </div>
+              <div className={styles.statValue}>{formatMoney(stats.stockValue)}</div>
+            </div>
+            <div className={styles.statCard}>
+              <div className={styles.statTop}>
+                <span className={styles.statLabel}>{t('cashflow.monthIn')}</span>
+                <span className={`${styles.statIcon} ${styles.statIconPurple}`}>
+                  <TrendingUp size={16} />
+                </span>
+              </div>
+              <div className={styles.statValue} style={{ color: '#10B981' }}>+{formatMoney(stats.monthIn)}</div>
+            </div>
+            <div className={styles.statCard}>
+              <div className={styles.statTop}>
+                <span className={styles.statLabel}>{t('cashflow.monthOut')}</span>
+                <span className={`${styles.statIcon} ${styles.statIconRed}`}>
+                  <TrendingDown size={16} />
+                </span>
+              </div>
+              <div className={styles.statValue} style={{ color: '#EF4444' }}>-{formatMoney(stats.monthOut)}</div>
+            </div>
+          </>
         )}
       </div>
 
@@ -1193,7 +1162,7 @@ export default function Cashflowpage() {
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>Bank Accounts</h2>
           <button className={styles.modalButtonPrimary} onClick={() => setActiveAction('add-account')}>
-            <Plus size={16} />
+            <Plus size={14} />
             Add Account
           </button>
         </div>
@@ -1202,23 +1171,17 @@ export default function Cashflowpage() {
             <p>No bank accounts added yet</p>
           </div>
         ) : (
-          <div className={styles.accountsGrid}>
+          <div className={styles.accountsList}>
             {bankAccounts.map(account => (
               <div key={account.id} className={styles.accountCard}>
-                <div className={styles.accountHeader}>
-                  <div className={styles.accountIcon}>
-                    <Building2 size={20} />
-                  </div>
-                  <div className={styles.accountInfo}>
-                    <h4 className={styles.accountName}>{account.accountName}</h4>
-                    <span className={styles.accountBank}>{account.bankName}</span>
-                  </div>
-                  {account.isDefault && (
-                    <div className={styles.defaultBadge}>Default</div>
-                  )}
-                  {account.isPosDefault && (
-                    <div className={styles.posDefaultBadge}>POS Default</div>
-                  )}
+                <div className={styles.accountIcon}>
+                  <Building2 size={18} />
+                </div>
+                <div className={styles.accountInfo}>
+                  <h4 className={styles.accountName}>{account.accountName}</h4>
+                  <span className={styles.accountBank}>{account.bankName}</span>
+                  {account.isDefault && <span className={styles.defaultBadge}>Default</span>}
+                  {account.isPosDefault && <span className={styles.posDefaultBadge}>POS</span>}
                 </div>
                 <div className={styles.accountBalance}>
                   {formatMoney(account.currentBalance)}
@@ -1229,48 +1192,48 @@ export default function Cashflowpage() {
         )}
       </div>
 
-      {/* ── ACTION CARDS ── */}
+      {/* ── QUICK ACTIONS ── */}
       <div className={styles.actionButtons}>
         <button className={styles.actionButton} onClick={() => setActiveAction('add-purchase')}>
           <span className={styles.actionIcon}>
-            <ShoppingCart size={20} />
+            <ShoppingCart size={18} />
           </span>
           <span>Add Purchase</span>
         </button>
         <button className={styles.actionButton} onClick={() => setActiveAction('reduce-stock')}>
           <span className={styles.actionIcon}>
-            <TrendingDown size={20} />
+            <TrendingDown size={18} />
           </span>
           <span>Reduce Stock</span>
         </button>
         <button className={styles.actionButton} onClick={() => setActiveAction('add-money')}>
           <span className={styles.actionIcon}>
-            <Wallet size={20} />
+            <Wallet size={18} />
           </span>
           <span>Add Money</span>
         </button>
         <button className={styles.actionButton} onClick={() => setActiveAction('take-money')}>
           <span className={styles.actionIcon}>
-            <ArrowUpRight size={20} className={styles.rotateIcon} />
+            <ArrowUpRight size={18} className={styles.rotateIcon} />
           </span>
           <span>Take Money</span>
         </button>
         {suppliers.length > 0 && (
           <button className={styles.actionButton} onClick={() => setActiveAction('pay-supplier')}>
             <span className={styles.actionIcon}>
-              <Building2 size={20} />
+              <Building2 size={18} />
             </span>
             <span>Pay Supplier</span>
           </button>
         )}
       </div>
 
-      {/* ── ACTION FORMS (shown when active) ── */}
+      {/* ── ACTION FORMS ── */}
       {activeAction && (
         <div className={styles.actionFormOverlay} onClick={() => setActiveAction(null)}>
           <div className={styles.actionForm} onClick={e => e.stopPropagation()}>
             <button className={styles.closeFormBtn} onClick={() => setActiveAction(null)}>
-              <X size={18} />
+              <X size={16} />
             </button>
             
             {activeAction === 'add-account' && (
@@ -1313,7 +1276,7 @@ export default function Cashflowpage() {
                       checked={newAccount.isPosDefault}
                       onChange={(e) => setNewAccount({ ...newAccount, isPosDefault: e.target.checked })}
                     />
-                    <span>Set as default for POS & Bank payments</span>
+                    <span>Set as default for POS &amp; Bank payments</span>
                   </label>
                   <span className={styles.formHint}>Sales paid via POS, card, or bank transfer will be recorded to this account</span>
                 </div>
@@ -1376,7 +1339,7 @@ export default function Cashflowpage() {
                         className={styles.formInput}
                         value={newProduct.costPrice}
                         onChange={(e) => setNewProduct({ ...newProduct, costPrice: parseFloat(e.target.value) || 0 })}
-                        placeholder="₦0.00"
+                        placeholder="&#8358;0.00"
                       />
                     </div>
                     <div className={styles.formGroup}>
@@ -1386,7 +1349,7 @@ export default function Cashflowpage() {
                         className={styles.formInput}
                         value={newProduct.sellingPrice}
                         onChange={(e) => setNewProduct({ ...newProduct, sellingPrice: parseFloat(e.target.value) || 0 })}
-                        placeholder="₦0.00"
+                        placeholder="&#8358;0.00"
                       />
                     </div>
                     <div className={styles.formGroup}>
@@ -1455,7 +1418,7 @@ export default function Cashflowpage() {
                         className={styles.formInput}
                         value={stockAddition.costPrice}
                         onChange={(e) => setStockAddition({ ...stockAddition, costPrice: parseFloat(e.target.value) || 0 })}
-                        placeholder="₦0.00"
+                        placeholder="&#8358;0.00"
                       />
                     </div>
                     {stockAddition.quantity > 0 && stockAddition.costPrice > 0 && (
@@ -1465,7 +1428,7 @@ export default function Cashflowpage() {
                           {formatMoney(stockAddition.quantity * stockAddition.costPrice)}
                         </span>
                         <span className={styles.totalBreakdown}>
-                          ({stockAddition.quantity} × {formatMoney(stockAddition.costPrice)})
+                          ({stockAddition.quantity} x {formatMoney(stockAddition.costPrice)})
                         </span>
                       </div>
                     )}
@@ -1860,7 +1823,7 @@ export default function Cashflowpage() {
         </div>
       )}
 
-      {/* ── TRANSACTIONS LIST ── */}
+      {/* ── TRANSACTIONS ── */}
       <div className={styles.transactionsSection}>
         <div className={styles.txHeader}>
           <h2 className={styles.sectionTitle}>{t('cashflow.recentTransactions')}</h2>
@@ -1899,9 +1862,7 @@ export default function Cashflowpage() {
         </div>
 
         {loading ? (
-          <div className={styles.txEmpty}>
-            {t('common.loading')}...
-          </div>
+          <div className={styles.txEmpty}>Loading...</div>
         ) : transactions.length === 0 ? (
           <div className={styles.txEmpty}>
             <svg className={styles.txEmptyIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -1920,20 +1881,22 @@ export default function Cashflowpage() {
                   className={styles.transactionCard}
                   onClick={() => setExpandedTransaction(isExpanded ? null : t.id)}
                 >
-                  <div className={styles.txTop}>
-                    <span className={styles.txDate}>{t.date}</span>
-                    <span className={`${styles.txBadge} ${t.credit ? styles.txIn : styles.txOut}`}>
-                      {t.credit ? '↑' : '↓'} {t.type}
-                    </span>
+                  <div className={styles.txLeft}>
+                    <div className={styles.txTop}>
+                      <span className={styles.txDate}>{t.date}</span>
+                      <span className={`${styles.txBadge} ${t.credit ? styles.txIn : styles.txOut}`}>
+                        {t.credit ? 'IN' : 'OUT'}
+                      </span>
+                    </div>
+                    <div className={styles.txBody}>
+                      <span className={styles.txAccount}>{t.type}</span>
+                      <span className={styles.txDesc}>
+                        {t.accountName ? `${t.accountName} — ` : ''}{t.description || t.type}
+                      </span>
+                    </div>
                   </div>
-                  <div className={styles.txBody}>
-                    <div className={styles.txMeta}>
-                      <span className={styles.txAccount}>{t.accountName || 'N/A'}</span>
-                      <span className={styles.txDesc}>{t.description}</span>
-                    </div>
-                    <div className={`${styles.txAmount} ${t.credit ? styles.moneyIn : styles.moneyOut}`}>
-                      {t.credit ? '+' : '-'}{formatMoney(t.amount)}
-                    </div>
+                  <div className={`${styles.txAmount} ${t.credit ? styles.moneyIn : styles.moneyOut}`}>
+                    {t.credit ? '+' : '-'}{formatMoney(t.amount)}
                   </div>
 
                   {isExpanded && (
