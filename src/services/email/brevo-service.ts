@@ -162,7 +162,8 @@ export async function sendWelcomeEmail(
     <body style="font-family:Segoe UI,sans-serif;background:#f4f4f4;margin:0;padding:24px">
       <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
         <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:32px;text-align:center;color:#fff">
-          <h1 style="margin:0">Welcome to Busmo! 🎉</h1>
+          <img src="https://www.busmo.io/email-logo.png" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
+          <h1 style="margin:0">Welcome to Busmo!</h1>
         </div>
         <div style="padding:32px">
           <p>Hi ${name},</p>
@@ -177,7 +178,7 @@ export async function sendWelcomeEmail(
 
   return sendTransactionalEmail({
     to: [{ email, name }],
-    subject: 'Welcome to Busmo! 🎉',
+    subject: 'Welcome to Busmo!',
     htmlContent,
   });
 }
@@ -191,15 +192,22 @@ export async function sendStaffInvitationEmail(
   const htmlContent = `
     <!DOCTYPE html>
     <html><head><meta charset="utf-8"></head>
-    <body style="font-family:Arial,sans-serif;padding:24px">
-      <h1>You're invited to join ${businessName}</h1>
-      <p>Hi ${staffName},</p>
-      <p>You've been invited to join <strong>${businessName}</strong> on Busmo.</p>
-      <p>Your temporary password:</p>
-      <p style="font-size:18px;font-weight:bold;border:2px dashed #667eea;padding:12px;display:inline-block">${tempPassword}</p>
-      <p>Please change your password after logging in.</p>
-      <p><a href="https://www.busmo.io/login">Login to Busmo</a></p>
-      <p>Best regards,<br>The Busmo Team</p>
+    <body style="font-family:Arial,sans-serif;padding:24px;background:#f4f4f4">
+      <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
+        <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:32px;text-align:center;color:#fff">
+          <img src="https://www.busmo.io/email-logo.png" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
+          <h1 style="margin:0;font-size:22px">You're invited to join ${businessName}</h1>
+        </div>
+        <div style="padding:32px">
+          <p>Hi ${staffName},</p>
+          <p>You've been invited to join <strong>${businessName}</strong> on Busmo.</p>
+          <p>Your temporary password:</p>
+          <p style="font-size:18px;font-weight:bold;border:2px dashed #667eea;padding:12px;display:inline-block">${tempPassword}</p>
+          <p>Please change your password after logging in.</p>
+          <p><a href="https://www.busmo.io/login">Login to Busmo</a></p>
+          <p>Best regards,<br>The Busmo Team</p>
+        </div>
+      </div>
     </body></html>`;
 
   return sendTransactionalEmail({
@@ -217,13 +225,20 @@ export async function sendPasswordResetEmail(
   const htmlContent = `
     <!DOCTYPE html>
     <html><head><meta charset="utf-8"></head>
-    <body style="font-family:Arial,sans-serif;padding:24px">
-      <h1>Reset your password</h1>
-      <p>Hi ${name},</p>
-      <p>We received a request to reset your password.</p>
-      <p><a href="${resetLink}" style="display:inline-block;padding:12px 28px;background:#667eea;color:#fff;text-decoration:none;border-radius:8px">Reset Password</a></p>
-      <p>This link expires in 1 hour. If you didn't request this, ignore this email.</p>
-      <p>Best regards,<br>The Busmo Team</p>
+    <body style="font-family:Arial,sans-serif;padding:24px;background:#f4f4f4">
+      <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
+        <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:32px;text-align:center;color:#fff">
+          <img src="https://www.busmo.io/email-logo.png" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
+          <h1 style="margin:0;font-size:22px">Reset your password</h1>
+        </div>
+        <div style="padding:32px">
+          <p>Hi ${name},</p>
+          <p>We received a request to reset your password.</p>
+          <p><a href="${resetLink}" style="display:inline-block;padding:12px 28px;background:#667eea;color:#fff;text-decoration:none;border-radius:8px">Reset Password</a></p>
+          <p>This link expires in 1 hour. If you didn't request this, ignore this email.</p>
+          <p>Best regards,<br>The Busmo Team</p>
+        </div>
+      </div>
     </body></html>`;
 
   return sendTransactionalEmail({
@@ -248,12 +263,19 @@ export async function sendLowStockAlertEmail(
   const htmlContent = `
     <!DOCTYPE html>
     <html><head><meta charset="utf-8"></head>
-    <body style="font-family:Arial,sans-serif;padding:24px">
-      <h1>⚠️ Low Stock Alert</h1>
-      <p>The following items in <strong>${businessName}</strong> are running low:</p>
-      <ul>${itemsList}</ul>
-      <p><a href="https://www.busmo.io/owner">Manage Inventory</a></p>
-      <p>Best regards,<br>The Busmo Team</p>
+    <body style="font-family:Arial,sans-serif;padding:24px;background:#f4f4f4">
+      <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
+        <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:32px;text-align:center;color:#fff">
+          <img src="https://www.busmo.io/email-logo.png" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
+          <h1 style="margin:0;font-size:22px">Low Stock Alert</h1>
+        </div>
+        <div style="padding:32px">
+          <p>The following items in <strong>${businessName}</strong> are running low:</p>
+          <ul>${itemsList}</ul>
+          <p><a href="https://www.busmo.io/owner">Manage Inventory</a></p>
+          <p>Best regards,<br>The Busmo Team</p>
+        </div>
+      </div>
     </body></html>`;
 
   return sendTransactionalEmail({
@@ -284,17 +306,24 @@ export async function sendDailySalesSummaryEmail(
   const htmlContent = `
     <!DOCTYPE html>
     <html><head><meta charset="utf-8"></head>
-    <body style="font-family:Arial,sans-serif;padding:24px">
-      <h1>📊 Daily Sales Summary</h1>
-      <p>Summary for <strong>${businessName}</strong> on ${salesData.date}:</p>
-      <ul>
-        <li>Total Sales: ${salesData.totalSales.toLocaleString()}</li>
-        <li>Total Profit: ${salesData.totalProfit.toLocaleString()}</li>
-        <li>Transactions: ${salesData.transactionCount}</li>
-      </ul>
-      <h3>Top products</h3>
-      <ul>${topProductsList}</ul>
-      <p>Best regards,<br>The Busmo Team</p>
+    <body style="font-family:Arial,sans-serif;padding:24px;background:#f4f4f4">
+      <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
+        <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:32px;text-align:center;color:#fff">
+          <img src="https://www.busmo.io/email-logo.png" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
+          <h1 style="margin:0;font-size:22px">Daily Sales Summary</h1>
+        </div>
+        <div style="padding:32px">
+          <p>Summary for <strong>${businessName}</strong> on ${salesData.date}:</p>
+          <ul>
+            <li>Total Sales: ${salesData.totalSales.toLocaleString()}</li>
+            <li>Total Profit: ${salesData.totalProfit.toLocaleString()}</li>
+            <li>Transactions: ${salesData.transactionCount}</li>
+          </ul>
+          <h3>Top products</h3>
+          <ul>${topProductsList}</ul>
+          <p>Best regards,<br>The Busmo Team</p>
+        </div>
+      </div>
     </body></html>`;
 
   return sendTransactionalEmail({
@@ -314,13 +343,20 @@ export async function sendCreditPaymentReminderEmail(
   const htmlContent = `
     <!DOCTYPE html>
     <html><head><meta charset="utf-8"></head>
-    <body style="font-family:Arial,sans-serif;padding:24px">
-      <h1>💳 Payment Reminder</h1>
-      <p>Dear ${customerName},</p>
-      <p>Friendly reminder from <strong>${businessName}</strong> of a pending payment.</p>
-      <p style="font-size:24px;font-weight:bold">${amount.toLocaleString()}</p>
-      <p>Due: ${dueDate}</p>
-      <p>Best regards,<br>${businessName}</p>
+    <body style="font-family:Arial,sans-serif;padding:24px;background:#f4f4f4">
+      <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
+        <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:32px;text-align:center;color:#fff">
+          <img src="https://www.busmo.io/email-logo.png" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
+          <h1 style="margin:0;font-size:22px">Payment Reminder</h1>
+        </div>
+        <div style="padding:32px">
+          <p>Dear ${customerName},</p>
+          <p>Friendly reminder from <strong>${businessName}</strong> of a pending payment.</p>
+          <p style="font-size:24px;font-weight:bold">${amount.toLocaleString()}</p>
+          <p>Due: ${dueDate}</p>
+          <p>Best regards,<br>${businessName}</p>
+        </div>
+      </div>
     </body></html>`;
 
   return sendTransactionalEmail({
