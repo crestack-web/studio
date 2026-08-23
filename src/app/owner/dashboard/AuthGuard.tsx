@@ -30,7 +30,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requiredRole = '
       const role = (user.user_metadata?.role as string) || 'Owner';
       setUserRole(role);
 
-      if (requiredRole === 'Owner' && ['Staff', 'Admin'].includes(role)) {
+      if (requiredRole === 'Owner' && ['Staff', 'Cashier', 'Manager', 'Store manager', 'Seller'].includes(role)) {
         router.replace('/staff/home');
         return;
       }

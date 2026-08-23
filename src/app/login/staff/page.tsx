@@ -179,7 +179,7 @@ export default function StaffLogin() {
         console.log('⚠️ [Staff Login] Owner/Admin tried staff portal — redirecting');
         setError("This account is an owner account. Please use the owner login.");
         await supabase.auth.signOut();
-      } else if (role !== 'Staff') {
+      } else if (!['Staff', 'Cashier', 'Manager', 'Store manager', 'Seller'].includes(role)) {
         setError("You are not authorized to access the staff portal. Please contact your business owner.");
         await supabase.auth.signOut();
       } else {

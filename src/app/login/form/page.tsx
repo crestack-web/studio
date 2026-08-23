@@ -273,9 +273,10 @@ export default function BusmoLogin() {
         // analytics must not block login
       }
 
-      if (!['Owner', 'Admin'].includes(role)) {
+      if (['Staff', 'Cashier', 'Manager', 'Store manager', 'Seller'].includes(role)) {
         window.location.href = '/staff/home';
       } else {
+        // Owner, Admin, or any unknown role → owner dashboard
         window.location.href = '/owner';
       }
     } catch (err: any) {
