@@ -5,6 +5,13 @@ import { LangProvider } from '../owner/dashboard/LangContext';
 import { AskMOSupportAgent } from '../welcome/components/AskMOSupportAgent';
 import { Navbar } from '../welcome/components/Navbar';
 import { Footer } from '../welcome/components/Footer';
+import {
+  BUSMO_PLANS,
+  ENTERPRISE,
+  ONBOARDING,
+  POSITIONING,
+  formatNaira,
+} from '@/lib/pricing';
 
 export default function PricingPage() {
   const [mode, setMode] = useState<'monthly' | 'yearly'>('monthly');
@@ -29,63 +36,18 @@ export default function PricingPage() {
     else window.location.href = '/welcome';
   };
 
-  // Fixed prices in Naira
-  const plans = [
-    {
-      name: 'Starter',
-      tagline: 'For small retailers',
-      monthlyPrice: 5000,
-      yearlyPrice: 50000,
-      features: [
-        { text: 'Sales & Inventory', included: true, highlight: true },
-        { text: 'Expense Management', included: true, highlight: true },
-        { text: 'Basic Reports', included: true, highlight: true },
-        { text: 'Ask MO AI (10 msgs/day)', included: true, highlight: true },
-        { text: 'Up to 50 Products', included: true },
-        { text: '1 Staff Member', included: true },
-      ],
-      cta: 'Start Free Trial',
-      popular: false,
-    },
-    {
-      name: 'Standard',
-      tagline: 'For growing businesses',
-      monthlyPrice: 10000,
-      yearlyPrice: 100000,
-      features: [
-        { text: 'Everything in Starter', included: true },
-        { text: 'Cash Flow Tracking', included: true, highlight: true },
-        { text: 'Credit Tracking', included: true, highlight: true },
-        { text: 'Ask MO AI (50 msgs/day)', included: true, highlight: true },
-        { text: 'Up to 500 Products', included: true },
-        { text: 'Up to 10 Staff', included: true },
-        { text: 'Multi-branch (3 locations)', included: true },
-      ],
-      cta: 'Start Free Trial',
-      popular: true,
-    },
-    {
-      name: 'Pro',
-      tagline: 'For established businesses',
-      monthlyPrice: 25000,
-      yearlyPrice: 250000,
-      features: [
-        { text: 'Everything in Standard', included: true },
-        { text: 'Unlimited Products', included: true, highlight: true },
-        { text: 'Unlimited Staff', included: true, highlight: true },
-        { text: 'Unlimited Branches', included: true, highlight: true },
-        { text: 'Bank Integration', included: true, highlight: true },
-        { text: 'Ask MO AI (Unlimited)', included: true, highlight: true },
-        { text: 'Priority Support', included: true },
-      ],
-      cta: 'Contact Sales',
-      popular: false,
-    },
-  ];
+  const plans = BUSMO_PLANS.map((p) => ({
+    id: p.id,
+    name: p.name,
+    tagline: p.tagline,
+    monthlyPrice: p.monthlyPrice,
+    yearlyPrice: p.yearlyPrice,
+    features: p.features.map((text) => ({ text, included: true, highlight: false })),
+    cta: p.cta,
+    popular: !!p.popular,
+  }));
 
-  const formatMoney = (amount: number) => {
-    return `₦${amount.toLocaleString()}`;
-  };
+  const formatMoney = (amount: number) => formatNaira(amount);
 
   const handlePlanSelect = (plan: any) => {
     setSelectedPlan(plan);
@@ -170,8 +132,10 @@ export default function PricingPage() {
         <div className="max-w">
           {/* Hero */}
           <div className="section-head center">
-            <h1 className="section-title">Simple Pricing<br /><em>for Your Business</em></h1>
+            <h1 className="section-title">Control over sales, stock,<br /><em>cash and staff</em></h1>
             <p className="section-sub">
+              {POSITIONING.headline}
+              <br />
               3-day free trial. Cancel anytime.
             </p>
           </div>
@@ -193,7 +157,7 @@ export default function PricingPage() {
               </button>
             </div>
             {mode === 'yearly' && (
-              <span className="save-badge">Save 17%</span>
+              <span className="save-badge">2 months free</span>
             )}
           </div>
 
@@ -243,20 +207,16 @@ export default function PricingPage() {
                 <button
                   className={`plan-cta ${plan.popular ? 'primary' : ''}`}
                   onClick={() => {
-                    if (plan.cta === 'Start Free Trial') {
-                      // Store trial information in localStorage for use during signup
-                      const trialInfo = {
-                        plan: plan.name,
-                        billing: mode,
-                        country: 'NG',
-                        trialStart: new Date().toISOString(),
-                        trialEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days from now
-                      };
-                      localStorage.setItem('busmo_trial_info', JSON.stringify(trialInfo));
-                      window.location.href = '/welcome/signup?trial=true';
-                    } else {
-                      handlePlanSelect(plan);
-                    }
+                    const trialInfo = {
+                      plan: plan.name,
+                      planId: plan.id,
+                      billing: mode,
+                      country: 'NG',
+                      trialStart: new Date().toISOString(),
+                      trialEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+                    };
+                    localStorage.setItem('busmo_trial_info', JSON.stringify(trialInfo));
+                    window.location.href = '/welcome/signup?trial=true';
                   }}
                 >
                   {plan.cta}
