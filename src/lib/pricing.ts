@@ -41,8 +41,8 @@ export const ONBOARDING = {
 } as const;
 
 export const POSITIONING = {
-  headline: 'Know your numbers. Control your business. Grow with confidence.',
-  subhead: 'Busmo gives business owners control over their sales, stock, cash and staff.',
+  headline: 'Control your business, even when you\'re not there.',
+  subhead: 'Busmo gives business owners control over sales, stock, cash and staff.',
 } as const;
 
 /**
