@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
-import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { MoneyControlSummary, PaymentBreakdown } from './types';
 import { initializeFirebase } from '@/firebase';
@@ -52,7 +51,6 @@ export default function MoneyControlPage() {
     }
   }, [selectedPeriod, user.businessId, isMounted]);
 
-  // Don't render anything until mounted to prevent hydration mismatch
   if (!isMounted) {
     return null;
   }
@@ -64,7 +62,6 @@ export default function MoneyControlPage() {
     try {
       const { firestore } = initializeFirebase();
       
-      // Check if business is a restaurant
       const restaurant = await isRestaurantBusiness(user.businessId);
       setIsRestaurant(restaurant);
       
@@ -101,10 +98,8 @@ export default function MoneyControlPage() {
       });
       setSalesWithPayments(sales);
       
-      // Calculate summary
       const totalSales = sales.reduce((sum, sale) => sum + (sale.totalRevenue || 0), 0);
       
-      // Calculate payment method breakdown
       const cashSales = sales.reduce((sum, sale) => {
         const breakdown = sale.paymentBreakdown || [];
         const cashAmount = breakdown.filter((pb: PaymentBreakdown) => pb.method === 'cash').reduce((s: number, pb: PaymentBreakdown) => s + pb.amount, 0);
@@ -131,11 +126,9 @@ export default function MoneyControlPage() {
         return sum + creditAmount;
       }, 0);
       
-      // Split payments are already divided 50/50 in RecordSalePage, so use splitPayments directly
       const expectedCashCollections = cashSales + splitPayments * 0.5;
       const expectedBankCollections = transferSales + posSales + splitPayments * 0.5;
       
-      // Load actual reconciliation data from database
       const reconciliationsRef = collection(firestore, 'businesses', user.businessId, 'cashReconciliations');
       let recQuery = query(reconciliationsRef);
       
@@ -156,38 +149,26 @@ export default function MoneyControlPage() {
       const recSnapshot = await getDocs(recQuery);
       const reconciliations = recSnapshot.docs.map(doc => doc.data());
       
-      // Calculate confirmed collections from reconciliations
       let confirmedCashCollections = 0;
       let confirmedBankCollections = 0;
       const recSaleIds = new Set<string>();
       
       reconciliations.forEach((rec: any) => {
         const actualCash = rec.actualCash || 0;
-        const expectedCash = rec.expectedCash || 0;
-        const variance = rec.variance || 0;
-        
-        // If variance is positive (more cash than expected), count as confirmed
-        // If variance is negative (shortage), still count what was actually submitted
         confirmedCashCollections += actualCash;
         
-        // Track which sales are reconciled
         const saleIds = rec.saleIds || [];
         saleIds.forEach((saleId: string) => {
           recSaleIds.add(saleId);
         });
       });
       
-      // For bank collections, we assume transfers and POS are automatically confirmed
-      // (they go directly to bank, unlike cash which needs manual reconciliation)
       confirmedBankCollections = expectedBankCollections;
       
-      // Calculate outstanding collections (expected - confirmed)
       const outstandingCollections = Math.max(0, expectedCashCollections - confirmedCashCollections);
       
-      // Calculate reconciliation metrics
       const matchedTransactions = recSaleIds.size;
       
-      // Only cash sales (and cash portion of split payments) need reconciliation
       const cashSalesNeedingReconciliation = sales.filter(sale => {
         const breakdown = sale.paymentBreakdown || [];
         const hasCash = breakdown.some((pb: PaymentBreakdown) => pb.method === 'cash');
@@ -196,10 +177,9 @@ export default function MoneyControlPage() {
       });
       
       const unmatchedSales = cashSalesNeedingReconciliation.length - matchedTransactions;
-      const unmatchedBankTransactions = 0; // TODO: Implement bank statement matching
+      const unmatchedBankTransactions = 0;
       const pendingReconciliation = Math.max(0, unmatchedSales);
       
-      // Calculate alerts
       let cashShortages = 0;
       let missingTransfers = 0;
       let unmatchedDeposits = 0;
@@ -215,8 +195,6 @@ export default function MoneyControlPage() {
         }
       });
       
-      // Check for missing transfers (transfer sales without bank confirmation)
-      // For now, we'll estimate based on transfer sales vs confirmed bank
       const transferConfirmationRate = transferSales > 0 ? (confirmedBankCollections / (transferSales + posSales)) : 1;
       if (transferConfirmationRate < 0.9 && transferSales > 0) {
         missingTransfers = Math.ceil(transferSales * (1 - transferConfirmationRate));
@@ -250,7 +228,6 @@ export default function MoneyControlPage() {
       });
       setReconciledSaleIds(recSaleIds);
 
-      // Load restaurant-specific profit metrics
       if (restaurant) {
         await loadRestaurantProfitMetrics(firestore, user.businessId, selectedPeriod, totalSales);
       }
@@ -279,10 +256,9 @@ export default function MoneyControlPage() {
         startDate = new Date();
         startDate.setDate(startDate.getDate() - 30);
       } else {
-        startDate = new Date(0); // All time
+        startDate = new Date(0);
       }
 
-      // Load expenses
       const expensesQuery = query(
         collection(firestore, 'businesses', businessId, 'expenses'),
         where('createdAt', '>=', Timestamp.fromDate(startDate))
@@ -331,7 +307,7 @@ export default function MoneyControlPage() {
     color?: string;
   }) => (
     <div className={styles.statCard}>
-      <div className={styles.statIcon} style={{ background: color || '#EDE8FC' }}>
+      <div className={styles.statIcon} style={{ background: color || 'rgba(124, 58, 237, 0.08)' }}>
         {typeof icon === 'string' ? <span>{icon}</span> : icon}
       </div>
       <div className={styles.statContent}>
@@ -345,9 +321,6 @@ export default function MoneyControlPage() {
   const SaleRow = ({ sale }: { sale: SaleData }) => {
     const breakdown = sale.paymentBreakdown || [];
     const total = breakdown.reduce((sum, pb) => sum + pb.amount, 0);
-    const cashAmount = breakdown.filter(pb => pb.method === 'cash').reduce((sum, pb) => sum + pb.amount, 0);
-    const bankAmount = breakdown.filter(pb => ['transfer', 'pos', 'card'].includes(pb.method)).reduce((sum, pb) => sum + pb.amount, 0);
-    // Check if this sale has been reconciled
     const isReconciled = reconciledSaleIds.has(sale.id);
     
     return (
@@ -366,7 +339,7 @@ export default function MoneyControlPage() {
         </div>
         <div className={styles.saleReconciliation}>
           <div className={`${styles.reconStatus} ${isReconciled ? styles.reconMatched : styles.reconPending}`}>
-            {isReconciled ? '✓ Matched' : '⏳ Pending'}
+            {isReconciled ? 'Matched' : 'Pending'}
           </div>
         </div>
       </div>
@@ -375,7 +348,7 @@ export default function MoneyControlPage() {
 
   const AlertItem = ({ type, count }: { type: string; count: number }) => (
     <div className={styles.alertItem}>
-      <div className={styles.alertIcon}><AlertTriangle size={18} /></div>
+      <div className={styles.alertIcon}><AlertTriangle size={16} /></div>
       <div className={styles.alertContent}>
         <div className={styles.alertType}>{type}</div>
         <div className={styles.alertCount}>{count}</div>
@@ -404,32 +377,32 @@ export default function MoneyControlPage() {
       </div>
 
       {loading ? (
-        <div className={styles.loading}>Loading…</div>
+        <div className={styles.loading}>Loading...</div>
       ) : summary ? (
         <div className={styles.content}>
           {/* Sales Summary */}
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Sales Summary</h2>
             <div className={styles.statsGrid}>
-              <StatCard icon={<DollarSign size={20} />} label="Total Sales" value={formatMoney(summary.totalSales)} />
-              <StatCard icon={<Banknote size={20} />} label="Cash Sales" value={formatMoney(summary.cashSales)} color="#DCFCE7" />
-              <StatCard icon={<Smartphone size={20} />} label="Transfer Sales" value={formatMoney(summary.transferSales)} color="#DBEAFE" />
-              <StatCard icon={<CreditCard size={20} />} label="POS Sales" value={formatMoney(summary.posSales)} color="#FCE7F3" />
-              <StatCard icon={<RefreshCw size={20} />} label="Split Payments" value={formatMoney(summary.splitPayments)} color="#FEF3C7" />
-              <StatCard icon={<FileText size={20} />} label="Credit Sales" value={formatMoney(summary.creditSales)} color="#FEE2E2" />
+              <StatCard icon={<DollarSign size={18} />} label="Total Sales" value={formatMoney(summary.totalSales)} color="rgba(124, 58, 237, 0.08)" />
+              <StatCard icon={<Banknote size={18} />} label="Cash Sales" value={formatMoney(summary.cashSales)} color="rgba(16, 185, 129, 0.1)" />
+              <StatCard icon={<Smartphone size={18} />} label="Transfer Sales" value={formatMoney(summary.transferSales)} color="rgba(59, 130, 246, 0.1)" />
+              <StatCard icon={<CreditCard size={18} />} label="POS Sales" value={formatMoney(summary.posSales)} color="rgba(236, 72, 153, 0.1)" />
+              <StatCard icon={<RefreshCw size={18} />} label="Split Payments" value={formatMoney(summary.splitPayments)} color="rgba(245, 158, 11, 0.1)" />
+              <StatCard icon={<FileText size={18} />} label="Credit Sales" value={formatMoney(summary.creditSales)} color="rgba(239, 68, 68, 0.1)" />
             </div>
           </section>
 
-          {/* Restaurant Profit Tracking - Only for restaurants */}
+          {/* Restaurant Profit Tracking */}
           {isRestaurant && restaurantProfitMetrics && (
             <section className={styles.section}>
               <h2 className={styles.sectionTitle}>Restaurant Profit Tracking</h2>
               <div className={styles.statsGrid}>
-                <StatCard icon={<Package size={20} />} label="Inventory Purchases" value={formatMoney(restaurantProfitMetrics.inventoryPurchases)} color="#DBEAFE" />
-                <StatCard icon={<Zap size={20} />} label="Operating Expenses" value={formatMoney(restaurantProfitMetrics.operatingExpenses)} color="#FEE2E2" />
-                <StatCard icon={<Users size={20} />} label="Payroll Expenses" value={formatMoney(restaurantProfitMetrics.payrollExpenses)} color="#FEF3C7" />
-                <StatCard icon={<BarChart3 size={20} />} label="Estimated Profit" value={formatMoney(restaurantProfitMetrics.estimatedProfit)} color="#DCFCE7" />
-                <StatCard icon={<Utensils size={20} />} label="Food Cost %" value={`${restaurantProfitMetrics.foodCostPercentage.toFixed(1)}%`} color="#FCE7F3" />
+                <StatCard icon={<Package size={18} />} label="Inventory Purchases" value={formatMoney(restaurantProfitMetrics.inventoryPurchases)} color="rgba(59, 130, 246, 0.1)" />
+                <StatCard icon={<Zap size={18} />} label="Operating Expenses" value={formatMoney(restaurantProfitMetrics.operatingExpenses)} color="rgba(239, 68, 68, 0.1)" />
+                <StatCard icon={<Users size={18} />} label="Payroll Expenses" value={formatMoney(restaurantProfitMetrics.payrollExpenses)} color="rgba(245, 158, 11, 0.1)" />
+                <StatCard icon={<BarChart3 size={18} />} label="Estimated Profit" value={formatMoney(restaurantProfitMetrics.estimatedProfit)} color="rgba(16, 185, 129, 0.1)" />
+                <StatCard icon={<Utensils size={18} />} label="Food Cost %" value={`${restaurantProfitMetrics.foodCostPercentage.toFixed(1)}%`} color="rgba(236, 72, 153, 0.1)" />
               </div>
             </section>
           )}
@@ -438,11 +411,11 @@ export default function MoneyControlPage() {
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Collections Summary</h2>
             <div className={styles.statsGrid}>
-              <StatCard icon={<Download size={20} />} label="Expected Cash" value={formatMoney(summary.expectedCashCollections)} color="#DCFCE7" />
-              <StatCard icon={<Building2 size={20} />} label="Expected Bank" value={formatMoney(summary.expectedBankCollections)} color="#DBEAFE" />
-              <StatCard icon={<Check size={20} />} label="Confirmed Cash" value={formatMoney(summary.confirmedCashCollections)} color="#DCFCE7" />
-              <StatCard icon={<Check size={20} />} label="Confirmed Bank" value={formatMoney(summary.confirmedBankCollections)} color="#DBEAFE" />
-              <StatCard icon={<Clock size={20} />} label="Outstanding" value={formatMoney(summary.outstandingCollections)} color="#FEF3C7" />
+              <StatCard icon={<Download size={18} />} label="Expected Cash" value={formatMoney(summary.expectedCashCollections)} color="rgba(16, 185, 129, 0.1)" />
+              <StatCard icon={<Building2 size={18} />} label="Expected Bank" value={formatMoney(summary.expectedBankCollections)} color="rgba(59, 130, 246, 0.1)" />
+              <StatCard icon={<Check size={18} />} label="Confirmed Cash" value={formatMoney(summary.confirmedCashCollections)} color="rgba(16, 185, 129, 0.1)" />
+              <StatCard icon={<Check size={18} />} label="Confirmed Bank" value={formatMoney(summary.confirmedBankCollections)} color="rgba(59, 130, 246, 0.1)" />
+              <StatCard icon={<Clock size={18} />} label="Outstanding" value={formatMoney(summary.outstandingCollections)} color="rgba(245, 158, 11, 0.1)" />
             </div>
           </section>
 
@@ -450,38 +423,40 @@ export default function MoneyControlPage() {
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>Reconciliation Summary</h2>
             <div className={styles.statsGrid}>
-              <StatCard icon={<Link size={20} />} label="Matched Transactions" value={summary.matchedTransactions.toString()} color="#DCFCE7" />
-              <StatCard icon={<HelpCircle size={20} />} label="Unmatched Sales" value={summary.unmatchedSales.toString()} color="#FEE2E2" />
-              <StatCard icon={<HelpCircle size={20} />} label="Unmatched Bank" value={summary.unmatchedBankTransactions.toString()} color="#FEE2E2" />
-              <StatCard icon={<Clock size={20} />} label="Pending Reconciliation" value={summary.pendingReconciliation.toString()} color="#FEF3C7" />
+              <StatCard icon={<Link size={18} />} label="Matched Transactions" value={summary.matchedTransactions.toString()} color="rgba(16, 185, 129, 0.1)" />
+              <StatCard icon={<HelpCircle size={18} />} label="Unmatched Sales" value={summary.unmatchedSales.toString()} color="rgba(239, 68, 68, 0.1)" />
+              <StatCard icon={<HelpCircle size={18} />} label="Unmatched Bank" value={summary.unmatchedBankTransactions.toString()} color="rgba(239, 68, 68, 0.1)" />
+              <StatCard icon={<Clock size={18} />} label="Pending Reconciliation" value={summary.pendingReconciliation.toString()} color="rgba(245, 158, 11, 0.1)" />
             </div>
           </section>
 
           {/* Alerts */}
-          <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Alerts</h2>
-            <div className={styles.alertsGrid}>
-              {summary.alerts.cashShortages > 0 && (
-                <AlertItem type="Cash Shortages" count={summary.alerts.cashShortages} />
-              )}
-              {summary.alerts.missingTransfers > 0 && (
-                <AlertItem type="Missing Transfers" count={summary.alerts.missingTransfers} />
-              )}
-              {summary.alerts.unmatchedDeposits > 0 && (
-                <AlertItem type="Unmatched Deposits" count={summary.alerts.unmatchedDeposits} />
-              )}
-              {summary.alerts.overpayments > 0 && (
-                <AlertItem type="Overpayments" count={summary.alerts.overpayments} />
-              )}
-              {summary.alerts.duplicatePayments > 0 && (
-                <AlertItem type="Duplicate Payments" count={summary.alerts.duplicatePayments} />
-              )}
-            </div>
-          </section>
+          {(summary.alerts.cashShortages > 0 || summary.alerts.missingTransfers > 0 || summary.alerts.unmatchedDeposits > 0 || summary.alerts.overpayments > 0 || summary.alerts.duplicatePayments > 0) && (
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>Alerts</h2>
+              <div className={styles.alertsGrid}>
+                {summary.alerts.cashShortages > 0 && (
+                  <AlertItem type="Cash Shortages" count={summary.alerts.cashShortages} />
+                )}
+                {summary.alerts.missingTransfers > 0 && (
+                  <AlertItem type="Missing Transfers" count={summary.alerts.missingTransfers} />
+                )}
+                {summary.alerts.unmatchedDeposits > 0 && (
+                  <AlertItem type="Unmatched Deposits" count={summary.alerts.unmatchedDeposits} />
+                )}
+                {summary.alerts.overpayments > 0 && (
+                  <AlertItem type="Overpayments" count={summary.alerts.overpayments} />
+                )}
+                {summary.alerts.duplicatePayments > 0 && (
+                  <AlertItem type="Duplicate Payments" count={summary.alerts.duplicatePayments} />
+                )}
+              </div>
+            </section>
+          )}
 
           {/* Sales with Payment Breakdown */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Sales & Reconciliation</h2>
+            <h2 className={styles.sectionTitle}>Sales &amp; Reconciliation</h2>
             <div className={styles.salesList}>
               {salesWithPayments.slice(0, 10).map(sale => (
                 <SaleRow key={sale.id} sale={sale} />
@@ -491,12 +466,11 @@ export default function MoneyControlPage() {
 
           {/* Business Insights & Analytics */}
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Business Insights & Analytics</h2>
+            <h2 className={styles.sectionTitle}>Business Insights</h2>
             <div className={styles.insightsGrid}>
-              {/* Sales Trend */}
               <div className={styles.insightCard}>
                 <div className={styles.insightHeader}>
-                  <span className={styles.insightIcon}><TrendingUp size={20} /></span>
+                  <span className={styles.insightIcon}><TrendingUp size={16} /></span>
                   <span className={styles.insightTitle}>Sales Trend</span>
                 </div>
                 <div className={styles.insightContent}>
@@ -510,7 +484,7 @@ export default function MoneyControlPage() {
                         return (
                           <div className={styles.trendValue}>
                             <span className={isPositive ? styles.trendUp : styles.trendDown}>
-                              {isPositive ? '↑' : '↓'} {Math.abs(parseFloat(trend))}%
+                              {isPositive ? '+' : ''}{trend}%
                             </span>
                             <span className={styles.trendLabel}>vs previous period</span>
                           </div>
@@ -526,10 +500,9 @@ export default function MoneyControlPage() {
                 </div>
               </div>
 
-              {/* Payment Method Preference */}
               <div className={styles.insightCard}>
                 <div className={styles.insightHeader}>
-                  <span className={styles.insightIcon}><CreditCard size={20} /></span>
+                  <span className={styles.insightIcon}><CreditCard size={16} /></span>
                   <span className={styles.insightTitle}>Payment Preference</span>
                 </div>
                 <div className={styles.insightContent}>
@@ -539,10 +512,10 @@ export default function MoneyControlPage() {
                       if (total === 0) return <span className={styles.noData}>No data</span>;
                       
                       const methods = [
-                        { name: 'Cash', value: summary.cashSales, icon: <Banknote size={16} /> },
-                        { name: 'Transfer', value: summary.transferSales, icon: <Smartphone size={16} /> },
-                        { name: 'POS', value: summary.posSales, icon: <CreditCard size={16} /> },
-                        { name: 'Split', value: summary.splitPayments, icon: <RefreshCw size={16} /> },
+                        { name: 'Cash', value: summary.cashSales, icon: <Banknote size={14} /> },
+                        { name: 'Transfer', value: summary.transferSales, icon: <Smartphone size={14} /> },
+                        { name: 'POS', value: summary.posSales, icon: <CreditCard size={14} /> },
+                        { name: 'Split', value: summary.splitPayments, icon: <RefreshCw size={14} /> },
                       ].sort((a, b) => b.value - a.value);
                       
                       const top = methods[0];
@@ -550,7 +523,7 @@ export default function MoneyControlPage() {
                       
                       return (
                         <div className={styles.preferenceValue}>
-                          <span className={styles.prefIcon}>{typeof top.icon === 'string' ? top.icon : top.icon}</span>
+                          <span className={styles.prefIcon}>{top.icon}</span>
                           <span className={styles.prefName}>{top.name}</span>
                           <span className={styles.prefPercent}>{percentage}%</span>
                         </div>
@@ -563,10 +536,9 @@ export default function MoneyControlPage() {
                 </div>
               </div>
 
-              {/* Collection Efficiency */}
               <div className={styles.insightCard}>
                 <div className={styles.insightHeader}>
-                  <span className={styles.insightIcon}><Target size={20} /></span>
+                  <span className={styles.insightIcon}><Target size={16} /></span>
                   <span className={styles.insightTitle}>Collection Efficiency</span>
                 </div>
                 <div className={styles.insightContent}>
@@ -597,10 +569,9 @@ export default function MoneyControlPage() {
                 </div>
               </div>
 
-              {/* Cash Flow Health */}
               <div className={styles.insightCard}>
                 <div className={styles.insightHeader}>
-                  <span className={styles.insightIcon}><Wallet size={20} /></span>
+                  <span className={styles.insightIcon}><Wallet size={16} /></span>
                   <span className={styles.insightTitle}>Cash Flow Health</span>
                 </div>
                 <div className={styles.insightContent}>
@@ -610,7 +581,7 @@ export default function MoneyControlPage() {
                       const bankRatio = (summary.transferSales + summary.posSales) / (summary.totalSales || 1);
                       
                       let health = 'Balanced';
-                      let color = '#16A34A';
+                      let color = '#10B981';
                       
                       if (cashRatio > 0.7) {
                         health = 'Cash Heavy';
@@ -634,14 +605,12 @@ export default function MoneyControlPage() {
               </div>
             </div>
 
-            {/* Recommendations */}
             <div className={styles.recommendations}>
-              <h3 className={styles.recommendationsTitle}><Lightbulb size={18} style={{ marginRight: '8px' }} /> Recommendations</h3>
+              <h3 className={styles.recommendationsTitle}><Lightbulb size={16} /> Recommendations</h3>
               <div className={styles.recommendationsList}>
                 {summary ? (() => {
-                  const recommendations = [];
+                  const recommendations: { priority: string; text: string }[] = [];
                   
-                  // Cash shortage recommendation
                   if (summary.alerts.cashShortages > 0) {
                     recommendations.push({
                       priority: 'high',
@@ -649,7 +618,6 @@ export default function MoneyControlPage() {
                     });
                   }
                   
-                  // Collection efficiency recommendation
                   const totalExpected = summary.expectedCashCollections + summary.expectedBankCollections;
                   const totalConfirmed = summary.confirmedCashCollections + summary.confirmedBankCollections;
                   if (totalExpected > 0) {
@@ -662,7 +630,6 @@ export default function MoneyControlPage() {
                     }
                   }
                   
-                  // Reconciliation recommendation
                   if (summary.pendingReconciliation > 5) {
                     recommendations.push({
                       priority: 'medium',
@@ -670,7 +637,6 @@ export default function MoneyControlPage() {
                     });
                   }
                   
-                  // Payment method recommendation
                   const cashRatio = summary.cashSales / (summary.totalSales || 1);
                   if (cashRatio > 0.7) {
                     recommendations.push({
@@ -728,4 +694,3 @@ export default function MoneyControlPage() {
     </div>
   );
 }
-
