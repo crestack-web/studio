@@ -284,8 +284,10 @@ export default function BusmoLogin() {
         } catch {
           // ignore resend errors
         }
+      } else if (msg.includes('Invalid login credentials') || msg.includes('Invalid')) {
+        setError("Invalid email or password. If you recently joined, try resetting your password below.");
       } else {
-        setError("Invalid email or password.");
+        setError(msg || "Login failed. Please try again or reset your password.");
       }
     } finally {
       setLoading(false);
@@ -353,7 +355,25 @@ export default function BusmoLogin() {
           autoComplete="current-password"
         />
         {error && (
-          <p style={{ color: "#DC2626", fontSize: 13, marginTop: 2 }}>{error}</p>
+          <div style={{
+            padding: "10px 12px",
+            background: "#FEF2F2",
+            border: "1px solid #FECACA",
+            borderRadius: 8,
+            color: "#DC2626",
+            fontSize: 13,
+            lineHeight: 1.5,
+          }}>
+            {error}
+            {error.includes("Invalid email or password") && (
+              <>
+                <br />
+                <a href="/forgot" style={{ color: "#6B3FE7", fontWeight: 600, textDecoration: "none" }}>
+                  Reset your password →
+                </a>
+              </>
+            )}
+          </div>
         )}
       </div>
 
