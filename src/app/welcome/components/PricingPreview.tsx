@@ -2,47 +2,30 @@
 
 import React from 'react';
 import type { Page } from '../types';
+import { BUSMO_PLANS, POSITIONING, formatNaira } from '@/lib/pricing';
 
 interface PricingPreviewProps {
   onNavigate: (page: Page | string) => void;
 }
 
 export function PricingPreview({ onNavigate }: PricingPreviewProps) {
-  const plans = [
-    {
-      name: 'Starter',
-      price: '₦5,000',
-      period: '/month',
-      tagline: 'For small retailers',
-      features: ['Sales & Inventory', 'Basic Reports', 'Ask MO AI', 'Up to 50 Products'],
-      cta: 'Start Trial',
-    },
-    {
-      name: 'Standard',
-      price: '₦10,000',
-      period: '/month',
-      tagline: 'For growing businesses',
-      popular: true,
-      features: ['Everything in Starter', 'Cash Flow & Credit', 'Ask MO AI (50 msgs)', 'Up to 500 Products', 'Multi-branch (3)'],
-      cta: 'Start Trial',
-    },
-    {
-      name: 'Pro',
-      price: '₦25,000',
-      period: '/month',
-      tagline: 'For chains',
-      features: ['Everything in Standard', 'Unlimited Products', 'Unlimited Branches', 'Bank Reconciliation', 'Priority Support'],
-      cta: 'Contact Sales',
-    },
-  ];
+  const plans = BUSMO_PLANS.map((p) => ({
+    name: p.name,
+    price: formatNaira(p.monthlyPrice),
+    period: '/month',
+    tagline: p.description,
+    popular: !!p.popular,
+    features: p.features.slice(0, 5),
+    cta: p.cta,
+  }));
 
   return (
     <section className="pricing-preview-section">
       <div className="max-w">
         <div className="section-head center">
           <div className="section-label">Pricing</div>
-          <h2 className="section-title">Simple, transparent <em>pricing</em></h2>
-          <p className="section-sub">All plans include a 3-day free trial. No credit card required.</p>
+          <h2 className="section-title">Control over sales, stock, <em>cash and staff</em></h2>
+          <p className="section-sub">{POSITIONING.headline} All plans include a 3-day free trial.</p>
         </div>
 
         <div className="pricing-preview-grid">
