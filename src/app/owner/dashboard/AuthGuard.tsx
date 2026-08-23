@@ -31,13 +31,8 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requiredRole = '
       const user = session.user;
 
       getDoc(doc(firestore, 'users', user.id)).then((userDoc) => {
-        if (!userDoc.exists()) {
-          console.error('User document not found');
-          router.replace('/login');
-          return;
-        }
-
-        const userData = userDoc.data();
+        // If no Firestore doc, treat as Owner (migrated Supabase users)
+        const userData = userDoc.exists() ? userDoc.data() : {};
         const role = userData?.role || 'Owner';
         setUserRole(role);
 
@@ -53,8 +48,10 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requiredRole = '
 
         setIsAuthorized(true);
       }).catch((error) => {
-        console.error('Auth guard error:', error);
-        router.replace('/login');
+        // Firestore read failed — allow access as Owner
+        console.warn('Auth guard Firestore read failed, allowing as Owner:', error);
+        setUserRole('Owner');
+        setIsAuthorized(true);
       }).finally(() => {
         setIsLoading(false);
       });

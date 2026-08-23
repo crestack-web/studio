@@ -225,52 +225,51 @@ export default function BusmoLogin() {
       const user = data.user;
       if (!user) throw new Error('No user returned');
 
-      // Fetch user role from Firestore (via Firebase client)
-      const { doc, getDoc } = await import('firebase/firestore');
-      const { initializeFirebase } = await import('@/firebase');
-      const { firestore } = initializeFirebase();
-      const userDocRef = doc(firestore, 'users', user.id);
-      const userDoc = await getDoc(userDocRef);
-
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        const role = userData?.role || 'Owner';
-
-        // Login alert email is best-effort and must not break login
-        try {
-          const deviceInfo = getDeviceInfo();
-          void fetch('/api/email/login-alert', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: user.email || email,
-              name: userData?.fullName || userData?.displayName || 'User',
-              device: deviceInfo.device,
-              browser: deviceInfo.browser,
-              location: 'Unknown',
-              loginTime: new Date().toLocaleString(),
-              ipAddress: 'Unknown',
-            }),
-          }).catch(() => {});
-        } catch {
-          // ignore
-        }
-
-        try {
-          posthog.identify(user.id, {
+      // Send login alert (best-effort, must not block login)
+      try {
+        const deviceInfo = getDeviceInfo();
+        void fetch('/api/email/login-alert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             email: user.email || email,
-            role,
-          });
-          posthog.capture('user_logged_in', { authentication_method: 'password', role });
-        } catch {
-          // analytics must not block login
-        }
+            name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
+            device: deviceInfo.device,
+            browser: deviceInfo.browser,
+            location: 'Unknown',
+            loginTime: new Date().toLocaleString(),
+            ipAddress: 'Unknown',
+          }),
+        }).catch(() => {});
+      } catch {
+        // ignore
+      }
 
-        if (!['Owner', 'Admin'].includes(role)) {
-          window.location.href = '/staff/home';
-        } else {
-          window.location.href = '/owner';
+      try {
+        posthog.identify(user.id, {
+          email: user.email || email,
+        });
+        posthog.capture('user_logged_in', { authentication_method: 'password' });
+      } catch {
+        // analytics must not block login
+      }
+
+      // Determine role from Firestore (best-effort; default to Owner)
+      let role = 'Owner';
+      try {
+        const { doc, getDoc } = await import('firebase/firestore');
+        const { initializeFirebase } = await import('@/firebase');
+        const { firestore } = initializeFirebase();
+        const userDoc = await getDoc(doc(firestore, 'users', user.id));
+        if (userDoc.exists()) {
+          role = userDoc.data()?.role || 'Owner';
         }
+      } catch {
+        // Firestore unavailable — default to Owner
+      }
+
+      if (!['Owner', 'Admin'].includes(role)) {
+        window.location.href = '/staff/home';
       } else {
         window.location.href = '/owner';
       }
