@@ -10,6 +10,8 @@
  *   EMAIL_FROM  (default: "Busmo <support@busmo.io>")
  */
 
+import { BUSMO_LOGO } from './email-constants';
+
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const RESEND_API_URL = 'https://api.resend.com/emails';
 const DEFAULT_FROM =
@@ -162,7 +164,7 @@ export async function sendWelcomeEmail(
     <body style="font-family:Segoe UI,sans-serif;background:#f4f4f4;margin:0;padding:24px">
       <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
         <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:32px;text-align:center;color:#fff">
-          <img src="https://www.busmo.io/email-logo.png" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
+          <img src="${BUSMO_LOGO}" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
           <h1 style="margin:0">Welcome to Busmo!</h1>
         </div>
         <div style="padding:32px">
@@ -195,7 +197,7 @@ export async function sendStaffInvitationEmail(
     <body style="font-family:Arial,sans-serif;padding:24px;background:#f4f4f4">
       <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
         <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:32px;text-align:center;color:#fff">
-          <img src="https://www.busmo.io/email-logo.png" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
+          <img src="${BUSMO_LOGO}" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
           <h1 style="margin:0;font-size:22px">You're invited to join ${businessName}</h1>
         </div>
         <div style="padding:32px">
@@ -228,7 +230,7 @@ export async function sendPasswordResetEmail(
     <body style="font-family:Arial,sans-serif;padding:24px;background:#f4f4f4">
       <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
         <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:32px;text-align:center;color:#fff">
-          <img src="https://www.busmo.io/email-logo.png" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
+          <img src="${BUSMO_LOGO}" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
           <h1 style="margin:0;font-size:22px">Reset your password</h1>
         </div>
         <div style="padding:32px">
@@ -266,7 +268,7 @@ export async function sendLowStockAlertEmail(
     <body style="font-family:Arial,sans-serif;padding:24px;background:#f4f4f4">
       <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
         <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:32px;text-align:center;color:#fff">
-          <img src="https://www.busmo.io/email-logo.png" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
+          <img src="${BUSMO_LOGO}" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
           <h1 style="margin:0;font-size:22px">Low Stock Alert</h1>
         </div>
         <div style="padding:32px">
@@ -309,7 +311,7 @@ export async function sendDailySalesSummaryEmail(
     <body style="font-family:Arial,sans-serif;padding:24px;background:#f4f4f4">
       <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
         <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:32px;text-align:center;color:#fff">
-          <img src="https://www.busmo.io/email-logo.png" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
+          <img src="${BUSMO_LOGO}" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
           <h1 style="margin:0;font-size:22px">Daily Sales Summary</h1>
         </div>
         <div style="padding:32px">
@@ -346,7 +348,7 @@ export async function sendCreditPaymentReminderEmail(
     <body style="font-family:Arial,sans-serif;padding:24px;background:#f4f4f4">
       <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
         <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:32px;text-align:center;color:#fff">
-          <img src="https://www.busmo.io/email-logo.png" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
+          <img src="${BUSMO_LOGO}" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
           <h1 style="margin:0;font-size:22px">Payment Reminder</h1>
         </div>
         <div style="padding:32px">
