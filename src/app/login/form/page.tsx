@@ -228,22 +228,37 @@ export default function BusmoLogin() {
       // Read role from Supabase user_metadata (not Firestore)
       const role = (user.user_metadata?.role as string) || 'Owner';
 
-      // Send login alert (best-effort, must not block login)
+      // Send login alert only for unrecognized devices
       try {
         const deviceInfo = getDeviceInfo();
-        void fetch('/api/email/login-alert', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: user.email || email,
-            name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
-            device: deviceInfo.device,
-            browser: deviceInfo.browser,
-            location: 'Unknown',
-            loginTime: new Date().toLocaleString(),
-            ipAddress: 'Unknown',
-          }),
-        }).catch(() => {});
+        const deviceFingerprint = `${deviceInfo.device}-${deviceInfo.browser}`;
+        const knownDevicesKey = `busmo_known_devices_${user.id}`;
+        let knownDevices: string[] = [];
+        try {
+          knownDevices = JSON.parse(localStorage.getItem(knownDevicesKey) || '[]');
+        } catch { /* ignore */ }
+
+        if (!knownDevices.includes(deviceFingerprint)) {
+          // New device — send alert and remember it
+          knownDevices.push(deviceFingerprint);
+          try {
+            localStorage.setItem(knownDevicesKey, JSON.stringify(knownDevices));
+          } catch { /* ignore */ }
+
+          void fetch('/api/email/login-alert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: user.email || email,
+              name: user.user_metadata?.full_name || user.user_metadata?.name || 'User',
+              device: deviceInfo.device,
+              browser: deviceInfo.browser,
+              location: 'Unknown',
+              loginTime: new Date().toLocaleString(),
+              ipAddress: 'Unknown',
+            }),
+          }).catch(() => {});
+        }
       } catch {
         // ignore
       }

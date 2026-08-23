@@ -6,7 +6,6 @@ import { StaffDashboard } from './StaffDashboard';
 import type { StaffUser, Permissions } from './types';
 import { getSupabase } from '@/lib/supabase';
 import { initializeFirebase } from '@/firebase';
-import { doc, getDoc } from 'firebase/firestore';
 import './busmo.css';
 
 export default function StaffHomePage() {
@@ -17,7 +16,6 @@ export default function StaffHomePage() {
 
   useEffect(() => {
     const supabase = getSupabase();
-    const { firestore } = initializeFirebase();
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session?.user) {
@@ -26,40 +24,53 @@ export default function StaffHomePage() {
       }
 
       const user = session.user;
+      const role = (user.user_metadata?.role as string) || 'Staff';
 
-      getDoc(doc(firestore, 'users', user.id)).then((userDoc) => {
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          if (['Owner', 'Admin'].includes(data.role)) {
-            router.push('/login');
-            return;
+      if (['Owner', 'Admin'].includes(role)) {
+        router.push('/login');
+        return;
+      }
+
+      // Try Firestore for extra staff data (permissions, etc.)
+      let permissionsLoaded = false;
+      try {
+        const { firestore } = initializeFirebase();
+        const { doc, getDoc } = require('firebase/firestore');
+        getDoc(doc(firestore, 'users', user.id)).then((userDoc: any) => {
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            setStaffUser({
+              id: user.id,
+              initials: data.initials || user.user_metadata?.full_name?.substring(0, 2) || 'ST',
+              name: data.displayName || user.user_metadata?.full_name || 'Staff Member',
+              firstName: data.firstName || user.user_metadata?.full_name?.split(' ')[0] || 'Staff',
+              role: data.role || role,
+            });
+            setPermissions(data.permissions || {
+              sale: true, inv: false, hist: false, atd: false, msg: false, earn: false,
+            });
+            permissionsLoaded = true;
           }
+        }).catch(() => {});
+      } catch { /* Firebase not available */ }
 
+      // Fallback: set staff user from Supabase metadata if Firestore didn't load in time
+      setTimeout(() => {
+        if (!permissionsLoaded) {
           setStaffUser({
             id: user.id,
-            initials: data.initials || user.user_metadata?.full_name?.substring(0, 2) || 'ST',
-            name: data.displayName || user.user_metadata?.full_name || 'Staff Member',
-            firstName: data.firstName || user.user_metadata?.full_name?.split(' ')[0] || 'Staff',
-            role: data.role || 'Staff',
+            initials: user.user_metadata?.full_name?.substring(0, 2) || 'ST',
+            name: user.user_metadata?.full_name || 'Staff Member',
+            firstName: user.user_metadata?.full_name?.split(' ')[0] || 'Staff',
+            role,
           });
-
-          setPermissions(data.permissions || {
-            sale: true,
-            inv: false,
-            hist: false,
-            atd: false,
-            msg: false,
-            earn: false,
+          setPermissions({
+            sale: true, inv: false, hist: false, atd: false, msg: false, earn: false,
           });
-        } else {
-          router.push('/login/staff');
         }
-      }).catch((error) => {
-        console.error('Error fetching staff data:', error);
-        router.push('/login/staff');
-      }).finally(() => {
-        setIsLoading(false);
-      });
+      }, 1500);
+
+      setIsLoading(false);
     }).catch(() => {
       router.push('/login/staff');
       setIsLoading(false);
