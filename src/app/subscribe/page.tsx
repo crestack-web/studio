@@ -7,66 +7,42 @@ import { initializeFirebase } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { formatCurrency, getUserCountryCode, convertFromUsd, getCurrencyName } from '@/lib/currency';
 import posthog from 'posthog-js';
+import { BUSMO_PLANS } from '@/lib/pricing';
 
-const PLANS = [
-  {
-    id: 'starter',
-    name: 'Starter',
-    monthlyPrice: 5000,
-    yearlyPrice: 50000,
-    features: [
-      'Sales, Expenses & Inventory',
-      'Basic AI Insights (MO)',
-      'Manage up to 3 Staff',
-      'Basic Analytics',
-      'Online Store (Waitlist)',
-    ],
-    moUsage: '2,500 credits',
-    activeBg: '#F4F4F8',
-    activeBorder: '#C4C4D4',
-    priceColor: '#0A0A0F',
-  },
-  {
-    id: 'standard',
-    name: 'Standard',
-    monthlyPrice: 10000,
-    yearlyPrice: 100000,
-    tag: 'Most Popular',
-    features: [
-      'Everything in Starter',
-      'Advanced AI & Forecasts',
-      'Manage up to 10 Staff',
-      'Up to 3 Branches',
-      'BusmoPay Integration',
-      'Custom Domain',
-    ],
-    moUsage: '10,000 credits',
-    activeBg: '#F3EFFE',
-    activeBorder: '#6B3FE7',
-    priceColor: '#6B3FE7',
-    tagBg: '#6B3FE7',
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    monthlyPrice: 25000,
-    yearlyPrice: 250000,
-    tag: 'Best Value',
-    features: [
-      'Everything in Standard',
-      'Unlimited Staff & Branches',
-      'Production Tracking',
-      'Access to Investment',
-      'POS Integration',
-      'Dedicated Account Manager',
-    ],
-    moUsage: 'Unlimited',
-    activeBg: '#FEF3C7',
-    activeBorder: '#D97706',
-    priceColor: '#D97706',
-    tagBg: '#D97706',
-  },
-];
+const PLANS = BUSMO_PLANS.map((p) => {
+  const styleById: Record<string, Partial<{ tag: string; moUsage: string; activeBg: string; activeBorder: string; priceColor: string; tagBg: string }>> = {
+    starter: {
+      moUsage: '2,500 credits',
+      activeBg: '#F4F4F8',
+      activeBorder: '#C4C4D4',
+      priceColor: '#0A0A0F',
+    },
+    standard: {
+      tag: 'Most Popular',
+      moUsage: '10,000 credits',
+      activeBg: '#F3EFFE',
+      activeBorder: '#6B3FE7',
+      priceColor: '#6B3FE7',
+      tagBg: '#6B3FE7',
+    },
+    pro: {
+      tag: 'Best Value',
+      moUsage: 'Unlimited',
+      activeBg: '#FEF3C7',
+      activeBorder: '#D97706',
+      priceColor: '#D97706',
+      tagBg: '#D97706',
+    },
+  };
+  return {
+    id: p.id,
+    name: p.name,
+    monthlyPrice: p.monthlyPrice,
+    yearlyPrice: p.yearlyPrice,
+    features: p.features,
+    ...styleById[p.id],
+  };
+});
 
 export default function SubscribePage() {
   const router = useRouter();
