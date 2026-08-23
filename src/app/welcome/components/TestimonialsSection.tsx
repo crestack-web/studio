@@ -1,35 +1,30 @@
 import React, { useRef, useEffect, useState } from 'react';
 
+/** Qualitative owner themes only — no invented metrics or named businesses. */
 const TESTIMONIALS = [
   {
-    quote: '"Reduced stock shortages by 40%. Busmo\'s alerts tell me exactly when to restock before I run out. My customers are never disappointed anymore."',
-    biz: "Aisha's Textiles, Abuja",
-    outcome: "40% fewer stock shortages",
+    quote: '"I make sales every day, but I used to struggle to know whether cash and stock still matched what happened in the shop."',
+    theme: "Visibility",
   },
   {
-    quote: '"Identified ₦50,000 in monthly losses I didn\'t know about. Busmo showed me exactly where my money was going. Now I\'m actually profitable."',
-    biz: "Femi's Suya Spot, Lagos",
-    outcome: "₦50,000 monthly savings",
+    quote: '"When staff handle money, I need a clear way to see activity — not just a receipt total at the end of the day."',
+    theme: "Accountability",
   },
   {
-    quote: '"Increased sales by 35% in 3 months. Ask MO told me which products to promote and when. My revenue has never been better."',
-    biz: "Chidi's Electronics, Kano",
-    outcome: "35% sales increase",
+    quote: '"Revenue looked fine on paper. What I needed was a clearer sense of whether I was actually making profit."',
+    theme: "Profit clarity",
   },
   {
-    quote: '"Cut accounting time from 4 hours to 15 minutes per week. I spend more time growing my business and less time on paperwork."',
-    biz: "Mama Nkechi's Supermarket, Ibadan",
-    outcome: "94% time saved",
+    quote: '"I cannot stand in the shop all day. I need to know what is happening when I am not there."',
+    theme: "Remote control",
   },
   {
-    quote: '"Recovered ₦120,000 in unpaid customer credit. Busmo reminded me who owed money and when. My cash flow is finally stable."',
-    biz: "Olu's Pharmacy, Lagos",
-    outcome: "₦120,000 recovered",
+    quote: '"Stock, sales and expenses lived in different places. Putting them together is what finally made sense of the business."',
+    theme: "Connected numbers",
   },
   {
-    quote: '"Staff productivity increased by 50%. My team records sales instantly on their phones. No more lost receipts or missing data."',
-    biz: "Everyday Needs Grocers, PH",
-    outcome: "50% productivity boost",
+    quote: '"Offline days used to mean lost records. Being able to keep recording without network changes the day."',
+    theme: "Offline work",
   },
 ];
 
@@ -48,43 +43,34 @@ export const TestimonialsSection: React.FC = () => {
   useEffect(() => {
     if (trackRef.current) {
       const cardWidth = trackRef.current.firstChild as HTMLElement;
-      const scrollAmount = cardWidth ? cardWidth.offsetWidth + 20 : 0;
-      trackRef.current.scrollTo({
-        left: currentIndex * scrollAmount,
-        behavior: 'smooth',
-      });
+      if (cardWidth) {
+        const gap = 16;
+        const scrollPos = currentIndex * (cardWidth.offsetWidth + gap);
+        trackRef.current.scrollTo({ left: scrollPos, behavior: 'smooth' });
+      }
     }
   }, [currentIndex]);
 
   return (
     <section className="testimonials-section">
-      <div className="section-head center">
-        <div className="section-label">Real Stories</div>
-        <h2 className="section-title">
-          Loved by business owners<br />across Africa.
-        </h2>
-      </div>
-
-      {/* Horizontal scroll track */}
-      <div className="testi-track" ref={trackRef}>
-        {TESTIMONIALS.map((t, i) => (
-          <div key={i} className="testi-card">
-            <div className="testi-stars">★★★★★</div>
-            <div className="testi-quote">{t.quote}</div>
-            {t.outcome && <div className="testi-outcome">{t.outcome}</div>}
-            <div className="testi-biz">{t.biz}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="testi-dots">
-        {TESTIMONIALS.map((_, i) => (
-          <button
-            key={i}
-            className={`testi-dot ${i === currentIndex ? 'active' : ''}`}
-            onClick={() => setCurrentIndex(i)}
-          />
-        ))}
+      <div className="max-w">
+        <div className="section-head center">
+          <div className="section-label">What owners care about</div>
+          <h2 className="section-title">
+            The same problems show up in growing businesses
+          </h2>
+          <p className="section-sub">
+            Sales without clarity. Stock without certainty. Cash without a clear trail.
+          </p>
+        </div>
+        <div className="testimonials-track" ref={trackRef}>
+          {TESTIMONIALS.map((t, i) => (
+            <div key={i} className="testimonial-card">
+              <p className="testimonial-quote">{t.quote}</p>
+              <div className="testimonial-biz">{t.theme}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
