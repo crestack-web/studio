@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { Button } from './Button';
 import { MoneyControlSummary, PaymentBreakdown } from './types';
 import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, orderBy, Timestamp, doc, getDoc, deleteDoc, updateDoc, runTransaction } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { isRestaurantBusiness } from './utils/restaurantHelpers';
 import { DollarSign, Banknote, Smartphone, CreditCard, RefreshCw, FileText, Package, Zap, Users, BarChart3, Utensils, Download, Building2, Check, Clock, Link, HelpCircle, TrendingUp, Target, Wallet, Lightbulb, ChevronRight, ChevronDown, AlertTriangle, Plus } from 'lucide-react';
 import styles from './MoneyControlPage.module.css';
@@ -16,11 +16,58 @@ interface SaleData {
   id: string;
   totalRevenue: number;
   paymentBreakdown?: PaymentBreakdown[];
-  createdAt: Timestamp;
+  createdAt: Timestamp | Date | null;
   [key: string]: any;
 }
 
-let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
+/** Safely format sale / doc timestamps (Timestamp, Date, or millis). */
+function formatSaleDate(value: unknown): string {
+  try {
+    if (!value) return '—';
+    if (typeof value === 'object' && value !== null && typeof (value as any).toDate === 'function') {
+      return (value as Timestamp).toDate().toLocaleDateString();
+    }
+    if (value instanceof Date) return value.toLocaleDateString();
+    if (typeof value === 'number') return new Date(value).toLocaleDateString();
+    if (typeof value === 'string') {
+      const d = new Date(value);
+      return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString();
+    }
+  } catch {
+    /* ignore */
+  }
+  return '—';
+}
+
+function getPeriodStart(period: 'today' | 'week' | 'month' | 'all'): Date | null {
+  if (period === 'all') return null;
+  const d = new Date();
+  if (period === 'today') {
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+  if (period === 'week') {
+    d.setDate(d.getDate() - 7);
+    return d;
+  }
+  d.setDate(d.getDate() - 30);
+  return d;
+}
+
+function saleTimestampMs(sale: SaleData): number {
+  const v = sale.createdAt as any;
+  if (!v) return 0;
+  if (typeof v.toDate === 'function') return v.toDate().getTime();
+  if (v instanceof Date) return v.getTime();
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') return new Date(v).getTime() || 0;
+  return 0;
+}
+
+function paymentAmount(pb: any): number {
+  const n = Number(pb?.amount);
+  return Number.isFinite(n) ? n : 0;
+}
 
 export default function MoneyControlPage() {
   const { user, navigateTo, showToast } = useApp();
@@ -28,11 +75,11 @@ export default function MoneyControlPage() {
   const { formatMoney } = useCurrency();
   const [summary, setSummary] = useState<MoneyControlSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<'today' | 'week' | 'month' | 'all'>('month');
   const [salesWithPayments, setSalesWithPayments] = useState<SaleData[]>([]);
   const [reconciledSaleIds, setReconciledSaleIds] = useState<Set<string>>(new Set());
   const [isRestaurant, setIsRestaurant] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
   const [restaurantProfitMetrics, setRestaurantProfitMetrics] = useState<{
     inventoryPurchases: number;
     operatingExpenses: number;
@@ -41,113 +88,180 @@ export default function MoneyControlPage() {
     foodCostPercentage: number;
   } | null>(null);
 
-  useEffect(() => {
-    setIsMounted(true);
+  const loadRestaurantProfitMetrics = useCallback(async (
+    firestore: any,
+    businessId: string,
+    period: 'today' | 'week' | 'month' | 'all',
+    totalSales: number
+  ) => {
+    try {
+      const startDate = getPeriodStart(period) ?? new Date(0);
+      // Avoid composite-index requirements: filter client-side when needed
+      let expensesSnapshot;
+      try {
+        const expensesQuery = query(
+          collection(firestore, 'businesses', businessId, 'expenses'),
+          where('createdAt', '>=', Timestamp.fromDate(startDate))
+        );
+        expensesSnapshot = await getDocs(expensesQuery);
+      } catch {
+        expensesSnapshot = await getDocs(collection(firestore, 'businesses', businessId, 'expenses'));
+      }
+
+      let inventoryPurchases = 0;
+      let operatingExpenses = 0;
+      let payrollExpenses = 0;
+      const startMs = startDate.getTime();
+
+      expensesSnapshot.forEach((docSnap: any) => {
+        const data = docSnap.data();
+        const created = data.createdAt;
+        let createdMs = 0;
+        if (created?.toDate) createdMs = created.toDate().getTime();
+        else if (created instanceof Date) createdMs = created.getTime();
+        if (period !== 'all' && createdMs && createdMs < startMs) return;
+
+        const category = (data.category || '').toLowerCase();
+        const amount = Number(data.amount) || 0;
+
+        if (category.includes('inventory') || category.includes('stock') || category.includes('ingredient')) {
+          inventoryPurchases += amount;
+        } else if (category.includes('payroll') || category.includes('salary') || category.includes('wage')) {
+          payrollExpenses += amount;
+        } else {
+          operatingExpenses += amount;
+        }
+      });
+
+      const totalExpenses = inventoryPurchases + operatingExpenses + payrollExpenses;
+      const estimatedProfit = totalSales - totalExpenses;
+      const foodCostPercentage = totalSales > 0 ? (inventoryPurchases / totalSales) * 100 : 0;
+
+      setRestaurantProfitMetrics({
+        inventoryPurchases,
+        operatingExpenses,
+        payrollExpenses,
+        estimatedProfit,
+        foodCostPercentage,
+      });
+    } catch (error) {
+      console.error('Error loading restaurant profit metrics:', error);
+    }
   }, []);
 
-  useEffect(() => {
-    if (isMounted) {
-      loadSummary();
+  const loadSummary = useCallback(async () => {
+    if (!user.businessId) {
+      setLoading(false);
+      setSummary({
+        totalSales: 0,
+        cashSales: 0,
+        transferSales: 0,
+        posSales: 0,
+        splitPayments: 0,
+        creditSales: 0,
+        expectedCashCollections: 0,
+        expectedBankCollections: 0,
+        confirmedCashCollections: 0,
+        confirmedBankCollections: 0,
+        outstandingCollections: 0,
+        matchedTransactions: 0,
+        unmatchedSales: 0,
+        unmatchedBankTransactions: 0,
+        pendingReconciliation: 0,
+        alerts: {
+          cashShortages: 0,
+          missingTransfers: 0,
+          unmatchedDeposits: 0,
+          overpayments: 0,
+          duplicatePayments: 0,
+        },
+      });
+      setLoadError(null);
+      return;
     }
-  }, [selectedPeriod, user.businessId, isMounted]);
 
-  if (!isMounted) {
-    return null;
-  }
-
-  const loadSummary = async () => {
-    if (!user.businessId) return;
-    
     setLoading(true);
+    setLoadError(null);
     try {
       const { firestore } = initializeFirebase();
-      
+
       const restaurant = await isRestaurantBusiness(user.businessId);
       setIsRestaurant(restaurant);
-      
+
       const salesRef = collection(firestore, 'businesses', user.businessId, 'sales');
-      
-      let q = query(salesRef);
-      
-      if (selectedPeriod === 'today') {
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
-        q = query(salesRef, where('createdAt', '>=', Timestamp.fromDate(startOfDay)));
-      } else if (selectedPeriod === 'week') {
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        q = query(salesRef, where('createdAt', '>=', Timestamp.fromDate(weekAgo)));
-      } else if (selectedPeriod === 'month') {
-        const monthAgo = new Date();
-        monthAgo.setDate(monthAgo.getDate() - 30);
-        q = query(salesRef, where('createdAt', '>=', Timestamp.fromDate(monthAgo)));
+      const periodStart = getPeriodStart(selectedPeriod);
+
+      // Prefer a simple query to avoid missing composite indexes; filter/sort client-side
+      let snapshot;
+      try {
+        if (periodStart) {
+          snapshot = await getDocs(
+            query(salesRef, where('createdAt', '>=', Timestamp.fromDate(periodStart)))
+          );
+        } else {
+          snapshot = await getDocs(salesRef);
+        }
+      } catch (queryErr) {
+        console.warn('Money Control sales query failed, falling back to full collection:', queryErr);
+        snapshot = await getDocs(salesRef);
       }
-      
-      q = query(q, orderBy('createdAt', 'desc'));
-      const snapshot = await getDocs(q);
-      
-      const sales: SaleData[] = snapshot.docs.map(doc => {
-        const data = doc.data();
+
+      const startMs = periodStart ? periodStart.getTime() : 0;
+      let sales: SaleData[] = snapshot.docs.map((docSnap) => {
+        const data = docSnap.data();
+        const breakdown = Array.isArray(data.paymentBreakdown) ? data.paymentBreakdown : [];
         return {
-          id: doc.id,
-          totalRevenue: data.totalRevenue || data.total || 0,
-          paymentBreakdown: data.paymentBreakdown || [],
-          createdAt: data.createdAt || Timestamp.now(),
+          id: docSnap.id,
           ...data,
-        };
+          totalRevenue: Number(data.totalRevenue ?? data.total ?? 0) || 0,
+          paymentBreakdown: breakdown,
+          createdAt: data.createdAt ?? null,
+        } as SaleData;
       });
+
+      if (periodStart) {
+        sales = sales.filter((s) => saleTimestampMs(s) >= startMs);
+      }
+      sales.sort((a, b) => saleTimestampMs(b) - saleTimestampMs(a));
       setSalesWithPayments(sales);
       
       const totalSales = sales.reduce((sum, sale) => sum + (sale.totalRevenue || 0), 0);
       
-      const cashSales = sales.reduce((sum, sale) => {
-        const breakdown = sale.paymentBreakdown || [];
-        const cashAmount = breakdown.filter((pb: PaymentBreakdown) => pb.method === 'cash').reduce((s: number, pb: PaymentBreakdown) => s + pb.amount, 0);
-        return sum + cashAmount;
-      }, 0);
-      const transferSales = sales.reduce((sum, sale) => {
-        const breakdown = sale.paymentBreakdown || [];
-        const transferAmount = breakdown.filter((pb: PaymentBreakdown) => pb.method === 'transfer').reduce((s: number, pb: PaymentBreakdown) => s + pb.amount, 0);
-        return sum + transferAmount;
-      }, 0);
-      const posSales = sales.reduce((sum, sale) => {
-        const breakdown = sale.paymentBreakdown || [];
-        const posAmount = breakdown.filter((pb: PaymentBreakdown) => pb.method === 'pos').reduce((s: number, pb: PaymentBreakdown) => s + pb.amount, 0);
-        return sum + posAmount;
-      }, 0);
-      const splitPayments = sales.reduce((sum, sale) => {
-        const breakdown = sale.paymentBreakdown || [];
-        const splitAmount = breakdown.filter((pb: PaymentBreakdown) => pb.method === 'split').reduce((s: number, pb: PaymentBreakdown) => s + pb.amount, 0);
-        return sum + splitAmount;
-      }, 0);
-      const creditSales = sales.reduce((sum, sale) => {
-        const breakdown = sale.paymentBreakdown || [];
-        const creditAmount = breakdown.filter((pb: PaymentBreakdown) => pb.method === 'credit').reduce((s: number, pb: PaymentBreakdown) => s + pb.amount, 0);
-        return sum + creditAmount;
-      }, 0);
+      const sumByMethod = (method: string) =>
+        sales.reduce((sum, sale) => {
+          const breakdown = sale.paymentBreakdown || [];
+          return (
+            sum +
+            breakdown
+              .filter((pb: PaymentBreakdown) => pb.method === method)
+              .reduce((s: number, pb: PaymentBreakdown) => s + paymentAmount(pb), 0)
+          );
+        }, 0);
+
+      const cashSales = sumByMethod('cash');
+      const transferSales = sumByMethod('transfer');
+      const posSales = sumByMethod('pos');
+      const splitPayments = sumByMethod('split');
+      const creditSales = sumByMethod('credit');
       
       const expectedCashCollections = cashSales + splitPayments * 0.5;
       const expectedBankCollections = transferSales + posSales + splitPayments * 0.5;
       
       const reconciliationsRef = collection(firestore, 'businesses', user.businessId, 'cashReconciliations');
-      let recQuery = query(reconciliationsRef);
-      
-      if (selectedPeriod === 'today') {
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
-        recQuery = query(reconciliationsRef, where('date', '>=', Timestamp.fromDate(startOfDay)));
-      } else if (selectedPeriod === 'week') {
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        recQuery = query(reconciliationsRef, where('date', '>=', Timestamp.fromDate(weekAgo)));
-      } else if (selectedPeriod === 'month') {
-        const monthAgo = new Date();
-        monthAgo.setDate(monthAgo.getDate() - 30);
-        recQuery = query(reconciliationsRef, where('date', '>=', Timestamp.fromDate(monthAgo)));
+      let recSnapshot;
+      try {
+        if (periodStart) {
+          recSnapshot = await getDocs(
+            query(reconciliationsRef, where('date', '>=', Timestamp.fromDate(periodStart)))
+          );
+        } else {
+          recSnapshot = await getDocs(reconciliationsRef);
+        }
+      } catch (recErr) {
+        console.warn('Money Control reconciliations query failed, falling back:', recErr);
+        recSnapshot = await getDocs(reconciliationsRef);
       }
-      
-      const recSnapshot = await getDocs(recQuery);
-      const reconciliations = recSnapshot.docs.map(doc => doc.data());
+      const reconciliations = recSnapshot.docs.map((docSnap) => docSnap.data());
       
       let confirmedCashCollections = 0;
       let confirmedBankCollections = 0;
@@ -231,73 +345,41 @@ export default function MoneyControlPage() {
       if (restaurant) {
         await loadRestaurantProfitMetrics(firestore, user.businessId, selectedPeriod, totalSales);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading money control summary:', error);
+      setLoadError(error?.message || 'Failed to load Money Control data. Please try again.');
+      setSummary({
+        totalSales: 0,
+        cashSales: 0,
+        transferSales: 0,
+        posSales: 0,
+        splitPayments: 0,
+        creditSales: 0,
+        expectedCashCollections: 0,
+        expectedBankCollections: 0,
+        confirmedCashCollections: 0,
+        confirmedBankCollections: 0,
+        outstandingCollections: 0,
+        matchedTransactions: 0,
+        unmatchedSales: 0,
+        unmatchedBankTransactions: 0,
+        pendingReconciliation: 0,
+        alerts: {
+          cashShortages: 0,
+          missingTransfers: 0,
+          unmatchedDeposits: 0,
+          overpayments: 0,
+          duplicatePayments: 0,
+        },
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [user.businessId, selectedPeriod, loadRestaurantProfitMetrics]);
 
-  const loadRestaurantProfitMetrics = async (
-    firestore: any,
-    businessId: string,
-    period: 'today' | 'week' | 'month' | 'all',
-    totalSales: number
-  ) => {
-    try {
-      let startDate: Date;
-      if (period === 'today') {
-        startDate = new Date();
-        startDate.setHours(0, 0, 0, 0);
-      } else if (period === 'week') {
-        startDate = new Date();
-        startDate.setDate(startDate.getDate() - 7);
-      } else if (period === 'month') {
-        startDate = new Date();
-        startDate.setDate(startDate.getDate() - 30);
-      } else {
-        startDate = new Date(0);
-      }
-
-      const expensesQuery = query(
-        collection(firestore, 'businesses', businessId, 'expenses'),
-        where('createdAt', '>=', Timestamp.fromDate(startDate))
-      );
-      const expensesSnapshot = await getDocs(expensesQuery);
-      
-      let inventoryPurchases = 0;
-      let operatingExpenses = 0;
-      let payrollExpenses = 0;
-
-      expensesSnapshot.forEach(doc => {
-        const data = doc.data();
-        const category = data.category?.toLowerCase() || '';
-        const amount = data.amount || 0;
-
-        if (category.includes('inventory') || category.includes('stock') || category.includes('ingredient')) {
-          inventoryPurchases += amount;
-        } else if (category.includes('payroll') || category.includes('salary') || category.includes('wage')) {
-          payrollExpenses += amount;
-        } else {
-          operatingExpenses += amount;
-        }
-      });
-
-      const totalExpenses = inventoryPurchases + operatingExpenses + payrollExpenses;
-      const estimatedProfit = totalSales - totalExpenses;
-      const foodCostPercentage = totalSales > 0 ? (inventoryPurchases / totalSales) * 100 : 0;
-
-      setRestaurantProfitMetrics({
-        inventoryPurchases,
-        operatingExpenses,
-        payrollExpenses,
-        estimatedProfit,
-        foodCostPercentage,
-      });
-    } catch (error) {
-      console.error('Error loading restaurant profit metrics:', error);
-    }
-  };
+  useEffect(() => {
+    loadSummary();
+  }, [loadSummary]);
 
   const StatCard = ({ icon, label, value, trend, color }: { 
     icon: React.ReactNode; 
@@ -320,20 +402,20 @@ export default function MoneyControlPage() {
 
   const SaleRow = ({ sale }: { sale: SaleData }) => {
     const breakdown = sale.paymentBreakdown || [];
-    const total = breakdown.reduce((sum, pb) => sum + pb.amount, 0);
+    const total = breakdown.reduce((sum, pb) => sum + paymentAmount(pb), 0);
     const isReconciled = reconciledSaleIds.has(sale.id);
     
     return (
       <div className={styles.saleRow}>
         <div className={styles.saleInfo}>
-          <div className={styles.saleDate}>{sale.createdAt?.toDate()?.toLocaleDateString()}</div>
-          <div className={styles.saleTotal}>{formatMoney(total)}</div>
+          <div className={styles.saleDate}>{formatSaleDate(sale.createdAt)}</div>
+          <div className={styles.saleTotal}>{formatMoney(total || sale.totalRevenue || 0)}</div>
         </div>
         <div className={styles.salePayments}>
           {breakdown.map((pb, idx) => (
             <div key={idx} className={styles.salePayment}>
-              <span className={styles.paymentMethod}>{pb.method}</span>
-              <span className={styles.paymentAmount}>{formatMoney(pb.amount)}</span>
+              <span className={styles.paymentMethod}>{pb.method || 'other'}</span>
+              <span className={styles.paymentAmount}>{formatMoney(paymentAmount(pb))}</span>
             </div>
           ))}
         </div>
@@ -375,6 +457,15 @@ export default function MoneyControlPage() {
           ))}
         </div>
       </div>
+
+      {loadError && (
+        <div className={styles.empty} style={{ marginBottom: 16 }}>
+          <p style={{ color: 'var(--text-2)', marginBottom: 12 }}>{loadError}</p>
+          <Button variant="primary" onClick={() => loadSummary()}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       {loading ? (
         <div className={styles.loading}>Loading...</div>

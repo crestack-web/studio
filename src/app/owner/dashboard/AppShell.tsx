@@ -49,40 +49,41 @@ import styles from './AppShell.module.css';
 //  Add new pages to PAGE_MAP below
 // ═══════════════════════════════════════════
 
-const PAGE_MAP: Record<string, React.ReactNode> = {
-  home:         <HomePage />,
-  sale:         <RecordSalePage />,
-  inventory:    <InventoryPage />,
-  'add-product': <AddProductPage />,
-  'add-expense': <AddExpensePage />,
-  cashflow:      <Cashflowpage />,
-  statement:     <StatementPage />,
-  reports:       <ReportsPage />,
-  'bank-reconciliation': <BankReconciliationPage />,
-  'money-control': <MoneyControlPage />,
-  'bank-statement-import': <BankStatementImportPage />,
-  'cash-reconciliation': <CashReconciliationPage />,
-  'staff-accountability': <StaffAccountabilityPage />,
-  'money-leakage': <MoneyLeakagePage />,
-  'payment-traceability': <PaymentTraceabilityPage />,
-  'credit-tracking': <CreditTrackingPage />,
-  services:     <ServicesPage />,
-  staff:        <StaffPage />,
-  settings:     <SettingsPage />,
-  referrals:    <ReferralsPage />,
-  capital:      <CapitalPage />,
-  branches:     <BranchesPage />,
-  'mo-mobile':  <MobileAskMOPage />,
-  'mo':         <InlineAIChat />,
-  'menu-management': <MenuManagementPage />,
-  'ingredient-tracking': <IngredientsPage />,
-  'expiry-alerts': <ExpiryAlertsPage />,
-  'production-tracking': <ProductionPage />,
-  'payroll': <PayrollPage />,
-  'customer-management': <CustomersPage />,
-  'supplier-management': <SuppliersPage />,
-  'warehouse': <WarehousePage />,
-  'stock-transfers': <StockTransfersPage />,
+/** Component map — render a fresh element per navigation so pages remount cleanly. */
+const PAGE_COMPONENTS: Record<string, React.ComponentType> = {
+  home: HomePage,
+  sale: RecordSalePage,
+  inventory: InventoryPage,
+  'add-product': AddProductPage,
+  'add-expense': AddExpensePage,
+  cashflow: Cashflowpage,
+  statement: StatementPage,
+  reports: ReportsPage,
+  'bank-reconciliation': BankReconciliationPage,
+  'money-control': MoneyControlPage,
+  'bank-statement-import': BankStatementImportPage,
+  'cash-reconciliation': CashReconciliationPage,
+  'staff-accountability': StaffAccountabilityPage,
+  'money-leakage': MoneyLeakagePage,
+  'payment-traceability': PaymentTraceabilityPage,
+  'credit-tracking': CreditTrackingPage,
+  services: ServicesPage,
+  staff: StaffPage,
+  settings: SettingsPage,
+  referrals: ReferralsPage,
+  capital: CapitalPage,
+  branches: BranchesPage,
+  'mo-mobile': MobileAskMOPage,
+  mo: InlineAIChat,
+  'menu-management': MenuManagementPage,
+  'ingredient-tracking': IngredientsPage,
+  'expiry-alerts': ExpiryAlertsPage,
+  'production-tracking': ProductionPage,
+  payroll: PayrollPage,
+  'customer-management': CustomersPage,
+  'supplier-management': SuppliersPage,
+  warehouse: WarehousePage,
+  'stock-transfers': StockTransfersPage,
 };
 
 const FULL_HEIGHT_PAGES = new Set<string>(['mo', 'mo-mobile']);
@@ -102,7 +103,10 @@ export function AppShell() {
     }
   }, [activePage]);
 
-  const currentPage = PAGE_MAP[activePage] ?? (
+  const PageComponent = PAGE_COMPONENTS[activePage];
+  const currentPage = PageComponent ? (
+    <PageComponent key={activePage} />
+  ) : (
     <div className={styles.placeholder}>
       <h2>Coming Soon</h2>
       <p>This page is under construction.</p>
