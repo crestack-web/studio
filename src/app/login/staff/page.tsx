@@ -231,12 +231,13 @@ export default function StaffLogin() {
 
       if (mustChange) {
         console.log('✅ [Staff Login] Must change password');
-        window.location.href = "/staff/set-password";
+        // Full navigation so session cookie is available on next page
+        window.location.assign('/staff/set-password');
         return;
       }
 
       console.log('✅ [Staff Login] Redirecting to staff home, role=', role || 'Staff');
-      window.location.href = "/staff/home";
+      window.location.assign('/staff/home');
     } catch (error: any) {
       console.error('❌ [Staff Login] Login error:', error);
       const msg = (error?.message || '').toLowerCase();
