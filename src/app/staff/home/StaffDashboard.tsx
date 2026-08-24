@@ -1,9 +1,9 @@
 'use client';
 
 /**
- * StaffDashboard
- * --------------
- * Busmo staff portal dashboard component.
+ * StaffDashboard — Busmo staff portal shell.
+ * All feature pages receive businessId from StaffContext / props so data
+ * is always scoped to the owner business that invited this staff member.
  */
 
 import React, { useState, useEffect } from 'react';
@@ -13,26 +13,60 @@ import { Topbar } from './components/Topbar';
 import { Toast, BottomNav, LockedPage } from './components/shared';
 import { HomePage } from './HomePage';
 import { SalePage } from './pages/SalePage';
-import { InventoryPage, HistoryPage, AttendancePage, MessagesPage, SettingsPage } from './OtherPages';
+import {
+  InventoryPage,
+  HistoryPage,
+  AttendancePage,
+  MessagesPage,
+  SettingsPage,
+} from './OtherPages';
+import { useStaffWorkspaceOptional } from './StaffContext';
 import './busmo.css';
 
 interface StaffDashboardProps {
   staff?: StaffUser;
   permissions?: Permissions;
+  businessId?: string;
+  businessName?: string;
+  currency?: string;
   onLogout?: () => void;
 }
 
 export const StaffDashboard: React.FC<StaffDashboardProps> = ({
-  staff,
-  permissions,
+  staff: staffProp,
+  permissions: permissionsProp,
+  businessId: businessIdProp,
+  businessName: businessNameProp,
+  currency: currencyProp,
   onLogout,
 }) => {
+  const workspace = useStaffWorkspaceOptional();
+  const staff = staffProp || workspace?.staff;
+  const permissions = permissionsProp || workspace?.permissions;
+  const businessId = businessIdProp || workspace?.businessId || staff?.businessId || '';
+  const businessName = businessNameProp || workspace?.businessName || 'Business';
+  const currency = currencyProp || workspace?.currency || '₦';
+
   const [page, setPage] = useState<PageId>('home');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({
     message: '',
     visible: false,
   });
+  const [shiftStart] = useState(() => Date.now());
+  const [shiftElapsed, setShiftElapsed] = useState('0h 0m');
+
+  useEffect(() => {
+    const tick = () => {
+      const mins = Math.floor((Date.now() - shiftStart) / 60000);
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      setShiftElapsed(`${h}h ${m}m`);
+    };
+    tick();
+    const id = setInterval(tick, 60000);
+    return () => clearInterval(id);
+  }, [shiftStart]);
 
   const showToast = (message: string) => {
     setToast({ message, visible: true });
@@ -44,117 +78,184 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
     setSidebarOpen(false);
   };
 
-  const toggleSidebar = () => {
-    setSidebarOpen((prev) => !prev);
-  };
+  const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
-  // Dynamic greeting based on time of day
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    const name = staff?.firstName || staff?.name?.split(' ')[0] || 'there';
+    if (hour < 12) return `Good morning, ${name}`;
+    if (hour < 17) return `Good afternoon, ${name}`;
+    return `Good evening, ${name}`;
   };
 
-  const greeting = getGreeting();
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
     if (typeof window !== 'undefined') {
-      return (localStorage.getItem('staff-theme') as 'light' | 'dark' | 'system') || 'light';
+      return (
+        (localStorage.getItem('staff-theme') as 'light' | 'dark' | 'system') ||
+        'light'
+      );
     }
     return 'light';
   });
 
   const toggleTheme = () => {
     setTheme((prev) => {
-      const newTheme = prev === 'light' ? 'dark' : prev === 'dark' ? 'system' : 'light';
+      const newTheme =
+        prev === 'light' ? 'dark' : prev === 'dark' ? 'system' : 'light';
       localStorage.setItem('staff-theme', newTheme);
       return newTheme;
     });
   };
 
-  // Apply theme to document when theme changes
   useEffect(() => {
     const applyTheme = (themeValue: 'light' | 'dark' | 'system') => {
       let actualTheme: 'light' | 'dark';
-      
       if (themeValue === 'system') {
-        actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light';
       } else {
         actualTheme = themeValue;
       }
-      
       document.documentElement.setAttribute('data-theme', actualTheme);
       document.body.setAttribute('data-theme', actualTheme);
     };
 
     applyTheme(theme);
-
-    // Listen for system theme changes when in system mode
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = () => {
-      if (theme === 'system') {
-        applyTheme(theme);
-      }
+      if (theme === 'system') applyTheme(theme);
     };
-
     mediaQuery.addEventListener('change', handleChange);
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, [theme]);
 
+  if (!staff || !permissions || !businessId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
+        <p className="text-gray-600 text-sm">
+          Workspace incomplete. Please sign in again.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="app">
-      <div className={`mob-ov${sidebarOpen ? ' show' : ''}`} onClick={() => setSidebarOpen(false)} />
+      <div
+        className={`mob-ov${sidebarOpen ? ' show' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      />
 
-      <Sidebar page={page} onChangePage={navigate} permissions={permissions!} open={sidebarOpen} />
+      <Sidebar
+        page={page}
+        onChangePage={navigate}
+        permissions={permissions}
+        open={sidebarOpen}
+      />
 
       <div className="main">
-        <Topbar 
-          staff={staff!} 
+        <Topbar
+          staff={staff}
           onToggleSidebar={toggleSidebar}
           onLogout={onLogout}
         />
 
+        {/* Business scope badge — confirms correct owner business */}
+        <div
+          style={{
+            padding: '6px 16px',
+            fontSize: '0.7rem',
+            color: 'var(--t3, #6b7280)',
+            borderBottom: '1px solid var(--bdrS, #eee)',
+            background: 'var(--bg, #fff)',
+          }}
+        >
+          Working in <strong style={{ color: 'var(--brand, #16A34A)' }}>{businessName}</strong>
+        </div>
+
         <div className="main-scroll">
           {page === 'home' && (
             <HomePage
-              greeting={greeting}
+              greeting={getGreeting()}
               salesTotal={0}
               transactions={0}
               itemsSold={0}
-              permissions={permissions!}
-              shiftElapsed='0h 0m'
+              permissions={permissions}
+              shiftElapsed={shiftElapsed}
               onNav={navigate}
               onToast={showToast}
-              staffId={staff?.id}
+              staffId={staff.id}
+              businessId={businessId}
+              currency={currency}
             />
           )}
-          {page === 'sale' && (permissions!.sale ? <SalePage onComplete={() => showToast('Sale completed!')} /> : <LockedPage pageName="Record Sale" />)}
-          {page === 'inv' && <InventoryPage hasAccess={permissions!.inv} />}
-          {page === 'hist' && <HistoryPage hasAccess={permissions!.hist} sessionSales={[]} />}
-          {page === 'atd' && <AttendancePage hasAccess={permissions!.atd} />}
-          {page === 'msg' && <MessagesPage hasAccess={permissions!.msg} />}
+          {page === 'sale' &&
+            (permissions.sale ? (
+              <SalePage
+                businessId={businessId}
+                staffId={staff.id}
+                staffName={staff.name}
+                staffRole={staff.role}
+                currency={currency}
+                onComplete={() => showToast('✅ Sale recorded for ' + businessName)}
+              />
+            ) : (
+              <LockedPage pageName="Record Sale" />
+            ))}
+          {page === 'inv' && (
+            <InventoryPage hasAccess={permissions.inv} businessId={businessId} currency={currency} />
+          )}
+          {page === 'hist' && (
+            <HistoryPage
+              hasAccess={permissions.hist}
+              sessionSales={[]}
+              businessId={businessId}
+              staffId={staff.id}
+              currency={currency}
+            />
+          )}
+          {page === 'atd' && (
+            <AttendancePage
+              hasAccess={permissions.atd}
+              businessId={businessId}
+              staffId={staff.id}
+              staffName={staff.name}
+            />
+          )}
+          {page === 'msg' && (
+            <MessagesPage
+              hasAccess={permissions.msg}
+              businessId={businessId}
+              staffId={staff.id}
+            />
+          )}
           {page === 'settings' && (
             <SettingsPage
-              staff={staff!}
+              staff={staff}
               theme={theme}
               onToggleTheme={toggleTheme}
               onLogout={onLogout}
               onToast={showToast}
+              businessName={businessName}
             />
           )}
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation */}
       <BottomNav
         page={page}
-        permissions={permissions!}
+        permissions={permissions}
         onNav={navigate}
         onToast={showToast}
         hasMessage={true}
       />
 
-      <Toast message={toast.message} visible={toast.visible} onClose={() => setToast({ ...toast, visible: false })} />
+      <Toast
+        message={toast.message}
+        visible={toast.visible}
+        onClose={() => setToast({ ...toast, visible: false })}
+      />
     </div>
   );
 };
