@@ -63,11 +63,7 @@ export function Topbar() {
   // Home-only welcome message (page names stay off other routes)
   const showWelcome = activePage === 'home';
   const greeting = showWelcome
-<<<<<<< Updated upstream
     ? `${t('topbar.greeting')}, ${user.shortName || 'there'} 👋`
-=======
-    ? `${t('topbar.greeting')}, ${user.shortName || user.name || 'there'} 👋`
->>>>>>> Stashed changes
     : null;
   const today = useMemo(
     () =>
