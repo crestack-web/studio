@@ -10,7 +10,11 @@ import { fetchProducts, fetchRecentSales, getStaffBusinessId } from './services/
 /* ═══════════════════════════════════════
    INVENTORY PAGE
 ═══════════════════════════════════════ */
-interface InventoryPageProps { hasAccess: boolean; }
+interface InventoryPageProps {
+  hasAccess: boolean;
+  businessId: string;
+  currency?: string;
+}
 
 
 function staffDb() {
@@ -18,43 +22,45 @@ function staffDb() {
   return firestore;
 }
 
-export const InventoryPage: React.FC<InventoryPageProps> = ({ hasAccess }) => {
+export const InventoryPage: React.FC<InventoryPageProps> = ({ hasAccess, businessId, currency: currencyProp }) => {
   const [search, setSearch] = useState('');
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [businessCurrency, setBusinessCurrency] = useState('₦');
 
-  // Fetch real products and business currency from Firestore
   useEffect(() => {
+    if (currencyProp) setBusinessCurrency(currencyProp);
+  }, [currencyProp]);
+
+  useEffect(() => {
+    if (!businessId) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
     async function loadProducts() {
       try {
-        const { auth } = initializeFirebase();
-        const user = auth.currentUser;
-        
-        if (!user) return;
-
-        const businessId = await getStaffBusinessId(staffDb(), user.uid);
-        if (businessId) {
-          const fetchedProducts = await fetchProducts(staffDb(), businessId);
-          setProducts(fetchedProducts);
-
-          // Fetch business profile to get currency
-          const businessDoc = await getDoc(doc(staffDb(), 'businesses', businessId));
-          if (businessDoc.exists()) {
-            const businessData = businessDoc.data();
-            const currency = businessData.currency || businessData.businessCurrency || businessData.defaultCurrency || '₦';
-            setBusinessCurrency(currency);
-          }
+        const db = staffDb();
+        if (!db) return;
+        const fetchedProducts = await fetchProducts(db, businessId);
+        if (cancelled) return;
+        setProducts(fetchedProducts);
+        const businessDoc = await getDoc(doc(db, 'businesses', businessId));
+        if (cancelled) return;
+        if (businessDoc.exists()) {
+          const businessData = businessDoc.data();
+          const currency = businessData.currency || businessData.businessCurrency || businessData.defaultCurrency || currencyProp || '₦';
+          setBusinessCurrency(currency);
         }
       } catch (error) {
         console.error('Error loading products:', error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
-
     loadProducts();
-  }, []);
+    return () => { cancelled = true; };
+  }, [businessId, currencyProp]);
 
   const filtered = useMemo(
     () => products.filter((p) => p.name.toLowerCase().includes(search.toLowerCase())),
@@ -87,7 +93,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ hasAccess }) => {
         <div className="mc"><div className="mlbl">Total Products</div><div className="mv">{products.length}</div></div>
         <div className="mc"><div className="mlbl">Low Stock</div><div className="mv neg">{lowCount}</div><span className="md dd">Action needed</span></div>
         <div className="mc"><div className="mlbl">Total Units</div><div className="mv">{totalUnits}</div></div>
-        <div className="mc"><div className="mlbl">Est. Value</div><div className="mv">₦{(estValue / 1000).toFixed(0)}K</div></div>
+        <div className="mc"><div className="mlbl">Est. Value</div><div className="mv">{businessCurrency}{(estValue / 1000).toFixed(0)}K</div></div>
       </div>
 
       {/* Low stock alerts */}
@@ -163,7 +169,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ hasAccess }) => {
             <div key={p.id} className="inv-card">
               <div className="inv-em">{p.emoji || '📦'}</div>
               <div className="inv-nm">{p.name}</div>
-              <div className="inv-pr">₦{p.price.toLocaleString()}</div>
+              <div className="inv-pr">{businessCurrency}{p.price.toLocaleString()}</div>
               <div className="inv-stock">
                 <span className="inv-stk-lbl">Stock</span>
                 <span className={`inv-stk-val${isLow ? ' low' : ''}`}>{p.stock} units{isLow ? ' ⚠️' : ''}</span>
@@ -185,46 +191,55 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ hasAccess }) => {
 interface HistoryPageProps {
   hasAccess: boolean;
   sessionSales: SaleRecord[];
+  businessId: string;
+  staffId?: string;
+  currency?: string;
 }
 
-export const HistoryPage: React.FC<HistoryPageProps> = ({ hasAccess, sessionSales }) => {
+export const HistoryPage: React.FC<HistoryPageProps> = ({ hasAccess, sessionSales, businessId, staffId, currency: currencyProp }) => {
   const [filter, setFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [allRecords, setAllRecords] = useState<SalesHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch real sales history from Firestore
   useEffect(() => {
+    if (!businessId) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
     async function loadSalesHistory() {
       try {
-        const { auth } = initializeFirebase();
-        const user = auth.currentUser;
-        
-        if (!user) return;
-
-        const businessId = await getStaffBusinessId(staffDb(), user.uid);
-        if (businessId) {
-          const recentSales = await fetchRecentSales(staffDb(), businessId, 50);
-          
-          // Convert to SaleRecord format
-          const saleRecords: SalesHistoryItem[] = recentSales.map(sale => ({
-            id: sale.id,
-            time: new Date(sale.createdAt.toDate()).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-            items: sale.products.map(p => `${p.name} ×${p.quantity}`).join(', '),
-            amount: sale.total,
-            payment: sale.paymentMethod.charAt(0).toUpperCase() + sale.paymentMethod.slice(1),
-          }));
-          
-          setAllRecords(saleRecords);
+        const db = staffDb();
+        if (!db) return;
+        const recentSales = await fetchRecentSales(db, businessId, 50);
+        if (cancelled) return;
+        let filtered = recentSales;
+        if (staffId) {
+          filtered = recentSales.filter((sale: any) => {
+            const by = sale.soldBy || sale.recordedBy?.staffId || sale.recordedBy?.uid;
+            return !by || by === staffId;
+          });
         }
+        const saleRecords: SalesHistoryItem[] = filtered.map((sale) => ({
+          id: sale.id,
+          time: sale.createdAt?.toDate
+            ? new Date(sale.createdAt.toDate()).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+            : '',
+          items: (sale.products || []).map((p: any) => `${p.name} ×${p.quantity}`).join(', '),
+          amount: sale.total,
+          payment: (sale.paymentMethod || 'cash').charAt(0).toUpperCase() + (sale.paymentMethod || 'cash').slice(1),
+          soldByName: sale.soldByName,
+        }));
+        setAllRecords(saleRecords);
       } catch (error) {
         console.error('Error loading sales history:', error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
-
     loadSalesHistory();
-  }, []);
+    return () => { cancelled = true; };
+  }, [businessId, staffId]);
 
   if (!hasAccess) return <LockedPage pageName="Sale History"/>;
 
@@ -267,7 +282,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ hasAccess, sessionSale
 
       <div className="hist-sum">
         <div className="hs-tile">
-          <div className="hs-val">₦{totalRevenue.toLocaleString()}</div>
+          <div className="hs-val">{currencyProp || '₦'}{totalRevenue.toLocaleString()}</div>
           <div className="hs-lbl">Total Revenue</div>
         </div>
         <div className="hs-tile">
@@ -275,7 +290,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ hasAccess, sessionSale
           <div className="hs-lbl">Transactions</div>
         </div>
         <div className="hs-tile">
-          <div className="hs-val">₦{Math.round(avgPerSale).toLocaleString()}</div>
+          <div className="hs-val">{currencyProp || '₦'}{Math.round(avgPerSale).toLocaleString()}</div>
           <div className="hs-lbl">Avg. per Sale</div>
         </div>
       </div>
@@ -311,7 +326,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ hasAccess, sessionSale
                   <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {r.items}
                   </td>
-                  <td><strong>₦{r.amount.toLocaleString()}</strong></td>
+                  <td><strong>{currencyProp || '₦'}{r.amount.toLocaleString()}</strong></td>
                   <td><span className={`pill ${payPill(r.payment)}`}>{r.payment}</span></td>
                   <td><span className="pill g">Confirmed</span></td>
                 </tr>
@@ -327,9 +342,14 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ hasAccess, sessionSale
 /* ═══════════════════════════════════════
    ATTENDANCE PAGE
 ═══════════════════════════════════════ */
-interface AttendancePageProps { hasAccess: boolean; }
+interface AttendancePageProps {
+  hasAccess: boolean;
+  businessId: string;
+  staffId: string;
+  staffName?: string;
+}
 
-export const AttendancePage: React.FC<AttendancePageProps> = ({ hasAccess }) => {
+export const AttendancePage: React.FC<AttendancePageProps> = ({ hasAccess, businessId: businessIdProp, staffId: staffIdProp, staffName }) => {
   const clock = useLiveClock();
   const [clockedIn, setClockedIn] = useState(false);
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
@@ -337,88 +357,66 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({ hasAccess }) => 
   const [loading, setLoading] = useState(true);
   const [businessId, setBusinessId] = useState<string | null>(null);
 
-  // Fetch real attendance data from Firestore
   useEffect(() => {
+    if (!businessIdProp || !staffIdProp) {
+      setLoading(false);
+      return;
+    }
+    setBusinessId(businessIdProp);
+    let cancelled = false;
     async function loadAttendanceData() {
       try {
-        const { auth } = initializeFirebase();
-        const user = auth.currentUser;
-        
-        if (!user) return;
-
         const { firestore } = initializeFirebase();
-        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
-        
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          
-          if (userData.businessId) {
-            setBusinessId(userData.businessId);
-            
-            // Fetch attendance records from Firestore
-            const attendanceQuery = query(
-              collection(firestore, 'businesses', userData.businessId, 'attendance'),
-              where('staffId', '==', user.uid)
-            );
-            const attendanceSnapshot = await getDocs(attendanceQuery);
-            const attendanceRecords = attendanceSnapshot.docs.map(doc => doc.data());
-            setAttendanceData(attendanceRecords);
-            
-            // Check if currently clocked in
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const todayAttendance = attendanceRecords.find((record: any) => {
-              const recordDate = record.clockIn?.toDate ? record.clockIn.toDate() : new Date(record.clockIn);
-              return recordDate >= today && !record.clockOut;
-            });
-            setClockedIn(!!todayAttendance);
-            
-            // Build shift log from attendance records
-            const log = attendanceRecords
-              .filter((record: any) => record.clockOut)
-              .map((record: any) => ({
-                date: new Date(record.clockIn?.toDate ? record.clockIn.toDate() : record.clockIn).toLocaleDateString(),
-                hours: calculateShiftHours(record.clockIn, record.clockOut),
-                clockIn: formatTime(record.clockIn),
-                clockOut: formatTime(record.clockOut),
-                status: record.clockOut ? 'complete' : 'incomplete'
-              }));
-            setShiftLog(log);
-          }
-        }
+        if (!firestore) return;
+        const attendanceQuery = query(
+          collection(firestore, 'businesses', businessIdProp, 'attendance'),
+          where('staffId', '==', staffIdProp)
+        );
+        const attendanceSnapshot = await getDocs(attendanceQuery);
+        if (cancelled) return;
+        const attendanceRecords = attendanceSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        setAttendanceData(attendanceRecords);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayAttendance = attendanceRecords.find((record: any) => {
+          const recordDate = record.clockIn?.toDate ? record.clockIn.toDate() : new Date(record.clockIn);
+          return recordDate >= today && !record.clockOut;
+        });
+        setClockedIn(!!todayAttendance);
+        const log = attendanceRecords
+          .filter((record: any) => record.clockOut)
+          .map((record: any) => ({
+            date: new Date(record.clockIn?.toDate ? record.clockIn.toDate() : record.clockIn).toLocaleDateString(),
+            hours: calculateShiftHours(record.clockIn, record.clockOut),
+            clockIn: formatTime(record.clockIn),
+            clockOut: formatTime(record.clockOut),
+            status: record.clockOut ? 'complete' : 'incomplete',
+          }));
+        setShiftLog(log);
       } catch (error) {
         console.error('Error loading attendance data:', error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
-
     loadAttendanceData();
-  }, []);
+    return () => { cancelled = true; };
+  }, [businessIdProp, staffIdProp]);
 
   const handleClockIn = async () => {
-    if (!businessId) return;
-    
+    if (!businessId || !staffIdProp) return;
     try {
-      const { auth, firestore } = initializeFirebase();
-      const user = auth.currentUser;
-      if (!user) return;
-
-      const userDoc = await getDoc(doc(firestore, 'users', user.uid));
-      if (!userDoc.exists()) return;
-      
-      const userData = userDoc.data();
-
+      const { firestore } = initializeFirebase();
+      if (!firestore) return;
       await addDoc(collection(firestore, 'businesses', businessId, 'attendance'), {
-        staffId: user.uid,
-        staffName: userData.name || 'Unknown Staff',
+        staffId: staffIdProp,
+        staffName: staffName || 'Staff',
         businessId,
         clockIn: Timestamp.now(),
         clockOut: null,
         date: new Date().toISOString().split('T')[0],
-        status: 'clocked_in'
+        status: 'clocked_in',
       });
-
       setClockedIn(true);
     } catch (error) {
       console.error('Error clocking in:', error);
@@ -426,29 +424,29 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({ hasAccess }) => 
   };
 
   const handleClockOut = async () => {
-    if (!businessId) return;
-    
+    if (!businessId || !staffIdProp) return;
     try {
-      const { auth, firestore } = initializeFirebase();
-      const user = auth.currentUser;
-      if (!user) return;
-
-      // Find today's clock-in record
+      const { firestore } = initializeFirebase();
+      if (!firestore) return;
       const attendanceQuery = query(
         collection(firestore, 'businesses', businessId, 'attendance'),
-        where('staffId', '==', user.uid),
+        where('staffId', '==', staffIdProp),
         where('clockOut', '==', null)
       );
       const attendanceSnapshot = await getDocs(attendanceQuery);
-      
       if (!attendanceSnapshot.empty) {
-        const docRef = doc(firestore, 'businesses', businessId, 'attendance', attendanceSnapshot.docs[0].id);
+        const docRef = doc(
+          firestore,
+          'businesses',
+          businessId,
+          'attendance',
+          attendanceSnapshot.docs[0].id
+        );
         await updateDoc(docRef, {
           clockOut: Timestamp.now(),
-          status: 'clocked_out'
+          status: 'clocked_out',
         });
       }
-
       setClockedIn(false);
     } catch (error) {
       console.error('Error clocking out:', error);
@@ -616,7 +614,11 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({ hasAccess }) => 
 /* ═══════════════════════════════════════
    MESSAGES PAGE
 ═══════════════════════════════════════ */
-interface MessagesPageProps { hasAccess: boolean; }
+interface MessagesPageProps {
+  hasAccess: boolean;
+  businessId: string;
+  staffId: string;
+}
 
 type ConvId = 'owner' | 'team';
 
@@ -641,7 +643,7 @@ interface Conversation {
   updatedAt: Date;
 }
 
-export const MessagesPage: React.FC<MessagesPageProps> = ({ hasAccess }) => {
+export const MessagesPage: React.FC<MessagesPageProps> = ({ hasAccess, businessId: businessIdProp, staffId: staffIdProp }) => {
   const [convId, setConvId] = useState<ConvId>('owner');
   const [convos, setConvos] = useState<Conversations>({ owner: [], team: [] });
   const [draft, setDraft] = useState('');
@@ -652,83 +654,58 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({ hasAccess }) => {
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const bodyRef = React.useRef<HTMLDivElement>(null);
 
-  // Load conversations from Firestore
   useEffect(() => {
+    if (!businessIdProp || !staffIdProp) {
+      setLoading(false);
+      return;
+    }
+    setBusinessId(businessIdProp);
+    setStaffId(staffIdProp);
+    let cancelled = false;
     async function loadConversations() {
       try {
-        const { auth, firestore } = initializeFirebase();
-        const user = auth.currentUser;
-        
-        if (!user) return;
-
-        setStaffId(user.uid);
-
-        // Get business ID from user document
-        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          if (userData.businessId) {
-            setBusinessId(userData.businessId);
-
-            // Load owner conversation
-            const ownerConvQuery = query(
-              collection(firestore, 'businesses', userData.businessId, 'conversations'),
-              where('type', '==', 'owner'),
-              where('participants', 'array-contains', user.uid)
-            );
-            const ownerConvSnapshot = await getDocs(ownerConvQuery);
-            
-            let ownerMessages: ChatMessage[] = [];
-            if (!ownerConvSnapshot.empty) {
-              const ownerConv = ownerConvSnapshot.docs[0];
-              const convData = ownerConv.data();
-              ownerMessages = convData.messages || [];
-            }
-
-            // Load team conversation
-            const teamConvQuery = query(
-              collection(firestore, 'businesses', userData.businessId, 'conversations'),
-              where('type', '==', 'team')
-            );
-            const teamConvSnapshot = await getDocs(teamConvQuery);
-            
-            let teamMessages: ChatMessage[] = [];
-            if (!teamConvSnapshot.empty) {
-              const teamConv = teamConvSnapshot.docs[0];
-              const convData = teamConv.data();
-              teamMessages = convData.messages || [];
-            }
-
-            setConvos({
-              owner: ownerMessages,
-              team: teamMessages,
-            });
-
-            // Load owner name
-            const businessDoc = await getDoc(doc(firestore, 'businesses', userData.businessId));
-            if (businessDoc.exists()) {
-              const businessData = businessDoc.data();
-              setOwnerName(businessData.ownerName || businessData.businessName || 'Business Owner');
-            }
-
-            // Load team members
-            const staffQuery = query(
-              collection(firestore, 'businesses', userData.businessId, 'staff')
-            );
-            const staffSnapshot = await getDocs(staffQuery);
-            const members = staffSnapshot.docs.map(doc => doc.data());
-            setTeamMembers(members);
-          }
+        const { firestore } = initializeFirebase();
+        if (!firestore) return;
+        const ownerConvQuery = query(
+          collection(firestore, 'businesses', businessIdProp, 'conversations'),
+          where('type', '==', 'owner'),
+          where('participants', 'array-contains', staffIdProp)
+        );
+        const ownerConvSnapshot = await getDocs(ownerConvQuery);
+        let ownerMessages: ChatMessage[] = [];
+        if (!ownerConvSnapshot.empty) {
+          ownerMessages = ownerConvSnapshot.docs[0].data().messages || [];
+        }
+        const teamConvQuery = query(
+          collection(firestore, 'businesses', businessIdProp, 'conversations'),
+          where('type', '==', 'team')
+        );
+        const teamConvSnapshot = await getDocs(teamConvQuery);
+        let teamMessages: ChatMessage[] = [];
+        if (!teamConvSnapshot.empty) {
+          teamMessages = teamConvSnapshot.docs[0].data().messages || [];
+        }
+        if (cancelled) return;
+        setConvos({ owner: ownerMessages, team: teamMessages });
+        const businessDoc = await getDoc(doc(firestore, 'businesses', businessIdProp));
+        if (!cancelled && businessDoc.exists()) {
+          const businessData = businessDoc.data();
+          setOwnerName(businessData.ownerName || businessData.businessName || 'Business Owner');
+        }
+        const staffQuery = query(collection(firestore, 'businesses', businessIdProp, 'staff'));
+        const staffSnapshot = await getDocs(staffQuery);
+        if (!cancelled) {
+          setTeamMembers(staffSnapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
         }
       } catch (error) {
         console.error('Error loading conversations:', error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
-
     loadConversations();
-  }, []);
+    return () => { cancelled = true; };
+  }, [businessIdProp, staffIdProp]);
 
   const sendMsg = async () => {
     if (!draft.trim() || !businessId || !staffId) return;
@@ -938,10 +915,11 @@ interface SettingsPageProps {
   onToggleTheme: () => void;
   onLogout?: () => void;
   onToast: (msg: string) => void;
+  businessName?: string;
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({
-  staff, theme, onToggleTheme, onLogout, onToast,
+  staff, theme, onToggleTheme, onLogout, onToast, businessName,
 }) => {
   const [sound, setSound] = useState(true);
   const [confirm, setConfirm] = useState(true);

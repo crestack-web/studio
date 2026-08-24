@@ -210,7 +210,7 @@ export async function fetchRecentSales(
       sales.push({
         id: doc.id,
         products: data.products || [],
-        total: data.total || 0,
+        total: data.totalRevenue ?? data.total ?? 0,
         profit: data.profit || 0,
         paymentMethod: data.paymentMethod || 'cash',
         note: data.notes || '',
@@ -263,7 +263,7 @@ export async function fetchTodaysSales(
 
     snapshot.forEach(doc => {
       const data = doc.data();
-      sales += data.total || 0;
+      sales += data.totalRevenue ?? data.total ?? 0;
       profit += data.profit || 0;
       transactions += 1;
     });
