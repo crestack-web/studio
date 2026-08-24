@@ -83,6 +83,15 @@ export function Topbar() {
         </svg>
       </button>
 
+      <div className={styles.brand} aria-label="Busmo">
+        <img
+          src="/email-logo.png"
+          alt="Busmo Logo"
+          className={styles.brandLogo}
+        />
+        <span className={styles.brandName}>Busmo</span>
+      </div>
+
       <div className={styles.titleBlock}>
         <h1 className={styles.title}>{greeting}</h1>
         <p className={styles.subtitle}>{activePage === 'home' ? today : ''}</p>
@@ -99,7 +108,7 @@ export function Topbar() {
             border: `1px solid ${getUrgencyColor()}30`,
             borderRadius: '8px',
             fontSize: '0.75rem',
-            fontWeight: '600',
+            fontWeight: 600,
             color: getUrgencyColor(),
           }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -148,34 +157,20 @@ export function Topbar() {
         </button>
 
         <button className={styles.iconBtn} onClick={toggleNotifications} title={t('topbar.notifications')}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-            <path d="M13.73 21a2 2 0 01-3.46 0"/>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 01-3.46 0" />
           </svg>
-          <span className={styles.notifDot} />
         </button>
 
-        <div className={styles.divider} />
-
-        <button className={styles.userBtn} onClick={openAvatarModal}>
-          <div 
-            className={styles.avatar} 
-            style={{
-              background: user.photoURL 
-                ? `url(${user.photoURL}) center/cover` 
-                : user.avatarStyle?.background,
-              color: user.photoURL ? 'transparent' : user.avatarStyle?.color,
-            }}
-          >
-            {!user.photoURL && <span>{user.avatarContent}</span>}
-          </div>
-          <div className={styles.userText}>
-            <div className={styles.userName}>{user.shortName}</div>
-            <div className={styles.userRole}>{user.role}</div>
-          </div>
+        <button className={styles.avatarBtn} onClick={openAvatarModal} title={user.name}>
+          {user.photoURL ? (
+            <img src={user.photoURL} alt={user.name} className={styles.avatarImg} />
+          ) : (
+            <span className={styles.avatarInitials}>{user.initials}</span>
+          )}
         </button>
       </div>
     </header>
   );
 }
-
