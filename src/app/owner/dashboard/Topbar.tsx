@@ -1,16 +1,15 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
-import { NAV_SECTIONS } from './navItems';
 import { MoIcon } from './NavIcons';
 import { BranchSwitcher } from '@/components/BranchSwitcher';
 import { useTrialInfo } from './TrialGuard';
 import styles from './Topbar.module.css';
 
 export function Topbar() {
-  const { activePage, openSidebar, toggleTheme, theme, user, openAvatarModal, toggleNotifications, toggleAIPanel } = useApp();
+  const { openSidebar, toggleTheme, theme, user, openAvatarModal, toggleNotifications, toggleAIPanel } = useApp();
   const { t } = useTranslation();
   const trialInfo = useTrialInfo();
   const [timeLeft, setTimeLeft] = useState(trialInfo);
@@ -39,20 +38,6 @@ export function Topbar() {
 
     return () => clearInterval(timer);
   }, [trialInfo]);
-
-  const currentNav = useMemo(() => {
-    for (const section of NAV_SECTIONS) {
-      const found = section.items.find(i => i.id === activePage);
-      if (found) return found;
-    }
-    return { label: t('nav.home'), tip: '' };
-  }, [activePage, t]);
-
-  const greeting = activePage === 'home' ? `${t('topbar.greeting')}, ${user.shortName} 👋` : currentNav.label;
-
-  const today = useMemo(() =>
-    new Date().toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
-  []);
 
   const getUrgencyColor = () => {
     if (!timeLeft) return 'var(--purple)';
@@ -92,10 +77,7 @@ export function Topbar() {
         <span className={styles.brandName}>Busmo</span>
       </div>
 
-      <div className={styles.titleBlock}>
-        <h1 className={styles.title}>{greeting}</h1>
-        <p className={styles.subtitle}>{activePage === 'home' ? today : ''}</p>
-      </div>
+      <div className={styles.spacer} aria-hidden />
 
       <div className={styles.actions}>
         {timeLeft && (
