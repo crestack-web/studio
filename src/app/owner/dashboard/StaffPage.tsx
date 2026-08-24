@@ -867,17 +867,35 @@ export default function StaffPage() {
           </div>
         ) : staffMembers.length === 0 ? (
           <div className={styles.emptyState}>
-            <div className={styles.emptyIcon} aria-hidden>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} width={40} height={40}>
-                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 00-3-3.87"/>
-                <path d="M16 3.13a4 4 0 010 7.75"/>
-              </svg>
-            </div>
+            <svg width="120" height="120" viewBox="0 0 120 120" fill="none" style={{ marginBottom: '24px' }} aria-hidden>
+              <circle cx="60" cy="60" r="58" fill="var(--surface)" />
+              <circle cx="60" cy="60" r="56" fill="none" stroke="rgba(42,191,191,.12)" strokeWidth="1.5" strokeDasharray="6,4" />
+              <rect x="24" y="68" width="24" height="4" rx="2" fill="rgba(255,255,255,.08)" />
+              <rect x="28" y="72" width="4" height="12" rx="2" fill="rgba(255,255,255,.07)" />
+              <rect x="40" y="72" width="4" height="12" rx="2" fill="rgba(255,255,255,.07)" />
+              <rect x="24" y="58" width="24" height="10" rx="4" fill="none" stroke="rgba(42,191,191,.15)" strokeWidth="1.5" strokeDasharray="3,3" />
+              <rect x="72" y="68" width="24" height="4" rx="2" fill="rgba(255,255,255,.08)" />
+              <rect x="76" y="72" width="4" height="12" rx="2" fill="rgba(255,255,255,.07)" />
+              <rect x="88" y="72" width="4" height="12" rx="2" fill="rgba(255,255,255,.07)" />
+              <rect x="72" y="58" width="24" height="10" rx="4" fill="none" stroke="rgba(42,191,191,.15)" strokeWidth="1.5" strokeDasharray="3,3" />
+              <circle cx="36" cy="52" r="8" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.06)" strokeWidth="1.5" strokeDasharray="2,2" />
+              <circle cx="84" cy="52" r="8" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.06)" strokeWidth="1.5" strokeDasharray="2,2" />
+              <circle cx="60" cy="44" r="13" fill="#F5C9A0" />
+              <path d="M47 40 C47 31 73 31 73 40 L73 36 C73 28 47 28 47 36 Z" fill="#2C1A0E" />
+              <circle cx="54" cy="43" r="2.8" fill="#1A2B3C" />
+              <circle cx="66" cy="43" r="2.8" fill="#1A2B3C" />
+              <circle cx="55" cy="41.8" r="1" fill="white" />
+              <circle cx="67" cy="41.8" r="1" fill="white" />
+              <path d="M54 49 Q60 53 66 49" stroke="#CC7A3A" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+              <circle cx="74" cy="32" r="10" fill="#162334" stroke="#2ABFBF" strokeWidth="1.5" />
+              <line x1="74" y1="27" x2="74" y2="37" stroke="#2ABFBF" strokeWidth="2.5" strokeLinecap="round" />
+              <line x1="69" y1="32" x2="79" y2="32" stroke="#2ABFBF" strokeWidth="2.5" strokeLinecap="round" />
+              <rect x="50" y="57" width="20" height="13" rx="5" fill="#F5C9A0" />
+              <ellipse cx="60" cy="74" rx="15" ry="6" fill="#1A8F8F" opacity=".8" />
+            </svg>
             <h3 className={styles.emptyTitle}>No staff members yet</h3>
             <p className={styles.emptyDesc}>
-              Add your first team member to track sales, attendance, and performance — even when you are not in the shop.
+              Add your first team member to start managing staff and tracking performance.
             </p>
             <Button variant="primary" onClick={() => setShowAddModal(true)}>+ Add Your First Staff</Button>
           </div>

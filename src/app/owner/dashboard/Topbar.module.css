@@ -35,7 +35,7 @@
   white-space: nowrap;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 360px) {
   .brandName {
     display: none;
   }
@@ -69,11 +69,48 @@
   .hamburger { display: flex; }
 }
 
-/* ── Spacer (page titles removed from header) ── */
+/* ── Spacer ── */
 .spacer {
   flex: 1;
   min-width: 0;
 }
+
+/* ── Home welcome title ── */
+.titleBlock {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.subtitle {
+  font-size: 0.8rem;
+  color: var(--text-3);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .title { font-size: 0.95rem; }
+  .subtitle { font-size: 0.7rem; }
+}
+
+@media (max-width: 480px) {
+  .title { font-size: 0.85rem; }
+  .subtitle { font-size: 0.65rem; }
+}
+
 
 /* ── Right actions ── */
 .actions {
