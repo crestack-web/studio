@@ -93,7 +93,7 @@ export async function showDeviceNotification(payload: DeviceNotifPayload): Promi
     icon: '/icons/icon-192x192.png',
     badge: '/icons/icon-192x192.png',
     tag: payload.tag || 'busmo',
-    renotify: true,
+    
     requireInteraction: payload.requireInteraction ?? false,
     data: { url: payload.url || '/owner/dashboard' },
   };
