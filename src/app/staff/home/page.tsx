@@ -7,6 +7,7 @@ import { StaffDashboard } from './StaffDashboard';
 import { StaffProvider, type StaffWorkspace } from './StaffContext';
 import type { Permissions, StaffUser } from './types';
 import { getSupabase } from '@/lib/supabase';
+import { ensureFirebaseAuth } from '@/lib/ensure-firebase-auth';
 import { initializeFirebase } from '@/firebase';
 import './busmo.css';
 
@@ -190,6 +191,9 @@ export default function StaffHomePage() {
         let mustChange =
           meta.must_change_password === true ||
           meta.must_change_password === 'true';
+
+        // Firestore rules require Firebase Auth — link from Supabase session
+        await ensureFirebaseAuth();
 
         const { firestore } = initializeFirebase();
         if (!firestore) {

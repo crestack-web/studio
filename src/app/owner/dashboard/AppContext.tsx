@@ -11,6 +11,7 @@ import React, {
 } from 'react';
 import { LangProvider } from './LangContext';
 import { getSupabase } from '@/lib/supabase';
+import { ensureFirebaseAuth } from '@/lib/ensure-firebase-auth';
 import { initializeFirebase } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -229,6 +230,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
+        ensureFirebaseAuth().catch(() => {});
         loadUser(session.user.id, session.user.email || '', session.user.user_metadata, firestore);
       }
     });
@@ -236,6 +238,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
+        ensureFirebaseAuth().catch(() => {});
         loadUser(session.user.id, session.user.email || '', session.user.user_metadata, firestore);
       }
     });

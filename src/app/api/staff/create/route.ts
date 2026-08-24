@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
-import { getAdminDb } from '@/lib/firebase-admin';
+import { getAdminDb, getNativeAdminFirestore, isAdminInitialized } from '@/lib/firebase-admin';
 import { sendStaffInvitationEmail } from '@/services/email/brevo-service';
 
 /**
@@ -303,7 +303,58 @@ export async function POST(request: NextRequest) {
       { merge: true }
     );
 
+
+    // Dual-write to real Firebase Firestore so client SDK (security rules) can read
+    if (isAdminInitialized()) {
+      try {
+        const native = getNativeAdminFirestore();
+        await native
+          .collection('businesses')
+          .doc(targetBusinessId)
+          .collection('staff')
+          .doc(userId)
+          .set(
+            {
+              staffId,
+              name: cleanName,
+              email: cleanEmail,
+              role: staffRole,
+              permissions: permissions || {},
+              createdAt: new Date().toISOString(),
+              status: 'active',
+              mustChangePassword: true,
+              uid: userId,
+              businessId: targetBusinessId,
+            },
+            { merge: true }
+          );
+        await native
+          .collection('users')
+          .doc(userId)
+          .set(
+            {
+              name: cleanName,
+              fullName: cleanName,
+              displayName: cleanName,
+              email: cleanEmail,
+              role: staffRole,
+              businessId: targetBusinessId,
+              permissions: permissions || {},
+              staffId,
+              status: 'active',
+              mustChangePassword: true,
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true }
+          );
+        console.log('✅ [API] Dual-wrote staff profile to Firebase Firestore');
+      } catch (nativeErr) {
+        console.error('❌ [API] Native Firestore dual-write failed', nativeErr);
+      }
+    }
+
     let emailSent = false;
+
     let emailError: string | null = null;
     if (sendInvite !== false) {
       try {

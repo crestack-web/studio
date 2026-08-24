@@ -4,6 +4,7 @@ import { useState } from "react";
 import { getSupabase, isSupabaseConfigured, getSupabaseConfigErrorMessage } from "@/lib/supabase";
 import { initializeFirebase } from "@/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { ensureFirebaseAuth } from "@/lib/ensure-firebase-auth";
 
 // ── Staff Logo ────────────────────────────────
 function StaffLogo({ size = 32 }: { size?: number }) {
@@ -212,10 +213,23 @@ export default function StaffLogin() {
 
       const roleLc = role.toLowerCase();
       const isOwnerRole = roleLc === 'owner' || roleLc === 'admin';
+      const knownStaffRoles = [
+        'staff',
+        'cashier',
+        'manager',
+        'store manager',
+        'seller',
+        'sales attendant',
+        'attendant',
+        'clerk',
+        'supervisor',
+        'assistant',
+      ];
       const isStaffRole =
         !role ||
-        ['staff', 'cashier', 'manager', 'store manager', 'seller'].includes(roleLc) ||
-        hasStaffProfile;
+        knownStaffRoles.includes(roleLc) ||
+        hasStaffProfile ||
+        (!isOwnerRole && roleLc.length > 0);
 
       if (isOwnerRole && !hasStaffProfile) {
         setError("This account is an owner account. Please use the owner login.");
@@ -223,15 +237,14 @@ export default function StaffLogin() {
         return;
       }
 
-      if (!isStaffRole && isOwnerRole) {
-        setError("This account is an owner account. Please use the owner login.");
-        await supabase.auth.signOut();
-        return;
+      // Link Firebase Auth so Firestore security rules accept client reads
+      const linked = await ensureFirebaseAuth();
+      if (!linked) {
+        console.warn('[Staff Login] Firebase Auth link failed — continuing with Supabase only');
       }
 
       if (mustChange) {
         console.log('✅ [Staff Login] Must change password');
-        // Full navigation so session cookie is available on next page
         window.location.assign('/staff/set-password');
         return;
       }

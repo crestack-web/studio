@@ -72,3 +72,13 @@ export function getAdminAuth() {
 export function isAdminInitialized() {
   return adminInitialized;
 }
+
+/** Real Firebase Admin Firestore (not the Supabase Postgres facade). */
+export function getNativeAdminFirestore() {
+  if (!adminInitialized || !db) {
+    throw new Error(
+      'Firebase Admin Firestore not initialized. Check FIREBASE_ADMIN_* env vars.'
+    );
+  }
+  return db;
+}
