@@ -50,13 +50,21 @@ export function HomePage() {
   const [selectedPeriod, setSelectedPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   
   // Real data state
-  const [todayData, setTodayData] = useState({ sales: 0, profit: 0, transactions: 0 });
+  // Period-scoped metrics for Business Health (changes with daily/weekly/monthly)
   const [metrics, setMetrics] = useState({
     totalRevenue: 0,
     totalProfit: 0,
     totalExpenses: 0,
     cashBalance: 0,
+    transactions: 0,
   });
+  // Always calendar-day data for Daily Check — independent of selectedPeriod
+  const [dailyCheck, setDailyCheck] = useState({
+    sales: 0,
+    profit: 0,
+    transactions: 0,
+  });
+  const [dailyLoading, setDailyLoading] = useState(true);
   const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);
   const [topProduct, setTopProduct] = useState<any>(null);
   const [forecastItems, setForecastItems] = useState<any[]>([]);
@@ -129,60 +137,8 @@ export function HomePage() {
           return;
         }
 
-        // Calculate date range based on selected period
-        const now = new Date();
-        let startDate: Date;
-        
-        if (selectedPeriod === 'daily') {
-          startDate = new Date();
-          startDate.setHours(0, 0, 0, 0);
-        } else if (selectedPeriod === 'weekly') {
-          startDate = new Date();
-          startDate.setDate(startDate.getDate() - 7);
-        } else if (selectedPeriod === 'monthly') {
-          startDate = new Date();
-          startDate.setMonth(startDate.getMonth() - 1);
-        } else {
-          startDate = new Date();
-          startDate.setHours(0, 0, 0, 0);
-        }
-
-        // Fetch yesterday's sales for comparison
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        yesterday.setHours(0, 0, 0, 0);
-        const yesterdayEnd = new Date();
-        yesterdayEnd.setDate(yesterdayEnd.getDate() - 1);
-        yesterdayEnd.setHours(23, 59, 59, 999);
-
-        const yesterdayQuery = query(
-          collection(firestore, 'businesses', businessId, 'sales'),
-          where('createdAt', '>=', Timestamp.fromDate(yesterday)),
-          where('createdAt', '<=', Timestamp.fromDate(yesterdayEnd))
-        );
-
-        const yesterdaySnapshot = await getDocs(yesterdayQuery);
-        let yesterdayTotal = 0;
-        yesterdaySnapshot.forEach(doc => {
-          const data = doc.data();
-          yesterdayTotal += data.totalRevenue || data.total || 0;
-        });
-        setYesterdaySales(yesterdayTotal);
-
-        // Fetch sales for the selected period
-        const salesQuery = query(
-          collection(firestore, 'businesses', businessId, 'sales'),
-          where('createdAt', '>=', Timestamp.fromDate(startDate))
-        );
-
-        const salesSnapshot = await getDocs(salesQuery);
-        let sales = 0, profit = 0, transactions = 0;
-        const productRevenue = new Map<string, { name: string; revenue: number; quantity: number }>();
-
-        salesSnapshot.forEach(doc => {
-          const data = doc.data();
-          sales += data.totalRevenue || data.total || 0;
-          
+        // Helpers
+        const saleProfit = (data: any) => {
           let docProfit = 0;
           if (data.products && Array.isArray(data.products)) {
             docProfit = data.products.reduce((sum: number, p: any) => {
@@ -193,22 +149,91 @@ export function HomePage() {
             }, 0);
           }
           if (data.discount) docProfit -= data.discount;
-          profit += docProfit;
-          
+          return docProfit;
+        };
+
+        // ── Daily Check (always calendar today + yesterday) — independent of selectedPeriod
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const yesterday = new Date(todayStart);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayEnd = new Date(todayStart);
+        yesterdayEnd.setMilliseconds(-1);
+
+        try {
+          // Don't flash skeleton on period-only refreshes
+          const [todaySnap, yesterdaySnap] = await Promise.all([
+            getDocs(
+              query(
+                collection(firestore, 'businesses', businessId, 'sales'),
+                where('createdAt', '>=', Timestamp.fromDate(todayStart))
+              )
+            ),
+            getDocs(
+              query(
+                collection(firestore, 'businesses', businessId, 'sales'),
+                where('createdAt', '>=', Timestamp.fromDate(yesterday)),
+                where('createdAt', '<=', Timestamp.fromDate(yesterdayEnd))
+              )
+            ),
+          ]);
+
+          let daySales = 0, dayProfit = 0, dayTx = 0;
+          todaySnap.forEach((d) => {
+            const data = d.data();
+            daySales += data.totalRevenue || data.total || 0;
+            dayProfit += saleProfit(data);
+            dayTx += 1;
+          });
+          setDailyCheck({ sales: daySales, profit: dayProfit, transactions: dayTx });
+
+          let yesterdayTotal = 0;
+          yesterdaySnap.forEach((d) => {
+            const data = d.data();
+            yesterdayTotal += data.totalRevenue || data.total || 0;
+          });
+          setYesterdaySales(yesterdayTotal);
+        } finally {
+          setDailyLoading(false);
+        }
+
+        // ── Business Health period range (daily / weekly / monthly)
+        let startDate: Date;
+        if (selectedPeriod === 'weekly') {
+          startDate = new Date();
+          startDate.setDate(startDate.getDate() - 7);
+        } else if (selectedPeriod === 'monthly') {
+          startDate = new Date();
+          startDate.setMonth(startDate.getMonth() - 1);
+        } else {
+          startDate = new Date(todayStart);
+        }
+
+        // Fetch sales for the selected period
+        const salesQuery = query(
+          collection(firestore, 'businesses', businessId, 'sales'),
+          where('createdAt', '>=', Timestamp.fromDate(startDate))
+        );
+
+        const salesSnapshot = await getDocs(salesQuery);
+        let sales = 0, profit = 0, transactions = 0;
+        let pendingTotal = 0;
+        const productRevenue = new Map<string, { name: string; revenue: number; quantity: number }>();
+
+        salesSnapshot.forEach(doc => {
+          const data = doc.data();
+          sales += data.totalRevenue || data.total || 0;
+          profit += saleProfit(data);
           transactions += 1;
-          
-          // Track credit sales for pending collections
-          let pendingAmt = 0;
+
           if (data.paymentBreakdown && Array.isArray(data.paymentBreakdown)) {
             data.paymentBreakdown.forEach((pb: any) => {
               if (pb.method === 'credit' && !pb.received) {
-                pendingAmt += pb.amount;
+                pendingTotal += pb.amount || 0;
               }
             });
           }
-          pendingAmt > 0 && setPendingCollections(prev => prev + pendingAmt);
-          
-          // Track product revenue
+
           if (data.products && Array.isArray(data.products)) {
             data.products.forEach((p: any) => {
               const existing = productRevenue.get(p.productId || p.name) || {
@@ -222,13 +247,12 @@ export function HomePage() {
             });
           }
         });
+        setPendingCollections(pendingTotal);
 
         // Get top product
         const topProductData = Array.from(productRevenue.values())
           .sort((a, b) => b.revenue - a.revenue)[0];
         setTopProduct(topProductData || null);
-
-        setTodayData({ sales, profit, transactions });
 
         // Fetch low stock products from businesses collection
         const productsQuery = query(
@@ -275,6 +299,7 @@ export function HomePage() {
           totalProfit: profit,
           totalExpenses: totalExpenses,
           cashBalance,
+          transactions,
         });
 
         // Calculate improved cash runway
@@ -288,7 +313,8 @@ export function HomePage() {
       } catch (error) {
         console.error('Error fetching data:', error);
         // Keep empty state as fallback
-        setTodayData({ sales: 0, profit: 0, transactions: 0 });
+        setDailyCheck({ sales: 0, profit: 0, transactions: 0 });
+        setMetrics({ totalRevenue: 0, totalProfit: 0, totalExpenses: 0, cashBalance: 0, transactions: 0 });
       } finally {
         setLoading(false);
       }
@@ -404,8 +430,8 @@ export function HomePage() {
   // Format metrics for display
   const dailyBurn = metrics.totalExpenses / 30;
   const displayMetrics = [
-    { label: t('home.totalSales'), value: formatMoney(todayData.sales), trend: `+${todayData.transactions} txns`, trendType: 'up' as const },
-    { label: t('home.netProfit'), value: formatMoney(todayData.profit), trend: `${profitMargin}% margin`, trendType: (profitMarginValue >= 25 ? 'up' : 'down') as 'up' | 'down' | 'neutral' },
+    { label: t('home.totalSales'), value: formatMoney(metrics.totalRevenue), trend: `+${metrics.transactions} txns`, trendType: 'up' as const },
+    { label: t('home.netProfit'), value: formatMoney(metrics.totalProfit), trend: `${profitMargin}% margin`, trendType: (profitMarginValue >= 25 ? 'up' : 'down') as 'up' | 'down' | 'neutral' },
     { label: t('home.totalExpenses'), value: formatMoney(metrics.totalExpenses), trend: dailyBurn > 0 ? `${Math.round(dailyBurn)}/day` : t('home.noExpenses'), trendType: 'neutral' as const },
     { label: t('home.cashBalance'), value: formatMoney(metrics.cashBalance), trend: metrics.totalExpenses === 0 && metrics.totalRevenue === 0 ? t('home.noDataYet') : `${cashRunway} days runway`, trendType: (cashRunway >= 30 ? 'up' : cashRunway >= 14 ? 'neutral' : 'down') as 'up' | 'down' | 'neutral' },
   ];
@@ -598,7 +624,7 @@ export function HomePage() {
           </Card>
         ) : (
           <>
-        {/* Daily Business Check */}
+        {/* Daily Business Check — always calendar day; independent of Business Health period */}
         <Card>
           <CardHeader>
             <CardIcon bg="var(--purple-bg)">
@@ -606,70 +632,123 @@ export function HomePage() {
                 <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
               </svg>
             </CardIcon>
-            Daily Check
+            <div className={styles.dailyCheckHeader}>
+              <span>Daily Check</span>
+              <span className={styles.dailyCheckBadge}>Today only</span>
+            </div>
           </CardHeader>
-          {loading ? (
-            <div style={{ padding: '20px', color: 'var(--text-3)', fontSize: '0.8rem' }}>Loading...</div>
+          {dailyLoading ? (
+            <div className={styles.dailyCheckBody}>
+              <div className={styles.dailyCheckSkeleton} />
+              <div className={styles.dailyCheckGrid}>
+                <div className={styles.dailyCheckSkeletonSm} />
+                <div className={styles.dailyCheckSkeletonSm} />
+                <div className={styles.dailyCheckSkeletonSm} />
+                <div className={styles.dailyCheckSkeletonSm} />
+              </div>
+            </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '0 12px 12px' }}>
-              {/* Revenue row */}
-              <div className={styles.insightItem} style={{ background: 'var(--bg)', border: 'none', borderRadius: '10px', padding: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--green-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" width="20" height="20">
-                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
-                  </svg>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Revenue Today</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-1)', marginTop: '2px' }}>{formatMoney(todayData.sales)}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: yesterdaySales === 0 ? 'var(--text-3)' : todayData.sales >= yesterdaySales ? 'var(--green)' : 'var(--red)' }}>
-                    {yesterdaySales === 0 ? '—' : todayData.sales >= yesterdaySales ? `↑ ${Math.round((todayData.sales / yesterdaySales - 1) * 100)}%` : `↓ ${Math.round((1 - todayData.sales / yesterdaySales) * 100)}%`}
-                  </div>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-3)' }}>vs yesterday</div>
-                </div>
-              </div>
+            <div className={styles.dailyCheckBody}>
+              {(() => {
+                const vsPct =
+                  yesterdaySales > 0
+                    ? Math.round(((dailyCheck.sales - yesterdaySales) / yesterdaySales) * 100)
+                    : null;
+                const beating = vsPct !== null && vsPct >= 0;
+                const alertCount = lowStockProducts.length + (pendingCollections > 0 ? 1 : 0);
+                return (
+                  <>
+                    <div className={styles.dailyHero}>
+                      <div className={styles.dailyHeroIcon} aria-hidden>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" width="22" height="22">
+                          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                          <polyline points="17 6 23 6 23 12" />
+                        </svg>
+                      </div>
+                      <div className={styles.dailyHeroMain}>
+                        <div className={styles.dailyHeroLabel}>Revenue today</div>
+                        <div className={styles.dailyHeroValue}>{formatMoney(dailyCheck.sales)}</div>
+                        {yesterdaySales > 0 && (
+                          <div className={styles.dailyProgressTrack} aria-hidden>
+                            <div
+                              className={styles.dailyProgressFill}
+                              style={{
+                                width: `${Math.min(100, Math.round((dailyCheck.sales / Math.max(yesterdaySales, 1)) * 100))}%`,
+                                background: beating ? 'var(--green)' : 'var(--red)',
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <div className={styles.dailyHeroCompare}>
+                        <div
+                          className={`${styles.dailyComparePct} ${
+                            vsPct === null ? '' : beating ? styles.dailyUp : styles.dailyDown
+                          }`}
+                        >
+                          {vsPct === null ? '—' : `${beating ? '↑' : '↓'} ${Math.abs(vsPct)}%`}
+                        </div>
+                        <div className={styles.dailyCompareLabel}>vs yesterday</div>
+                        {yesterdaySales > 0 && (
+                          <div className={styles.dailyCompareYest}>{formatMoney(yesterdaySales)}</div>
+                        )}
+                      </div>
+                    </div>
 
-              {/* Mini grid: Profit, Cash, Transactions, Alerts */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <div className={styles.insightItem} style={{ background: 'var(--bg)', border: 'none', borderRadius: '10px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase' }}>Profit</div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: todayData.profit >= 0 ? 'var(--green)' : 'var(--red)' }}>{formatMoney(todayData.profit)}</div>
-                </div>
-                <div className={styles.insightItem} style={{ background: 'var(--bg)', border: 'none', borderRadius: '10px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase' }}>Cash on Hand</div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-1)' }}>{formatMoney(metrics.cashBalance)}</div>
-                </div>
-                <div className={styles.insightItem} style={{ background: 'var(--bg)', border: 'none', borderRadius: '10px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase' }}>Transactions</div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-1)' }}>{todayData.transactions}</div>
-                </div>
-                <div className={styles.insightItem} style={{ background: lowStockProducts.length + (pendingCollections > 0 ? 1 : 0) > 0 ? 'var(--red-bg)' : 'var(--green-bg)', border: 'none', borderRadius: '10px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '2px', cursor: (lowStockProducts.length > 0 || pendingCollections > 0) ? 'pointer' : 'default' }}
-                  onClick={() => { const count = lowStockProducts.length + (pendingCollections > 0 ? 1 : 0); if (count > 0) navigateTo('inventory'); }}>
-                  <div style={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', color: lowStockProducts.length + (pendingCollections > 0 ? 1 : 0) > 0 ? 'var(--red)' : 'var(--green)' }}>Alerts</div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: lowStockProducts.length + (pendingCollections > 0 ? 1 : 0) > 0 ? 'var(--red)' : 'var(--green)' }}>
-                    {lowStockProducts.length + (pendingCollections > 0 ? 1 : 0) > 0
-                      ? `${lowStockProducts.length + (pendingCollections > 0 ? 1 : 0)} need attention`
-                      : 'All clear'}
-                  </div>
-                </div>
-              </div>
+                    <div className={styles.dailyCheckGrid}>
+                      <div className={styles.dailyStat}>
+                        <div className={styles.dailyStatLabel}>Profit</div>
+                        <div
+                          className={styles.dailyStatValue}
+                          style={{ color: dailyCheck.profit >= 0 ? 'var(--green)' : 'var(--red)' }}
+                        >
+                          {formatMoney(dailyCheck.profit)}
+                        </div>
+                      </div>
+                      <div className={styles.dailyStat}>
+                        <div className={styles.dailyStatLabel}>Cash</div>
+                        <div className={styles.dailyStatValue}>{formatMoney(metrics.cashBalance)}</div>
+                      </div>
+                      <div className={styles.dailyStat}>
+                        <div className={styles.dailyStatLabel}>Sales</div>
+                        <div className={styles.dailyStatValue}>{dailyCheck.transactions}</div>
+                      </div>
+                      <div
+                        className={`${styles.dailyStat} ${alertCount > 0 ? styles.dailyStatAlert : styles.dailyStatOk}`}
+                        role={alertCount > 0 ? 'button' : undefined}
+                        tabIndex={alertCount > 0 ? 0 : undefined}
+                        onClick={() => {
+                          if (alertCount > 0) navigateTo('inventory');
+                        }}
+                        onKeyDown={(e) => {
+                          if (alertCount > 0 && (e.key === 'Enter' || e.key === ' ')) navigateTo('inventory');
+                        }}
+                      >
+                        <div className={styles.dailyStatLabel}>Alerts</div>
+                        <div className={styles.dailyStatValue}>
+                          {alertCount > 0 ? `${alertCount} open` : 'All clear'}
+                        </div>
+                      </div>
+                    </div>
 
-              {/* MO daily tip */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '10px', background: 'var(--purple-bg)', cursor: 'pointer' }} onClick={toggleAIPanel}>
-                <MoIcon size={10} />
-                <span style={{ fontSize: '0.78rem', color: 'var(--purple)', fontWeight: 500, flex: 1 }}>
-                  {todayData.transactions === 0
-                    ? 'No sales yet today — ask MO for tips to boost traffic.'
-                    : todayData.sales > yesterdaySales && yesterdaySales > 0
-                      ? `You're beating yesterday by ${formatMoney(todayData.sales - yesterdaySales)}! Keep it up.`
-                      : todayData.sales > 0
-                        ? `${formatMoney(todayData.sales)} in today — ask MO for insights on your top products.`
-                        : 'Ask MO anything about your business performance.'}
-                </span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth="2" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg>
-              </div>
+                    <button type="button" className={styles.dailyMoTip} onClick={toggleAIPanel}>
+                      <MoIcon size={12} />
+                      <span>
+                        {dailyCheck.transactions === 0
+                          ? 'No sales yet today — ask MO for tips to boost traffic.'
+                          : dailyCheck.sales > yesterdaySales && yesterdaySales > 0
+                            ? `Beating yesterday by ${formatMoney(dailyCheck.sales - yesterdaySales)}. Keep it up.`
+                            : dailyCheck.sales > 0
+                              ? `${formatMoney(dailyCheck.sales)} today — ask MO about your top products.`
+                              : 'Ask MO anything about today’s performance.'}
+                      </span>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" aria-hidden>
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </button>
+                  </>
+                );
+              })()}
             </div>
           )}
         </Card>
@@ -779,7 +858,7 @@ export function HomePage() {
                   </div>
                   <div className={styles.detailRow}>
                     <span className={styles.detailLabel}>Current Period Revenue</span>
-                    <span className={styles.detailValue}>{formatMoney(todayData.sales)}</span>
+                    <span className={styles.detailValue}>{formatMoney(dailyCheck.sales)}</span>
                   </div>
                   <div className={styles.detailRow}>
                     <span className={styles.detailLabel}>Growth Rate</span>
@@ -799,7 +878,7 @@ export function HomePage() {
                   </div>
                   <div className={styles.detailRow}>
                     <span className={styles.detailLabel}>Current Period Profit</span>
-                    <span className={styles.detailValue}>{formatMoney(todayData.profit)}</span>
+                    <span className={styles.detailValue}>{formatMoney(dailyCheck.profit)}</span>
                   </div>
                   <div className={styles.detailRow}>
                     <span className={styles.detailLabel}>Profit Margin</span>

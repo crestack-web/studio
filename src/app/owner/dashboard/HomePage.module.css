@@ -633,3 +633,198 @@
   color: var(--text-1);
   font-variant-numeric: tabular-nums;
 }
+
+
+/* ── Daily Check (independent of Business Health period) ── */
+.dailyCheckHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dailyCheckBadge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--purple-bg, rgba(124, 58, 237, 0.12));
+  color: var(--purple);
+}
+
+.dailyCheckBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 12px 14px;
+}
+
+.dailyHero {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.dailyHeroIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--green-bg, #d1fae5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dailyHeroMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.dailyHeroLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.dailyHeroValue {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-1);
+  margin-top: 2px;
+}
+
+.dailyProgressTrack {
+  margin-top: 8px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.dailyProgressFill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.dailyHeroCompare {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.dailyComparePct {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-3);
+}
+
+.dailyUp { color: var(--green); }
+.dailyDown { color: var(--red); }
+
+.dailyCompareLabel {
+  font-size: 0.65rem;
+  color: var(--text-3);
+}
+
+.dailyCompareYest {
+  font-size: 0.7rem;
+  color: var(--text-3);
+  margin-top: 2px;
+}
+
+.dailyCheckGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.dailyStat {
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dailyStatLabel {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-3);
+}
+
+.dailyStatValue {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.dailyStatAlert {
+  background: var(--red-bg, #fef2f2);
+  cursor: pointer;
+}
+.dailyStatAlert .dailyStatLabel,
+.dailyStatAlert .dailyStatValue {
+  color: var(--red);
+}
+
+.dailyStatOk {
+  background: var(--green-bg, #d1fae5);
+}
+.dailyStatOk .dailyStatLabel,
+.dailyStatOk .dailyStatValue {
+  color: var(--green);
+}
+
+.dailyMoTip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: none;
+  background: var(--purple-bg, rgba(124, 58, 237, 0.12));
+  color: var(--purple);
+  font-size: 0.78rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.dailyMoTip:hover {
+  filter: brightness(0.97);
+}
+.dailyMoTip span {
+  flex: 1;
+}
+
+.dailyCheckSkeleton {
+  height: 72px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, var(--bg) 25%, var(--border) 50%, var(--bg) 75%);
+  background-size: 200% 100%;
+  animation: dailyShimmer 1.2s ease infinite;
+}
+.dailyCheckSkeletonSm {
+  height: 56px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--bg) 25%, var(--border) 50%, var(--bg) 75%);
+  background-size: 200% 100%;
+  animation: dailyShimmer 1.2s ease infinite;
+}
+@keyframes dailyShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
