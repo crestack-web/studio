@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { MoIcon } from './NavIcons';
@@ -9,7 +9,7 @@ import { useTrialInfo } from './TrialGuard';
 import styles from './Topbar.module.css';
 
 export function Topbar() {
-  const { activePage, openSidebar, toggleTheme, theme, user, openAvatarModal, toggleNotifications, toggleAIPanel } = useApp();
+  const { openSidebar, toggleTheme, theme, user, openAvatarModal, toggleNotifications, toggleAIPanel } = useApp();
   const { t } = useTranslation();
   const trialInfo = useTrialInfo();
   const [timeLeft, setTimeLeft] = useState(trialInfo);
@@ -60,21 +60,6 @@ export function Topbar() {
     }
   };
 
-  // Home-only welcome message (page names stay off other routes)
-  const showWelcome = activePage === 'home';
-  const greeting = showWelcome
-    ? `${t('topbar.greeting')}, ${user.shortName || 'there'} 👋`
-    : null;
-  const today = useMemo(
-    () =>
-      new Date().toLocaleDateString('en-NG', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      }),
-    []
-  );
 
   return (
     <header className={styles.topbar}>
@@ -93,14 +78,7 @@ export function Topbar() {
         <span className={styles.brandName}>Busmo</span>
       </div>
 
-      {showWelcome ? (
-        <div className={styles.titleBlock}>
-          <h1 className={styles.title}>{greeting}</h1>
-          <p className={styles.subtitle}>{today}</p>
-        </div>
-      ) : (
-        <div className={styles.spacer} aria-hidden />
-      )}
+      <div className={styles.spacer} aria-hidden />
 
       <div className={styles.actions}>
         {timeLeft && (

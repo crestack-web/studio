@@ -459,6 +459,22 @@ export function HomePage() {
       {/* ── Left column ── */}
       <div className={styles.left}>
 
+
+        {/* Welcome */}
+        <div className={styles.welcomeBanner}>
+          <h1 className={styles.welcomeTitle}>
+            {t('topbar.greeting')}, {user.shortName || 'there'} 👋
+          </h1>
+          <p className={styles.welcomeDate}>
+            {new Date().toLocaleDateString('en-NG', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </p>
+        </div>
+
         {/* Business Health */}
         <Card>
           <CardHeader

@@ -808,9 +808,6 @@ export default function StaffPage() {
           <h2 className={styles.pageTitle}>{t('staff.title')}</h2>
           <p className={styles.pageDesc}>{t('staff.subtitle')}</p>
         </div>
-        <div className={styles.headerActions}>
-          <Button variant="primary" size="sm" onClick={() => setShowAddModal(true)}>+ {t('staff.addMember')}</Button>
-        </div>
       </div>
 
       {/* Tab Navigation */}
