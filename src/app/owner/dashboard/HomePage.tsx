@@ -108,6 +108,7 @@ export function HomePage() {
         if (!firestore) {
           console.warn('Firestore not initialized, using empty state');
           setLoading(false);
+          setDailyLoading(false);
           return;
         }
 
@@ -115,6 +116,7 @@ export function HomePage() {
         if (!user.id) {
           console.warn('User not loaded yet, using empty state');
           setLoading(false);
+          setDailyLoading(false);
           return;
         }
 
@@ -125,6 +127,7 @@ export function HomePage() {
         if (!userDoc.exists()) {
           console.warn('User document not found');
           setLoading(false);
+          setDailyLoading(false);
           return;
         }
 
@@ -134,6 +137,7 @@ export function HomePage() {
         if (!businessId) {
           console.warn('No business ID found for user');
           setLoading(false);
+          setDailyLoading(false);
           return;
         }
 
@@ -153,46 +157,53 @@ export function HomePage() {
         };
 
         // ── Daily Check (always calendar today + yesterday) — independent of selectedPeriod
+        // Single range query (no composite index): from yesterday 00:00, split client-side.
         const todayStart = new Date();
         todayStart.setHours(0, 0, 0, 0);
-        const yesterday = new Date(todayStart);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayEnd = new Date(todayStart);
-        yesterdayEnd.setMilliseconds(-1);
+        const yesterdayStart = new Date(todayStart);
+        yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+        const todayStartMs = todayStart.getTime();
+
+        const saleTimestampMs = (data: any): number => {
+          const c = data?.createdAt;
+          if (!c) return 0;
+          if (typeof c.toDate === 'function') return c.toDate().getTime();
+          if (typeof c.toMillis === 'function') return c.toMillis();
+          if (typeof c === 'number') return c;
+          if (typeof c === 'string' || c instanceof Date) return new Date(c).getTime();
+          if (typeof c.seconds === 'number') return c.seconds * 1000;
+          return 0;
+        };
 
         try {
-          // Don't flash skeleton on period-only refreshes
-          const [todaySnap, yesterdaySnap] = await Promise.all([
-            getDocs(
-              query(
-                collection(firestore, 'businesses', businessId, 'sales'),
-                where('createdAt', '>=', Timestamp.fromDate(todayStart))
-              )
-            ),
-            getDocs(
-              query(
-                collection(firestore, 'businesses', businessId, 'sales'),
-                where('createdAt', '>=', Timestamp.fromDate(yesterday)),
-                where('createdAt', '<=', Timestamp.fromDate(yesterdayEnd))
-              )
-            ),
-          ]);
+          const recentSnap = await getDocs(
+            query(
+              collection(firestore, 'businesses', businessId, 'sales'),
+              where('createdAt', '>=', Timestamp.fromDate(yesterdayStart))
+            )
+          );
 
           let daySales = 0, dayProfit = 0, dayTx = 0;
-          todaySnap.forEach((d) => {
-            const data = d.data();
-            daySales += data.totalRevenue || data.total || 0;
-            dayProfit += saleProfit(data);
-            dayTx += 1;
-          });
-          setDailyCheck({ sales: daySales, profit: dayProfit, transactions: dayTx });
-
           let yesterdayTotal = 0;
-          yesterdaySnap.forEach((d) => {
+
+          recentSnap.forEach((d) => {
             const data = d.data();
-            yesterdayTotal += data.totalRevenue || data.total || 0;
+            const ms = saleTimestampMs(data);
+            const revenue = Number(data.totalRevenue ?? data.total ?? 0) || 0;
+            if (ms >= todayStartMs) {
+              daySales += revenue;
+              dayProfit += saleProfit(data);
+              dayTx += 1;
+            } else if (ms >= yesterdayStart.getTime()) {
+              yesterdayTotal += revenue;
+            }
           });
+
+          setDailyCheck({ sales: daySales, profit: dayProfit, transactions: dayTx });
           setYesterdaySales(yesterdayTotal);
+        } catch (dailyErr) {
+          console.error('Daily Check fetch failed:', dailyErr);
+          // Keep last known dailyCheck values; still unblock UI
         } finally {
           setDailyLoading(false);
         }
@@ -317,6 +328,7 @@ export function HomePage() {
         setMetrics({ totalRevenue: 0, totalProfit: 0, totalExpenses: 0, cashBalance: 0, transactions: 0 });
       } finally {
         setLoading(false);
+        setDailyLoading(false);
       }
   }
 
