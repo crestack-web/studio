@@ -15,6 +15,8 @@ export interface StaffUser {
   name: string;
   firstName?: string;
   role: string;
+  /** Owner business id — always set after bootstrap */
+  businessId?: string;
 }
 
 export interface Product {
@@ -24,6 +26,9 @@ export interface Product {
   stock: number;
   emoji?: string;
   imageUrl?: string;
+  costPrice?: number;
+  lowStockThreshold?: number;
+  category?: string;
 }
 
 export interface CartItem extends Product {
@@ -44,4 +49,6 @@ export interface SalesHistoryItem {
   items: string;
   amount: number;
   payment: string;
+  soldByName?: string;
+  dateKey?: string;
 }
