@@ -39,7 +39,6 @@ import {
   saveStoredNotifications,
   defaultNotifications,
 } from './notificationTypes';
-import { showDeviceNotification } from '@/lib/deviceNotifications';
 
 // Define AvatarOption type locally since it's not exported from './types'
 type AvatarOption = {
