@@ -32,6 +32,7 @@ import { CreditTrackingPage } from './CreditTrackingPage';
 import { AvatarModal }     from './AvatarModal';
 import { Toast }           from './Toast';
 import { NotificationBar } from './NotificationBar';
+import { NotificationsPanel } from './NotificationsPanel';
 import MenuManagementPage from './MenuManagementPage';
 import IngredientsPage from './IngredientsPage';
 import ExpiryAlertsPage from './ExpiryAlertsPage';
@@ -120,8 +121,8 @@ export function AppShell() {
       {!isMobileAskMO && <Sidebar />}
 
       <div className={styles.main}>
-        {!isMobileAskMO && <NotificationBar />}
         {!isMobileAskMO && <Topbar />}
+        {!isMobileAskMO && <NotificationsPanel />}
 
         <div className={[styles.pageArea, isFullHeight ? styles.fullHeight : '', isMobileAskMO ? styles.mobileAskMOPageArea : ''].join(' ')}>
           <div className={[styles.page, isFullHeight ? styles.pageFullHeight : ''].join(' ')}>

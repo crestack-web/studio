@@ -9,7 +9,7 @@ import { useTrialInfo } from './TrialGuard';
 import styles from './Topbar.module.css';
 
 export function Topbar() {
-  const { openSidebar, toggleTheme, theme, user, openAvatarModal, toggleNotifications, toggleAIPanel } = useApp();
+  const { openSidebar, toggleTheme, theme, user, openAvatarModal, toggleNotifications, toggleAIPanel, unreadNotificationCount, notificationsPanelOpen } = useApp();
   const { t } = useTranslation();
   const trialInfo = useTrialInfo();
   const [timeLeft, setTimeLeft] = useState(trialInfo);
@@ -139,12 +139,28 @@ export function Topbar() {
           )}
         </button>
 
-        <button className={styles.iconBtn} onClick={toggleNotifications} title={t('topbar.notifications')}>
+        <button
+          type="button"
+          className={`${styles.iconBtn} ${notificationsPanelOpen ? styles.iconBtnActive : ''}`}
+          onClick={toggleNotifications}
+          title={t('topbar.notifications')}
+          aria-label={
+            unreadNotificationCount > 0
+              ? `Notifications, ${unreadNotificationCount} unread`
+              : 'Notifications'
+          }
+          aria-expanded={notificationsPanelOpen}
+          data-notif-bell
+        >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
             <path d="M13.73 21a2 2 0 01-3.46 0"/>
           </svg>
-          <span className={styles.notifDot} />
+          {unreadNotificationCount > 0 && (
+            <span className={styles.notifBadge} aria-hidden>
+              {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+            </span>
+          )}
         </button>
 
         <div className={styles.divider} />
