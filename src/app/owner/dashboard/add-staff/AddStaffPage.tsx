@@ -5,6 +5,8 @@ import { Button } from '../Button';
 import { doc, setDoc, getDoc, getFirestore } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
+import { getAuthCurrentUser } from '@/lib/supabase-auth';
+import { getSupabase } from '@/lib/supabase';
 import styles from './AddStaffPage.module.css';
 import { 
   ROLES, 
@@ -47,12 +49,16 @@ export default function AddStaffPage() {
   useEffect(() => {
     async function fetchBusinessType() {
       try {
-        const { auth, firestore } = initializeFirebase();
-        const currentUserId = auth.currentUser?.uid || '';
+        const { firestore } = initializeFirebase();
+        const currentUserId = getAuthCurrentUser()?.uid || '';
         
         if (currentUserId) {
           const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
-          const businessId = ownerDoc.data()?.businessId || 'default';
+          const businessId = ownerDoc.data()?.businessId;
+      if (!businessId) {
+        showToast('No business linked to your account.');
+        return;
+      }
           
           const businessDoc = await getDoc(doc(firestore, 'businesses', businessId));
           if (businessDoc.exists()) {
@@ -99,12 +105,24 @@ export default function AddStaffPage() {
     }
 
     try {
-      const { auth, firestore } = initializeFirebase();
-      const currentUserId = auth.currentUser?.uid || '';
-      
+      const { firestore } = initializeFirebase();
+      let currentUserId = getAuthCurrentUser()?.uid || '';
+      if (!currentUserId) {
+        const { data } = await getSupabase().auth.getSession();
+        currentUserId = data.session?.user?.id || '';
+      }
+      if (!currentUserId) {
+        showToast('Not signed in. Please refresh and log in again.');
+        return;
+      }
+
       // Get owner's business ID
       const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
-      const businessId = ownerDoc.data()?.businessId || 'default';
+      const businessId = ownerDoc.data()?.businessId;
+      if (!businessId) {
+        showToast('No business linked to your account.');
+        return;
+      }
       const businessName = ownerDoc.data()?.businessName || ownerDoc.data()?.displayName || 'Your Business';
 
       const staffId = generateStaffId();

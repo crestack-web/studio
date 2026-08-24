@@ -5,6 +5,7 @@ import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { useTranslation } from './LangContext';
 import { initializeFirebase } from '@/firebase';
+import { getAuthCurrentUser } from '@/lib/supabase-auth';
 import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc } from 'firebase/firestore';
 import { Timestamp } from 'firebase/firestore';
 import { checkFeatureAccess, Plan, BusinessCategory } from '@/lib/featureRegistry';
@@ -83,7 +84,7 @@ export default function SuppliersPage() {
     
     try {
       const { auth, firestore } = initializeFirebase();
-      const currentUserId = auth.currentUser?.uid || '';
+      const currentUserId = getAuthCurrentUser()?.uid || '';
       
       if (!currentUserId) return;
 

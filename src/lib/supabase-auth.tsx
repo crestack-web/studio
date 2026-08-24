@@ -149,25 +149,35 @@ export function useAuthLoading(): boolean {
  */
 export function getCurrentSupabaseUser(): { uid: string; email: string | null; displayName: string | null } | null {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!supabaseUrl || typeof window === 'undefined') return null;
-    
-    // Supabase stores the session in localStorage under `sb-<project-ref>-auth-token`
+    if (typeof window === 'undefined') return null;
+
+    // Supabase JS v2 stores the session under `sb-<ref>-auth-token` as a JSON
+    // object that may use several shapes depending on client version.
     const keys = Object.keys(localStorage);
-    const sessionKey = keys.find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+    const sessionKey = keys.find(
+      (k) => k.startsWith('sb-') && k.includes('auth-token')
+    );
     if (!sessionKey) return null;
-    
+
     const raw = localStorage.getItem(sessionKey);
     if (!raw) return null;
-    
+
     const parsed = JSON.parse(raw);
-    const user = parsed?.currentSession?.user;
-    if (!user) return null;
-    
-    return { 
-      uid: user.id, 
+    const user =
+      parsed?.user ||
+      parsed?.currentSession?.user ||
+      parsed?.current_session?.user ||
+      parsed?.session?.user ||
+      null;
+    if (!user?.id) return null;
+
+    return {
+      uid: user.id,
       email: user.email ?? null,
-      displayName: user.user_metadata?.full_name ?? user.user_metadata?.name ?? null,
+      displayName:
+        user.user_metadata?.full_name ??
+        user.user_metadata?.name ??
+        null,
     };
   } catch {
     return null;

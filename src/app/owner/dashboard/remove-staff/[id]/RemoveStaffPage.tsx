@@ -6,6 +6,7 @@ import { doc, getDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useParams } from 'next/navigation';
 import { initializeFirebase } from '@/firebase';
+import { getAuthCurrentUser } from '@/lib/supabase-auth';
 import styles from '../../add-staff/AddStaffPage.module.css';
 
 export default function RemoveStaffPage() {
@@ -21,7 +22,7 @@ export default function RemoveStaffPage() {
     const fetchStaffMember = async () => {
       try {
         const { auth, firestore } = initializeFirebase();
-        const currentUserId = auth.currentUser?.uid || '';
+        const currentUserId = getAuthCurrentUser()?.uid || '';
         const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
         const bid = ownerDoc.data()?.businessId || 'default';
         setBusinessId(bid);
