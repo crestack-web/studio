@@ -1,12 +1,44 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+/**
+ * BranchesPage — multi-location management for Pro plans.
+ * Owner dashboard styling; data under businesses/{id}/branches + staff.
+ */
+
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  Timestamp,
+} from 'firebase/firestore';
+import {
+  Building2,
+  MapPin,
+  Phone,
+  User,
+  Users,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
+  UserPlus,
+  X,
+  Home,
+  AlertTriangle,
+  CheckCircle2,
+} from 'lucide-react';
 import { useApp } from './AppContext';
-import { Button } from './Button';
+import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
+import { ensureFirebaseAuth } from '@/lib/ensure-firebase-auth';
 import { getAuthCurrentUser } from '@/lib/supabase-auth';
-import { getFirestore, doc, getDoc, collection, addDoc, updateDoc, deleteDoc, Timestamp, query, where, getDocs } from 'firebase/firestore';
-import { MOLoadingSpinner } from '@/components/MOLoadingSpinner';
 import styles from './BranchesPage.module.css';
 
 interface Branch {
@@ -17,520 +49,713 @@ interface Branch {
   manager: string;
   staffCount: number;
   status: 'active' | 'inactive';
-  createdAt: Timestamp;
+  createdAt?: Date | null;
 }
 
 interface StaffMember {
   id: string;
   fullName: string;
   email: string;
-  role: 'Manager' | 'Staff';
+  role: string;
   branchId?: string;
 }
 
 export function BranchesPage() {
-  const { navigateTo, showToast, user } = useApp();
+  const { showToast, user, navigateTo } = useApp();
+  const { businessId: branchBusinessId } = useBranch();
+
+  const [businessId, setBusinessId] = useState<string | null>(
+    branchBusinessId || user?.businessId || null
+  );
   const [loading, setLoading] = useState(true);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null);
-  const [isProPlan, setIsProPlan] = useState(false);
-  const [isCreatingBranch, setIsCreatingBranch] = useState(false);
-  const [isAssigningStaff, setIsAssigningStaff] = useState(false);
-  const [isDeletingBranch, setIsDeletingBranch] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Check if user is on Pro plan
-  useEffect(() => {
-    if (user.plan === 'pro') {
-      setIsProPlan(true);
-    } else {
-      showToast('⚠️ Branch management is only available on Pro plan');
-      navigateTo('home');
-    }
-  }, [user.plan, navigateTo, showToast]);
+  // Create form
+  const [formName, setFormName] = useState('');
+  const [formAddress, setFormAddress] = useState('');
+  const [formPhone, setFormPhone] = useState('');
+  const [formManager, setFormManager] = useState('');
 
-  // Load branches and staff
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const { firestore } = initializeFirebase();
-        const currentUser = getAuthCurrentUser();
+  // Assign form
+  const [assignStaffId, setAssignStaffId] = useState('');
+  const [assignBranchId, setAssignBranchId] = useState('');
 
-        if (!currentUser) {
-          showToast('❌ Please log in');
-          return;
-        }
+  const isProPlan = (user?.plan || '').toLowerCase() === 'pro';
 
-        // Get user's business ID
-        const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
-        if (!userDoc.exists()) {
-          showToast('❌ User profile not found');
-          return;
-        }
+  const db = () => initializeFirebase().firestore;
 
-        const businessId = userDoc.data()?.businessId || currentUser.uid;
-
-        // Load branches
-        const branchesQuery = query(collection(firestore, 'businesses', businessId, 'branches'));
-        const branchesSnapshot = await getDocs(branchesQuery);
-        const branchesData: Branch[] = [];
-
-        for (const branchDoc of branchesSnapshot.docs) {
-          const data = branchDoc.data();
-          
-          // Count staff for this branch
-          const staffQuery = query(
-            collection(firestore, 'businesses', businessId, 'staff'),
-            where('branchId', '==', branchDoc.id)
-          );
-          const staffSnapshot = await getDocs(staffQuery);
-
-          branchesData.push({
-            id: branchDoc.id,
-            name: data.name || 'Unnamed Branch',
-            address: data.address || '',
-            phone: data.phone || '',
-            manager: data.manager || 'Not assigned',
-            staffCount: staffSnapshot.size,
-            status: data.status || 'active',
-            createdAt: data.createdAt,
-          });
-        }
-
-        setBranches(branchesData);
-
-        // Load all staff members
-        const staffQuery = query(collection(firestore, 'businesses', businessId, 'staff'));
-        const staffSnapshot = await getDocs(staffQuery);
-        const staffData: StaffMember[] = [];
-
-        staffSnapshot.forEach(doc => {
-          const data = doc.data();
-          staffData.push({
-            id: doc.id,
-            fullName: data.fullName || 'Unknown',
-            email: data.email || '',
-            role: data.role || 'Staff',
-            branchId: data.branchId,
-          });
-        });
-
-        setStaffMembers(staffData);
-
-      } catch (error) {
-        console.error('Error loading branches:', error);
-        showToast('❌ Failed to load branches');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    if (isProPlan) {
-      loadData();
-    }
-  }, [isProPlan, showToast]);
-
-  const handleCreateBranch = async (branchData: any) => {
-    setIsCreatingBranch(true);
+  const resolveBusinessId = useCallback(async (): Promise<string | null> => {
+    if (branchBusinessId) return branchBusinessId;
+    if (user?.businessId) return user.businessId;
     try {
-      const { firestore } = initializeFirebase();
-      const currentUser = getAuthCurrentUser();
+      await ensureFirebaseAuth();
+      const uid = user?.id || getAuthCurrentUser()?.uid;
+      if (!uid) return null;
+      const firestore = db();
+      if (!firestore) return null;
+      const snap = await getDoc(doc(firestore, 'users', uid));
+      return snap.exists() ? snap.data()?.businessId || null : null;
+    } catch {
+      return null;
+    }
+  }, [branchBusinessId, user?.businessId, user?.id]);
 
-      if (!currentUser) return;
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      await ensureFirebaseAuth();
+      const bid = await resolveBusinessId();
+      if (!bid) {
+        showToast('No business linked. Please refresh and try again.');
+        return;
+      }
+      setBusinessId(bid);
+      const firestore = db();
+      if (!firestore) return;
 
-      const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
-      const businessId = userDoc.data()?.businessId || currentUser.uid;
+      const [branchesSnap, staffSnap] = await Promise.all([
+        getDocs(collection(firestore, 'businesses', bid, 'branches')),
+        getDocs(collection(firestore, 'businesses', bid, 'staff')),
+      ]);
 
+      const staffList: StaffMember[] = [];
+      staffSnap.forEach((d) => {
+        const data = d.data();
+        staffList.push({
+          id: d.id,
+          fullName: data.fullName || data.name || data.displayName || 'Unknown',
+          email: data.email || '',
+          role: data.role || 'Staff',
+          branchId: data.branchId || undefined,
+        });
+      });
+      setStaffMembers(staffList);
+
+      const staffByBranch = new Map<string, number>();
+      staffList.forEach((s) => {
+        if (s.branchId) {
+          staffByBranch.set(s.branchId, (staffByBranch.get(s.branchId) || 0) + 1);
+        }
+      });
+
+      const branchList: Branch[] = [];
+      branchesSnap.forEach((d) => {
+        const data = d.data();
+        branchList.push({
+          id: d.id,
+          name: data.name || 'Unnamed Branch',
+          address: data.address || '',
+          phone: data.phone || '',
+          manager: data.manager || '',
+          staffCount: staffByBranch.get(d.id) || 0,
+          status: data.status === 'inactive' ? 'inactive' : 'active',
+          createdAt: data.createdAt?.toDate
+            ? data.createdAt.toDate()
+            : data.createdAt
+              ? new Date(data.createdAt)
+              : null,
+        });
+      });
+      branchList.sort((a, b) => a.name.localeCompare(b.name));
+      setBranches(branchList);
+    } catch (e) {
+      console.error('[Branches] load failed', e);
+      showToast('Failed to load branches');
+    } finally {
+      setLoading(false);
+    }
+  }, [resolveBusinessId, showToast]);
+
+  useEffect(() => {
+    if (!isProPlan) {
+      setLoading(false);
+      return;
+    }
+    loadData();
+  }, [isProPlan, branchBusinessId, user?.businessId]);
+
+  const mainStaffCount = useMemo(
+    () => staffMembers.filter((s) => !s.branchId).length,
+    [staffMembers]
+  );
+
+  const activeCount = useMemo(
+    () => branches.filter((b) => b.status === 'active').length,
+    [branches]
+  );
+
+  const filteredBranches = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return branches;
+    return branches.filter(
+      (b) =>
+        b.name.toLowerCase().includes(q) ||
+        (b.address || '').toLowerCase().includes(q) ||
+        (b.manager || '').toLowerCase().includes(q) ||
+        (b.phone || '').toLowerCase().includes(q)
+    );
+  }, [branches, searchQuery]);
+
+  const unassignedStaff = useMemo(
+    () => staffMembers.filter((s) => !s.branchId),
+    [staffMembers]
+  );
+
+  const handleCreateBranch = async () => {
+    const name = formName.trim();
+    if (!name || !businessId) {
+      showToast('Branch name is required');
+      return;
+    }
+    setIsCreating(true);
+    try {
+      const firestore = db();
+      if (!firestore) throw new Error('Unavailable');
+      await ensureFirebaseAuth();
       await addDoc(collection(firestore, 'businesses', businessId, 'branches'), {
-        name: branchData.name,
-        address: branchData.address,
-        phone: branchData.phone,
-        manager: branchData.manager || '',
+        name,
+        address: formAddress.trim(),
+        phone: formPhone.trim(),
+        manager: formManager.trim(),
         status: 'active',
-        ownerId: currentUser.uid,
+        ownerId: user?.id || getAuthCurrentUser()?.uid || null,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       });
-
-      showToast('✅ Branch created successfully');
+      showToast(`Branch “${name}” created`);
       setShowCreateModal(false);
-      // Reload branches
-      window.location.reload();
-
-    } catch (error) {
-      console.error('Error creating branch:', error);
-      showToast('❌ Failed to create branch');
+      setFormName('');
+      setFormAddress('');
+      setFormPhone('');
+      setFormManager('');
+      await loadData();
+    } catch (e: any) {
+      showToast(e?.message || 'Failed to create branch');
     } finally {
-      setIsCreatingBranch(false);
+      setIsCreating(false);
     }
   };
 
-  const handleAssignStaff = async (staffId: string, branchId: string) => {
-    setIsAssigningStaff(true);
+  const handleAssignStaff = async () => {
+    if (!businessId || !assignStaffId) return;
+    // empty assignBranchId = Main (clear branchId)
+    setIsAssigning(true);
     try {
-      const { firestore } = initializeFirebase();
-      const currentUser = getAuthCurrentUser();
-
-      if (!currentUser) return;
-
-      const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
-      const businessId = userDoc.data()?.businessId || currentUser.uid;
-
-      await updateDoc(doc(firestore, 'businesses', businessId, 'staff', staffId), {
-        branchId,
+      const firestore = db();
+      if (!firestore) throw new Error('Unavailable');
+      await ensureFirebaseAuth();
+      const payload: Record<string, unknown> = {
         updatedAt: Timestamp.now(),
-      });
-
-      showToast('✅ Staff assigned to branch');
+      };
+      if (assignBranchId) {
+        payload.branchId = assignBranchId;
+      } else {
+        payload.branchId = null;
+      }
+      await updateDoc(
+        doc(firestore, 'businesses', businessId, 'staff', assignStaffId),
+        payload
+      );
+      showToast('Staff assigned');
       setShowAssignModal(false);
-      window.location.reload();
-
-    } catch (error) {
-      console.error('Error assigning staff:', error);
-      showToast('❌ Failed to assign staff');
+      setAssignStaffId('');
+      setAssignBranchId('');
+      setSelectedBranch(null);
+      await loadData();
+    } catch (e: any) {
+      showToast(e?.message || 'Failed to assign staff');
     } finally {
-      setIsAssigningStaff(false);
+      setIsAssigning(false);
     }
   };
 
-  const handleDeleteBranch = async (branchId: string) => {
-    if (!confirm('Are you sure you want to delete this branch? This cannot be undone.')) {
+  const handleDeleteBranch = async (branch: Branch) => {
+    if (!businessId) return;
+    if (
+      !confirm(
+        `Delete branch “${branch.name}”? Staff assigned here will become unassigned.`
+      )
+    ) {
       return;
     }
-
-    setIsDeletingBranch(true);
+    setDeletingId(branch.id);
     try {
-      const { firestore } = initializeFirebase();
-      const currentUser = getAuthCurrentUser();
-
-      if (!currentUser) return;
-
-      const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
-      const businessId = userDoc.data()?.businessId || currentUser.uid;
-
-      await deleteDoc(doc(firestore, 'businesses', businessId, 'branches', branchId));
-
-      showToast('✅ Branch deleted successfully');
-      window.location.reload();
-
-    } catch (error) {
-      console.error('Error deleting branch:', error);
-      showToast('❌ Failed to delete branch');
+      const firestore = db();
+      if (!firestore) return;
+      await ensureFirebaseAuth();
+      // Clear staff branchId pointing here
+      const assigned = staffMembers.filter((s) => s.branchId === branch.id);
+      await Promise.all(
+        assigned.map((s) =>
+          updateDoc(doc(firestore, 'businesses', businessId, 'staff', s.id), {
+            branchId: null,
+            updatedAt: Timestamp.now(),
+          })
+        )
+      );
+      await deleteDoc(
+        doc(firestore, 'businesses', businessId, 'branches', branch.id)
+      );
+      showToast('Branch deleted');
+      await loadData();
+    } catch (e: any) {
+      showToast(e?.message || 'Delete failed');
     } finally {
-      setIsDeletingBranch(false);
+      setDeletingId(null);
     }
   };
+
+  const toggleStatus = async (branch: Branch) => {
+    if (!businessId) return;
+    try {
+      const firestore = db();
+      if (!firestore) return;
+      const next = branch.status === 'active' ? 'inactive' : 'active';
+      await updateDoc(
+        doc(firestore, 'businesses', businessId, 'branches', branch.id),
+        { status: next, updatedAt: Timestamp.now() }
+      );
+      showToast(next === 'active' ? 'Branch activated' : 'Branch deactivated');
+      await loadData();
+    } catch {
+      showToast('Could not update status');
+    }
+  };
+
+  const openAssign = (branch: Branch | null) => {
+    setSelectedBranch(branch);
+    setAssignBranchId(branch?.id || '');
+    setAssignStaffId('');
+    setShowAssignModal(true);
+  };
+
+  if (!isProPlan) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.upgradeCard}>
+          <Building2 size={40} className={styles.upgradeIcon} />
+          <h2>Branch management is a Pro feature</h2>
+          <p>
+            Manage multiple locations, assign staff per branch, and track each
+            site separately. Upgrade to Pro to unlock branches.
+          </p>
+          <button
+            type="button"
+            className={styles.btnPrimary}
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.location.href = '/pricing';
+              }
+            }}
+          >
+            Upgrade to Pro
+          </button>
+          <button
+            type="button"
+            className={styles.btnGhost}
+            onClick={() => navigateTo('home' as any)}
+          >
+            Back to home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
-      <div className={styles.wrapper}>
-        <div className={styles.pageHeader}>
-          <h2 className={styles.pageTitle}>Branches</h2>
-          <p className={styles.pageDesc}>Loading branches...</p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px 20px' }}>
-          <MOLoadingSpinner size={120} />
+      <div className={styles.page}>
+        <div className={styles.loading}>
+          <div className={styles.spinner} />
+          Loading branches…
         </div>
       </div>
     );
   }
 
   return (
-    <div className={styles.wrapper}>
-      <div className={styles.pageHeader}>
+    <div className={styles.page}>
+      <header className={styles.hero}>
         <div>
-          <h2 className={styles.pageTitle}>Branches</h2>
-          <p className={styles.pageDesc}>Manage your business locations and assign staff</p>
+          <h1 className={styles.heroTitle}>
+            <Building2 size={22} />
+            Branches
+          </h1>
+          <p className={styles.heroSub}>
+            Run multiple locations under one business — assign staff and keep
+            each branch organized.
+          </p>
         </div>
-        <Button 
-          variant="primary" 
-          onClick={() => setShowCreateModal(true)}
-          disabled={!isProPlan}
-        >
-          + Add Branch
-        </Button>
+        <div className={styles.heroActions}>
+          <button
+            type="button"
+            className={styles.btnGhost}
+            onClick={() => loadData()}
+          >
+            <RefreshCw size={16} />
+            Refresh
+          </button>
+          <button
+            type="button"
+            className={styles.btnSecondary}
+            onClick={() => openAssign(null)}
+          >
+            <UserPlus size={16} />
+            Assign staff
+          </button>
+          <button
+            type="button"
+            className={styles.btnPrimary}
+            onClick={() => setShowCreateModal(true)}
+          >
+            <Plus size={16} />
+            New branch
+          </button>
+        </div>
+      </header>
+
+      <div className={styles.stats}>
+        <div className={styles.statCard}>
+          <div className={styles.statLabel}>Branches</div>
+          <div className={styles.statValue}>{branches.length}</div>
+          <div className={styles.statHint}>{activeCount} active</div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statLabel}>Total staff</div>
+          <div className={styles.statValue}>{staffMembers.length}</div>
+          <div className={styles.statHint}>{mainStaffCount} at main</div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statLabel}>Unassigned</div>
+          <div
+            className={`${styles.statValue} ${
+              unassignedStaff.length ? styles.statValueWarn : ''
+            }`}
+          >
+            {unassignedStaff.length}
+          </div>
+          <div className={styles.statHint}>Need a branch</div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statLabel}>Locations</div>
+          <div className={styles.statValue}>{branches.length + 1}</div>
+          <div className={styles.statHint}>Including main</div>
+        </div>
       </div>
 
-      {!isProPlan ? (
-        <div className={styles.upgradeCard}>
-          <div className={styles.upgradeIcon}>🔒</div>
-          <h3>Pro Plan Required</h3>
-          <p>Branch management is only available on the Pro plan. Upgrade to unlock unlimited branches.</p>
-          <Button variant="primary" onClick={() => window.location.href = '/pricing'}>
-            Upgrade to Pro
-          </Button>
+      <div className={styles.toolbar}>
+        <div className={styles.search}>
+          <Search size={16} />
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search branches…"
+          />
         </div>
-      ) : branches.length === 0 ? (
-        <div className={styles.emptyState}>
-          <div className={styles.emptyIcon}>🏢</div>
-          <h3>No Branches Yet</h3>
-          <p>Create your first branch to start managing multiple locations</p>
-          <Button variant="primary" onClick={() => setShowCreateModal(true)}>
-            Create Your First Branch
-          </Button>
-        </div>
-      ) : (
-        <div className={styles.branchesGrid}>
-          {/* Main Branch Card */}
-          <div className={styles.branchCard}>
-            <div className={styles.cardHeader}>
-              <div className={styles.branchIcon}>🏠</div>
-              <div>
-                <h3 className={styles.branchName}>Main Branch</h3>
-                <p className={styles.branchAddress}>Headquarters</p>
-              </div>
+      </div>
+
+      <div className={styles.grid}>
+        {/* Main branch */}
+        <div className={`${styles.card} ${styles.cardMain}`}>
+          <div className={styles.cardTop}>
+            <div className={styles.cardIcon}>
+              <Home size={20} />
             </div>
-            <div className={styles.cardStats}>
-              <div className={styles.stat}>
-                <span className={styles.statValue}>{staffMembers.filter(s => !s.branchId).length}</span>
-                <span className={styles.statLabel}>Staff</span>
+            <div className={styles.cardTitles}>
+              <h3 className={styles.cardName}>Main branch</h3>
+              <p className={styles.cardSub}>Headquarters · always active</p>
+            </div>
+            <span className={`${styles.pill} ${styles.pillOk}`}>Active</span>
+          </div>
+          <div className={styles.cardMeta}>
+            <div className={styles.metaItem}>
+              <Users size={14} />
+              <span>{mainStaffCount} staff</span>
+            </div>
+          </div>
+          <div className={styles.cardActions}>
+            <button
+              type="button"
+              className={styles.btnSecondary}
+              onClick={() => openAssign(null)}
+            >
+              <UserPlus size={14} />
+              Assign staff
+            </button>
+          </div>
+        </div>
+
+        {filteredBranches.map((branch) => (
+          <div key={branch.id} className={styles.card}>
+            <div className={styles.cardTop}>
+              <div className={styles.cardIcon}>
+                <Building2 size={20} />
               </div>
-              <div className={styles.stat}>
-                <span className={`${styles.statBadge} ${styles.badgeGreen}`}>Active</span>
+              <div className={styles.cardTitles}>
+                <h3 className={styles.cardName}>{branch.name}</h3>
+                <p className={styles.cardSub}>
+                  {branch.address || 'No address set'}
+                </p>
               </div>
+              <button
+                type="button"
+                className={`${styles.pill} ${
+                  branch.status === 'active' ? styles.pillOk : styles.pillMuted
+                }`}
+                onClick={() => toggleStatus(branch)}
+                title="Toggle status"
+              >
+                {branch.status}
+              </button>
+            </div>
+            <div className={styles.cardMeta}>
+              <div className={styles.metaItem}>
+                <Users size={14} />
+                <span>{branch.staffCount} staff</span>
+              </div>
+              {branch.manager ? (
+                <div className={styles.metaItem}>
+                  <User size={14} />
+                  <span>{branch.manager}</span>
+                </div>
+              ) : null}
+              {branch.phone ? (
+                <div className={styles.metaItem}>
+                  <Phone size={14} />
+                  <span>{branch.phone}</span>
+                </div>
+              ) : null}
+              {branch.address ? (
+                <div className={styles.metaItem}>
+                  <MapPin size={14} />
+                  <span>{branch.address}</span>
+                </div>
+              ) : null}
             </div>
             <div className={styles.cardActions}>
-              <Button 
-                variant="subtle" 
-                size="sm"
-                onClick={() => setShowAssignModal(true)}
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                onClick={() => openAssign(branch)}
               >
-                Assign Staff
-              </Button>
+                <UserPlus size={14} />
+                Assign
+              </button>
+              <button
+                type="button"
+                className={styles.btnDanger}
+                disabled={deletingId === branch.id}
+                onClick={() => handleDeleteBranch(branch)}
+              >
+                <Trash2 size={14} />
+                {deletingId === branch.id ? 'Deleting…' : 'Delete'}
+              </button>
             </div>
           </div>
+        ))}
+      </div>
 
-          {/* Other Branches */}
-          {branches.map(branch => (
-            <div key={branch.id} className={styles.branchCard}>
-              <div className={styles.cardHeader}>
-                <div className={styles.branchIcon}>🏢</div>
-                <div>
-                  <h3 className={styles.branchName}>{branch.name}</h3>
-                  <p className={styles.branchAddress}>{branch.address || 'No address'}</p>
-                </div>
-              </div>
-              <div className={styles.cardStats}>
-                <div className={styles.stat}>
-                  <span className={styles.statValue}>{branch.staffCount}</span>
-                  <span className={styles.statLabel}>Staff</span>
-                </div>
-                <div className={styles.stat}>
-                  <span className={`${styles.statBadge} ${branch.status === 'active' ? styles.badgeGreen : styles.badgeRed}`}>
-                    {branch.status}
-                  </span>
-                </div>
-              </div>
-              <div className={styles.cardInfo}>
-                <div className={styles.infoRow}>
-                  <span className={styles.infoLabel}>Manager:</span>
-                  <span className={styles.infoValue}>{branch.manager || 'Not assigned'}</span>
-                </div>
-                {branch.phone && (
-                  <div className={styles.infoRow}>
-                    <span className={styles.infoLabel}>Phone:</span>
-                    <span className={styles.infoValue}>{branch.phone}</span>
-                  </div>
-                )}
-              </div>
-              <div className={styles.cardActions}>
-                <Button 
-                  variant="subtle" 
-                  size="sm"
-                  onClick={() => {
-                    setSelectedBranch(branch);
-                    setShowAssignModal(true);
-                  }}
-                >
-                  Assign Staff
-                </Button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => handleDeleteBranch(branch.id)}
-                  disabled={isDeletingBranch}
-                >
-                  {isDeletingBranch ? 'Deleting...' : 'Delete'}
-                </Button>
-              </div>
-            </div>
-          ))}
+      {branches.length === 0 && (
+        <div className={styles.empty}>
+          <Building2 size={40} />
+          <h3>No branches yet</h3>
+          <p>Create your first branch to manage multiple locations.</p>
+          <button
+            type="button"
+            className={styles.btnPrimary}
+            onClick={() => setShowCreateModal(true)}
+          >
+            <Plus size={16} />
+            Create branch
+          </button>
         </div>
       )}
 
-      {/* Create Branch Modal */}
+      {branches.length > 0 && filteredBranches.length === 0 && (
+        <div className={styles.empty}>
+          <Search size={32} />
+          <h3>No matches</h3>
+          <p>Try a different search term.</p>
+        </div>
+      )}
+
+      {/* Create modal */}
       {showCreateModal && (
-        <CreateBranchModal
-          onClose={() => setShowCreateModal(false)}
-          onCreate={handleCreateBranch}
-        />
+        <div
+          className={styles.overlay}
+          onClick={() => setShowCreateModal(false)}
+        >
+          <div
+            className={styles.modal}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal
+          >
+            <div className={styles.modalHead}>
+              <h2>New branch</h2>
+              <button
+                type="button"
+                className={styles.modalClose}
+                onClick={() => setShowCreateModal(false)}
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.field}>
+                <label htmlFor="br-name">Name *</label>
+                <input
+                  id="br-name"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="e.g. Ikeja store"
+                  autoFocus
+                />
+              </div>
+              <div className={styles.field}>
+                <label htmlFor="br-addr">Address</label>
+                <input
+                  id="br-addr"
+                  value={formAddress}
+                  onChange={(e) => setFormAddress(e.target.value)}
+                  placeholder="Street, city"
+                />
+              </div>
+              <div className={styles.field}>
+                <label htmlFor="br-phone">Phone</label>
+                <input
+                  id="br-phone"
+                  value={formPhone}
+                  onChange={(e) => setFormPhone(e.target.value)}
+                  placeholder="Contact number"
+                />
+              </div>
+              <div className={styles.field}>
+                <label htmlFor="br-mgr">Manager name</label>
+                <input
+                  id="br-mgr"
+                  value={formManager}
+                  onChange={(e) => setFormManager(e.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={styles.btnGhost}
+                onClick={() => setShowCreateModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                disabled={!formName.trim() || isCreating}
+                onClick={handleCreateBranch}
+              >
+                {isCreating ? 'Creating…' : 'Create branch'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
-      {/* Assign Staff Modal */}
+      {/* Assign modal */}
       {showAssignModal && (
-        <AssignStaffModal
-          onClose={() => setShowAssignModal(false)}
-          onAssign={handleAssignStaff}
-          staffMembers={staffMembers}
-          branches={branches}
-          selectedBranch={selectedBranch}
-        />
+        <div
+          className={styles.overlay}
+          onClick={() => setShowAssignModal(false)}
+        >
+          <div
+            className={styles.modal}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal
+          >
+            <div className={styles.modalHead}>
+              <h2>Assign staff</h2>
+              <button
+                type="button"
+                className={styles.modalClose}
+                onClick={() => setShowAssignModal(false)}
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              {unassignedStaff.length === 0 ? (
+                <div className={styles.emptyInline}>
+                  <CheckCircle2 size={28} />
+                  <p>All staff are already assigned to a branch.</p>
+                </div>
+              ) : (
+                <>
+                  <div className={styles.field}>
+                    <label>Staff member</label>
+                    <select
+                      value={assignStaffId}
+                      onChange={(e) => setAssignStaffId(e.target.value)}
+                    >
+                      <option value="">Select staff…</option>
+                      {unassignedStaff.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.fullName} ({s.role})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className={styles.field}>
+                    <label>Branch</label>
+                    <select
+                      value={assignBranchId}
+                      onChange={(e) => setAssignBranchId(e.target.value)}
+                    >
+                      <option value="">Main branch</option>
+                      {branches.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={styles.btnGhost}
+                onClick={() => setShowAssignModal(false)}
+              >
+                Cancel
+              </button>
+              {unassignedStaff.length > 0 && (
+                <button
+                  type="button"
+                  className={styles.btnPrimary}
+                  disabled={!assignStaffId || isAssigning}
+                  onClick={handleAssignStaff}
+                >
+                  {isAssigning ? 'Saving…' : 'Assign'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
 }
 
-// Create Branch Modal Component
-function CreateBranchModal({ onClose, onCreate }: { onClose: () => void; onCreate: (data: any) => void }) {
-  const [formData, setFormData] = useState({
-    name: '',
-    address: '',
-    phone: '',
-    manager: '',
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onCreate(formData);
-  };
-
-  return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modal} onClick={e => e.stopPropagation()}>
-        <div className={styles.modalHeader}>
-          <h3>Create New Branch</h3>
-          <button onClick={onClose} className={styles.closeBtn}>✕</button>
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div className={styles.formGroup}>
-            <label>Branch Name *</label>
-            <input
-              type="text"
-              required
-              value={formData.name}
-              onChange={e => setFormData({ ...formData, name: e.target.value })}
-              placeholder="e.g., Victoria Island Branch"
-            />
-          </div>
-          <div className={styles.formGroup}>
-            <label>Address</label>
-            <input
-              type="text"
-              value={formData.address}
-              onChange={e => setFormData({ ...formData, address: e.target.value })}
-              placeholder="Full address"
-            />
-          </div>
-          <div className={styles.formGroup}>
-            <label>Phone Number</label>
-            <input
-              type="tel"
-              value={formData.phone}
-              onChange={e => setFormData({ ...formData, phone: e.target.value })}
-              placeholder="+234 801 234 5678"
-            />
-          </div>
-          <div className={styles.formGroup}>
-            <label>Manager Name</label>
-            <input
-              type="text"
-              value={formData.manager}
-              onChange={e => setFormData({ ...formData, manager: e.target.value })}
-              placeholder="Branch manager name"
-            />
-          </div>
-          <div className={styles.modalActions}>
-            <Button type="button" variant="subtle" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary">
-              Create Branch
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// Assign Staff Modal Component
-function AssignStaffModal({ 
-  onClose, 
-  onAssign, 
-  staffMembers, 
-  branches,
-  selectedBranch 
-}: { 
-  onClose: () => void; 
-  onAssign: (staffId: string, branchId: string) => void;
-  staffMembers: StaffMember[];
-  branches: Branch[];
-  selectedBranch: Branch | null;
-}) {
-  const [selectedStaff, setSelectedStaff] = useState('');
-  const [targetBranch, setTargetBranch] = useState(selectedBranch?.id || '');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (selectedStaff && targetBranch) {
-      onAssign(selectedStaff, targetBranch);
-    }
-  };
-
-  const unassignedStaff = staffMembers.filter(s => !s.branchId);
-
-  return (
-    <div className={styles.modalOverlay} onClick={onClose}>
-      <div className={styles.modal} onClick={e => e.stopPropagation()}>
-        <div className={styles.modalHeader}>
-          <h3>Assign Staff to Branch</h3>
-          <button onClick={onClose} className={styles.closeBtn}>✕</button>
-        </div>
-        <form onSubmit={handleSubmit}>
-          <div className={styles.formGroup}>
-            <label>Staff Member</label>
-            <select
-              value={selectedStaff}
-              onChange={e => setSelectedStaff(e.target.value)}
-              required
-            >
-              <option value="">Select staff member</option>
-              {unassignedStaff.map(staff => (
-                <option key={staff.id} value={staff.id}>
-                  {staff.fullName} ({staff.role})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Branch</label>
-            <select
-              value={targetBranch}
-              onChange={e => setTargetBranch(e.target.value)}
-              required
-            >
-              <option value="">Select branch</option>
-              <option value="">Main Branch</option>
-              {branches.map(branch => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className={styles.modalActions}>
-            <Button type="button" variant="subtle" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary">
-              Assign Staff
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
+export default BranchesPage;
