@@ -16,8 +16,42 @@
   gap: 16px;
   padding: 20px 22px;
   border-radius: var(--radius-lg, 16px);
-  background: linear-gradient(135deg, var(--purple-lt, #ede8fc) 0%, #f5f3ff 50%, var(--surface, #fff) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--purple-lt, #ede8fc) 0%,
+    color-mix(in srgb, var(--purple-lt, #ede8fc) 55%, var(--surface, #fff)) 45%,
+    var(--surface, #fff) 100%
+  );
   border: 1px solid rgba(107, 63, 231, 0.22);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(10, 10, 30, 0.06));
+}
+
+/* Dark mode: soft purple glow on surface — no washed-out lavender */
+:global([data-theme='dark']) .hero,
+:global(html.dark) .hero,
+:global(body.dark) .hero,
+:global(.dark) .hero {
+  background: linear-gradient(
+    135deg,
+    rgba(107, 63, 231, 0.28) 0%,
+    rgba(107, 63, 231, 0.12) 42%,
+    var(--surface, #18182a) 100%
+  );
+  border-color: rgba(139, 98, 240, 0.4);
+  box-shadow: 0 4px 24px rgba(107, 63, 231, 0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme='light'])) .hero {
+    background: linear-gradient(
+      135deg,
+      rgba(107, 63, 231, 0.28) 0%,
+      rgba(107, 63, 231, 0.12) 42%,
+      var(--surface, #18182a) 100%
+    );
+    border-color: rgba(139, 98, 240, 0.4);
+    box-shadow: 0 4px 24px rgba(107, 63, 231, 0.12);
+  }
 }
 
 .heroTitle {
