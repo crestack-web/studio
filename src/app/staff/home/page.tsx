@@ -28,7 +28,8 @@ function initialsFromName(name: string): string {
 
 /**
  * Resolve the single owner business this staff member belongs to.
- * Order: user doc → auth metadata → staff subcollection scan by email/uid.
+ * Source of truth: users/{uid}.businessId, verified against an *active*
+ * businesses/{id}/staff/{uid} doc. Staff may only belong to one business.
  */
 async function resolveStaffBusinessId(
   firestore: ReturnType<typeof initializeFirebase>['firestore'],
@@ -45,7 +46,7 @@ async function resolveStaffBusinessId(
   mustChange: boolean;
   staffId: string | null;
 }> {
-  let businessId: string | null = metaBusinessId ? String(metaBusinessId) : null;
+  let businessId: string | null = null;
   let businessName = 'Business';
   let currency = '₦';
   let role = 'Staff';
@@ -57,8 +58,12 @@ async function resolveStaffBusinessId(
   const userSnap = await getDoc(doc(firestore, 'users', userId));
   if (userSnap.exists()) {
     const data = userSnap.data() || {};
-    if (data.businessId) businessId = String(data.businessId);
-    if (data.role) role = String(data.role);
+    const roleLc = String(data.role || '').toLowerCase();
+    // Ignore removed accounts
+    if (roleLc !== 'removed' && data.businessId) {
+      businessId = String(data.businessId);
+    }
+    if (data.role && roleLc !== 'removed') role = String(data.role);
     displayName = data.displayName || data.fullName || data.name || null;
     if (data.permissions && typeof data.permissions === 'object') {
       permissions = { ...DEFAULT_PERMISSIONS, ...data.permissions };
@@ -67,7 +72,12 @@ async function resolveStaffBusinessId(
     if (data.staffId) staffId = String(data.staffId);
   }
 
-  // Enrich from businesses/{businessId}/staff/{userId}
+  // Auth metadata only if user doc has no business yet
+  if (!businessId && metaBusinessId) {
+    businessId = String(metaBusinessId);
+  }
+
+  // Verify active staff membership under the claimed business
   if (businessId) {
     try {
       const staffSnap = await getDoc(
@@ -75,18 +85,40 @@ async function resolveStaffBusinessId(
       );
       if (staffSnap.exists()) {
         const sd = staffSnap.data() || {};
-        if (sd.role) role = String(sd.role);
-        if (sd.name) displayName = String(sd.name);
-        if (sd.permissions && typeof sd.permissions === 'object') {
-          permissions = { ...DEFAULT_PERMISSIONS, ...sd.permissions };
+        const status = String(sd.status || 'active').toLowerCase();
+        if (status === 'removed') {
+          // Stale user.businessId — clear so we do not load the wrong business
+          console.warn(
+            '[staff/home] staff status is removed for',
+            businessId,
+            '— clearing scope'
+          );
+          businessId = null;
+        } else {
+          if (sd.role) role = String(sd.role);
+          if (sd.name) displayName = String(sd.name);
+          if (sd.permissions && typeof sd.permissions === 'object') {
+            permissions = { ...DEFAULT_PERMISSIONS, ...sd.permissions };
+          }
+          if (sd.mustChangePassword === true) mustChange = true;
+          if (sd.staffId) staffId = String(sd.staffId);
+          // Prefer staff doc businessId if present (single assignment)
+          if (sd.businessId) businessId = String(sd.businessId);
         }
-        if (sd.mustChangePassword === true) mustChange = true;
-        if (sd.staffId) staffId = String(sd.staffId);
+      } else {
+        // User points at a business where they are not on the staff roster
+        console.warn(
+          '[staff/home] no staff doc under claimed business',
+          businessId
+        );
+        businessId = null;
       }
     } catch (e) {
       console.warn('[staff/home] staff doc lookup failed', e);
     }
+  }
 
+  if (businessId) {
     try {
       const bizSnap = await getDoc(doc(firestore, 'businesses', businessId));
       if (bizSnap.exists()) {
@@ -101,27 +133,8 @@ async function resolveStaffBusinessId(
     }
   }
 
-  // Fallback: find staff record by email or uid across businesses (last resort)
-  if (!businessId && email) {
-    try {
-      // Prefer users collection already checked; try invitation-style path if any
-      const invSnap = await getDocs(
-        query(
-          collection(firestore, 'invitations'),
-          where('email', '==', email.trim().toLowerCase()),
-          limit(5)
-        )
-      );
-      invSnap.forEach((d) => {
-        const data = d.data();
-        if (data.businessId && !businessId) {
-          businessId = String(data.businessId);
-        }
-      });
-    } catch {
-      /* optional collection */
-    }
-  }
+  // Do NOT fall back to invitations or other businesses — prevents
+  // cross-business leakage when an email was invited more than once.
 
   return {
     businessId,
