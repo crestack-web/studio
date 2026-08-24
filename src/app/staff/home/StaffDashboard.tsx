@@ -159,19 +159,31 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
           staff={staff}
           onToggleSidebar={toggleSidebar}
           onLogout={onLogout}
+          businessName={businessName}
         />
 
         {/* Business scope badge — confirms correct owner business */}
         <div
           style={{
-            padding: '6px 16px',
-            fontSize: '0.7rem',
-            color: 'var(--t3, #6b7280)',
+            padding: '8px 16px',
+            fontSize: '0.75rem',
+            color: 'var(--t2, #3D6652)',
             borderBottom: '1px solid var(--bdrS, #eee)',
-            background: 'var(--bg, #fff)',
+            background: 'var(--brand-lt, #dcfce7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            flexWrap: 'wrap',
           }}
         >
-          Working in <strong style={{ color: 'var(--brand, #16A34A)' }}>{businessName}</strong>
+          <span>
+            Linked business:{' '}
+            <strong style={{ color: 'var(--brand, #16A34A)' }}>{businessName}</strong>
+          </span>
+          <span style={{ fontSize: '0.65rem', color: 'var(--t3)', opacity: 0.9 }}>
+            Sales & stock stay on this business only
+          </span>
         </div>
 
         <div className="main-scroll">

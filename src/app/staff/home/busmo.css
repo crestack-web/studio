@@ -2876,3 +2876,57 @@ svg {
   background: var(--red);
   border: 2px solid var(--surf);
 }
+
+/* ── Staff scope + mobile polish (post-Supabase scoping) ── */
+.topbar .tb-ttl h1 {
+  font-size: clamp(0.95rem, 2.5vw, 1.15rem);
+}
+.topbar .tb-ttl p {
+  font-size: clamp(0.65rem, 2vw, 0.75rem);
+}
+
+@media (max-width: 900px) {
+  .rs-lay {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  .cit-w {
+    position: sticky;
+    bottom: calc(var(--botH, 62px) + 8px);
+    z-index: 5;
+  }
+}
+
+@media (max-width: 640px) {
+  .prod-g {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  .home-body {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .mg {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .qa-g {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .msg-lay {
+    flex-direction: column !important;
+  }
+  .msg-sidebar {
+    max-height: 160px;
+    overflow: auto;
+  }
+}
+
+@media (max-width: 380px) {
+  .prod-g {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .topbar .tb-acts span {
+    display: none !important;
+  }
+}
