@@ -12,6 +12,12 @@ import { fetchProducts, fetchRecentSales, getStaffBusinessId } from './services/
 ═══════════════════════════════════════ */
 interface InventoryPageProps { hasAccess: boolean; }
 
+
+function staffDb() {
+  const { firestore } = initializeFirebase();
+  return firestore;
+}
+
 export const InventoryPage: React.FC<InventoryPageProps> = ({ hasAccess }) => {
   const [search, setSearch] = useState('');
   const [products, setProducts] = useState<any[]>([]);
@@ -27,13 +33,13 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ hasAccess }) => {
         
         if (!user) return;
 
-        const businessId = await getStaffBusinessId(getFirestore(), user.uid);
+        const businessId = await getStaffBusinessId(staffDb(), user.uid);
         if (businessId) {
-          const fetchedProducts = await fetchProducts(getFirestore(), businessId);
+          const fetchedProducts = await fetchProducts(staffDb(), businessId);
           setProducts(fetchedProducts);
 
           // Fetch business profile to get currency
-          const businessDoc = await getDoc(doc(getFirestore(), 'businesses', businessId));
+          const businessDoc = await getDoc(doc(staffDb(), 'businesses', businessId));
           if (businessDoc.exists()) {
             const businessData = businessDoc.data();
             const currency = businessData.currency || businessData.businessCurrency || businessData.defaultCurrency || '₦';
@@ -195,9 +201,9 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ hasAccess, sessionSale
         
         if (!user) return;
 
-        const businessId = await getStaffBusinessId(getFirestore(), user.uid);
+        const businessId = await getStaffBusinessId(staffDb(), user.uid);
         if (businessId) {
-          const recentSales = await fetchRecentSales(getFirestore(), businessId, 50);
+          const recentSales = await fetchRecentSales(staffDb(), businessId, 50);
           
           // Convert to SaleRecord format
           const saleRecords: SalesHistoryItem[] = recentSales.map(sale => ({

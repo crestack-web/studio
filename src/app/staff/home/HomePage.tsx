@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { initializeFirebase } from '@/firebase';
 import { getAuthCurrentUser } from '@/lib/supabase-auth';
-import { getFirestore, doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { fetchTodaysSales, fetchProducts } from './services/dataService';
 import type { Permissions, PageId } from './types';
 import { DAILY_TARGET } from './data';
@@ -92,12 +92,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     setIsMounted(true);
   }, []);
 
-  // Don't render anything until mounted to prevent hydration mismatch
-  if (!isMounted) {
-    return null;
-  }
-
-  // Fetch real data from Firestore
+  // Fetch real data from Firestore (must stay before any conditional return — Rules of Hooks)
   useEffect(() => {
     async function loadData() {
       try {
@@ -105,7 +100,13 @@ export const HomePage: React.FC<HomePageProps> = ({
         
         if (!user) return;
 
-        const userDoc = await getDoc(doc(getFirestore(), 'users', user.uid));
+        const { firestore: db } = initializeFirebase();
+        if (!db) {
+          console.warn('Firestore not available');
+          return;
+        }
+
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
         if (userDoc.exists()) {
           const userData = userDoc.data();
           console.log('User data:', userData);
@@ -115,7 +116,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             
             // Fetch business profile to get currency
             try {
-              const businessDoc = await getDoc(doc(getFirestore(), 'businesses', userData.businessId));
+              const businessDoc = await getDoc(doc(db, 'businesses', userData.businessId));
               if (businessDoc.exists()) {
                 const businessData = businessDoc.data();
                 console.log('Business data:', businessData);
@@ -133,12 +134,12 @@ export const HomePage: React.FC<HomePageProps> = ({
             }
 
             // Fetch today's sales (filtered by staff if staffId provided)
-            const todayData = await fetchTodaysSales(getFirestore(), userData.businessId, staffId);
+            const todayData = await fetchTodaysSales(db, userData.businessId, staffId);
             setSalesTotal(todayData.sales);
             setTransactions(todayData.transactions);
 
             // Fetch products to check low stock
-            const products = await fetchProducts(getFirestore(), userData.businessId);
+            const products = await fetchProducts(db, userData.businessId);
             const lowStock = products.filter(p => p.stock <= (p.lowStockThreshold || 10)).length;
             setLowStockCount(lowStock);
 
@@ -146,7 +147,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const salesQuery = query(
-              collection(getFirestore(), 'businesses', userData.businessId, 'sales'),
+              collection(db, 'businesses', userData.businessId, 'sales'),
               where('createdAt', '>=', Timestamp.fromDate(today))
             );
             const salesSnapshot = await getDocs(salesQuery);
@@ -193,6 +194,15 @@ export const HomePage: React.FC<HomePageProps> = ({
     }
     onNav(action.page);
   }, [permissions, onNav, onToast]);
+
+  // Avoid hydration mismatch without breaking Rules of Hooks
+  if (!isMounted) {
+    return (
+      <div className="pg act full" id="pg-home">
+        <div style={{ padding: 24, color: 'var(--text-3)' }}>Loading…</div>
+      </div>
+    );
+  }
 
   return (
     <div className="pg act full" id="pg-home">
