@@ -191,6 +191,12 @@ export async function sendStaffInvitationEmail(
   businessName: string,
   tempPassword: string
 ): Promise<any> {
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    'https://www.busmo.io';
+  const loginUrl = `${appUrl.replace(/\/$/, '')}/login/staff`;
+
   const htmlContent = `
     <!DOCTYPE html>
     <html><head><meta charset="utf-8"></head>
@@ -200,13 +206,18 @@ export async function sendStaffInvitationEmail(
           <img src="${BUSMO_LOGO}" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
           <h1 style="margin:0;font-size:22px">You're invited to join ${businessName}</h1>
         </div>
-        <div style="padding:32px">
+        <div style="padding:32px;color:#333;line-height:1.55">
           <p>Hi ${staffName},</p>
-          <p>You've been invited to join <strong>${businessName}</strong> on Busmo.</p>
-          <p>Your temporary password:</p>
-          <p style="font-size:18px;font-weight:bold;border:2px dashed #667eea;padding:12px;display:inline-block">${tempPassword}</p>
-          <p>Please change your password after logging in.</p>
-          <p><a href="https://www.busmo.io/login">Login to Busmo</a></p>
+          <p>You've been invited to join <strong>${businessName}</strong> on Busmo as a team member.</p>
+          <p style="margin-bottom:8px"><strong>Login email</strong></p>
+          <p style="margin-top:0;font-family:monospace;background:#f8f7ff;padding:10px 14px;border-radius:8px">${email}</p>
+          <p style="margin-bottom:8px"><strong>Temporary password</strong></p>
+          <p style="margin-top:0;font-size:18px;font-weight:bold;letter-spacing:0.04em;border:2px dashed #667eea;padding:12px 16px;display:inline-block;border-radius:8px;background:#faf9ff">${tempPassword}</p>
+          <p style="font-size:14px;color:#555">Sign in with this password, then you'll be asked to set your own password.</p>
+          <p style="margin:28px 0">
+            <a href="${loginUrl}" style="display:inline-block;padding:12px 28px;background:#667eea;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Open staff login</a>
+          </p>
+          <p style="font-size:13px;color:#888">If the button doesn't work, go to:<br/><a href="${loginUrl}">${loginUrl}</a></p>
           <p>Best regards,<br>The Busmo Team</p>
         </div>
       </div>
@@ -214,7 +225,7 @@ export async function sendStaffInvitationEmail(
 
   return sendTransactionalEmail({
     to: [{ email, name: staffName }],
-    subject: `You're invited to join ${businessName}! 🎉`,
+    subject: `You're invited to join ${businessName} on Busmo`,
     htmlContent,
   });
 }

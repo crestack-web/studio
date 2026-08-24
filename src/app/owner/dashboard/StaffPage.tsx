@@ -95,13 +95,19 @@ export default function StaffPage() {
   };
 
   const generateStaffPassword = () => {
-    const length = 12;
-    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-    let password = '';
-    for (let i = 0; i < length; i++) {
-      password += charset.charAt(Math.floor(Math.random() * charset.length));
-    }
-    return password;
+    // Guaranteed mix so Supabase accepts the temp password
+    const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lower = 'abcdefghijkmnopqrstuvwxyz';
+    const digits = '23456789';
+    const special = '!@#$%&*';
+    const all = upper + lower + digits + special;
+    const pick = (s: string) => s.charAt(Math.floor(Math.random() * s.length));
+    let password = pick(upper) + pick(lower) + pick(digits) + pick(special);
+    for (let i = 0; i < 8; i++) password += pick(all);
+    return password
+      .split('')
+      .sort(() => Math.random() - 0.5)
+      .join('');
   };
 
   const getInitials = (name: string) => {
@@ -362,9 +368,15 @@ export default function StaffPage() {
       // Get current owner's business ID
       const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
       const businessId = ownerDoc.data()?.businessId || 'default';
+      const businessName =
+        ownerDoc.data()?.businessName ||
+        ownerDoc.data()?.displayName ||
+        'Your Business';
 
       let firebaseUser: any;
       let isNewUser = true;
+      let inviteEmailSent = false;
+      let inviteEmailError: string | null = null;
 
       try {
         // Call API route to create staff user using admin SDK
@@ -376,10 +388,12 @@ export default function StaffPage() {
             email: newStaffEmail.trim(),
             password: password,
             name: newStaffName.trim(),
-            role: newStaffRole.trim(),
+            role: newStaffRole.trim() || 'Staff',
             staffId: staffId,
             businessId: businessId,
             permissions: newStaffPermissions,
+            businessName,
+            sendInvite: true,
           }),
         });
 
@@ -391,6 +405,8 @@ export default function StaffPage() {
 
         firebaseUser = { uid: data.uid };
         isNewUser = data.isNewUser;
+        inviteEmailSent = !!data.emailSent;
+        inviteEmailError = data.emailError || null;
       } catch (authError: any) {
         console.error('Error creating staff:', authError);
         const errorMessage = authError.message || 'Failed to create staff member. Please try again.';
@@ -432,22 +448,12 @@ export default function StaffPage() {
       showToast(t('toast.staffAddedSuccess'));
       setIsAddingStaff(false);
       
-      // Send staff invitation email using Brevo
-      try {
-        const { auth, firestore } = initializeFirebase();
-        const ownerDoc = await getDoc(doc(firestore, 'users', auth.currentUser?.uid || ''));
-        const businessName = ownerDoc.data()?.businessName || 'Your Business';
-        
-        await BrevoService.sendStaffInvitationEmail(
-          newStaffEmail.trim(),
-          newStaff.name,
-          businessName,
-          password
-        );
+      // Invitation email is sent server-side via Resend in /api/staff/create
+      if (inviteEmailSent) {
         console.log('Staff invitation email sent successfully');
-      } catch (emailError) {
-        console.error('Failed to send staff invitation email:', emailError);
-        // Don't fail the whole process if email fails
+      } else if (inviteEmailError) {
+        console.error('Failed to send staff invitation email:', inviteEmailError);
+        showToast('Staff created, but invitation email failed. Share the temp password manually.');
       }
       
       // Create conversation for new staff

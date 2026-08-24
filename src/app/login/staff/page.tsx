@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { getSupabase, isSupabaseConfigured, getSupabaseConfigErrorMessage } from "@/lib/supabase";
+import { initializeFirebase } from "@/firebase";
+import { doc, getDoc } from "firebase/firestore";
 
 // ── Staff Logo ────────────────────────────────
 function StaffLogo({ size = 32 }: { size?: number }) {
@@ -172,20 +174,69 @@ export default function StaffLogin() {
       if (!user) throw new Error('No user returned');
       console.log('✅ [Staff Login] Supabase auth successful:', user.id);
 
-      // Read role from Supabase user_metadata (not Firestore)
-      const role = (user.user_metadata?.role as string) || 'Owner';
+      // Resolve role from metadata + Firestore (older invites may lack metadata.role)
+      let role = String(user.user_metadata?.role || '').trim();
+      let mustChange =
+        user.user_metadata?.must_change_password === true ||
+        user.user_metadata?.must_change_password === 'true';
+      let hasStaffProfile = Boolean(user.user_metadata?.staffId || user.user_metadata?.businessId);
 
-      if (['Owner', 'Admin'].includes(role)) {
-        console.log('⚠️ [Staff Login] Owner/Admin tried staff portal — redirecting');
+      try {
+        const { firestore } = initializeFirebase();
+        if (firestore) {
+          const userSnap = await getDoc(doc(firestore, 'users', user.id));
+          if (userSnap.exists()) {
+            const ud = userSnap.data() || {};
+            if (!role && ud.role) role = String(ud.role);
+            if (ud.mustChangePassword === true) mustChange = true;
+            if (ud.staffId || ud.businessId) hasStaffProfile = true;
+            // Staff doc often stores role even if users.role was wrong
+            if (ud.businessId) {
+              try {
+                const staffSnap = await getDoc(
+                  doc(firestore, 'businesses', ud.businessId, 'staff', user.id)
+                );
+                if (staffSnap.exists()) {
+                  hasStaffProfile = true;
+                  const sr = staffSnap.data()?.role;
+                  if (sr) role = String(sr);
+                  if (staffSnap.data()?.mustChangePassword === true) mustChange = true;
+                }
+              } catch { /* ignore */ }
+            }
+          }
+        }
+      } catch (fsErr) {
+        console.warn('[Staff Login] Firestore role lookup failed', fsErr);
+      }
+
+      const roleLc = role.toLowerCase();
+      const isOwnerRole = roleLc === 'owner' || roleLc === 'admin';
+      const isStaffRole =
+        !role ||
+        ['staff', 'cashier', 'manager', 'store manager', 'seller'].includes(roleLc) ||
+        hasStaffProfile;
+
+      if (isOwnerRole && !hasStaffProfile) {
         setError("This account is an owner account. Please use the owner login.");
         await supabase.auth.signOut();
-      } else if (!['Staff', 'Cashier', 'Manager', 'Store manager', 'Seller'].includes(role)) {
-        setError("You are not authorized to access the staff portal. Please contact your business owner.");
-        await supabase.auth.signOut();
-      } else {
-        console.log('✅ [Staff Login] Redirecting to staff home');
-        window.location.href = "/staff/home";
+        return;
       }
+
+      if (!isStaffRole && isOwnerRole) {
+        setError("This account is an owner account. Please use the owner login.");
+        await supabase.auth.signOut();
+        return;
+      }
+
+      if (mustChange) {
+        console.log('✅ [Staff Login] Must change password');
+        window.location.href = "/staff/set-password";
+        return;
+      }
+
+      console.log('✅ [Staff Login] Redirecting to staff home, role=', role || 'Staff');
+      window.location.href = "/staff/home";
     } catch (error: any) {
       console.error('❌ [Staff Login] Login error:', error);
       const msg = (error?.message || '').toLowerCase();
