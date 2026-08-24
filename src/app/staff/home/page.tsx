@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { StaffDashboard } from './StaffDashboard';
-import type { StaffUser, Permissions } from './types';
+import { StaffProvider, type StaffWorkspace } from './StaffContext';
+import type { Permissions, StaffUser } from './types';
 import { getSupabase } from '@/lib/supabase';
 import { initializeFirebase } from '@/firebase';
 import './busmo.css';
@@ -25,12 +26,120 @@ function initialsFromName(name: string): string {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
+/**
+ * Resolve the single owner business this staff member belongs to.
+ * Order: user doc → auth metadata → staff subcollection scan by email/uid.
+ */
+async function resolveStaffBusinessId(
+  firestore: ReturnType<typeof initializeFirebase>['firestore'],
+  userId: string,
+  email: string | null | undefined,
+  metaBusinessId?: string | null
+): Promise<{
+  businessId: string | null;
+  businessName: string;
+  currency: string;
+  role: string;
+  displayName: string | null;
+  permissions: Permissions | null;
+  mustChange: boolean;
+  staffId: string | null;
+}> {
+  let businessId: string | null = metaBusinessId ? String(metaBusinessId) : null;
+  let businessName = 'Business';
+  let currency = '₦';
+  let role = 'Staff';
+  let displayName: string | null = null;
+  let permissions: Permissions | null = null;
+  let mustChange = false;
+  let staffId: string | null = null;
+
+  const userSnap = await getDoc(doc(firestore, 'users', userId));
+  if (userSnap.exists()) {
+    const data = userSnap.data() || {};
+    if (data.businessId) businessId = String(data.businessId);
+    if (data.role) role = String(data.role);
+    displayName = data.displayName || data.fullName || data.name || null;
+    if (data.permissions && typeof data.permissions === 'object') {
+      permissions = { ...DEFAULT_PERMISSIONS, ...data.permissions };
+    }
+    if (data.mustChangePassword === true) mustChange = true;
+    if (data.staffId) staffId = String(data.staffId);
+  }
+
+  // Enrich from businesses/{businessId}/staff/{userId}
+  if (businessId) {
+    try {
+      const staffSnap = await getDoc(
+        doc(firestore, 'businesses', businessId, 'staff', userId)
+      );
+      if (staffSnap.exists()) {
+        const sd = staffSnap.data() || {};
+        if (sd.role) role = String(sd.role);
+        if (sd.name) displayName = String(sd.name);
+        if (sd.permissions && typeof sd.permissions === 'object') {
+          permissions = { ...DEFAULT_PERMISSIONS, ...sd.permissions };
+        }
+        if (sd.mustChangePassword === true) mustChange = true;
+        if (sd.staffId) staffId = String(sd.staffId);
+      }
+    } catch (e) {
+      console.warn('[staff/home] staff doc lookup failed', e);
+    }
+
+    try {
+      const bizSnap = await getDoc(doc(firestore, 'businesses', businessId));
+      if (bizSnap.exists()) {
+        const bd = bizSnap.data() || {};
+        businessName =
+          bd.businessName || bd.name || bd.ownerName || businessName;
+        currency =
+          bd.currency || bd.businessCurrency || bd.defaultCurrency || currency;
+      }
+    } catch (e) {
+      console.warn('[staff/home] business doc lookup failed', e);
+    }
+  }
+
+  // Fallback: find staff record by email or uid across businesses (last resort)
+  if (!businessId && email) {
+    try {
+      // Prefer users collection already checked; try invitation-style path if any
+      const invSnap = await getDocs(
+        query(
+          collection(firestore, 'invitations'),
+          where('email', '==', email.trim().toLowerCase()),
+          limit(5)
+        )
+      );
+      invSnap.forEach((d) => {
+        const data = d.data();
+        if (data.businessId && !businessId) {
+          businessId = String(data.businessId);
+        }
+      });
+    } catch {
+      /* optional collection */
+    }
+  }
+
+  return {
+    businessId,
+    businessName,
+    currency,
+    role,
+    displayName,
+    permissions,
+    mustChange,
+    staffId,
+  };
+}
+
 export default function StaffHomePage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [staffUser, setStaffUser] = useState<StaffUser | null>(null);
-  const [permissions, setPermissions] = useState<Permissions | null>(null);
+  const [workspace, setWorkspace] = useState<StaffWorkspace | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,7 +147,8 @@ export default function StaffHomePage() {
     async function bootstrap() {
       try {
         const supabase = getSupabase();
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        const { data: sessionData, error: sessionError } =
+          await supabase.auth.getSession();
 
         if (sessionError) {
           console.error('[staff/home] session error', sessionError);
@@ -46,7 +156,6 @@ export default function StaffHomePage() {
 
         let user = sessionData.session?.user;
 
-        // Session can lag right after login redirect — retry once
         if (!user) {
           await new Promise((r) => setTimeout(r, 400));
           const retry = await supabase.auth.getSession();
@@ -60,56 +169,32 @@ export default function StaffHomePage() {
 
         const meta = user.user_metadata || {};
         let role = String(meta.role || '').trim();
-        let displayName =
-          String(meta.full_name || meta.name || user.email?.split('@')[0] || 'Staff Member').trim();
+        let displayName = String(
+          meta.full_name || meta.name || user.email?.split('@')[0] || 'Staff Member'
+        ).trim();
         let perms: Permissions = { ...DEFAULT_PERMISSIONS };
         let hasStaffProfile = Boolean(meta.staffId || meta.businessId);
         let mustChange =
-          meta.must_change_password === true || meta.must_change_password === 'true';
+          meta.must_change_password === true ||
+          meta.must_change_password === 'true';
 
-        try {
-          const { firestore } = initializeFirebase();
-          if (firestore) {
-            const userSnap = await getDoc(doc(firestore, 'users', user.id));
-            if (userSnap.exists()) {
-              const data = userSnap.data() || {};
-              if (data.role) role = String(data.role);
-              displayName =
-                data.displayName ||
-                data.fullName ||
-                data.name ||
-                displayName;
-              if (data.permissions && typeof data.permissions === 'object') {
-                perms = { ...DEFAULT_PERMISSIONS, ...data.permissions };
-              }
-              if (data.staffId || data.businessId) hasStaffProfile = true;
-              if (data.mustChangePassword === true) mustChange = true;
-
-              const businessId = data.businessId || meta.businessId;
-              if (businessId) {
-                try {
-                  const staffSnap = await getDoc(
-                    doc(firestore, 'businesses', String(businessId), 'staff', user.id)
-                  );
-                  if (staffSnap.exists()) {
-                    hasStaffProfile = true;
-                    const sd = staffSnap.data() || {};
-                    if (sd.role) role = String(sd.role);
-                    if (sd.name) displayName = String(sd.name);
-                    if (sd.permissions && typeof sd.permissions === 'object') {
-                      perms = { ...DEFAULT_PERMISSIONS, ...sd.permissions };
-                    }
-                    if (sd.mustChangePassword === true) mustChange = true;
-                  }
-                } catch (staffErr) {
-                  console.warn('[staff/home] staff doc lookup failed', staffErr);
-                }
-              }
-            }
-          }
-        } catch (fsErr) {
-          console.warn('[staff/home] Firestore enrich failed — using auth metadata', fsErr);
+        const { firestore } = initializeFirebase();
+        if (!firestore) {
+          throw new Error('Data service unavailable. Please refresh.');
         }
+
+        const resolved = await resolveStaffBusinessId(
+          firestore,
+          user.id,
+          user.email,
+          meta.businessId
+        );
+
+        if (resolved.role) role = resolved.role;
+        if (resolved.displayName) displayName = resolved.displayName;
+        if (resolved.permissions) perms = resolved.permissions;
+        if (resolved.mustChange) mustChange = true;
+        if (resolved.businessId) hasStaffProfile = true;
 
         const roleLc = role.toLowerCase();
         const isOwnerOnly =
@@ -128,17 +213,38 @@ export default function StaffHomePage() {
           return;
         }
 
+        if (!resolved.businessId) {
+          if (!cancelled) {
+            setError(
+              'Your staff account is not linked to a business. Ask the owner to re-invite you.'
+            );
+            setIsLoading(false);
+          }
+          return;
+        }
+
         const firstName = displayName.split(/\s+/)[0] || 'Staff';
         if (cancelled) return;
 
-        setStaffUser({
+        const staffUser: StaffUser = {
           id: user.id,
           initials: initialsFromName(displayName),
           name: displayName,
           firstName,
           role: role || 'Staff',
+          businessId: resolved.businessId,
+        };
+
+        setWorkspace({
+          staff: staffUser,
+          permissions: perms,
+          userId: user.id,
+          businessId: resolved.businessId,
+          businessName: resolved.businessName,
+          currency: resolved.currency,
+          email: user.email ?? null,
+          staffId: resolved.staffId || user.id,
         });
-        setPermissions(perms);
         setIsLoading(false);
       } catch (err: any) {
         console.error('[staff/home] bootstrap failed', err);
@@ -157,10 +263,10 @@ export default function StaffHomePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading staff dashboard...</p>
+          <p className="text-gray-600 text-sm sm:text-base">Loading staff dashboard...</p>
         </div>
       </div>
     );
@@ -170,10 +276,10 @@ export default function StaffHomePage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
         <div className="text-center max-w-sm">
-          <p className="text-red-600 mb-4">{error}</p>
+          <p className="text-red-600 mb-4 text-sm sm:text-base">{error}</p>
           <button
             type="button"
-            className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold"
+            className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold text-sm"
             onClick={() => {
               window.location.href = '/login/staff';
             }}
@@ -185,14 +291,16 @@ export default function StaffHomePage() {
     );
   }
 
-  if (!staffUser || !permissions) {
+  if (!workspace) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
         <div className="text-center max-w-sm">
-          <p className="text-gray-600 mb-4">Session expired or incomplete. Please sign in again.</p>
+          <p className="text-gray-600 mb-4 text-sm">
+            Session expired or incomplete. Please sign in again.
+          </p>
           <button
             type="button"
-            className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold"
+            className="px-4 py-2 rounded-lg bg-green-600 text-white font-semibold text-sm"
             onClick={() => {
               window.location.href = '/login/staff';
             }}
@@ -205,16 +313,23 @@ export default function StaffHomePage() {
   }
 
   return (
-    <StaffDashboard
-      staff={staffUser}
-      permissions={permissions}
-      onLogout={async () => {
-        try {
-          const supabase = getSupabase();
-          await supabase.auth.signOut();
-        } catch { /* ignore */ }
-        window.location.href = '/login/staff';
-      }}
-    />
+    <StaffProvider value={workspace}>
+      <StaffDashboard
+        staff={workspace.staff}
+        permissions={workspace.permissions}
+        businessId={workspace.businessId}
+        businessName={workspace.businessName}
+        currency={workspace.currency}
+        onLogout={async () => {
+          try {
+            const supabase = getSupabase();
+            await supabase.auth.signOut();
+          } catch {
+            /* ignore */
+          }
+          window.location.href = '/login/staff';
+        }}
+      />
+    </StaffProvider>
   );
 }
