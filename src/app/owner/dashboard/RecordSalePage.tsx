@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from './AppContext';
+import { notifySale, notifyLowStock } from '@/lib/deviceNotifications';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
@@ -731,6 +732,13 @@ export function RecordSalePage() {
 
           // Send low stock alert if any items are below threshold
           if (lowStockItems.length > 0) {
+            try {
+              await notifyLowStock({
+                names: lowStockItems.map((i) => i.name),
+                count: lowStockItems.length,
+              });
+            } catch { /* non-blocking */ }
+
             if (ownerEmail) {
               await BrevoService.sendLowStockAlertEmail(
                 ownerEmail,
@@ -947,6 +955,16 @@ export function RecordSalePage() {
       }
 
       showToast(`${t('sale.saleComplete')} - ${formatMoney(subtotal)}`);
+
+      // Device notification
+      try {
+        await notifySale({
+          amountLabel: formatMoney(subtotal),
+          saleId: saleRef.id,
+          byStaff: userRole === 'Staff',
+          staffName: staffName || undefined,
+        });
+      } catch { /* non-blocking */ }
       
       // Fetch business data for receipt
       let businessName = 'Business';

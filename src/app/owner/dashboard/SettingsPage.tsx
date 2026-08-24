@@ -60,7 +60,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
 
 export default function SettingsPage() {
-  const { theme, setTheme, toggleTheme, showToast, user } = useApp();
+  const { showToast, theme, setTheme, toggleTheme, user } = useApp();
   const { t, lang, setLang } = useTranslation();
   const {
     currency,
@@ -810,6 +810,37 @@ export default function SettingsPage() {
       ════════════════════════════════════════ */}
       {activeSection === 'notifications' && sectionVisibility.notifications && (
         <Section title={t('settings.section.notifications')}>
+
+          <div style={{ marginBottom: 16, padding: 12, borderRadius: 10, background: 'var(--bg)', border: '1px solid var(--border)' }}>
+            <div style={{ fontWeight: 600, marginBottom: 6, fontSize: '0.9rem' }}>Device notifications</div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-3)', margin: '0 0 10px' }}>
+              Allow Busmo to alert this device when sales, expenses, or stock changes happen — even if the tab is in the background.
+            </p>
+            <button
+              type="button"
+              className={styles.primaryBtn || styles.saveBtn || ''}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 8,
+                border: 'none',
+                background: 'var(--purple)',
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+              }}
+              onClick={async () => {
+                const { requestDeviceNotificationPermission, getNotificationPermission } = await import('@/lib/deviceNotifications');
+                const perm = await requestDeviceNotificationPermission();
+                if (perm === 'granted') showToast('Device notifications enabled');
+                else if (perm === 'denied') alert('Notifications are blocked. Enable them in your browser site settings.');
+                else alert('Permission: ' + perm);
+              }}
+            >
+              Enable on this device
+            </button>
+          </div>
+
         {[
           { key: 'sales',    label: t('settings.notifSales') },
           { key: 'expenses', label: t('settings.notifExpenses') },
@@ -824,6 +855,11 @@ export default function SettingsPage() {
               checked={notif[item.key as keyof typeof notif]}
               onChange={v => {
                 handleNotifChange(item.key, v);
+                if (['sales', 'expenses', 'lowStock'].includes(item.key)) {
+                  import('@/lib/deviceNotifications').then(({ setDeviceNotifPrefs }) => {
+                    setDeviceNotifPrefs({ [item.key]: v } as any);
+                  }).catch(() => {});
+                }
                 showToast(`${item.label}: ${v ? 'ON' : 'OFF'}`);
               }}
             />

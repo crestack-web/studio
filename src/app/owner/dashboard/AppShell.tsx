@@ -33,6 +33,7 @@ import { AvatarModal }     from './AvatarModal';
 import { Toast }           from './Toast';
 import { NotificationBar } from './NotificationBar';
 import { NotificationsPanel } from './NotificationsPanel';
+import { DeviceNotificationsBridge } from './DeviceNotificationsBridge';
 import MenuManagementPage from './MenuManagementPage';
 import IngredientsPage from './IngredientsPage';
 import ExpiryAlertsPage from './ExpiryAlertsPage';
@@ -135,6 +136,7 @@ export function AppShell() {
 
       <AvatarModal />
       <Toast />
+      <DeviceNotificationsBridge />
     </div>
   );
 }

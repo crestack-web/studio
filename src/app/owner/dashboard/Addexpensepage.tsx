@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from './AppContext';
+import { notifyExpense } from '@/lib/deviceNotifications';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
@@ -226,6 +227,14 @@ export function AddExpensePage() {
       };
 
       const expenseRef = await addDoc(collection(firestore, 'businesses', businessId, 'expenses'), expenseData);
+
+      try {
+        const amt = parseFloat(form.amount) || 0;
+        const amountLabel = Number.isFinite(amt)
+          ? new Intl.NumberFormat(undefined, { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(amt)
+          : form.amount;
+        await notifyExpense({ amountLabel, category: form.category });
+      } catch { /* non-blocking */ }
 
       // Create cash flow entry for the expense
       try {

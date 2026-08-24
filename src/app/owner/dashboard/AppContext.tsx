@@ -33,11 +33,13 @@ type User = {
 
 import { PageId, Theme } from '.';
 import type { AppNotification } from './notificationTypes';
+import { showDeviceNotification } from '@/lib/deviceNotifications';
 import {
   loadStoredNotifications,
   saveStoredNotifications,
   defaultNotifications,
 } from './notificationTypes';
+import { showDeviceNotification } from '@/lib/deviceNotifications';
 
 // Define AvatarOption type locally since it's not exported from './types'
 type AvatarOption = {
@@ -323,6 +325,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         category: n.category,
       };
       setNotifications((prev) => [item, ...prev].slice(0, 50));
+      // Mirror to device when permission granted
+      showDeviceNotification({
+        title: item.title,
+        body: item.body,
+        tag: item.id,
+        url: '/owner/dashboard',
+      }).catch(() => {});
     },
     []
   );
