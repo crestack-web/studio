@@ -765,7 +765,7 @@ export function HomePage() {
           )}
         </Card>
 
-        {/* Smart Forecasts */}
+        {/* Smart Insights — actionable, priority-sorted */}
         <Card>
           <CardHeader>
             <CardIcon bg="var(--blue-bg)">
@@ -775,51 +775,174 @@ export function HomePage() {
             </CardIcon>
             Smart Insights
           </CardHeader>
-          <div className={styles.forecastList}>
+          <div className={styles.insightsBody}>
             {loading ? (
-              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-3)' }}>
-                {t('home.loading')}...
+              <div className={styles.insightsLoading}>
+                <div className={styles.insightSkeleton} />
+                <div className={styles.insightSkeleton} />
+                <div className={styles.insightSkeleton} />
               </div>
             ) : (
-              <>
-                {/* Cash Runway - Most Critical */}
-                <div className={styles.forecastItemMinimal} style={{ cursor: 'pointer' }}>
-                  <div className={styles.forecastIcon} style={{ background: cashRunway >= 30 ? 'var(--green-bg)' : cashRunway >= 14 ? 'var(--amber-bg)' : 'var(--red-bg)', color: cashRunway >= 30 ? 'var(--green)' : cashRunway >= 14 ? 'var(--amber)' : 'var(--red)' }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
-                  </div>
-                  <div className={styles.forecastInfo}>
-                    <div className={styles.forecastLabel}>Cash Runway</div>
-                    <div className={styles.forecastValue}>{cashRunway >= 999 ? '∞ days' : `${cashRunway} days`}</div>
-                  </div>
-                </div>
+              (() => {
+                type Severity = 'critical' | 'warning' | 'positive' | 'info';
+                type Insight = {
+                  id: string;
+                  severity: Severity;
+                  title: string;
+                  body: string;
+                  actionLabel?: string;
+                  onAction?: () => void;
+                };
 
-                {/* Top Product - What's Working */}
-                {topProduct && (
-                  <div className={styles.forecastItemMinimal} style={{ cursor: 'pointer' }}>
-                    <div className={styles.forecastIcon} style={{ background: 'var(--green-bg)', color: 'var(--green)' }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-                    </div>
-                    <div className={styles.forecastInfo}>
-                      <div className={styles.forecastLabel}>Top Seller</div>
-                      <div className={styles.forecastValue}>{topProduct.name} ({topProduct.quantity} sold)</div>
-                    </div>
-                  </div>
-                )}
+                const insights: Insight[] = [];
 
-                {/* Urgent Restock - Actionable */}
-                {lowStockProducts.length > 0 && (
-                  <div className={styles.forecastItemMinimal} onClick={() => navigateTo('inventory')} style={{ cursor: 'pointer' }}>
-                    <div className={styles.forecastIcon} style={{ background: 'var(--red-bg)', color: 'var(--red)' }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                // Cash runway
+                if (cashRunway <= 0) {
+                  insights.push({
+                    id: 'runway-zero',
+                    severity: 'critical',
+                    title: 'Cash pressure',
+                    body: 'Runway is effectively 0 days. Review expenses and pending collections.',
+                    actionLabel: 'Open cashflow',
+                    onAction: () => navigateTo('cashflow'),
+                  });
+                } else if (cashRunway < 14) {
+                  insights.push({
+                    id: 'runway-low',
+                    severity: 'critical',
+                    title: 'Low cash runway',
+                    body: `About ${cashRunway} days of cash left at current burn. Prioritise collections and cut non-essential spend.`,
+                    actionLabel: 'View cashflow',
+                    onAction: () => navigateTo('cashflow'),
+                  });
+                } else if (cashRunway < 30) {
+                  insights.push({
+                    id: 'runway-mid',
+                    severity: 'warning',
+                    title: 'Watch your runway',
+                    body: `${cashRunway} days of cash coverage. Aim for 30+ days as a buffer.`,
+                    actionLabel: 'Cashflow',
+                    onAction: () => navigateTo('cashflow'),
+                  });
+                } else {
+                  insights.push({
+                    id: 'runway-ok',
+                    severity: 'positive',
+                    title: cashRunway >= 999 ? 'Healthy cash position' : 'Solid runway',
+                    body: cashRunway >= 999
+                      ? 'Inflows are covering outflows. Keep tracking weekly.'
+                      : `${cashRunway} days of cash runway — you’re in a stable range.`,
+                  });
+                }
+
+                // Low stock
+                if (lowStockProducts.length > 0) {
+                  const names = lowStockProducts.slice(0, 3).map((p: any) => p.name).join(', ');
+                  const extra = lowStockProducts.length > 3 ? ` +${lowStockProducts.length - 3} more` : '';
+                  insights.push({
+                    id: 'stock',
+                    severity: lowStockProducts.length >= 3 ? 'critical' : 'warning',
+                    title: lowStockProducts.length === 1 ? '1 item needs restock' : `${lowStockProducts.length} items need restock`,
+                    body: `${names}${extra}. Restock before you lose sales.`,
+                    actionLabel: 'Open inventory',
+                    onAction: () => navigateTo('inventory'),
+                  });
+                }
+
+                // Pending collections
+                if (pendingCollections > 0) {
+                  insights.push({
+                    id: 'credit',
+                    severity: 'warning',
+                    title: 'Outstanding credit',
+                    body: `${formatMoney(pendingCollections)} still to collect from customers.`,
+                    actionLabel: 'Track credit',
+                    onAction: () => navigateTo('credit-tracking'),
+                  });
+                }
+
+                // Top seller
+                if (topProduct?.name) {
+                  insights.push({
+                    id: 'top',
+                    severity: 'positive',
+                    title: 'Top seller this period',
+                    body: `${topProduct.name} leads with ${topProduct.quantity || 0} sold (${formatMoney(topProduct.revenue || 0)}).`,
+                    actionLabel: 'Sales history',
+                    onAction: () => navigateTo('statement'),
+                  });
+                }
+
+                // 7-day projection from period velocity
+                const revForecast = forecastItems.find((f: any) => f.labelKey === 'home.forecast.revenue');
+                if (revForecast?.value) {
+                  insights.push({
+                    id: 'proj',
+                    severity: 'info',
+                    title: 'Next 7 days (estimate)',
+                    body: `At this period’s pace, revenue could reach about ${revForecast.value}.`,
+                    actionLabel: 'Ask MO',
+                    onAction: () => toggleAIPanel(),
+                  });
+                }
+
+                // Quiet day nudge (uses true daily check)
+                if (dailyCheck.transactions === 0) {
+                  insights.push({
+                    id: 'quiet',
+                    severity: 'info',
+                    title: 'No sales recorded today yet',
+                    body: 'Log sales as they happen so Daily Check and insights stay accurate.',
+                    actionLabel: 'Record sale',
+                    onAction: () => navigateTo('sale'),
+                  });
+                }
+
+                // Cap list
+                const shown = insights.slice(0, 5);
+
+                if (shown.length === 0) {
+                  return (
+                    <div className={styles.insightsEmpty}>
+                      <p>No urgent signals right now.</p>
+                      <p className={styles.insightsEmptyHint}>Keep recording sales and stock moves — insights appear as patterns form.</p>
                     </div>
-                    <div className={styles.forecastInfo}>
-                      <div className={styles.forecastLabel}>Restock Urgent</div>
-                      <div className={styles.forecastValue}>{lowStockProducts.slice(0, 3).map(p => p.name).join(', ')}</div>
-                    </div>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth={2} width={16} height={16}><polyline points="9 18 15 12 9 6"/></svg>
-                  </div>
-                )}
-              </>
+                  );
+                }
+
+                return (
+                  <ul className={styles.insightsList}>
+                    {shown.map((item) => (
+                      <li key={item.id} className={`${styles.insightCard} ${styles[`insight_${item.severity}`]}`}>
+                        <div className={styles.insightAccent} aria-hidden />
+                        <div className={styles.insightContent}>
+                          <div className={styles.insightTitleRow}>
+                            <span className={styles.insightTitle}>{item.title}</span>
+                            <span className={`${styles.insightTag} ${styles[`tag_${item.severity}`]}`}>
+                              {item.severity === 'critical'
+                                ? 'Act now'
+                                : item.severity === 'warning'
+                                  ? 'Watch'
+                                  : item.severity === 'positive'
+                                    ? 'Good'
+                                    : 'Tip'}
+                            </span>
+                          </div>
+                          <p className={styles.insightBody}>{item.body}</p>
+                          {item.onAction && item.actionLabel && (
+                            <button type="button" className={styles.insightAction} onClick={item.onAction}>
+                              {item.actionLabel}
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                                <polyline points="9 18 15 12 9 6" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                );
+              })()
             )}
           </div>
         </Card>
