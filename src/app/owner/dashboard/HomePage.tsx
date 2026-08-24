@@ -570,17 +570,20 @@ export function HomePage() {
             {QUICK_ACTIONS.map(qa => (
               <button
                 key={qa.labelKey}
+                type="button"
                 className={[styles.qaBtn, qa.primary ? styles.qaPrimary : ''].join(' ')}
                 onClick={() => qa.page ? navigateTo(qa.page as any) : showToast(`${t(qa.labelKey as any)}…`)}
               >
-                {['sale', 'add-product', 'add-expense', 'cashflow'].includes(qa.icon) ? (
-                  <NavIcons id={qa.icon} size={18} />
-                ) : (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path d={qa.icon}/>
-                  </svg>
-                )}
-                {t(qa.labelKey as any)}
+                <span className={styles.qaIcon} aria-hidden>
+                  {['sale', 'add-product', 'add-expense', 'cashflow'].includes(qa.icon) ? (
+                    <NavIcons id={qa.icon} size={18} />
+                  ) : (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <path d={qa.icon}/>
+                    </svg>
+                  )}
+                </span>
+                <span className={styles.qaLabel}>{t(qa.labelKey as any)}</span>
               </button>
             ))}
           </div>
