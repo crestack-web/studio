@@ -3,20 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
-import { initializeFirebase } from '@/firebase';
-import {
-  collection,
-  getDocs,
-  doc,
-  getDoc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  setDoc,
-  increment,
-  serverTimestamp,
-  writeBatch,
-} from 'firebase/firestore';
+import { fetchDocs, fetchDoc, addDoc, updateDoc, deleteDoc, runBatch, toISOString, toDate } from '@/lib/supabase-client-data';
 import styles from './PayrollPage.module.css';
 
 interface PayrollEntry {
@@ -100,25 +87,21 @@ export default function PayrollPage() {
   const loadWallet = useCallback(async () => {
     if (!businessId) return;
     try {
-      const { firestore } = initializeFirebase();
-      const walletRef = doc(firestore, 'businesses', businessId, 'settings', 'payrollWallet');
-      const snap = await getDoc(walletRef);
-      setWalletBalance(Number(snap.data()?.balance) || 0);
+      const walletPath = `businesses/${businessId}/settings`;
+      const walletSnap = await fetchDoc<{ balance?: number }>(walletPath, 'payrollWallet');
+      setWalletBalance(Number(walletSnap?.balance) || 0);
 
-      const txCol = collection(firestore, 'businesses', businessId, 'walletTransactions');
-      const txSnap = await getDocs(txCol);
-      const txs: WalletTx[] = txSnap.docs.map((d) => {
-        const data = d.data();
-        return {
-          id: d.id,
-          type: data.type === 'payout' ? 'payout' : 'deposit',
-          amount: Number(data.amount) || 0,
-          note: data.note || '',
-          balanceAfter: Number(data.balanceAfter) || 0,
-          createdAt: data.createdAt?.toDate?.() || (data.createdAt ? new Date(data.createdAt) : null),
-          entryIds: data.entryIds || [],
-        };
-      });
+      const txPath = `businesses/${businessId}/walletTransactions`;
+      const txDocs = await fetchDocs(txPath);
+      const txs: WalletTx[] = txDocs.map((data: any) => ({
+        id: data.id,
+        type: data.type === 'payout' ? 'payout' : 'deposit',
+        amount: Number(data.amount) || 0,
+        note: data.note || '',
+        balanceAfter: Number(data.balanceAfter) || 0,
+        createdAt: toDate(data.createdAt),
+        entryIds: data.entryIds || [],
+      }));
       txs.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
       setWalletTx(txs.slice(0, 20));
     } catch (e) {
@@ -129,30 +112,26 @@ export default function PayrollPage() {
   const loadPayrollEntries = useCallback(async () => {
     if (!businessId) return;
     try {
-      const { firestore } = initializeFirebase();
-      const col = collection(firestore, 'businesses', businessId, 'payroll');
-      const snapshot = await getDocs(col);
-      const entries: PayrollEntry[] = snapshot.docs.map((d) => {
-        const data = d.data();
-        return {
-          id: d.id,
-          staffId: data.staffId || '',
-          staffName: data.staffName || 'Unknown',
-          staffRole: data.staffRole || 'Staff',
-          period: data.period || '',
-          baseSalary: Number(data.baseSalary) || 0,
-          bonuses: Number(data.bonuses) || 0,
-          deductions: Number(data.deductions) || 0,
-          overtimeHours: Number(data.overtimeHours) || 0,
-          overtimeRate: Number(data.overtimeRate) || 0,
-          overtimePay: Number(data.overtimePay) || 0,
-          netSalary: Number(data.netSalary) || 0,
-          status: (data.status as PayrollEntry['status']) || 'pending',
-          paidDate: data.paidDate?.toDate?.() || null,
-          notes: data.notes || '',
-          createdAt: data.createdAt?.toDate?.() || null,
-        };
-      });
+      const path = `businesses/${businessId}/payroll`;
+      const docs = await fetchDocs(path);
+      const entries: PayrollEntry[] = docs.map((data: any) => ({
+        id: data.id,
+        staffId: data.staffId || '',
+        staffName: data.staffName || 'Unknown',
+        staffRole: data.staffRole || 'Staff',
+        period: data.period || '',
+        baseSalary: Number(data.baseSalary) || 0,
+        bonuses: Number(data.bonuses) || 0,
+        deductions: Number(data.deductions) || 0,
+        overtimeHours: Number(data.overtimeHours) || 0,
+        overtimeRate: Number(data.overtimeRate) || 0,
+        overtimePay: Number(data.overtimePay) || 0,
+        netSalary: Number(data.netSalary) || 0,
+        status: (data.status as PayrollEntry['status']) || 'pending',
+        paidDate: toDate(data.paidDate),
+        notes: data.notes || '',
+        createdAt: toDate(data.createdAt),
+      }));
       entries.sort((a, b) => (b.period || '').localeCompare(a.period || '') || a.staffName.localeCompare(b.staffName));
       setPayrollEntries(entries);
     } catch (e) {
@@ -163,12 +142,11 @@ export default function PayrollPage() {
   const loadStaffMembers = useCallback(async () => {
     if (!businessId) return;
     try {
-      const { firestore } = initializeFirebase();
-      const staffCollection = collection(firestore, 'businesses', businessId, 'staff');
-      const snapshot = await getDocs(staffCollection);
-      const staff = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...(d.data() as object),
+      const path = `businesses/${businessId}/staff`;
+      const docs = await fetchDocs(path);
+      const staff = docs.map((data: any) => ({
+        id: data.id,
+        ...data,
       })) as StaffMember[];
       setStaffMembers(
         staff.filter((s) => s.status !== 'removed' && s.status !== 'banned')
@@ -211,8 +189,7 @@ export default function PayrollPage() {
     }
     setIsSaving(true);
     try {
-      const { firestore } = initializeFirebase();
-      const payrollCollection = collection(firestore, 'businesses', businessId, 'payroll');
+      const path = `businesses/${businessId}/payroll`;
       const overtimeHours = parseFloat(formData.overtimeHours) || 0;
       const overtimeRate = parseFloat(formData.overtimeRate) || 0;
       const overtimePay = overtimeHours * overtimeRate;
@@ -236,15 +213,15 @@ export default function PayrollPage() {
         netSalary,
         status: editingEntry?.status || 'pending',
         notes: formData.notes,
-        updatedAt: serverTimestamp(),
-        ...(editingEntry ? {} : { createdAt: serverTimestamp() }),
+        updatedAt: new Date().toISOString(),
+        ...(editingEntry ? {} : { createdAt: new Date().toISOString() }),
       };
 
       if (editingEntry) {
-        await updateDoc(doc(payrollCollection, editingEntry.id), entryData);
+        await updateDoc(path, editingEntry.id, entryData);
         showToast('Payroll entry updated');
       } else {
-        await addDoc(payrollCollection, entryData);
+        await addDoc(path, { ...entryData, id: crypto.randomUUID() });
         showToast('Payroll entry created');
       }
       setShowAddModal(false);
@@ -263,8 +240,8 @@ export default function PayrollPage() {
     if (!businessId) return;
     if (!confirm('Delete this payroll entry?')) return;
     try {
-      const { firestore } = initializeFirebase();
-      await deleteDoc(doc(firestore, 'businesses', businessId, 'payroll', entryId));
+      const path = `businesses/${businessId}/payroll`;
+      await deleteDoc(path, entryId);
       showToast('Payroll entry deleted');
       setSelectedIds((prev) => {
         const n = new Set(prev);
@@ -287,17 +264,19 @@ export default function PayrollPage() {
     }
     setIsFunding(true);
     try {
-      const { firestore } = initializeFirebase();
-      const walletRef = doc(firestore, 'businesses', businessId, 'settings', 'payrollWallet');
-      await setDoc(walletRef, { balance: increment(amount), updatedAt: serverTimestamp() }, { merge: true });
-      const snap = await getDoc(walletRef);
-      const newBalance = Number(snap.data()?.balance) || amount;
-      await addDoc(collection(firestore, 'businesses', businessId, 'walletTransactions'), {
+      const walletPath = `businesses/${businessId}/settings`;
+      const currentSnap = await fetchDoc<{ balance?: number }>(walletPath, 'payrollWallet');
+      const currentBalance = Number(currentSnap?.balance) || 0;
+      const newBalance = currentBalance + amount;
+      await updateDoc(walletPath, 'payrollWallet', { balance: newBalance, updatedAt: new Date().toISOString() });
+
+      const txPath = `businesses/${businessId}/walletTransactions`;
+      await addDoc(txPath, {
         type: 'deposit',
         amount,
         note: fundNote.trim() || 'Wallet top-up',
         balanceAfter: newBalance,
-        createdAt: serverTimestamp(),
+        createdAt: new Date().toISOString(),
         createdBy: user?.id || null,
       });
       setWalletBalance(newBalance);
@@ -331,34 +310,33 @@ export default function PayrollPage() {
     }
     setIsPaying(true);
     try {
-      const { firestore } = initializeFirebase();
-      const walletRef = doc(firestore, 'businesses', businessId, 'settings', 'payrollWallet');
-      const batch = writeBatch(firestore);
+      const walletPath = `businesses/${businessId}/settings`;
+      const payrollPath = `businesses/${businessId}/payroll`;
+      const txPath = `businesses/${businessId}/walletTransactions`;
 
-      batch.set(walletRef, { balance: increment(-selectedTotal), updatedAt: serverTimestamp() }, { merge: true });
+      const newBalance = walletBalance - selectedTotal;
+      await runBatch([
+        { type: 'update', path: walletPath, id: 'payrollWallet', data: { balance: newBalance, updatedAt: new Date().toISOString() } },
+        ...selectedEntries.map((entry) => ({
+          type: 'update' as const,
+          path: payrollPath,
+          id: entry.id,
+          data: {
+            status: 'paid',
+            paidDate: new Date().toISOString(),
+            paidFromWallet: true,
+          },
+        })),
+      ]);
 
-      for (const entry of selectedEntries) {
-        const entryRef = doc(firestore, 'businesses', businessId, 'payroll', entry.id);
-        batch.update(entryRef, {
-          status: 'paid',
-          paidDate: serverTimestamp(),
-          paidFromWallet: true,
-        });
-      }
-
-      await batch.commit();
-
-      const snap = await getDoc(walletRef);
-      const newBalance = Number(snap.data()?.balance) || 0;
-
-      await addDoc(collection(firestore, 'businesses', businessId, 'walletTransactions'), {
+      await addDoc(txPath, {
         type: 'payout',
         amount: selectedTotal,
         note: `Bulk salary payout (${selectedEntries.length} staff)`,
         balanceAfter: newBalance,
         entryIds: selectedEntries.map((e) => e.id),
         staffNames: selectedEntries.map((e) => e.staffName),
-        createdAt: serverTimestamp(),
+        createdAt: new Date().toISOString(),
         createdBy: user?.id || null,
       });
 
@@ -388,12 +366,11 @@ export default function PayrollPage() {
     }
     if (!confirm(`Create pending payroll for ${toCreate.length} staff for ${period}?`)) return;
     try {
-      const { firestore } = initializeFirebase();
-      const col = collection(firestore, 'businesses', businessId, 'payroll');
+      const path = `businesses/${businessId}/payroll`;
       await Promise.all(
         toCreate.map((s) => {
           const base = Number(s.baseSalary ?? s.salary) || 0;
-          return addDoc(col, {
+          return addDoc(path, {
             staffId: s.id,
             staffName: s.name || 'Staff',
             staffRole: s.role || 'Staff',
@@ -407,7 +384,7 @@ export default function PayrollPage() {
             netSalary: base,
             status: 'pending',
             notes: '',
-            createdAt: serverTimestamp(),
+            createdAt: new Date().toISOString(),
           });
         })
       );

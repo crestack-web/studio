@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
-import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, orderBy, addDoc, updateDoc, doc, getDoc, Timestamp, runTransaction, limit } from 'firebase/firestore';
+import { fetchDocs, fetchDoc, addDoc as sbAddDoc, updateDoc as sbUpdateDoc, toISOString } from '@/lib/supabase-client-data';
+import { getSupabase } from '@/lib/supabase';
 import { useBranch } from '@/context/BranchContext';
 import { UserCircle, TrendingUp, TrendingDown, DollarSign, Calendar, Filter, Download, Plus, ArrowUpRight, ArrowDownRight, Users, Clock, CheckCircle, XCircle, AlertCircle, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { sendCustomerPaymentOverdueEmail } from '@/services/email/credit-emails';
@@ -113,20 +113,11 @@ interface Supplier {
   creditUtilization: number;
 }
 
-let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
-
 export function CreditTrackingPage() {
   const { showToast, user } = useApp();
   const { t } = useTranslation();
   const { formatMoney, currencyCode } = useCurrency();
   const { businessId } = useBranch();
-  const { firestore } = React.useMemo(() => {
-    if (!firestoreInstance) {
-      const initialized = initializeFirebase();
-      firestoreInstance = initialized.firestore;
-    }
-    return { firestore: firestoreInstance };
-  }, []);
   const [activeTab, setActiveTab] = useState<TabView>('receivables');
   const [loading, setLoading] = useState(true);
   const [customers, setCustomers] = useState<CreditCustomer[]>([]);
@@ -162,10 +153,10 @@ export function CreditTrackingPage() {
 
   useEffect(() => {
     loadData();
-  }, [businessId, firestore, dateFilter]);
+  }, [businessId, dateFilter]);
 
   const loadData = async () => {
-    if (!businessId || !firestore) {
+    if (!businessId) {
       setLoading(false);
       return;
     }
@@ -174,84 +165,67 @@ export function CreditTrackingPage() {
       setLoading(true);
 
       // Load suppliers for the suppliers tab
-      const suppliersQuery = query(
-        collection(firestore, 'businesses', businessId, 'suppliers'),
-        where('status', '==', 'active')
-      );
-      const suppliersSnapshot = await getDocs(suppliersQuery);
-      const suppliersList: Supplier[] = [];
-      
-      suppliersSnapshot.forEach(doc => {
-        const data = doc.data();
-        suppliersList.push({
-          id: doc.id,
-          businessId: data.businessId || businessId,
-          supplierName: data.supplierName || data.businessName || 'Unnamed Supplier',
-          businessName: data.businessName || data.supplierName || 'Unnamed Supplier',
-          phone: data.phone || '',
-          email: data.email,
-          address: data.address,
-          notes: data.notes,
-          paymentTerms: data.paymentTerms || 'net_30',
-          customPaymentDays: data.customPaymentDays,
-          creditLimit: data.creditLimit || 0,
-          openingBalance: data.openingBalance || 0,
-          currentBalance: data.currentBalance || 0,
-          category: data.category || 'general',
-          status: data.status || 'active',
-          taxId: data.taxId,
-          bankAccount: data.bankAccount,
-          contactPerson: data.contactPerson,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          updatedAt: data.updatedAt?.toDate() || new Date(),
-          lastPurchaseDate: data.lastPurchaseDate?.toDate(),
-          lastPaymentDate: data.lastPaymentDate?.toDate(),
-          totalPurchases: data.totalPurchases || 0,
-          totalPayments: data.totalPayments || 0,
-          purchaseCount: data.purchaseCount || 0,
-          paymentCount: data.paymentCount || 0,
-          averagePaymentDays: data.averagePaymentDays || 0,
-          creditUtilization: data.creditUtilization || 0,
-        });
+      const suppliersData = await fetchDocs<any>(`businesses/${businessId}/suppliers`, {
+        filters: [{ field: 'status', op: '=', value: 'active' }],
       });
+      const suppliersList: Supplier[] = suppliersData.map((data: any) => ({
+        id: data.id,
+        businessId: data.businessId || businessId,
+        supplierName: data.supplierName || data.businessName || 'Unnamed Supplier',
+        businessName: data.businessName || data.supplierName || 'Unnamed Supplier',
+        phone: data.phone || '',
+        email: data.email,
+        address: data.address,
+        notes: data.notes,
+        paymentTerms: data.paymentTerms || 'net_30',
+        customPaymentDays: data.customPaymentDays,
+        creditLimit: data.creditLimit || 0,
+        openingBalance: data.openingBalance || 0,
+        currentBalance: data.currentBalance || 0,
+        category: data.category || 'general',
+        status: data.status || 'active',
+        taxId: data.taxId,
+        bankAccount: data.bankAccount,
+        contactPerson: data.contactPerson,
+        createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+        updatedAt: data.updatedAt ? new Date(data.updatedAt) : new Date(),
+        lastPurchaseDate: data.lastPurchaseDate ? new Date(data.lastPurchaseDate) : undefined,
+        lastPaymentDate: data.lastPaymentDate ? new Date(data.lastPaymentDate) : undefined,
+        totalPurchases: data.totalPurchases || 0,
+        totalPayments: data.totalPayments || 0,
+        purchaseCount: data.purchaseCount || 0,
+        paymentCount: data.paymentCount || 0,
+        averagePaymentDays: data.averagePaymentDays || 0,
+        creditUtilization: data.creditUtilization || 0,
+      }));
       
       setSuppliers(suppliersList);
 
       // Load credit customers
-      const customersQuery = query(
-        collection(firestore, 'businesses', businessId, 'credit_customers'),
-        where('isActive', '==', true)
-      );
-      const customersSnapshot = await getDocs(customersQuery);
-      const customersList: CreditCustomer[] = [];
-      
-      customersSnapshot.forEach(doc => {
-        const data = doc.data();
-        customersList.push({
-          id: doc.id,
-          name: data.name || data.customerName || '',
-          phone: data.phone,
-          email: data.email,
-          address: data.address,
-          businessType: data.businessType || 'individual',
-          notes: data.notes,
-          createdAt: data.createdAt?.toDate() || new Date(),
-          totalCreditLimit: data.totalCreditLimit || 0,
-          currentBalance: data.currentBalance || 0,
-          isRegularCustomer: data.isRegularCustomer || false,
-        });
+      const customersData = await fetchDocs<any>(`businesses/${businessId}/credit_customers`, {
+        filters: [{ field: 'isActive', op: '=', value: true }],
       });
+      const customersList: CreditCustomer[] = customersData.map((data: any) => ({
+        id: data.id,
+        name: data.name || data.customerName || '',
+        phone: data.phone,
+        email: data.email,
+        address: data.address,
+        businessType: data.businessType || 'individual',
+        notes: data.notes,
+        createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+        totalCreditLimit: data.totalCreditLimit || 0,
+        currentBalance: data.currentBalance || 0,
+        isRegularCustomer: data.isRegularCustomer || false,
+      }));
       
       setCustomers(customersList);
 
       // Load credit transactions with date filter
-      let transactionsQuery = query(
-        collection(firestore, 'businesses', businessId, 'credit_transactions'),
-        orderBy('issuedDate', 'desc'),
-        limit(100)
-      );
-
-      const transactionsSnapshot = await getDocs(transactionsQuery);
+      const transactionsData = await fetchDocs<any>(`businesses/${businessId}/credit_transactions`, {
+        orderBy: { field: 'issuedDate', ascending: false },
+        limit: 100,
+      });
       const transactionsList: CreditTransaction[] = [];
       let totalOutstanding = 0;
       let overdueAmount = 0;
@@ -264,26 +238,25 @@ export function CreditTrackingPage() {
       const weekEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-      transactionsSnapshot.forEach(doc => {
-        const data = doc.data();
+      for (const data of transactionsData) {
         const transaction: CreditTransaction = {
-          id: doc.id,
+          id: data.id,
           customerId: data.customerId || '',
           customerName: data.customerName || '',
           saleId: data.saleId || '',
           amount: data.amount || 0,
           originalAmount: data.originalAmount || data.amount || 0,
           status: data.status || 'pending',
-          dueDate: data.dueDate?.toDate() || new Date(),
-          issuedDate: data.issuedDate?.toDate() || new Date(),
+          dueDate: data.dueDate ? new Date(data.dueDate) : new Date(),
+          issuedDate: data.issuedDate ? new Date(data.issuedDate) : new Date(),
           paidAmount: data.paidAmount || 0,
           remainingAmount: data.remainingAmount || data.amount || 0,
           paymentHistory: data.paymentHistory || [],
           notes: data.notes,
           reminderSent: data.reminderSent || false,
           reminderCount: data.reminderCount || 0,
-          lastReminderDate: data.lastReminderDate?.toDate(),
-          writtenOffAt: data.writtenOffAt?.toDate(),
+          lastReminderDate: data.lastReminderDate ? new Date(data.lastReminderDate) : undefined,
+          writtenOffAt: data.writtenOffAt ? new Date(data.writtenOffAt) : undefined,
           writtenOffReason: data.writtenOffReason,
           products: data.products || [],
           branchId: data.branchId,
@@ -314,7 +287,7 @@ export function CreditTrackingPage() {
         if (transaction.status === 'paid' && transaction.issuedDate.getMonth() === now.getMonth()) {
           paidThisMonth += transaction.amount;
         }
-      });
+      }
 
       setTransactions(transactionsList);
       setSummary({
@@ -336,44 +309,44 @@ export function CreditTrackingPage() {
   };
 
   const handleRecordPayment = async () => {
-    if (!businessId || !firestore || !selectedTransaction) return;
+    if (!businessId || !selectedTransaction) return;
 
     const finalPaymentAmount = paymentAmount || selectedTransaction.remainingAmount;
     const finalPaymentMethod = paymentMethod || 'cash';
 
     try {
       setIsRecordingPayment(true);
-      const transactionRef = doc(firestore, 'businesses', businessId, 'credit_transactions', selectedTransaction.id);
-      const transactionDoc = await getDoc(transactionRef);
+      const transactionData = await fetchDoc<any>(
+        `businesses/${businessId}/credit_transactions`,
+        selectedTransaction.id
+      );
       
-      if (!transactionDoc.exists()) {
+      if (!transactionData) {
         showToast('Transaction not found');
         setIsRecordingPayment(false);
         return;
       }
 
-      const transactionData = transactionDoc.data();
       const currentPaidAmount = transactionData.paidAmount || 0;
       const currentRemainingAmount = transactionData.remainingAmount || selectedTransaction.remainingAmount;
       const newPaidAmount = currentPaidAmount + finalPaymentAmount;
       const newRemainingAmount = currentRemainingAmount - finalPaymentAmount;
       const newStatus = newRemainingAmount <= 0 ? 'paid' : 'partial';
 
-      await updateDoc(transactionRef, {
+      await sbUpdateDoc(`businesses/${businessId}/credit_transactions`, selectedTransaction.id, {
         paidAmount: newPaidAmount,
         remainingAmount: Math.max(0, newRemainingAmount),
         status: newStatus,
-        paidAt: newStatus === 'paid' ? Timestamp.now() : null,
+        paidAt: newStatus === 'paid' ? new Date().toISOString() : null,
       });
 
       // Record payment in history
-      const paymentsCollection = collection(firestore, 'businesses', businessId, 'creditPayments');
-      await addDoc(paymentsCollection, {
+      await sbAddDoc(`businesses/${businessId}/creditPayments`, {
         transactionId: selectedTransaction.id,
         customerId: selectedTransaction.customerId,
         amount: finalPaymentAmount,
         paymentMethod: finalPaymentMethod,
-        paymentDate: Timestamp.now(),
+        paymentDate: new Date().toISOString(),
         recordedBy: user?.id || 'system',
         recordedByName: user?.name || 'System',
       });
@@ -393,29 +366,30 @@ export function CreditTrackingPage() {
   };
 
   const handleSendReminder = async (transaction: CreditTransaction) => {
-    if (!businessId || !firestore) return;
+    if (!businessId) return;
 
     try {
       setIsSendingReminder(true);
 
       // Get customer details
-      const customerRef = doc(firestore, 'businesses', businessId, 'credit_customers', transaction.customerId);
-      const customerDoc = await getDoc(customerRef);
+      const customerData = await fetchDoc<any>(
+        `businesses/${businessId}/credit_customers`,
+        transaction.customerId
+      );
       
-      if (!customerDoc.exists()) {
+      if (!customerData) {
         showToast('Customer not found');
         setIsSendingReminder(false);
         return;
       }
 
-      const customerData = customerDoc.data();
       const customerEmail = customerData.email;
       const customerName = customerData.name;
 
       // Get business details
-      const businessDoc = await getDoc(doc(firestore, 'businesses', businessId));
-      const businessName = businessDoc.data()?.businessName || 'Your Business';
-      const ownerEmail = businessDoc.data()?.email;
+      const businessData = await fetchDoc<any>('businesses', businessId);
+      const businessName = businessData?.businessName || 'Your Business';
+      const ownerEmail = businessData?.email;
 
       if (customerEmail && ownerEmail) {
         // Calculate days overdue
@@ -433,10 +407,10 @@ export function CreditTrackingPage() {
         });
 
         // Update transaction reminder status
-        await updateDoc(doc(firestore, 'businesses', businessId, 'credit_transactions', transaction.id), {
+        await sbUpdateDoc(`businesses/${businessId}/credit_transactions`, transaction.id, {
           reminderSent: true,
           reminderCount: (transaction.reminderCount || 0) + 1,
-          lastReminderDate: Timestamp.now(),
+          lastReminderDate: new Date().toISOString(),
         });
 
         showToast('Reminder email sent successfully');
@@ -453,7 +427,7 @@ export function CreditTrackingPage() {
   };
 
   const handleAddCustomer = async () => {
-    if (!businessId || !firestore || !customerName.trim()) {
+    if (!businessId || !customerName.trim()) {
       showToast('Please enter customer name');
       return;
     }
@@ -461,7 +435,7 @@ export function CreditTrackingPage() {
     try {
       setIsAddingCustomer(true);
       
-      const customerData = {
+      await sbAddDoc(`businesses/${businessId}/credit_customers`, {
         name: customerName.trim(),
         phone: customerPhone.trim() || '',
         email: customerEmail.trim() || '',
@@ -469,13 +443,11 @@ export function CreditTrackingPage() {
         currentBalance: 0,
         isRegularCustomer: false,
         isActive: true,
-        createdAt: Timestamp.now(),
+        createdAt: new Date().toISOString(),
         createdBy: user?.id || 'system',
         createdByName: user?.name || 'System',
         businessId: businessId,
-      };
-
-      await addDoc(collection(firestore, 'businesses', businessId, 'credit_customers'), customerData);
+      });
       
       showToast('Customer added successfully');
       setShowAddModal(false);
@@ -492,21 +464,20 @@ export function CreditTrackingPage() {
     }
   };
 
-  const formatDate = (timestamp: Timestamp | Date | undefined) => {
+  const formatDate = (timestamp: any) => {
     if (!timestamp) return 'N/A';
-    const date = timestamp instanceof Date ? timestamp : timestamp.toDate();
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
     return date.toLocaleDateString();
   };
 
   const handleDownloadStatement = async () => {
-    if (!businessId || !firestore || isDownloading) return;
+    if (!businessId || isDownloading) return;
 
     try {
       setIsDownloading(true);
 
       // Get business info
-      const businessDoc = await getDoc(doc(firestore, 'businesses', businessId));
-      const businessData = businessDoc.data();
+      const businessData = await fetchDoc<any>('businesses', businessId);
       const businessName = businessData?.businessName || 'Your Business';
       const businessAddress = businessData?.address || businessData?.businessAddress || '';
       const businessPhone = businessData?.phone || businessData?.businessPhone || '';

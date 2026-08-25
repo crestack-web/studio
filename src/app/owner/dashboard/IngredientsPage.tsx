@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
-import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { fetchDocs, addDoc, updateDoc, deleteDoc, toDate } from '@/lib/supabase-client-data';
 import { checkFeatureAccess } from '@/lib/featureRestrictions';
 import { Plus, Edit2, Trash2, Search, AlertTriangle, Package, Scale, TrendingUp } from 'lucide-react';
 import styles from './IngredientsPage.module.css';
@@ -37,8 +36,6 @@ interface Recipe {
   }>;
   createdAt: Date;
 }
-
-let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
 
 export default function IngredientsPage() {
   const { user, showToast } = useApp();
@@ -80,27 +77,23 @@ export default function IngredientsPage() {
     try {
       if (!user?.businessId) return;
       
-      const { firestore } = initializeFirebase();
-      const productsCollection = collection(firestore, 'businesses', user.businessId, 'products');
-      const snapshot = await getDocs(productsCollection);
+      const path = `businesses/${user.businessId}/products`;
+      const docs = await fetchDocs(path);
       
-      const items = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          name: data.name,
-          category: data.category,
-          unit: data.ingredientUnit || data.unit,
-          currentStock: data.stock || 0,
-          minimumStock: data.reorderLevel || data.lowStockThreshold || 10,
-          unitCost: data.cost || data.costPrice || 0,
-          supplier: data.supplier,
-          lastRestocked: data.createdAt?.toDate(),
-          expiryDate: data.expiryDate?.toDate(),
-          active: data.active !== false,
-          createdAt: data.createdAt?.toDate() || new Date(),
-        };
-      }).filter((item: any) => item.category !== undefined) as Ingredient[];
+      const items = docs.map((data: any) => ({
+        id: data.id,
+        name: data.name,
+        category: data.category,
+        unit: data.ingredientUnit || data.unit,
+        currentStock: data.stock || 0,
+        minimumStock: data.reorderLevel || data.lowStockThreshold || 10,
+        unitCost: data.cost || data.costPrice || 0,
+        supplier: data.supplier,
+        lastRestocked: toDate(data.createdAt),
+        expiryDate: toDate(data.expiryDate),
+        active: data.active !== false,
+        createdAt: toDate(data.createdAt) || new Date(),
+      })).filter((item: any) => item.category !== undefined) as Ingredient[];
       
       setIngredients(items);
     } catch (error) {
@@ -114,14 +107,13 @@ export default function IngredientsPage() {
     try {
       if (!user?.businessId) return;
       
-      const { firestore } = initializeFirebase();
-      const recipesCollection = collection(firestore, 'businesses', user.businessId, 'recipes');
-      const snapshot = await getDocs(recipesCollection);
+      const path = `businesses/${user.businessId}/recipes`;
+      const docs = await fetchDocs(path);
       
-      const recipeData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
+      const recipeData = docs.map((data: any) => ({
+        id: data.id,
+        ...data,
+        createdAt: toDate(data.createdAt) || new Date(),
       })) as Recipe[];
       
       setRecipes(recipeData);
@@ -134,8 +126,7 @@ export default function IngredientsPage() {
     try {
       if (!user?.businessId) return;
       
-      const { firestore } = initializeFirebase();
-      const productsCollection = collection(firestore, 'businesses', user.businessId, 'products');
+      const path = `businesses/${user.businessId}/products`;
       
       const ingredientData = {
         name: formData.name,
@@ -153,10 +144,10 @@ export default function IngredientsPage() {
       };
 
       if (editingIngredient) {
-        await updateDoc(doc(productsCollection, editingIngredient.id), ingredientData);
+        await updateDoc(path, editingIngredient.id, ingredientData);
         showToast('Ingredient updated successfully');
       } else {
-        await addDoc(productsCollection, ingredientData);
+        await addDoc(path, ingredientData);
         showToast('Ingredient added successfully');
       }
 
@@ -176,8 +167,8 @@ export default function IngredientsPage() {
     try {
       if (!user?.businessId) return;
       
-      const { firestore } = initializeFirebase();
-      await deleteDoc(doc(firestore, 'businesses', user.businessId, 'products', ingredientId));
+      const path = `businesses/${user.businessId}/products`;
+      await deleteDoc(path, ingredientId);
       
       showToast('Ingredient deleted successfully');
       loadIngredients();
@@ -194,8 +185,8 @@ export default function IngredientsPage() {
     try {
       if (!user?.businessId) return;
       
-      const { firestore } = initializeFirebase();
-      await updateDoc(doc(firestore, 'businesses', user.businessId, 'products', ingredient.id), {
+      const path = `businesses/${user.businessId}/products`;
+      await updateDoc(path, ingredient.id, {
         stock: ingredient.currentStock + parseFloat(quantity),
         currentStock: ingredient.currentStock + parseFloat(quantity),
         lastRestocked: new Date(),

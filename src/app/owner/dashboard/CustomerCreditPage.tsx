@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
-import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, orderBy, addDoc, doc, updateDoc, getDoc, runTransaction, Timestamp } from 'firebase/firestore';
+import { fetchDocs, fetchDoc, addDoc as sbAddDoc, updateDoc as sbUpdateDoc, runBatch } from '@/lib/supabase-client-data';
+import { getSupabase } from '@/lib/supabase';
 import { isCreditLayerEligible, getBusinessType } from '@/lib/featureRestrictions';
 import styles from './CustomerCreditPage.module.css';
 
@@ -19,7 +19,7 @@ interface CustomerCreditLedger {
   totalAmount: number;
   amountPaid: number;
   outstandingBalance: number;
-  dueDate?: Timestamp;
+  dueDate?: any;
   items: Array<{
     productId: string;
     productName: string;
@@ -30,7 +30,7 @@ interface CustomerCreditLedger {
   payments: Array<{
     paymentId: string;
     amount: number;
-    paymentDate: Timestamp;
+    paymentDate: any;
     paymentMethod: string;
     bankAccountId?: string;
     collectedBy: string;
@@ -38,7 +38,7 @@ interface CustomerCreditLedger {
     notes?: string;
   }>;
   status: 'pending' | 'partial' | 'paid' | 'overdue';
-  createdAt: Timestamp;
+  createdAt: any;
 }
 
 interface BankAccount {
@@ -51,19 +51,10 @@ interface BankAccount {
   isDefault: boolean;
 }
 
-let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
-
 export function CustomerCreditPage() {
   const { showToast, user } = useApp();
   const { formatMoney, currency } = useCurrency();
   const { businessId } = useBranch();
-  const { firestore } = React.useMemo(() => {
-    if (!firestoreInstance) {
-      const initialized = initializeFirebase();
-      firestoreInstance = initialized.firestore;
-    }
-    return { firestore: firestoreInstance };
-  }, []);
   
   const [creditLedger, setCreditLedger] = useState<CustomerCreditLedger[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
@@ -83,7 +74,7 @@ export function CustomerCreditPage() {
   useEffect(() => {
     checkEligibility();
     loadData();
-  }, [businessId, firestore]);
+  }, [businessId]);
 
   const checkEligibility = async () => {
     if (!user?.id) return;
@@ -104,7 +95,7 @@ export function CustomerCreditPage() {
   };
 
   const loadData = async () => {
-    if (!businessId || !firestore) {
+    if (!businessId) {
       setIsLoading(false);
       return;
     }
@@ -113,58 +104,42 @@ export function CustomerCreditPage() {
       setIsLoading(true);
       
       // Load customer credit ledger
-      const ledgerQuery = query(
-        collection(firestore, 'businesses', businessId, 'customerCreditLedger'),
-        where('status', '!=', 'paid'),
-        orderBy('dueDate', 'asc')
-      );
-      
-      const ledgerSnapshot = await getDocs(ledgerQuery);
-      const ledgerList: CustomerCreditLedger[] = [];
-      
-      ledgerSnapshot.forEach(doc => {
-        const data = doc.data();
-        ledgerList.push({
-          id: doc.id,
-          customerId: data.customerId,
-          customerName: data.customerName,
-          customerPhone: data.customerPhone,
-          saleId: data.saleId,
-          saleNumber: data.saleNumber,
-          totalAmount: data.totalAmount,
-          amountPaid: data.amountPaid || 0,
-          outstandingBalance: data.outstandingBalance,
-          dueDate: data.dueDate,
-          items: data.items || [],
-          payments: data.payments || [],
-          status: data.status,
-          createdAt: data.createdAt,
-        });
+      const ledgerData = await fetchDocs<any>(`businesses/${businessId}/customerCreditLedger`, {
+        filters: [{ field: 'status', op: '!=', value: 'paid' }],
+        orderBy: { field: 'dueDate', ascending: true },
       });
+      const ledgerList: CustomerCreditLedger[] = ledgerData.map((data: any) => ({
+        id: data.id,
+        customerId: data.customerId,
+        customerName: data.customerName,
+        customerPhone: data.customerPhone,
+        saleId: data.saleId,
+        saleNumber: data.saleNumber,
+        totalAmount: data.totalAmount,
+        amountPaid: data.amountPaid || 0,
+        outstandingBalance: data.outstandingBalance,
+        dueDate: data.dueDate,
+        items: data.items || [],
+        payments: data.payments || [],
+        status: data.status,
+        createdAt: data.createdAt,
+      }));
       
       setCreditLedger(ledgerList);
       
       // Load bank accounts
-      const accountsQuery = query(
-        collection(firestore, 'businesses', businessId, 'bankAccounts'),
-        where('isActive', '==', true)
-      );
-      
-      const accountsSnapshot = await getDocs(accountsQuery);
-      const accountsList: BankAccount[] = [];
-      
-      accountsSnapshot.forEach(doc => {
-        const data = doc.data();
-        accountsList.push({
-          id: doc.id,
-          accountName: data.accountName,
-          bankName: data.bankName,
-          accountType: data.accountType,
-          currentBalance: data.currentBalance,
-          isActive: data.isActive,
-          isDefault: data.isDefault,
-        });
+      const accountsData = await fetchDocs<any>(`businesses/${businessId}/bankAccounts`, {
+        filters: [{ field: 'isActive', op: '=', value: true }],
       });
+      const accountsList: BankAccount[] = accountsData.map((data: any) => ({
+        id: data.id,
+        accountName: data.accountName,
+        bankName: data.bankName,
+        accountType: data.accountType,
+        currentBalance: data.currentBalance,
+        isActive: data.isActive,
+        isDefault: data.isDefault,
+      }));
       
       setBankAccounts(accountsList);
       
@@ -213,62 +188,77 @@ export function CustomerCreditPage() {
         return;
       }
 
-      await runTransaction(firestore, async (transaction) => {
-        // Update customer credit ledger
-        const ledgerRef = doc(firestore, 'businesses', businessId, 'customerCreditLedger', selectedLedger.id);
-        const ledgerDoc = await transaction.get(ledgerRef);
+      // Fetch current ledger to get latest data
+      const ledgerData = await fetchDoc<any>(
+        `businesses/${businessId}/customerCreditLedger`,
+        selectedLedger.id
+      );
+      
+      if (!ledgerData) {
+        throw new Error('Ledger not found');
+      }
+      
+      const currentPaid = ledgerData.amountPaid || 0;
+      const newPaid = currentPaid + amount;
+      const newBalance = ledgerData.totalAmount - newPaid;
+      const newStatus = newBalance === 0 ? 'paid' : newBalance < ledgerData.totalAmount ? 'partial' : 'pending';
+      
+      const payments = ledgerData.payments || [];
+      const paymentId = `PAY-${Date.now()}`;
+      payments.push({
+        paymentId,
+        amount,
+        paymentDate: new Date().toISOString(),
+        paymentMethod,
+        bankAccountId: paymentMethod === 'transfer' ? bankAccountId : undefined,
+        collectedBy: user.id,
+        collectedByName: user.name || user.email || 'Unknown',
+        notes: collectionNotes.trim() || undefined,
+      });
+      
+      const batchOps: Array<{ type: 'update' | 'add'; path: string; id?: string; data?: Record<string, unknown> }> = [
+        {
+          type: 'update',
+          path: `businesses/${businessId}/customerCreditLedger`,
+          id: selectedLedger.id,
+          data: {
+            amountPaid: newPaid,
+            outstandingBalance: newBalance,
+            status: newStatus,
+            payments,
+            updatedAt: new Date().toISOString(),
+          },
+        },
+      ];
+      
+      // Create bank transaction if payment method is transfer
+      if (paymentMethod === 'transfer' && bankAccountId) {
+        const bankData = await fetchDoc<any>(
+          `businesses/${businessId}/bankAccounts`,
+          bankAccountId
+        );
         
-        if (!ledgerDoc.exists()) {
-          throw new Error('Ledger not found');
-        }
-        
-        const ledgerData = ledgerDoc.data();
-        const currentPaid = ledgerData.amountPaid || 0;
-        const newPaid = currentPaid + amount;
-        const newBalance = ledgerData.totalAmount - newPaid;
-        const newStatus = newBalance === 0 ? 'paid' : newBalance < ledgerData.totalAmount ? 'partial' : 'pending';
-        
-        const payments = ledgerData.payments || [];
-        const paymentId = `PAY-${Date.now()}`;
-        payments.push({
-          paymentId,
-          amount,
-          paymentDate: Timestamp.now(),
-          paymentMethod,
-          bankAccountId: paymentMethod === 'transfer' ? bankAccountId : undefined,
-          collectedBy: user.id,
-          collectedByName: user.name || user.email || 'Unknown',
-          notes: collectionNotes.trim() || undefined,
-        });
-        
-        transaction.update(ledgerRef, {
-          amountPaid: newPaid,
-          outstandingBalance: newBalance,
-          status: newStatus,
-          payments,
-          updatedAt: Timestamp.now(),
-        });
-        
-        // Create bank transaction if payment method is transfer
-        if (paymentMethod === 'transfer' && bankAccountId) {
-          const bankRef = doc(firestore, 'businesses', businessId, 'bankAccounts', bankAccountId);
-          const bankDoc = await transaction.get(bankRef);
+        if (bankData) {
+          const currentBankBalance = bankData.currentBalance || 0;
+          const newBankBalance = currentBankBalance + amount;
           
-          if (bankDoc.exists()) {
-            const bankData = bankDoc.data();
-            const currentBalance = bankData.currentBalance || 0;
-            const newBankBalance = currentBalance + amount;
-            
-            transaction.update(bankRef, {
+          batchOps.push({
+            type: 'update',
+            path: `businesses/${businessId}/bankAccounts`,
+            id: bankAccountId,
+            data: {
               currentBalance: newBankBalance,
               totalMoneyIn: (bankData.totalMoneyIn || 0) + amount,
-              updatedAt: Timestamp.now(),
-            });
-            
-            // Create bank transaction record
-            const txnRef = doc(collection(firestore, 'businesses', businessId, 'bankTransactions'));
-            const transactionNumber = `TXN-${new Date().getFullYear()}-${Date.now().toString().slice(-5)}`;
-            transaction.set(txnRef, {
+              updatedAt: new Date().toISOString(),
+            },
+          });
+          
+          // Create bank transaction record
+          const transactionNumber = `TXN-${new Date().getFullYear()}-${Date.now().toString().slice(-5)}`;
+          batchOps.push({
+            type: 'add',
+            path: `businesses/${businessId}/bankTransactions`,
+            data: {
               transactionNumber,
               bankAccountId,
               accountName: bankData.accountName,
@@ -283,11 +273,13 @@ export function CustomerCreditPage() {
               performedBy: user.id,
               performedByName: user.name || user.email || 'Unknown',
               notes: collectionNotes.trim() || undefined,
-              createdAt: Timestamp.now(),
-            });
-          }
+              createdAt: new Date().toISOString(),
+            },
+          });
         }
-      });
+      }
+      
+      await runBatch(batchOps);
       
       showToast('✅ Collection recorded successfully');
       setShowCollectionModal(false);
@@ -304,14 +296,14 @@ export function CustomerCreditPage() {
     }
   };
 
-  const formatDate = (timestamp: Timestamp) => {
+  const formatDate = (timestamp: any) => {
     if (!timestamp) return 'N/A';
-    return new Date(timestamp.toDate()).toLocaleDateString();
+    return new Date(timestamp).toLocaleDateString();
   };
 
-  const isOverdue = (dueDate?: Timestamp) => {
+  const isOverdue = (dueDate?: any) => {
     if (!dueDate) return false;
-    return new Date(dueDate.toDate()) < new Date();
+    return new Date(dueDate) < new Date();
   };
 
   const totalOutstanding = creditLedger.reduce((sum, l) => sum + l.outstandingBalance, 0);
