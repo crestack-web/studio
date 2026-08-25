@@ -59,17 +59,18 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate, onWatchDemo }) => {
             </h1>
 
             <p className="hero-control-line">
-              Sales. Stock. Cash. Staff. Profit. All under your control.
+              Sales, stock, cash, staff, and profit — one system.
             </p>
 
             <p className="hero-desc-desktop">
-              Busmo helps growing businesses control sales, inventory, cash, staff and profit
-              from one simple system. Know what happened. Know where your money is.
-              Know how your business is performing.
+              Built for growing African businesses. See what sold, where the money
+              went, and whether you&apos;re actually making a profit — without
+              standing in the shop all day.
             </p>
 
             <p className="hero-desc-mobile">
-              Control sales, stock, cash and staff from one system — even when you&apos;re not in the shop.
+              See what sold, where the money went, and if you&apos;re making
+              profit — without being in the shop.
             </p>
 
             <div className="hero-cta">
