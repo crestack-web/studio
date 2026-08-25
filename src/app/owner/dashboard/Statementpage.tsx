@@ -7,7 +7,7 @@ import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
 import { collection, getDocs, query, orderBy, limit, Timestamp, doc, getDoc, where, updateDoc, runTransaction } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import { getAuthCurrentUser } from '@/lib/supabase-auth';
+import { getFirestoreUserId } from '@/lib/supabase-auth';
 import styles from './Statementpage.module.css';
 
 // ═══════════════════════════════════════════
@@ -103,15 +103,15 @@ export function StatementPage() {
         setLoading(true);
 
         // Get user's business ID
-        const user = getAuthCurrentUser();
+        const userIds = getFirestoreUserId();
         
-        if (!user) {
+        if (!userIds) {
           console.warn('User not authenticated');
           setLoading(false);
           return;
         }
 
-        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+        const userDoc = await getDoc(doc(firestore, 'users', userIds.firestoreUid));
         if (!userDoc.exists()) {
           console.warn('User document not found');
           setLoading(false);

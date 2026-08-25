@@ -272,6 +272,19 @@ export default function BusmoOnboarding() {
             }
           } catch (_) {}
         }
+
+        // Store businessId in Supabase user_metadata so AppContext can resolve it
+        if (userId) {
+          try {
+            const supabase = getSupabase();
+            await supabase.auth.updateUser({
+              data: { businessId: userId },
+            });
+          } catch (e) {
+            console.error("Failed to set businessId in Supabase metadata:", e);
+          }
+        }
+
         break;
       } catch (error: any) {
         console.error(`Onboarding attempt ${retryCount + 1} failed:`, error);

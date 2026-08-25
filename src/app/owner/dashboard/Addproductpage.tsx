@@ -6,7 +6,7 @@ import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { collection, addDoc, Timestamp, doc, getDoc, getDocs, getFirestore, query, where } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import { getAuthCurrentUser } from '@/lib/supabase-auth';
+import { getSupabase } from '@/lib/supabase';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import styles from './Addproductpage.module.css';
 import { isRestaurantBusiness, ProductType, DishCategory, IngredientUnit, getDishCategories, getIngredientUnits } from './utils/restaurantHelpers';
@@ -110,102 +110,93 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
   const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string }>>([]);
   const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
 
-  // Fetch businessId from user document and check if restaurant
+  // Fetch businessId and check if restaurant
   useEffect(() => {
     async function fetchBusinessId() {
       try {
         const { firestore: freshFirestore } = initializeFirebase();
-        const user = getAuthCurrentUser();
+        const supabaseUser = getSupabase();
         
-        if (!user) return;
+        const { data: { session } } = await supabaseUser.auth.getSession();
+        const userId = session?.user?.id;
+        if (!userId || !freshFirestore) return;
 
-        if (!freshFirestore) {
-          console.error('Firestore not initialized');
-          return;
-        }
-
-        const userDoc = await getDoc(doc(freshFirestore, 'users', user.uid));
+        const firestoreUid = session.user.user_metadata?.firebase_uid || userId;
+        const userDoc = await getDoc(doc(freshFirestore, 'users', firestoreUid));
+        let bid: string | null = null;
+        
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          const bid = userData.businessId || null;
-          setBusinessId(bid);
+          bid = userData.businessId || firestoreUid;
+        } else {
+          bid = session.user.user_metadata?.businessId || firestoreUid;
+        }
+        
+        setBusinessId(bid);
 
-          // Check if business is a restaurant and get category
-          if (bid) {
-            const businessDoc = await getDoc(doc(freshFirestore, 'businesses', bid));
-            if (businessDoc.exists()) {
-              const category = businessDoc.data()?.category || '';
-              setBusinessCategory(category.toLowerCase());
-            }
+        if (bid) {
+          const businessDoc = await getDoc(doc(freshFirestore, 'businesses', bid));
+          if (businessDoc.exists()) {
+            const category = businessDoc.data()?.category || '';
+            setBusinessCategory(category.toLowerCase());
+          }
 
-            const restaurantCheck = await isRestaurantBusiness(bid);
-            setIsRestaurant(restaurantCheck);
+          const restaurantCheck = await isRestaurantBusiness(bid);
+          setIsRestaurant(restaurantCheck);
 
-            // If restaurant, load available ingredients
-            if (restaurantCheck) {
-              const ingredientsQuery = collection(freshFirestore, 'businesses', bid, 'products');
-              // Note: In a real implementation, we'd filter by productType === 'ingredient'
-              // For now, we'll load all products and filter client-side
-              const ingredientsSnapshot = await getDocs(ingredientsQuery);
-              const ingredientsList: any[] = [];
-              ingredientsSnapshot.forEach(doc => {
-                const data = doc.data();
-                if (data.productType === 'ingredient') {
-                  ingredientsList.push({
-                    id: doc.id,
-                    name: data.name,
-                    unit: data.ingredientUnit || data.unit,
-                    currentQuantity: data.stock || 0,
-                  });
-                }
-              });
-              setAvailableIngredients(ingredientsList);
-            }
-
-            // Load stock locations for warehouse assignment
-            try {
-              const locationsQuery = collection(freshFirestore, 'businesses', bid, 'stockLocations');
-              const locationsSnapshot = await getDocs(locationsQuery);
-              const loadedLocations: Array<{ id: string; name: string; type: string }> = [];
-              
-              // Only load user-created locations - no defaults
-              locationsSnapshot.forEach(doc => {
-                const data = doc.data();
-                loadedLocations.push({
+          if (restaurantCheck) {
+            const ingredientsQuery = collection(freshFirestore, 'businesses', bid, 'products');
+            const ingredientsSnapshot = await getDocs(ingredientsQuery);
+            const ingredientsList: any[] = [];
+            ingredientsSnapshot.forEach(doc => {
+              const data = doc.data();
+              if (data.productType === 'ingredient') {
+                ingredientsList.push({
                   id: doc.id,
                   name: data.name,
-                  type: data.type,
+                  unit: data.ingredientUnit || data.unit,
+                  currentQuantity: data.stock || 0,
                 });
-              });
-              
-              setStockLocations(loadedLocations);
-            } catch (error) {
-              console.error('Error loading stock locations:', error);
-              // Set empty locations on error - no defaults
-              setStockLocations([]);
-            }
+              }
+            });
+            setAvailableIngredients(ingredientsList);
+          }
 
-            // Load suppliers for product assignment
-            try {
-              const suppliersQuery = collection(freshFirestore, 'businesses', bid, 'suppliers');
-              const suppliersSnapshot = await getDocs(suppliersQuery);
-              const loadedSuppliers: Array<{ id: string; name: string }> = [];
-              
-              suppliersSnapshot.forEach(doc => {
-                const data = doc.data();
-                if (data.status === 'active') {
-                  loadedSuppliers.push({
-                    id: doc.id,
-                    name: data.supplierName || data.businessName || 'Unknown Supplier',
-                  });
-                }
+          try {
+            const locationsQuery = collection(freshFirestore, 'businesses', bid, 'stockLocations');
+            const locationsSnapshot = await getDocs(locationsQuery);
+            const loadedLocations: Array<{ id: string; name: string; type: string }> = [];
+            locationsSnapshot.forEach(doc => {
+              const data = doc.data();
+              loadedLocations.push({
+                id: doc.id,
+                name: data.name,
+                type: data.type,
               });
-              
-              setSuppliers(loadedSuppliers);
-            } catch (error) {
-              console.error('Error loading suppliers:', error);
-              setSuppliers([]);
-            }
+            });
+            setStockLocations(loadedLocations);
+          } catch (error) {
+            console.error('Error loading stock locations:', error);
+            setStockLocations([]);
+          }
+
+          try {
+            const suppliersQuery = collection(freshFirestore, 'businesses', bid, 'suppliers');
+            const suppliersSnapshot = await getDocs(suppliersQuery);
+            const loadedSuppliers: Array<{ id: string; name: string }> = [];
+            suppliersSnapshot.forEach(doc => {
+              const data = doc.data();
+              if (data.status === 'active') {
+                loadedSuppliers.push({
+                  id: doc.id,
+                  name: data.supplierName || data.businessName || 'Unknown Supplier',
+                });
+              }
+            });
+            setSuppliers(loadedSuppliers);
+          } catch (error) {
+            console.error('Error loading suppliers:', error);
+            setSuppliers([]);
           }
         }
       } catch (error) {

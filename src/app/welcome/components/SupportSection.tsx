@@ -65,11 +65,14 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate, exte
         try {
           const { firestore } = initializeFirebase();
           if (firestore) {
-            const userDoc = await getDoc(doc(firestore, 'users', user.id));
+            const firestoreUid = user.user_metadata?.firebase_uid || user.id;
+            const userDoc = await getDoc(doc(firestore, 'users', firestoreUid));
             if (userDoc.exists()) {
               const data = userDoc.data();
-              setBusinessId(data.businessId || null);
+              setBusinessId(data.businessId || firestoreUid);
               setBusinessName(data.businessName || null);
+            } else {
+              setBusinessId(user.user_metadata?.businessId || firestoreUid);
             }
           }
         } catch (error) {

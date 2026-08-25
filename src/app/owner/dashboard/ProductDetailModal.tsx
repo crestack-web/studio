@@ -6,7 +6,7 @@ import {
 } from './inventoryData';
 import { useCurrency } from './CurrencyContext';
 import { initializeFirebase } from '@/firebase';
-import { getAuthCurrentUser } from '@/lib/supabase-auth';
+import { getAuthCurrentUser, getFirestoreUserId } from '@/lib/supabase-auth';
 import { doc, getDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
 
 interface ProductDetailModalProps {
@@ -83,9 +83,16 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
 
     try {
       const { firestore } = initializeFirebase();
-      const user = getAuthCurrentUser();
+      const userIds = getFirestoreUserId();
       
-      if (!user) return;
+      if (!userIds) return;
+
+      // Keep the Firebase-shaped shape used below for businessId and the movement entry
+      const user = {
+        uid: userIds.firestoreUid,
+        email: userIds.email,
+        displayName: getAuthCurrentUser()?.displayName || null,
+      };
 
       const businessId = user.uid;
       const productRef = doc(firestore, 'businesses', businessId, 'products', product.id);

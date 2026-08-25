@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { Button } from './Button';
 import { initializeFirebase } from '@/firebase';
-import { getAuthCurrentUser } from '@/lib/supabase-auth';
+import { getFirestoreUserId } from '@/lib/supabase-auth';
 import { getFirestore, doc, getDoc, collection, addDoc, updateDoc, deleteDoc, Timestamp, query, where, getDocs } from 'firebase/firestore';
 import { MOLoadingSpinner } from '@/components/MOLoadingSpinner';
 import styles from './BranchesPage.module.css';
@@ -56,21 +56,21 @@ export function BranchesPage() {
     async function loadData() {
       try {
         const { firestore } = initializeFirebase();
-        const currentUser = getAuthCurrentUser();
+        const userIds = getFirestoreUserId();
 
-        if (!currentUser) {
+        if (!userIds) {
           showToast('❌ Please log in');
           return;
         }
 
         // Get user's business ID
-        const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
+        const userDoc = await getDoc(doc(firestore, 'users', userIds.firestoreUid));
         if (!userDoc.exists()) {
           showToast('❌ User profile not found');
           return;
         }
 
-        const businessId = userDoc.data()?.businessId || currentUser.uid;
+        const businessId = userDoc.data()?.businessId || userIds.firestoreUid;
 
         // Load branches
         const branchesQuery = query(collection(firestore, 'businesses', businessId, 'branches'));
@@ -136,12 +136,12 @@ export function BranchesPage() {
     setIsCreatingBranch(true);
     try {
       const { firestore } = initializeFirebase();
-      const currentUser = getAuthCurrentUser();
+      const userIds = getFirestoreUserId();
 
-      if (!currentUser) return;
+      if (!userIds) return;
 
-      const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
-      const businessId = userDoc.data()?.businessId || currentUser.uid;
+      const userDoc = await getDoc(doc(firestore, 'users', userIds.firestoreUid));
+      const businessId = userDoc.data()?.businessId || userIds.firestoreUid;
 
       await addDoc(collection(firestore, 'businesses', businessId, 'branches'), {
         name: branchData.name,
@@ -149,7 +149,7 @@ export function BranchesPage() {
         phone: branchData.phone,
         manager: branchData.manager || '',
         status: 'active',
-        ownerId: currentUser.uid,
+        ownerId: userIds.firestoreUid,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       });
@@ -171,12 +171,12 @@ export function BranchesPage() {
     setIsAssigningStaff(true);
     try {
       const { firestore } = initializeFirebase();
-      const currentUser = getAuthCurrentUser();
+      const userIds = getFirestoreUserId();
 
-      if (!currentUser) return;
+      if (!userIds) return;
 
-      const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
-      const businessId = userDoc.data()?.businessId || currentUser.uid;
+      const userDoc = await getDoc(doc(firestore, 'users', userIds.firestoreUid));
+      const businessId = userDoc.data()?.businessId || userIds.firestoreUid;
 
       await updateDoc(doc(firestore, 'businesses', businessId, 'staff', staffId), {
         branchId,
@@ -203,12 +203,12 @@ export function BranchesPage() {
     setIsDeletingBranch(true);
     try {
       const { firestore } = initializeFirebase();
-      const currentUser = getAuthCurrentUser();
+      const userIds = getFirestoreUserId();
 
-      if (!currentUser) return;
+      if (!userIds) return;
 
-      const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
-      const businessId = userDoc.data()?.businessId || currentUser.uid;
+      const userDoc = await getDoc(doc(firestore, 'users', userIds.firestoreUid));
+      const businessId = userDoc.data()?.businessId || userIds.firestoreUid;
 
       await deleteDoc(doc(firestore, 'businesses', businessId, 'branches', branchId));
 

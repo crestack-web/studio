@@ -181,3 +181,37 @@ export function getCurrentSupabaseUser(): { uid: string; email: string | null; d
 export function getAuthCurrentUser(): { uid: string; email: string | null; displayName: string | null } | null {
   return getCurrentSupabaseUser();
 }
+
+/**
+ * Get the Firestore user document ID for the current user.
+ * For migrated users, this is the old Firebase UID stored in Supabase metadata.
+ * For new users, this is the Supabase UID.
+ */
+export function getFirestoreUserId(): { supabaseUid: string; firestoreUid: string; email: string | null } | null {
+  try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl || typeof window === 'undefined') return null;
+
+    const keys = Object.keys(localStorage);
+    const sessionKey = keys.find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+    if (!sessionKey) return null;
+
+    const raw = localStorage.getItem(sessionKey);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+    const user = parsed?.currentSession?.user;
+    if (!user) return null;
+
+    const supabaseUid = user.id;
+    const firestoreUid = user.user_metadata?.firebase_uid || supabaseUid;
+
+    return {
+      supabaseUid,
+      firestoreUid,
+      email: user.email ?? null,
+    };
+  } catch {
+    return null;
+  }
+}

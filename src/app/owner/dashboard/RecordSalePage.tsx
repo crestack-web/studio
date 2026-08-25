@@ -9,7 +9,7 @@ import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { Product, CartItem, PaymentMethod, PaymentBreakdown, CreditCustomer } from './types';
 import { initializeFirebase } from '@/firebase';
-import { getAuthCurrentUser } from '@/lib/supabase-auth';
+import { getAuthCurrentUser, getFirestoreUserId } from '@/lib/supabase-auth';
 import { BrevoService } from '@/services/email/brevo-service';
 import { sendFirstSaleCelebrationEmail } from '@/services/email/business-activity-emails';
 import { ReceiptGenerator } from './ReceiptGenerator';
@@ -121,22 +121,16 @@ export function RecordSalePage() {
         setLoading(true);
 
         // First, get the user's business ID
-        const user = getAuthCurrentUser();
+        const userIds = getFirestoreUserId();
         
-        if (!user) {
+        if (!userIds) {
           console.warn('User not authenticated');
           setLoading(false);
           return;
         }
 
-        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
-        if (!userDoc.exists()) {
-          console.warn('User document not found');
-          setLoading(false);
-          return;
-        }
-
-        const bId = userDoc.data().businessId;
+        const userDoc = await getDoc(doc(firestore, 'users', userIds.firestoreUid));
+        const bId = userDoc.exists() ? (userDoc.data().businessId || userIds.firestoreUid) : userIds.firestoreUid;
         if (!bId) {
           console.warn('Business ID not found for user');
           setLoading(false);
@@ -439,9 +433,9 @@ export function RecordSalePage() {
     
     try {
       const { firestore } = initializeFirebase();
-      const user = getAuthCurrentUser();
+      const userIds = getFirestoreUserId();
       
-      if (!user || !firestore) {
+      if (!userIds || !firestore) {
         showToast('Authentication required');
         setIsProcessingSale(false);
         return;
@@ -454,12 +448,15 @@ export function RecordSalePage() {
         return;
       }
 
+      // Create user-like object with Firestore UID for downstream use
+      const user = { uid: userIds.firestoreUid, email: userIds.email, displayName: '' };
+
       // Get current user's role and staff information
-      const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+      const userDoc = await getDoc(doc(firestore, 'users', userIds.firestoreUid));
       const userData = userDoc.data();
       const userRole = userData?.role || 'Owner';
       const staffId = userData?.staffId || null;
-      const staffName = userData?.displayName || user.displayName || 'Unknown';
+      const staffName = userData?.displayName || userData?.fullName || 'Unknown';
 
     // Get source location name
     const selectedLocation = stockLocations.find(loc => loc.id === sourceLocation);

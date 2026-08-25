@@ -46,32 +46,35 @@ const InventoryPage: React.FC = () => {
       try {
         setIsLoading(true);
         
-        // Get user's business ID
-        const userSnapshot = await getDocs(query(collection(firestore, 'users'), where('__name__', '==', user.id)));
-        
-        let businessId = user.id;
-        if (!userSnapshot.empty) {
-          const userData = userSnapshot.docs[0].data();
-          businessId = userData.businessId || user.id;
-          
-          // Load business category
-          if (userData.category || userData.businessType) {
-            setBusinessCategory((userData.category || userData.businessType).toLowerCase());
+        const effectiveBusinessId = user.businessId || businessId;
+        if (!effectiveBusinessId) {
+          setIsLoading(true);
+          return;
+        }
+
+        // Load business category from Firestore
+        try {
+          const userSnapshot = await getDocs(query(collection(firestore, 'users'), where('__name__', '==', user.id)));
+          if (!userSnapshot.empty) {
+            const userData = userSnapshot.docs[0].data();
+            if (userData.category || userData.businessType) {
+              setBusinessCategory((userData.category || userData.businessType).toLowerCase());
+            }
           }
+        } catch (e) {
+          console.error('Error loading business category:', e);
         }
 
         // Determine products collection path based on selected branch
         let productsQuery;
         if (selectedBranchId && isProUser) {
-          // Fetch branch-specific products
           productsQuery = query(
-            collection(firestore, 'businesses', businessId, 'branches', selectedBranchId, 'products'),
+            collection(firestore, 'businesses', effectiveBusinessId, 'branches', selectedBranchId, 'products'),
             where('active', '==', true)
           );
         } else {
-          // Fetch main business products
           productsQuery = query(
-            collection(firestore, 'businesses', businessId, 'products'),
+            collection(firestore, 'businesses', effectiveBusinessId, 'products'),
             where('active', '==', true)
           );
         }
@@ -108,7 +111,7 @@ const InventoryPage: React.FC = () => {
         
         // Load stock locations
         try {
-          const locationsQuery = collection(firestore, 'businesses', businessId, 'stockLocations');
+          const locationsQuery = collection(firestore, 'businesses', effectiveBusinessId, 'stockLocations');
           const locationsSnapshot = await getDocs(locationsQuery);
           const loadedLocations: Array<{ id: string; name: string; type: string }> = [];
           
@@ -160,17 +163,14 @@ const InventoryPage: React.FC = () => {
 
   const handleProductUpdate = async (updated: Product) => {
     try {
-      // Get user's business ID
-      const userSnapshot = await getDocs(query(collection(firestore, 'users'), where('__name__', '==', user.id)));
-      
-      let businessId = user.id;
-      if (!userSnapshot.empty) {
-        const userData = userSnapshot.docs[0].data();
-        businessId = userData.businessId || user.id;
+      const effectiveBusinessId = user.businessId || businessId;
+      if (!effectiveBusinessId) {
+        showToast('❌ Business information not available');
+        return;
       }
 
       // Update product in Firestore
-      const productRef = doc(firestore, 'businesses', businessId, 'products', updated.id);
+      const productRef = doc(firestore, 'businesses', effectiveBusinessId, 'products', updated.id);
       await updateDoc(productRef, {
         price: updated.sellingPrice,
         cost: updated.costPrice,

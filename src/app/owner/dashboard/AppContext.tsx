@@ -13,6 +13,7 @@ import { LangProvider } from './LangContext';
 import { getSupabase } from '@/lib/supabase';
 import { initializeFirebase } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { signInWithCustomToken } from 'firebase/auth';
 
 type User = {
   initials: string;
@@ -158,9 +159,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     businessId: undefined,
   });
 
-  const loadUser = useCallback(async (userId: string, userEmail: string, metadata: Record<string, any> | undefined, firestore: any) => {
+  const loadUser = useCallback(async (userId: string, userEmail: string, metadata: Record<string, any> | undefined, firestore: any, firebaseAuth: any) => {
+    // Resolve the Firestore user doc key: migrated users have firebase_uid in Supabase metadata
+    const firestoreUid = metadata?.firebase_uid || userId;
+
     try {
-      const userDoc = await getDoc(doc(firestore, 'users', userId));
+      const userDoc = await getDoc(doc(firestore, 'users', firestoreUid));
       if (userDoc.exists()) {
         const data = userDoc.data();
         const displayName = (metadata?.full_name || metadata?.name) || data.displayName || data.businessName || (data.firstName ? data.firstName + ' ' + (data.lastName || '') : '') || 'User';
@@ -169,7 +173,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUser({
           initials: (firstName.charAt(0) + (displayName.split(' ')[1]?.charAt(0) || '')).toUpperCase(),
           shortName: firstName,
-          role: data.role || 'Owner',
+          role: data.role || metadata?.role || 'Owner',
           plan: data.plan || 'Free',
           id: userId,
           name: displayName,
@@ -180,47 +184,81 @@ export function AppProvider({ children }: { children: ReactNode }) {
             color: data.avatarColor || '#fff' 
           },
           photoURL: data.photoURL,
-          businessId: data.businessId,
+          businessId: data.businessId || firestoreUid,
         });
-      } else {
-        const displayName = (metadata?.full_name || metadata?.name) || userEmail.split('@')[0] || 'User';
-        const firstName = displayName.split(' ')[0];
-        
-        setUser({
-          initials: (firstName.charAt(0) + (displayName.split(' ')[1]?.charAt(0) || '')).toUpperCase(),
-          shortName: firstName,
-          role: 'Owner',
-          plan: 'Free',
-          id: userId,
-          name: displayName,
-          email: userEmail || '',
-          avatarContent: '👤',
-          avatarStyle: { background: '#6B3FE7', color: '#fff' },
-          photoURL: undefined,
-          businessId: undefined,
-        });
+        return;
       }
     } catch (error) {
-      console.error('Error loading user data:', error);
+      console.error('Error loading user data from Firestore:', error);
     }
+
+    // Fallback: no Firestore doc found — use Supabase metadata
+    const displayName = (metadata?.full_name || metadata?.name) || userEmail.split('@')[0] || 'User';
+    const firstName = displayName.split(' ')[0];
+    
+    setUser({
+      initials: (firstName.charAt(0) + (displayName.split(' ')[1]?.charAt(0) || '')).toUpperCase(),
+      shortName: firstName,
+      role: metadata?.role || 'Owner',
+      plan: 'Free',
+      id: userId,
+      name: displayName,
+      email: userEmail || '',
+      avatarContent: '👤',
+      avatarStyle: { background: '#6B3FE7', color: '#fff' },
+      photoURL: undefined,
+      businessId: metadata?.businessId || firestoreUid,
+    });
   }, []);
 
   useEffect(() => {
     const supabase = getSupabase();
-    const { firestore } = initializeFirebase();
-    
+    const { firestore, auth: firebaseAuth } = initializeFirebase();
+
+    const signInToFirebase = async (supabaseAccessToken: string) => {
+      try {
+        const res = await fetch('/api/auth/firebase-token', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${supabaseAccessToken}` },
+        });
+        if (!res.ok) {
+          console.error('Failed to get Firebase custom token:', res.status);
+          return;
+        }
+        const { customToken } = await res.json();
+        if (customToken) {
+          await signInWithCustomToken(firebaseAuth, customToken);
+        }
+      } catch (e) {
+        console.error('Error signing into Firebase Auth:', e);
+      }
+    };
+
+    const handleSession = async (session: any) => {
+      if (session?.user) {
+        const metadata = session.user.user_metadata;
+        const firestoreUid = metadata?.firebase_uid || session.user.id;
+        loadUser(session.user.id, session.user.email || '', metadata, firestore, firebaseAuth);
+
+        // Sign into Firebase Auth so Firestore rules (request.auth) work
+        if (!firebaseAuth.currentUser) {
+          const tokenResponse = await supabase.auth.getSession();
+          const accessToken = tokenResponse.data.session?.access_token;
+          if (accessToken) {
+            await signInToFirebase(accessToken);
+          }
+        }
+      }
+    };
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        loadUser(session.user.id, session.user.email || '', session.user.user_metadata, firestore);
-      }
+      handleSession(session);
     });
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        loadUser(session.user.id, session.user.email || '', session.user.user_metadata, firestore);
-      }
+      handleSession(session);
     });
 
     return () => subscription.unsubscribe();

@@ -19,7 +19,7 @@ import { LANGUAGES, LangCode } from './translations';
 import { CURRENCIES_SORTED, COUNTRY_LIST, formatMoney } from './currencies';
 import { initializeFirebase } from '@/firebase';
 import { getSupabase } from '@/lib/supabase';
-import { getAuthCurrentUser } from '@/lib/supabase-auth';
+import { getFirestoreUserId } from '@/lib/supabase-auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { DocumentTemplateManager } from './documentTemplates';
 import { checkIsAdmin } from '@/lib/adminAuth';
@@ -141,9 +141,9 @@ export default function SettingsPage() {
     const loadNotifPreferences = async () => {
       try {
         const { firestore } = initializeFirebase();
-        const user = getAuthCurrentUser();
-        if (user) {
-          const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+        const userIds = getFirestoreUserId();
+        if (userIds) {
+          const userDoc = await getDoc(doc(firestore, 'users', userIds.firestoreUid));
           if (userDoc.exists()) {
             const emailPrefs = userDoc.data().emailPreferences;
             if (emailPrefs) {
@@ -164,9 +164,9 @@ export default function SettingsPage() {
     setNotif(prev => ({ ...prev, [key]: value }));
     try {
       const { firestore } = initializeFirebase();
-      const user = getAuthCurrentUser();
-      if (user) {
-        await updateDoc(doc(firestore, 'users', user.uid), {
+      const userIds = getFirestoreUserId();
+      if (userIds) {
+        await updateDoc(doc(firestore, 'users', userIds.firestoreUid), {
           emailPreferences: {
             ...notif,
             [key]: value,
@@ -213,9 +213,9 @@ export default function SettingsPage() {
     const loadData = async () => {
       try {
         const { firestore } = initializeFirebase();
-        const currentUser = getAuthCurrentUser();
+        const userIds = getFirestoreUserId();
         
-        if (currentUser) {
+        if (userIds) {
           // Load business profile
           if (user.businessId) {
             const businessDoc = await getDoc(doc(firestore, 'businesses', user.businessId));
@@ -243,7 +243,7 @@ export default function SettingsPage() {
           }
 
           // Load subscription info
-          const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
+          const userDoc = await getDoc(doc(firestore, 'users', userIds.firestoreUid));
           if (userDoc.exists()) {
             const data = userDoc.data();
             setSubscription({
@@ -325,10 +325,10 @@ export default function SettingsPage() {
 
     try {
       const { firestore } = initializeFirebase();
-      const currentUser = getAuthCurrentUser();
+      const userIds = getFirestoreUserId();
 
-      if (currentUser) {
-        await updateDoc(doc(firestore, 'users', currentUser.uid), {
+      if (userIds) {
+        await updateDoc(doc(firestore, 'users', userIds.firestoreUid), {
           subscriptionStatus: 'cancelled',
           cancellationRequestedAt: new Date(),
         });

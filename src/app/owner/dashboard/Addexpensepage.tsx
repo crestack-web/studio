@@ -7,7 +7,7 @@ import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
 import { collection, addDoc, Timestamp, doc, getDoc, query, where, getDocs, getDocsFromServer } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import { getAuthCurrentUser } from '@/lib/supabase-auth';
+import { getAuthCurrentUser, getFirestoreUserId } from '@/lib/supabase-auth';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { subscribeToActionEvents } from '@/utils/dataRefresh';
 import { sendLargeExpenseAlertEmail, sendUnusualSpendingAlertEmail } from '@/services/email/cashflow-emails';
@@ -111,13 +111,13 @@ export function AddExpensePage() {
 
     try {
       // Get business ID for storage path
-      const currentUser = getAuthCurrentUser();
-      if (!currentUser) {
+      const userIds = getFirestoreUserId();
+      if (!userIds) {
         showToast('⚠️ User not authenticated');
         return;
       }
 
-      const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
+      const userDoc = await getDoc(doc(firestore, 'users', userIds.firestoreUid));
       if (!userDoc.exists()) {
         showToast('⚠️ User document not found');
         return;
@@ -168,12 +168,19 @@ export function AddExpensePage() {
 
     try {
       // Get business ID from user document
-      const currentUser = getAuthCurrentUser();
+      const userIds = getFirestoreUserId();
       
-      if (!currentUser) {
+      if (!userIds) {
         showToast('⚠️ User not authenticated');
         return;
       }
+
+      // Firebase-shaped alias so downstream writes keep using .uid / .email / .displayName
+      const currentUser = {
+        uid: userIds.firestoreUid,
+        email: userIds.email,
+        displayName: getAuthCurrentUser()?.displayName ?? null,
+      };
 
       const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
       if (!userDoc.exists()) {

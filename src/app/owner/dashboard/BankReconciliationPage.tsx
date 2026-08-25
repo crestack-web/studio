@@ -6,7 +6,6 @@ import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
-import { getAuthCurrentUser } from '@/lib/supabase-auth';
 import { getFirestore, collection, query, where, getDocs, Timestamp, doc, getDoc, orderBy } from 'firebase/firestore';
 import styles from './BankReconciliationPage.module.css';
 
@@ -55,26 +54,6 @@ export function BankReconciliationPage() {
     unmatchedBusmo: 0,
     discrepancy: 0,
   });
-
-  useEffect(() => {
-    async function fetchBusinessId() {
-      try {
-        const currentUser = getAuthCurrentUser();
-        
-        if (!currentUser) return;
-
-        const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          setBusinessId(userData.businessId || null);
-        }
-      } catch (error) {
-        console.error('Error fetching business ID:', error);
-      }
-    }
-
-    fetchBusinessId();
-  }, [firestore]);
 
   useEffect(() => {
     if (businessId) {
