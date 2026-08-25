@@ -26,7 +26,7 @@
   --sbW: 224px;
   --sbC: 60px;
   --navH: 58px;
-  --botH: 62px;
+  --botH: 72px;
 
   --r: 12px;
   --rsm: 8px;
@@ -2852,27 +2852,116 @@ svg {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 6px;
   border: none;
   background: none;
   cursor: pointer;
   transition: all var(--tr);
-  padding: 10px 8px;
+  padding: 12px 6px;
+  min-height: 72px;
   color: var(--t3);
   position: relative;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.bn-item svg { width: 26px; height: 26px; }
-.bn-item span { font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
-.bn-item.act { color: var(--brand); }
-.bn-item.locked-nav { opacity: 0.35; cursor: not-allowed; }
+.bn-item .bn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  transition: background var(--tr), color var(--tr);
+}
+
+.bn-item svg {
+  width: 28px;
+  height: 28px;
+  stroke: currentColor;
+}
+
+.bn-item .bn-label {
+  font-size: 0.78rem;
+  font-weight: 650;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.bn-item.act {
+  color: var(--brand);
+}
+
+.bn-item.act .bn-icon {
+  background: var(--brand-lt);
+  color: var(--brand);
+}
+
+.bn-item.locked-nav {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
 
 .bn-dot {
   position: absolute;
-  top: 7px;
-  width: 8px;
-  height: 8px;
+  top: 10px;
+  right: calc(50% - 18px);
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--red);
   border: 2px solid var(--surf);
+}
+
+/* ── Staff scope + mobile polish (post-Supabase scoping) ── */
+.topbar .tb-ttl h1 {
+  font-size: clamp(0.95rem, 2.5vw, 1.15rem);
+}
+.topbar .tb-ttl p {
+  font-size: clamp(0.65rem, 2vw, 0.75rem);
+}
+
+@media (max-width: 900px) {
+  .rs-lay {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  .cit-w {
+    position: sticky;
+    bottom: calc(var(--botH, 62px) + 8px);
+    z-index: 5;
+  }
+}
+
+@media (max-width: 640px) {
+  .prod-g {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+  .home-body {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .mg {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .qa-g {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .msg-lay {
+    flex-direction: column !important;
+  }
+  .msg-sidebar {
+    max-height: 160px;
+    overflow: auto;
+  }
+}
+
+@media (max-width: 380px) {
+  .prod-g {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .topbar .tb-acts span {
+    display: none !important;
+  }
 }

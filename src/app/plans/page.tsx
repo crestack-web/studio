@@ -65,25 +65,25 @@ function PlansPageContent() {
   const plans = [
     {
         id: 'starter',
-        name: 'Starter',
-        description: 'For small retailers',
-        monthlyPrice: 5000,
-        yearlyPrice: 50000,
+        name: 'Busmo Start',
+        description: 'Get your business numbers organized.',
+        monthlyPrice: 7500,
+        yearlyPrice: 75000,
     },
     {
         id: 'standard',
-        name: 'Standard',
-        description: 'For growing businesses',
-        monthlyPrice: 10000,
-        yearlyPrice: 100000,
+        name: 'Busmo Control',
+        description: 'Take control of sales, stock, cash and staff.',
+        monthlyPrice: 20000,
+        yearlyPrice: 200000,
         isPopular: true,
     },
     {
         id: 'pro',
-        name: 'Pro',
-        description: 'For chains & franchises',
-        monthlyPrice: 25000,
-        yearlyPrice: 250000,
+        name: 'Busmo Scale',
+        description: 'Run growing and multi-location operations with deeper control.',
+        monthlyPrice: 40000,
+        yearlyPrice: 400000,
     }
 ];
 

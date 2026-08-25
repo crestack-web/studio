@@ -1,8 +1,8 @@
 {
   "name": "Busmo",
   "short_name": "Busmo",
-  "description": "The all-in-one workspace for African small businesses.",
-  "start_url": "/",
+  "description": "The all-in-one workspace for African small businesses. Works offline.",
+  "start_url": "/?source=pwa",
   "display": "standalone",
   "background_color": "#f4f4f7",
   "theme_color": "#5717ee",
@@ -25,5 +25,12 @@
       "type": "image/png",
       "purpose": "any"
     }
+  ],
+  "scope": "/",
+  "orientation": "any",
+  "categories": [
+    "business",
+    "finance",
+    "productivity"
   ]
 }

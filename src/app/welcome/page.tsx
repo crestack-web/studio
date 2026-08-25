@@ -9,7 +9,6 @@ import { DemoVideoSection } from './components/DemoVideoSection';
 import { ScrollReveal } from './components/ScrollReveal';
 import { TestimonialsSection } from './components/TestimonialsSection';
 import { OfflineSaleSection } from './components/OfflineSaleSection';
-import { ScrollReveal as StaggerItem } from './components/ScrollReveal';
 import { HowBusmoWorks } from './components/HowBusmoWorks';
 import { IndustryUseCases } from './components/IndustryUseCases';
 import { BuiltWithBusmo } from './components/BuiltWithBusmo';
@@ -17,13 +16,25 @@ import { MoSection } from './components/MoSection';
 import { PricingPreview } from './components/PricingPreview';
 import { BeforeAfterComparison } from './components/BeforeAfterComparison';
 import { FAQSection } from './components/FAQSection';
-import { BusinessCategoriesSlider } from './components/BusinessCategoriesSlider';
 import { Footer } from './components/Footer';
+import { AnnouncementBar } from './components/AnnouncementBar';
 
 export default function WelcomePage() {
   const [showDemoVideo, setShowDemoVideo] = useState(false);
 
-  // Navigation handler for buttons
+  useEffect(() => {
+    document.title = 'Busmo — Business Control for Growing African Businesses';
+    const desc = document.querySelector('meta[name="description"]');
+    const content = 'Busmo helps growing businesses control sales, inventory, cash, staff and profit from one simple system.';
+    if (desc) desc.setAttribute('content', content);
+    else {
+      const m = document.createElement('meta');
+      m.name = 'description';
+      m.content = content;
+      document.head.appendChild(m);
+    }
+  }, []);
+
   const handleNavigate = (page: Page | string) => {
     if (page === 'home') {
       window.location.href = '/';
@@ -48,245 +59,275 @@ export default function WelcomePage() {
 
   return (
     <main className="min-h-screen">
-      {/* HEADER */}
+      <AnnouncementBar />
       <Navbar currentPage="home" onNavigate={(page) => handleNavigate(page)} />
 
-      {/* HERO */}
       <Hero onNavigate={handleNavigate} onWatchDemo={() => setShowDemoVideo(true)} />
-
-      {/* DEMO VIDEO SECTION - shows when button is clicked */}
       <DemoVideoSection isVisible={showDemoVideo} onClose={() => setShowDemoVideo(false)} />
 
-      {/* TESTIMONIALS - moved higher for social proof */}
-      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-        <TestimonialsSection />
-      </ScrollReveal>
-
-      {/* OFFLINE SALE RECORDING */}
-      <OfflineSaleSection />
-
-      {/* WHO IS BUSMO FOR */}
-      <section>
-        <div className="max-w">
-          <div className="section-head">
-            <div className="section-label">Who is Busmo for?</div>
-            <h2 className="section-title">Your intelligent<br /><em>business operating system.</em></h2>
-            <p className="section-sub">Record sales with natural language and get AI-powered insights — Busmo transforms how you run your business.</p>
-          </div>
-          <div className="paths-grid">
-            {/* Business Owner */}
-            <StaggerItem direction="up" duration={0.6}>
-              <div className="path-card featured">
-              <div className="path-icon owner"><span>🏪</span></div>
-              <div className="path-title">Business Owners</div>
-              <div className="path-desc">Talk to your business. Record sales, add products, and get insights through natural conversation with MO, your AI assistant.</div>
-              <ul className="path-list">
-                <li>Record sales by saying "sold 2 shirts"</li>
-                <li>Add products with images</li>
-                <li>AI-powered daily insights</li>
-                <li>Smart inventory tracking</li>
-                <li>Low stock alerts</li>
-              </ul>
-              <button className="path-cta" onClick={() => handleNavigate('signup')}>Start Free Trial →</button>
-              </div>
-            </StaggerItem>
-
-            {/* Sellers */}
-            <StaggerItem direction="up" duration={0.6}>
-              <div className="path-card" onClick={() => handleNavigate('seller')}>
-              <div className="path-icon seller"><span>🛍️</span></div>
-              <div className="path-title">Online Store</div>
-              <div className="path-desc">Launch your store with Busmo integration. Join the waitlist.</div>
-              <ul className="path-list">
-                <li>Professional themes</li>
-                <li>Instant product sync</li>
-                <li>BusmoPay checkout</li>
-              </ul>
-              <button className="path-cta" onClick={(e) => { e.stopPropagation(); handleNavigate('seller'); }}>Join Waitlist →</button>
-              </div>
-            </StaggerItem>
-          </div>
-        </div>
-      </section>
-
-      {/* FEATURES */}
-      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-        <section className="features-bg">
-        <div className="max-w">
-          <div className="section-head">
-            <div className="section-label">Platform Features</div>
-            <h2 className="section-title">Talk to your business.<br /><em>It listens.</em></h2>
-            <p className="section-sub">The first business operating system that understands natural language — record sales, add products, and get insights by talking.</p>
-          </div>
-          <div className="features-grid">
-            <div className="feat-card wide">
-              <div className="feat-icon">🤖</div>
-              <div>
-                <div className="feat-title">MO — Your AI Business Assistant</div>
-                <div className="feat-desc">Record sales by saying "sold 3 shirts", add products by description, and get instant business insights. MO understands context and learns your business.</div>
-                <span className="feat-tag">AI-Powered</span>
-              </div>
-            </div>
-            <div className="feat-card">
-              <div className="feat-icon">💬</div>
-              <div className="feat-title">Natural Language Sales</div>
-              <div className="feat-desc">No forms, no complexity. Just say what happened and MO handles the rest — validates inventory, calculates profit, and updates records.</div>
-            </div>
-            <div className="feat-card">
-              <div className="feat-icon">📷</div>
-              <div className="feat-title">Add Products with Images</div>
-              <div className="feat-desc">Snap a photo and tell MO about it. It extracts details, sets pricing, and adds to inventory automatically.</div>
-            </div>
-            <div className="feat-card">
-              <div className="feat-icon">📦</div>
-              <div className="feat-title">Smart Inventory</div>
-              <div className="feat-desc">Track stock automatically, get low stock alerts, and receive AI-powered restock recommendations.</div>
-            </div>
-            <div className="feat-card">
-              <div className="feat-icon">📊</div>
-              <div className="feat-title">Daily Business Insights</div>
-              <div className="feat-desc">MO provides personalized insights daily — profit trends, best-sellers, cash flow health, and recommendations.</div>
-            </div>
-            <div className="feat-card">
-              <div className="feat-icon">👥</div>
-              <div className="feat-title">Staff Management</div>
-              <div className="feat-desc">Invite staff to record sales and manage inventory. Keep control while your team runs things.</div>
-              <span className="feat-tag">Supermarket plan+</span>
-            </div>
-            <div className="feat-card">
-              <div className="feat-icon">🏬</div>
-              <div className="feat-title">Multiple Branches</div>
-              <div className="feat-desc">Manage a chain from one dashboard. See performance across all locations in one view.</div>
-              <span className="feat-tag">Branches plan+</span>
-            </div>
-            <div className="feat-card">
-              <div className="feat-icon">📵</div>
-              <div className="feat-title">Works Offline</div>
-              <div className="feat-desc">Record sales and manage inventory without internet. Syncs automatically when back online.</div>
-              <span className="feat-tag">Offline-first</span>
-            </div>
-            <div className="feat-card">
-              <div className="feat-icon">💰</div>
-              <div className="feat-title">Expense Management</div>
-              <div className="feat-desc">Track every naira going out. Log expenses by category, attach receipts, and understand where your money goes.</div>
-              <span className="feat-tag">Financial Control</span>
-            </div>
-            <div className="feat-card">
-              <div className="feat-icon">📈</div>
-              <div className="feat-title">Cash Flow Monitoring</div>
-              <div className="feat-desc">See money in vs money out in real-time. Visualize cash flow trends and never run out of working capital.</div>
-              <span className="feat-tag">Essential</span>
-            </div>
-            <div className="feat-card">
-              <div className="feat-icon">🏦</div>
-              <div className="feat-title">Credit Tracking</div>
-              <div className="feat-desc">Manage customer credit limits, track outstanding balances, and get alerts for overdue payments. Control credit risk.</div>
-              <span className="feat-tag">Growth</span>
-            </div>
-            <div className="feat-card">
-              <div className="feat-icon">💎</div>
-              <div className="feat-title">Money Control</div>
-              <div className="feat-desc">Complete financial oversight — view profit margins, identify money leaks, and make data-driven decisions to grow wealth.</div>
-              <span className="feat-tag">Premium</span>
-            </div>
-          </div>
-        </div>
-      </section>
-      </ScrollReveal>
-
-      {/* HOW BUSMO WORKS */}
-      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-        <HowBusmoWorks />
-      </ScrollReveal>
-
-      {/* INDUSTRY USE CASES */}
-      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-        <IndustryUseCases />
-      </ScrollReveal>
-
-      {/* BUILT WITH BUSMO */}
-      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-        <BuiltWithBusmo />
-      </ScrollReveal>
-
-      {/* ASK MO SECTION */}
-      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-        <MoSection />
-      </ScrollReveal>
-
-      {/* COMPARISON */}
-      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-        <section className="comparison-section">
-        <div className="max-w">
-          <div className="section-head center">
-            <div className="section-label">Why Busmo</div>
-            <h2 className="section-title">Everything you need to track and grow your business <em>without complicated accounting.</em></h2>
-            <p className="section-sub">Accounting software benefits without the complexity. Built for owners, not accountants.</p>
-          </div>
-          <div className="comparison-grid">
-            <div className="cmp-card cmp-old">
-              <div className="cmp-tag">The Old Way</div>
-              <div className="cmp-title">Accounting Software</div>
-              <ul className="cmp-list">
-                <li><span className="cmp-icon">😵</span><span>Endless fields, confusing charts, features you'll never use</span></li>
-                <li><span className="cmp-icon">👨‍💼</span><span>Built for accountants — speaks "debits" and "credits"</span></li>
-                <li><span className="cmp-icon">📑</span><span>Long reports to dig through, not answers</span></li>
-                <li><span className="cmp-icon">📶</span><span>Requires constant internet</span></li>
-                <li><span className="cmp-icon">📚</span><span>Takes weeks to learn</span></li>
-              </ul>
-            </div>
-            <div className="cmp-card cmp-new">
-              <div className="cmp-tag">The Busmo Way</div>
-              <div className="cmp-title">Clarity Tool</div>
-              <ul className="cmp-list">
-                <li><span className="cmp-icon">⚡</span><span>Record a sale in seconds. See your profit instantly</span></li>
-                <li><span className="cmp-icon">🗣️</span><span>Built for owners — speaks your language, gives straight answers</span></li>
-                <li><span className="cmp-icon">💡</span><span>Your most important insights are always one tap away</span></li>
-                <li><span className="cmp-icon">📵</span><span>Works offline — because your business doesn't pause for WiFi</span></li>
-                <li><span className="cmp-icon">🚀</span><span>Up and running in minutes, not weeks</span></li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-      </ScrollReveal>
-
-      {/* PRICING PREVIEW */}
-      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-        <PricingPreview onNavigate={handleNavigate} />
-      </ScrollReveal>
-
-      {/* BEFORE VS AFTER COMPARISON */}
+      {/* Problem recognition */}
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <BeforeAfterComparison />
       </ScrollReveal>
 
-      {/* FAQ */}
+      {/* Five control areas */}
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <HowBusmoWorks />
+      </ScrollReveal>
+
+      {/* Money Control differentiator */}
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <section className="features-bg">
+          <div className="max-w">
+            <div className="section-head">
+              <div className="section-label">Money Control</div>
+              <h2 className="section-title">
+                Your sales are recorded.<br /><em>But where is the money?</em>
+              </h2>
+              <p className="section-sub">
+                A POS or accounting system can record a transaction. You still need to know whether the money handled by staff matches what should have happened.
+              </p>
+            </div>
+            <div className="features-grid">
+              <div className="feat-card wide">
+                <div className="feat-icon">💎</div>
+                <div>
+                  <div className="feat-title">Connect sales to money movement</div>
+                  <div className="feat-desc">
+                    Busmo helps you connect sales activity with the money your business should have received — so you can spot discrepancies, improve accountability and stay in control.
+                  </div>
+                  <span className="feat-tag">Visibility · Accountability</span>
+                </div>
+              </div>
+              <div className="feat-card">
+                <div className="feat-icon">💵</div>
+                <div className="feat-title">Cash &amp; transfers</div>
+                <div className="feat-desc">See expected collections against what was confirmed — cash, bank and POS in one view.</div>
+              </div>
+              <div className="feat-card">
+                <div className="feat-icon">🔍</div>
+                <div className="feat-title">Identify discrepancies</div>
+                <div className="feat-desc">Surface mismatches between sales and money handled. Not a promise of zero loss — clearer control.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </ScrollReveal>
+
+      {/* Profit */}
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <section>
+          <div className="max-w">
+            <div className="section-head center">
+              <div className="section-label">Profit</div>
+              <h2 className="section-title">
+                Stop guessing whether you&apos;re <em>actually making money.</em>
+              </h2>
+              <p className="section-sub">
+                Revenue is not the same as profit. Busmo connects sales, costs, inventory and expenses so you can see what the business is really making — in plain language.
+              </p>
+            </div>
+          </div>
+        </section>
+      </ScrollReveal>
+
+      {/* Staff / owner remote control */}
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <section className="features-bg">
+          <div className="max-w">
+            <div className="section-head">
+              <div className="section-label">For owners</div>
+              <h2 className="section-title">
+                Run your business without having to <em>be everywhere.</em>
+              </h2>
+              <p className="section-sub">
+                You should not need to stand in the shop all day just to know what happened. Busmo gives visibility into activity while staff operate the business.
+              </p>
+            </div>
+            <div className="features-grid">
+              <div className="feat-card">
+                <div className="feat-icon">👥</div>
+                <div className="feat-title">Staff activity</div>
+                <div className="feat-desc">See who is handling sales, cash and day-to-day work.</div>
+              </div>
+              <div className="feat-card">
+                <div className="feat-icon">🔐</div>
+                <div className="feat-title">Permissions</div>
+                <div className="feat-desc">Control what staff can access while you keep overall control.</div>
+              </div>
+              <div className="feat-card">
+                <div className="feat-icon">📦</div>
+                <div className="feat-title">Stock &amp; locations</div>
+                <div className="feat-desc">Inventory and multi-location visibility where supported.</div>
+              </div>
+              <div className="feat-card">
+                <div className="feat-icon">💎</div>
+                <div className="feat-title">Money Control</div>
+                <div className="feat-desc">Link sales to cash handling so accountability is clearer.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </ScrollReveal>
+
+      {/* Inventory */}
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <section>
+          <div className="max-w">
+            <div className="section-head center">
+              <div className="section-label">Inventory</div>
+              <h2 className="section-title">
+                Know what you have before your stock <em>tells you otherwise.</em>
+              </h2>
+              <p className="section-sub">
+                Levels, movement, value and cost impact — so stock problems show up in the numbers, not only on the shelf.
+              </p>
+            </div>
+            <div className="features-grid">
+              <div className="feat-card">
+                <div className="feat-icon">📦</div>
+                <div className="feat-title">Stock levels</div>
+                <div className="feat-desc">See what you have and what is moving.</div>
+              </div>
+              <div className="feat-card">
+                <div className="feat-icon">💰</div>
+                <div className="feat-title">Inventory value</div>
+                <div className="feat-desc">Understand what stock is worth to the business.</div>
+              </div>
+              <div className="feat-card">
+                <div className="feat-icon">📉</div>
+                <div className="feat-title">Cost &amp; profit impact</div>
+                <div className="feat-desc">Link product costs to what you actually earn.</div>
+              </div>
+              <div className="feat-card">
+                <div className="feat-icon">🏬</div>
+                <div className="feat-title">Locations</div>
+                <div className="feat-desc">Warehouses and locations where your plan supports them.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </ScrollReveal>
+
+      {/* MO — intelligent layer, not primary product */}
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <section className="features-bg">
+          <div className="max-w">
+            <div className="section-head center">
+              <div className="section-label">MO</div>
+              <h2 className="section-title">
+                Your business data can finally <em>talk back.</em>
+              </h2>
+              <p className="section-sub">
+                Busmo collects and organizes your business data. MO helps you understand it — what changed, what is selling, where expenses rose, and what deserves attention.
+              </p>
+            </div>
+          </div>
+        </section>
+      </ScrollReveal>
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <MoSection />
+      </ScrollReveal>
+
+      {/* Offline */}
+      <OfflineSaleSection />
+
+      {/* Who it's for */}
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <IndustryUseCases />
+      </ScrollReveal>
+
+      {/* Real stories if present */}
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <BuiltWithBusmo />
+      </ScrollReveal>
+
+      {/* Mo-sell ecosystem path */}
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <section>
+          <div className="max-w">
+            <div className="section-head">
+              <div className="section-label">Mo-sell</div>
+              <h2 className="section-title">
+                Need to sell online too? <em>Start with Mo-sell.</em>
+              </h2>
+              <p className="section-sub">
+                Mo-sell gives your business a simple online storefront for selling through social media, WhatsApp and your existing audience.
+              </p>
+            </div>
+            <div className="paths-grid">
+              <div className="path-card">
+                <div className="path-icon seller"><span>🛍️</span></div>
+                <div className="path-title">Mo-sell → Sell</div>
+                <div className="path-desc">Online storefront for social and WhatsApp selling.</div>
+              </div>
+              <div className="path-card featured">
+                <div className="path-icon owner"><span>📊</span></div>
+                <div className="path-title">Busmo → Understand</div>
+                <div className="path-desc">See sales, stock, cash and profit clearly.</div>
+              </div>
+              <div className="path-card">
+                <div className="path-icon multi"><span>🎯</span></div>
+                <div className="path-title">Busmo Control → Scale</div>
+                <div className="path-desc">Deeper control as the business grows.</div>
+              </div>
+            </div>
+            <div style={{ textAlign: 'center', marginTop: 24 }}>
+              <button className="btn-outline" onClick={() => handleNavigate('seller')}>
+                Explore Mo-sell
+              </button>
+            </div>
+          </div>
+        </section>
+      </ScrollReveal>
+
+      {/* Owner themes */}
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <TestimonialsSection />
+      </ScrollReveal>
+
+      {/* Pricing */}
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <PricingPreview onNavigate={handleNavigate} />
+      </ScrollReveal>
+
+      {/* Onboarding help */}
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <section className="features-bg">
+          <div className="max-w">
+            <div className="section-head center">
+              <div className="section-label">Getting started</div>
+              <h2 className="section-title">
+                We&apos;ll help you get your business <em>under control.</em>
+              </h2>
+              <p className="section-sub">
+                From setting up products and staff to configuring how you work day to day, Busmo can help you get started. Higher plans include assisted onboarding where available.
+              </p>
+            </div>
+          </div>
+        </section>
+      </ScrollReveal>
+
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <FAQSection />
       </ScrollReveal>
 
-      {/* BUSINESS CATEGORIES SLIDER */}
-      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-        <BusinessCategoriesSlider />
-      </ScrollReveal>
-
-      {/* CTA BANNER */}
+      {/* Final CTA */}
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <div className="cta-banner">
-          <h2>The Future of Your Business<br />Starts With Clarity.</h2>
-          <p>Join smart business owners across Africa who are building their future with Busmo.</p>
-          <button className="btn-white" onClick={() => handleNavigate('signup')}>Start Your Free Trial Today</button>
-          <div className="cta-note">3-day free trial · No credit card · Works offline</div>
+          <h2>Know your numbers. Control your business.</h2>
+          <p>Start with Busmo and see what is really happening inside your business.</p>
+          <button className="btn-white" onClick={() => handleNavigate('signup')}>
+            Start with Busmo
+          </button>
+          <div className="cta-note">3-day free trial · Works offline · Cancel anytime</div>
         </div>
       </ScrollReveal>
 
-      {/* FOOTER */}
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <Footer onNavigate={handleNavigate} />
       </ScrollReveal>
 
-      {/* Floating chat widget */}
       <AskMOSupportAgent />
     </main>
   );

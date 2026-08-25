@@ -1,12 +1,22 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { checkFeatureAccess } from '@/lib/featureRestrictions';
-import { Plus, Edit2, Trash2, Search, DollarSign, Users, Calendar, TrendingUp, FileText, Download } from 'lucide-react';
+import {
+  collection,
+  getDocs,
+  doc,
+  getDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  setDoc,
+  increment,
+  serverTimestamp,
+  writeBatch,
+} from 'firebase/firestore';
 import styles from './PayrollPage.module.css';
 
 interface PayrollEntry {
@@ -14,7 +24,7 @@ interface PayrollEntry {
   staffId: string;
   staffName: string;
   staffRole: string;
-  period: string; // e.g., "2025-06"
+  period: string;
   baseSalary: number;
   bonuses: number;
   deductions: number;
@@ -23,35 +33,60 @@ interface PayrollEntry {
   overtimePay: number;
   netSalary: number;
   status: 'pending' | 'processed' | 'paid';
-  paidDate?: Date;
+  paidDate?: Date | null;
   notes?: string;
-  createdAt: Date;
+  createdAt?: Date | null;
 }
 
 interface StaffMember {
   id: string;
   name: string;
   role: string;
-  baseSalary: number;
-  active: boolean;
+  baseSalary?: number;
+  salary?: number;
+  active?: boolean;
+  status?: string;
 }
 
-let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
+interface WalletTx {
+  id: string;
+  type: 'deposit' | 'payout';
+  amount: number;
+  note?: string;
+  balanceAfter: number;
+  createdAt?: Date | null;
+  entryIds?: string[];
+}
+
+function currentPeriod(): string {
+  return new Date().toISOString().slice(0, 7);
+}
 
 export default function PayrollPage() {
   const { user, showToast } = useApp();
   const { formatMoney } = useCurrency();
+
   const [payrollEntries, setPayrollEntries] = useState<PayrollEntry[]>([]);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [walletTx, setWalletTx] = useState<WalletTx[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterPeriod, setFilterPeriod] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterPeriod, setFilterPeriod] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showFundModal, setShowFundModal] = useState(false);
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PayrollEntry | null>(null);
+  const [fundAmount, setFundAmount] = useState('');
+  const [fundNote, setFundNote] = useState('');
+  const [isFunding, setIsFunding] = useState(false);
+  const [isPaying, setIsPaying] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     staffId: '',
-    period: '',
+    period: currentPeriod(),
     baseSalary: '',
     bonuses: '',
     deductions: '',
@@ -60,87 +95,133 @@ export default function PayrollPage() {
     notes: '',
   });
 
-  // Check feature access
-  useEffect(() => {
-    const checkAccess = async () => {
-      if (user?.id) {
-        const hasAccess = await checkFeatureAccess(user.id, 'payroll-management');
-        if (!hasAccess.eligible) {
-          showToast('This feature requires a Pro plan or higher');
-        }
-      }
-    };
-    checkAccess();
-  }, [user]);
+  const businessId = user?.businessId;
 
-  // Load payroll entries and staff
-  useEffect(() => {
-    loadPayrollEntries();
-    loadStaffMembers();
-  }, [user?.businessId]);
-
-  const loadPayrollEntries = async () => {
+  const loadWallet = useCallback(async () => {
+    if (!businessId) return;
     try {
-      if (!user?.businessId) return;
-      
       const { firestore } = initializeFirebase();
-      const payrollCollection = collection(firestore, 'businesses', user.businessId, 'payroll');
-      const snapshot = await getDocs(payrollCollection);
-      
-      const entries = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        paidDate: doc.data().paidDate?.toDate(),
-      })) as PayrollEntry[];
-      
-      // Sort by period (descending)
-      entries.sort((a, b) => b.period.localeCompare(a.period));
-      
+      const walletRef = doc(firestore, 'businesses', businessId, 'settings', 'payrollWallet');
+      const snap = await getDoc(walletRef);
+      setWalletBalance(Number(snap.data()?.balance) || 0);
+
+      const txCol = collection(firestore, 'businesses', businessId, 'walletTransactions');
+      const txSnap = await getDocs(txCol);
+      const txs: WalletTx[] = txSnap.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          type: data.type === 'payout' ? 'payout' : 'deposit',
+          amount: Number(data.amount) || 0,
+          note: data.note || '',
+          balanceAfter: Number(data.balanceAfter) || 0,
+          createdAt: data.createdAt?.toDate?.() || (data.createdAt ? new Date(data.createdAt) : null),
+          entryIds: data.entryIds || [],
+        };
+      });
+      txs.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
+      setWalletTx(txs.slice(0, 20));
+    } catch (e) {
+      console.error('Failed to load wallet', e);
+    }
+  }, [businessId]);
+
+  const loadPayrollEntries = useCallback(async () => {
+    if (!businessId) return;
+    try {
+      const { firestore } = initializeFirebase();
+      const col = collection(firestore, 'businesses', businessId, 'payroll');
+      const snapshot = await getDocs(col);
+      const entries: PayrollEntry[] = snapshot.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          staffId: data.staffId || '',
+          staffName: data.staffName || 'Unknown',
+          staffRole: data.staffRole || 'Staff',
+          period: data.period || '',
+          baseSalary: Number(data.baseSalary) || 0,
+          bonuses: Number(data.bonuses) || 0,
+          deductions: Number(data.deductions) || 0,
+          overtimeHours: Number(data.overtimeHours) || 0,
+          overtimeRate: Number(data.overtimeRate) || 0,
+          overtimePay: Number(data.overtimePay) || 0,
+          netSalary: Number(data.netSalary) || 0,
+          status: (data.status as PayrollEntry['status']) || 'pending',
+          paidDate: data.paidDate?.toDate?.() || null,
+          notes: data.notes || '',
+          createdAt: data.createdAt?.toDate?.() || null,
+        };
+      });
+      entries.sort((a, b) => (b.period || '').localeCompare(a.period || '') || a.staffName.localeCompare(b.staffName));
       setPayrollEntries(entries);
-    } catch (error) {
-      console.error('Failed to load payroll entries:', error);
-    } finally {
-      setIsLoading(false);
+    } catch (e) {
+      console.error('Failed to load payroll', e);
     }
-  };
+  }, [businessId]);
 
-  const loadStaffMembers = async () => {
+  const loadStaffMembers = useCallback(async () => {
+    if (!businessId) return;
     try {
-      if (!user?.businessId) return;
-      
       const { firestore } = initializeFirebase();
-      const staffCollection = collection(firestore, 'businesses', user.businessId, 'staff');
+      const staffCollection = collection(firestore, 'businesses', businessId, 'staff');
       const snapshot = await getDocs(staffCollection);
-      
-      const staff = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
+      const staff = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...(d.data() as object),
       })) as StaffMember[];
-      
-      setStaffMembers(staff.filter(s => s.active));
-    } catch (error) {
-      console.error('Failed to load staff:', error);
+      setStaffMembers(
+        staff.filter((s) => s.status !== 'removed' && s.status !== 'banned')
+      );
+    } catch (e) {
+      console.error('Failed to load staff', e);
     }
+  }, [businessId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setIsLoading(true);
+      await Promise.all([loadPayrollEntries(), loadStaffMembers(), loadWallet()]);
+      if (!cancelled) setIsLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadPayrollEntries, loadStaffMembers, loadWallet]);
+
+  const resetForm = () => {
+    setFormData({
+      staffId: '',
+      period: currentPeriod(),
+      baseSalary: '',
+      bonuses: '',
+      deductions: '',
+      overtimeHours: '',
+      overtimeRate: '',
+      notes: '',
+    });
   };
 
   const handleSave = async () => {
+    if (!businessId) return;
+    if (!formData.staffId || !formData.period || !formData.baseSalary) {
+      showToast('Staff, period and base salary are required');
+      return;
+    }
+    setIsSaving(true);
     try {
-      if (!user?.businessId) return;
-      
       const { firestore } = initializeFirebase();
-      const payrollCollection = collection(firestore, 'businesses', user.businessId, 'payroll');
-      
+      const payrollCollection = collection(firestore, 'businesses', businessId, 'payroll');
       const overtimeHours = parseFloat(formData.overtimeHours) || 0;
       const overtimeRate = parseFloat(formData.overtimeRate) || 0;
       const overtimePay = overtimeHours * overtimeRate;
-      const baseSalary = parseFloat(formData.baseSalary);
+      const baseSalary = parseFloat(formData.baseSalary) || 0;
       const bonuses = parseFloat(formData.bonuses) || 0;
       const deductions = parseFloat(formData.deductions) || 0;
       const netSalary = baseSalary + bonuses + overtimePay - deductions;
-      
-      const staffMember = staffMembers.find(s => s.id === formData.staffId);
-      
+      const staffMember = staffMembers.find((s) => s.id === formData.staffId);
+
       const entryData = {
         staffId: formData.staffId,
         staffName: staffMember?.name || 'Unknown',
@@ -153,497 +234,680 @@ export default function PayrollPage() {
         overtimeRate,
         overtimePay,
         netSalary,
-        status: 'pending',
+        status: editingEntry?.status || 'pending',
         notes: formData.notes,
-        createdAt: new Date(),
+        updatedAt: serverTimestamp(),
+        ...(editingEntry ? {} : { createdAt: serverTimestamp() }),
       };
 
       if (editingEntry) {
         await updateDoc(doc(payrollCollection, editingEntry.id), entryData);
-        showToast('Payroll entry updated successfully');
+        showToast('Payroll entry updated');
       } else {
         await addDoc(payrollCollection, entryData);
-        showToast('Payroll entry created successfully');
+        showToast('Payroll entry created');
       }
-
       setShowAddModal(false);
       setEditingEntry(null);
       resetForm();
-      loadPayrollEntries();
-    } catch (error) {
-      console.error('Failed to save payroll entry:', error);
+      await loadPayrollEntries();
+    } catch (e) {
+      console.error(e);
       showToast('Failed to save payroll entry');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleDelete = async (entryId: string) => {
-    if (!confirm('Are you sure you want to delete this payroll entry?')) return;
-    
+    if (!businessId) return;
+    if (!confirm('Delete this payroll entry?')) return;
     try {
-      if (!user?.businessId) return;
-      
       const { firestore } = initializeFirebase();
-      await deleteDoc(doc(firestore, 'businesses', user.businessId, 'payroll', entryId));
-      
-      showToast('Payroll entry deleted successfully');
-      loadPayrollEntries();
-    } catch (error) {
-      console.error('Failed to delete payroll entry:', error);
-      showToast('Failed to delete payroll entry');
+      await deleteDoc(doc(firestore, 'businesses', businessId, 'payroll', entryId));
+      showToast('Payroll entry deleted');
+      setSelectedIds((prev) => {
+        const n = new Set(prev);
+        n.delete(entryId);
+        return n;
+      });
+      await loadPayrollEntries();
+    } catch (e) {
+      console.error(e);
+      showToast('Failed to delete entry');
     }
   };
 
-  const handleStatusChange = async (entry: PayrollEntry, newStatus: PayrollEntry['status']) => {
+  const handleFundWallet = async () => {
+    if (!businessId) return;
+    const amount = parseFloat(fundAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showToast('Enter a valid amount greater than 0');
+      return;
+    }
+    setIsFunding(true);
     try {
-      if (!user?.businessId) return;
-      
       const { firestore } = initializeFirebase();
-      const updateData: any = { status: newStatus };
-      
-      if (newStatus === 'paid') {
-        updateData.paidDate = new Date();
+      const walletRef = doc(firestore, 'businesses', businessId, 'settings', 'payrollWallet');
+      await setDoc(walletRef, { balance: increment(amount), updatedAt: serverTimestamp() }, { merge: true });
+      const snap = await getDoc(walletRef);
+      const newBalance = Number(snap.data()?.balance) || amount;
+      await addDoc(collection(firestore, 'businesses', businessId, 'walletTransactions'), {
+        type: 'deposit',
+        amount,
+        note: fundNote.trim() || 'Wallet top-up',
+        balanceAfter: newBalance,
+        createdAt: serverTimestamp(),
+        createdBy: user?.id || null,
+      });
+      setWalletBalance(newBalance);
+      setShowFundModal(false);
+      setFundAmount('');
+      setFundNote('');
+      showToast(`Added ${formatMoney(amount)} to payroll wallet`);
+      await loadWallet();
+    } catch (e) {
+      console.error(e);
+      showToast('Failed to fund wallet');
+    } finally {
+      setIsFunding(false);
+    }
+  };
+
+  const selectedEntries = useMemo(
+    () => payrollEntries.filter((e) => selectedIds.has(e.id) && e.status !== 'paid'),
+    [payrollEntries, selectedIds]
+  );
+  const selectedTotal = useMemo(
+    () => selectedEntries.reduce((s, e) => s + e.netSalary, 0),
+    [selectedEntries]
+  );
+
+  const handleBulkPay = async () => {
+    if (!businessId || selectedEntries.length === 0) return;
+    if (walletBalance < selectedTotal) {
+      showToast('Insufficient wallet balance. Fund your wallet first.');
+      return;
+    }
+    setIsPaying(true);
+    try {
+      const { firestore } = initializeFirebase();
+      const walletRef = doc(firestore, 'businesses', businessId, 'settings', 'payrollWallet');
+      const batch = writeBatch(firestore);
+
+      batch.set(walletRef, { balance: increment(-selectedTotal), updatedAt: serverTimestamp() }, { merge: true });
+
+      for (const entry of selectedEntries) {
+        const entryRef = doc(firestore, 'businesses', businessId, 'payroll', entry.id);
+        batch.update(entryRef, {
+          status: 'paid',
+          paidDate: serverTimestamp(),
+          paidFromWallet: true,
+        });
       }
-      
-      await updateDoc(doc(firestore, 'businesses', user.businessId, 'payroll', entry.id), updateData);
-      
-      showToast(`Payroll status updated to ${newStatus}`);
-      loadPayrollEntries();
-    } catch (error) {
-      console.error('Failed to update payroll status:', error);
-      showToast('Failed to update payroll status');
+
+      await batch.commit();
+
+      const snap = await getDoc(walletRef);
+      const newBalance = Number(snap.data()?.balance) || 0;
+
+      await addDoc(collection(firestore, 'businesses', businessId, 'walletTransactions'), {
+        type: 'payout',
+        amount: selectedTotal,
+        note: `Bulk salary payout (${selectedEntries.length} staff)`,
+        balanceAfter: newBalance,
+        entryIds: selectedEntries.map((e) => e.id),
+        staffNames: selectedEntries.map((e) => e.staffName),
+        createdAt: serverTimestamp(),
+        createdBy: user?.id || null,
+      });
+
+      setWalletBalance(newBalance);
+      setSelectedIds(new Set());
+      setShowBulkConfirm(false);
+      showToast(`Paid ${selectedEntries.length} staff — ${formatMoney(selectedTotal)}`);
+      await Promise.all([loadPayrollEntries(), loadWallet()]);
+    } catch (e) {
+      console.error(e);
+      showToast('Bulk payout failed. Try again.');
+    } finally {
+      setIsPaying(false);
     }
   };
 
-  const handleProcessPayroll = async (entry: PayrollEntry) => {
-    if (!confirm(`Process payroll for ${entry.staffName} - ${formatMoney(entry.netSalary)}?`)) return;
-    
+  const handleGeneratePeriod = async () => {
+    if (!businessId) return;
+    const period = currentPeriod();
+    const existing = new Set(
+      payrollEntries.filter((e) => e.period === period).map((e) => e.staffId)
+    );
+    const toCreate = staffMembers.filter((s) => !existing.has(s.id));
+    if (toCreate.length === 0) {
+      showToast(`All staff already have entries for ${period}`);
+      return;
+    }
+    if (!confirm(`Create pending payroll for ${toCreate.length} staff for ${period}?`)) return;
     try {
-      await handleStatusChange(entry, 'processed');
-    } catch (error) {
-      console.error('Failed to process payroll:', error);
+      const { firestore } = initializeFirebase();
+      const col = collection(firestore, 'businesses', businessId, 'payroll');
+      await Promise.all(
+        toCreate.map((s) => {
+          const base = Number(s.baseSalary ?? s.salary) || 0;
+          return addDoc(col, {
+            staffId: s.id,
+            staffName: s.name || 'Staff',
+            staffRole: s.role || 'Staff',
+            period,
+            baseSalary: base,
+            bonuses: 0,
+            deductions: 0,
+            overtimeHours: 0,
+            overtimeRate: 0,
+            overtimePay: 0,
+            netSalary: base,
+            status: 'pending',
+            notes: '',
+            createdAt: serverTimestamp(),
+          });
+        })
+      );
+      showToast(`Created ${toCreate.length} payroll entries for ${period}`);
+      await loadPayrollEntries();
+    } catch (e) {
+      console.error(e);
+      showToast('Failed to generate payroll');
     }
   };
 
-  const handleMarkAsPaid = async (entry: PayrollEntry) => {
-    if (!confirm(`Mark payroll as paid for ${entry.staffName}?`)) return;
-    
-    try {
-      await handleStatusChange(entry, 'paid');
-    } catch (error) {
-      console.error('Failed to mark as paid:', error);
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  };
+
+  const pendingVisible = useMemo(
+    () =>
+      payrollEntries.filter((e) => {
+        if (e.status === 'paid') return false;
+        const matchesSearch =
+          e.staffName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          e.staffRole.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          e.period.includes(searchQuery);
+        const matchesPeriod = filterPeriod === 'all' || e.period === filterPeriod;
+        const matchesStatus = filterStatus === 'all' || e.status === filterStatus;
+        return matchesSearch && matchesPeriod && matchesStatus;
+      }),
+    [payrollEntries, searchQuery, filterPeriod, filterStatus]
+  );
+
+  const filteredEntries = useMemo(
+    () =>
+      payrollEntries.filter((e) => {
+        const matchesSearch =
+          e.staffName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          e.staffRole.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          e.period.includes(searchQuery);
+        const matchesPeriod = filterPeriod === 'all' || e.period === filterPeriod;
+        const matchesStatus = filterStatus === 'all' || e.status === filterStatus;
+        return matchesSearch && matchesPeriod && matchesStatus;
+      }),
+    [payrollEntries, searchQuery, filterPeriod, filterStatus]
+  );
+
+  const toggleSelectAllPending = () => {
+    const ids = pendingVisible.map((e) => e.id);
+    const allSelected = ids.length > 0 && ids.every((id) => selectedIds.has(id));
+    if (allSelected) {
+      setSelectedIds((prev) => {
+        const n = new Set(prev);
+        ids.forEach((id) => n.delete(id));
+        return n;
+      });
+    } else {
+      setSelectedIds((prev) => {
+        const n = new Set(prev);
+        ids.forEach((id) => n.add(id));
+        return n;
+      });
     }
   };
 
-  const handleEdit = (entry: PayrollEntry) => {
+  const uniquePeriods = useMemo(() => {
+    const periods = new Set(payrollEntries.map((e) => e.period));
+    return Array.from(periods).sort().reverse();
+  }, [payrollEntries]);
+
+  const pendingTotal = payrollEntries
+    .filter((e) => e.status === 'pending' || e.status === 'processed')
+    .reduce((s, e) => s + e.netSalary, 0);
+  const paidTotal = payrollEntries
+    .filter((e) => e.status === 'paid')
+    .reduce((s, e) => s + e.netSalary, 0);
+
+  const openEdit = (entry: PayrollEntry) => {
     setEditingEntry(entry);
     setFormData({
       staffId: entry.staffId,
       period: entry.period,
-      baseSalary: entry.baseSalary.toString(),
-      bonuses: entry.bonuses.toString(),
-      deductions: entry.deductions.toString(),
-      overtimeHours: entry.overtimeHours.toString(),
-      overtimeRate: entry.overtimeRate.toString(),
+      baseSalary: String(entry.baseSalary),
+      bonuses: String(entry.bonuses),
+      deductions: String(entry.deductions),
+      overtimeHours: String(entry.overtimeHours),
+      overtimeRate: String(entry.overtimeRate),
       notes: entry.notes || '',
     });
     setShowAddModal(true);
   };
 
-  const resetForm = () => {
-    setFormData({
-      staffId: '',
-      period: new Date().toISOString().slice(0, 7), // YYYY-MM format
-      baseSalary: '',
-      bonuses: '',
-      deductions: '',
-      overtimeHours: '',
-      overtimeRate: '',
-      notes: '',
-    });
-  };
-
-  const filteredEntries = payrollEntries.filter(entry => {
-    const matchesSearch = entry.staffName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         entry.staffRole.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         entry.period.includes(searchQuery);
-    const matchesPeriod = filterPeriod === 'all' || entry.period === filterPeriod;
-    const matchesStatus = filterStatus === 'all' || entry.status === filterStatus;
-    return matchesSearch && matchesPeriod && matchesStatus;
-  });
-
-  const getStatusColor = (status: PayrollEntry['status']) => {
-    switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-700';
-      case 'processed': return 'bg-blue-100 text-blue-700';
-      case 'paid': return 'bg-green-100 text-green-700';
-      default: return 'bg-gray-100 text-gray-700';
-    }
-  };
-
-  const calculateTotalPayroll = () => {
-    return payrollEntries.reduce((total, entry) => total + entry.netSalary, 0);
-  };
-
-  const calculatePendingPayroll = () => {
-    return payrollEntries
-      .filter(e => e.status === 'pending')
-      .reduce((total, entry) => total + entry.netSalary, 0);
-  };
-
-  const getPaidPayroll = () => {
-    return payrollEntries
-      .filter(e => e.status === 'paid')
-      .reduce((total, entry) => total + entry.netSalary, 0);
-  };
-
-  const getUniquePeriods = () => {
-    const periods = new Set(payrollEntries.map(e => e.period));
-    return Array.from(periods).sort().reverse();
-  };
-
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p>Loading payroll data...</p>
-        </div>
+      <div className={styles.loading}>
+        <div className={styles.spinner} />
+        <p>Loading payroll…</p>
       </div>
     );
   }
 
-  const uniquePeriods = getUniquePeriods();
-  const totalPayroll = calculateTotalPayroll();
-  const pendingPayroll = calculatePendingPayroll();
-  const paidPayroll = getPaidPayroll();
-
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className={styles.wrapper}>
+      <div className={styles.pageHeader}>
         <div>
-          <h1 className="text-2xl font-bold">Payroll Management</h1>
-          <p className="text-gray-600">Manage staff salaries and payments</p>
+          <h2 className={styles.pageTitle}>Payroll</h2>
+          <p className={styles.pageDesc}>
+            Fund your wallet and pay staff salaries in bulk — even when you are not at the shop.
+          </p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => {
-              // Export functionality would go here
-              showToast('Export feature coming soon');
-            }}
-            className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200"
-          >
-            <Download size={20} />
-            Export
+        <div className={styles.headerActions}>
+          <button type="button" className={styles.btnSubtle} onClick={handleGeneratePeriod}>
+            Generate this month
           </button>
           <button
+            type="button"
+            className={styles.btnPrimary}
             onClick={() => {
               resetForm();
               setEditingEntry(null);
               setShowAddModal(true);
             }}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
           >
-            <Plus size={20} />
-            Add Payroll Entry
+            + Add entry
           </button>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center gap-3">
-            <DollarSign className="w-8 h-8 text-blue-600" />
-            <div>
-              <p className="text-sm text-gray-500">Total Payroll</p>
-              <p className="text-2xl font-bold">{formatMoney(totalPayroll)}</p>
-            </div>
+      <div className={styles.walletCard}>
+        <div className={styles.walletLeft}>
+          <div className={styles.walletLabel}>Payroll wallet</div>
+          <div className={styles.walletBalance}>{formatMoney(walletBalance)}</div>
+          <div className={styles.walletHint}>
+            Add money here, then pay selected staff in one go.
           </div>
         </div>
-        
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center gap-3">
-            <Users className="w-8 h-8 text-yellow-600" />
-            <div>
-              <p className="text-sm text-gray-500">Pending</p>
-              <p className="text-2xl font-bold">{formatMoney(pendingPayroll)}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center gap-3">
-            <TrendingUp className="w-8 h-8 text-green-600" />
-            <div>
-              <p className="text-sm text-gray-500">Paid</p>
-              <p className="text-2xl font-bold">{formatMoney(paidPayroll)}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center gap-3">
-            <Calendar className="w-8 h-8 text-purple-600" />
-            <div>
-              <p className="text-sm text-gray-500">Active Staff</p>
-              <p className="text-2xl font-bold">{staffMembers.length}</p>
-            </div>
-          </div>
+        <div className={styles.walletActions}>
+          <button type="button" className={styles.btnPrimary} onClick={() => setShowFundModal(true)}>
+            + Add money
+          </button>
+          <button
+            type="button"
+            className={styles.btnSubtle}
+            disabled={selectedEntries.length === 0}
+            onClick={() => setShowBulkConfirm(true)}
+          >
+            Pay selected ({selectedEntries.length})
+          </button>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex gap-4 flex-wrap">
-          <div className="flex-1 min-w-[200px] relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search entries..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border rounded-lg"
-            />
-          </div>
-          
-          <select
-            value={filterPeriod}
-            onChange={(e) => setFilterPeriod(e.target.value)}
-            className="px-4 py-2 border rounded-lg"
-          >
-            <option value="all">All Periods</option>
-            {uniquePeriods.map(period => (
-              <option key={period} value={period}>{period}</option>
-            ))}
-          </select>
-          
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-2 border rounded-lg"
-          >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="processed">Processed</option>
-            <option value="paid">Paid</option>
-          </select>
+      <div className={styles.summaryRow}>
+        <div className={styles.summaryCard}>
+          <span className={styles.summaryLabel}>Wallet</span>
+          <span className={styles.summaryValue}>{formatMoney(walletBalance)}</span>
+        </div>
+        <div className={styles.summaryCard}>
+          <span className={styles.summaryLabel}>Unpaid</span>
+          <span className={styles.summaryValue}>{formatMoney(pendingTotal)}</span>
+        </div>
+        <div className={styles.summaryCard}>
+          <span className={styles.summaryLabel}>Paid (all time)</span>
+          <span className={styles.summaryValue}>{formatMoney(paidTotal)}</span>
+        </div>
+        <div className={styles.summaryCard}>
+          <span className={styles.summaryLabel}>Selected</span>
+          <span className={styles.summaryValue}>{formatMoney(selectedTotal)}</span>
         </div>
       </div>
 
-      {/* Payroll Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Staff</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Period</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Base Salary</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Bonuses</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Overtime</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Deductions</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Net Salary</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Status</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {filteredEntries.map(entry => (
-              <tr key={entry.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3">
-                  <div className="font-medium">{entry.staffName}</div>
-                  <div className="text-sm text-gray-500">{entry.staffRole}</div>
-                </td>
-                <td className="px-4 py-3 text-sm">{entry.period}</td>
-                <td className="px-4 py-3 text-sm">{formatMoney(entry.baseSalary)}</td>
-                <td className="px-4 py-3 text-sm text-green-600">+{formatMoney(entry.bonuses)}</td>
-                <td className="px-4 py-3 text-sm">
-                  <div className="text-green-600">+{formatMoney(entry.overtimePay)}</div>
-                  <div className="text-xs text-gray-500">{entry.overtimeHours}h @ {formatMoney(entry.overtimeRate)}/h</div>
-                </td>
-                <td className="px-4 py-3 text-sm text-red-600">-{formatMoney(entry.deductions)}</td>
-                <td className="px-4 py-3 font-semibold">{formatMoney(entry.netSalary)}</td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${getStatusColor(entry.status)}`}>
-                    {entry.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-2">
-                    {entry.status === 'pending' && (
-                      <button
-                        onClick={() => handleProcessPayroll(entry)}
-                        className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                        title="Process"
-                      >
-                        Process
-                      </button>
-                    )}
-                    {entry.status === 'processed' && (
-                      <button
-                        onClick={() => handleMarkAsPaid(entry)}
-                        className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
-                        title="Mark as paid"
-                      >
-                        Pay
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleEdit(entry)}
-                      className="p-1 hover:bg-gray-100 rounded"
-                      title="Edit"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(entry.id)}
-                      className="p-1 hover:bg-red-100 rounded text-red-600"
-                      title="Delete"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </td>
+      <div className={styles.toolbar}>
+        <input
+          type="search"
+          className={styles.search}
+          placeholder="Search staff or period…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+        <select
+          className={styles.select}
+          value={filterPeriod}
+          onChange={(e) => setFilterPeriod(e.target.value)}
+        >
+          <option value="all">All periods</option>
+          {uniquePeriods.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+        <select
+          className={styles.select}
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+        >
+          <option value="all">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="processed">Processed</option>
+          <option value="paid">Paid</option>
+        </select>
+        <button type="button" className={styles.btnSubtle} onClick={toggleSelectAllPending}>
+          Select unpaid
+        </button>
+      </div>
+
+      <div className={styles.tableWrap}>
+        {filteredEntries.length === 0 ? (
+          <div className={styles.empty}>
+            <p>No payroll entries yet.</p>
+            <p className={styles.emptyHint}>
+              Use “Generate this month” to create pending salaries from staff base pay, or add an entry
+              manually.
+            </p>
+          </div>
+        ) : (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th className={styles.colCheck}>
+                  <span className={styles.srOnly}>Select</span>
+                </th>
+                <th>Staff</th>
+                <th>Period</th>
+                <th>Base</th>
+                <th>Net</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        
-        {filteredEntries.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p>No payroll entries found</p>
-            <button
-              onClick={() => {
-                resetForm();
-                setEditingEntry(null);
-                setShowAddModal(true);
-              }}
-              className="mt-4 text-blue-600 hover:underline"
-            >
-              Add your first payroll entry
-            </button>
-          </div>
+            </thead>
+            <tbody>
+              {filteredEntries.map((entry) => {
+                const canSelect = entry.status !== 'paid';
+                return (
+                  <tr key={entry.id} className={selectedIds.has(entry.id) ? styles.rowSelected : undefined}>
+                    <td className={styles.colCheck}>
+                      <input
+                        type="checkbox"
+                        disabled={!canSelect}
+                        checked={selectedIds.has(entry.id)}
+                        onChange={() => toggleSelect(entry.id)}
+                        aria-label={`Select ${entry.staffName}`}
+                      />
+                    </td>
+                    <td>
+                      <div className={styles.staffCell}>
+                        <strong>{entry.staffName}</strong>
+                        <span>{entry.staffRole}</span>
+                      </div>
+                    </td>
+                    <td>{entry.period}</td>
+                    <td>{formatMoney(entry.baseSalary)}</td>
+                    <td>
+                      <strong>{formatMoney(entry.netSalary)}</strong>
+                    </td>
+                    <td>
+                      <span className={`${styles.badge} ${styles[`badge_${entry.status}`]}`}>
+                        {entry.status}
+                      </span>
+                    </td>
+                    <td>
+                      <div className={styles.rowActions}>
+                        {entry.status !== 'paid' && (
+                          <button type="button" className={styles.linkBtn} onClick={() => openEdit(entry)}>
+                            Edit
+                          </button>
+                        )}
+                        {entry.status !== 'paid' && (
+                          <button
+                            type="button"
+                            className={styles.linkDanger}
+                            onClick={() => handleDelete(entry.id)}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </div>
 
-      {/* Add/Edit Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">
-              {editingEntry ? 'Edit Payroll Entry' : 'Add Payroll Entry'}
-            </h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Staff Member</label>
-                <select
-                  value={formData.staffId}
-                  onChange={(e) => setFormData({ ...formData, staffId: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  required
-                >
-                  <option value="">Select staff member</option>
-                  {staffMembers.map(staff => (
-                    <option key={staff.id} value={staff.id}>
-                      {staff.name} - {staff.role} ({formatMoney(staff.baseSalary)})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Period (YYYY-MM)</label>
-                <input
-                  type="month"
-                  value={formData.period}
-                  onChange={(e) => setFormData({ ...formData, period: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Base Salary</label>
-                <input
-                  type="number"
-                  value={formData.baseSalary}
-                  onChange={(e) => setFormData({ ...formData, baseSalary: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  required
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Bonuses</label>
-                  <input
-                    type="number"
-                    value={formData.bonuses}
-                    onChange={(e) => setFormData({ ...formData, bonuses: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Deductions</label>
-                  <input
-                    type="number"
-                    value={formData.deductions}
-                    onChange={(e) => setFormData({ ...formData, deductions: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Overtime Hours</label>
-                  <input
-                    type="number"
-                    value={formData.overtimeHours}
-                    onChange={(e) => setFormData({ ...formData, overtimeHours: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Overtime Rate</label>
-                  <input
-                    type="number"
-                    value={formData.overtimeRate}
-                    onChange={(e) => setFormData({ ...formData, overtimeRate: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Notes</label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  rows={2}
-                  placeholder="Any additional notes..."
-                />
-              </div>
-            </div>
-            
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  setEditingEntry(null);
-                  resetForm();
-                }}
-                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
-              >
+      {walletTx.length > 0 && (
+        <div className={styles.txSection}>
+          <h3 className={styles.txTitle}>Recent wallet activity</h3>
+          <ul className={styles.txList}>
+            {walletTx.map((tx) => (
+              <li key={tx.id} className={styles.txItem}>
+                <span className={tx.type === 'deposit' ? styles.txIn : styles.txOut}>
+                  {tx.type === 'deposit' ? '+' : '−'}
+                  {formatMoney(tx.amount)}
+                </span>
+                <span className={styles.txNote}>{tx.note || tx.type}</span>
+                <span className={styles.txBal}>Bal {formatMoney(tx.balanceAfter)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {showFundModal && (
+        <div className={styles.overlay} onClick={() => setShowFundModal(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Add money to payroll wallet</h3>
+            <p className={styles.modalDesc}>
+              Record funds available to pay staff. This balance is used for bulk salary payouts.
+            </p>
+            <label className={styles.label}>
+              Amount (₦)
+              <input
+                type="number"
+                min="1"
+                step="100"
+                className={styles.input}
+                value={fundAmount}
+                onChange={(e) => setFundAmount(e.target.value)}
+                placeholder="e.g. 500000"
+                autoFocus
+              />
+            </label>
+            <label className={styles.label}>
+              Note (optional)
+              <input
+                type="text"
+                className={styles.input}
+                value={fundNote}
+                onChange={(e) => setFundNote(e.target.value)}
+                placeholder="Bank transfer, cash, etc."
+              />
+            </label>
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.btnSubtle} onClick={() => setShowFundModal(false)}>
                 Cancel
               </button>
               <button
-                onClick={handleSave}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                type="button"
+                className={styles.btnPrimary}
+                disabled={isFunding}
+                onClick={handleFundWallet}
               >
-                {editingEntry ? 'Update' : 'Add'}
+                {isFunding ? 'Adding…' : 'Add to wallet'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBulkConfirm && (
+        <div className={styles.overlay} onClick={() => setShowBulkConfirm(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Pay selected staff</h3>
+            <p className={styles.modalDesc}>
+              You are about to pay <strong>{selectedEntries.length}</strong> staff a total of{' '}
+              <strong>{formatMoney(selectedTotal)}</strong> from your payroll wallet.
+            </p>
+            <div className={styles.confirmBox}>
+              <div>
+                Wallet balance: <strong>{formatMoney(walletBalance)}</strong>
+              </div>
+              <div>
+                After payout:{' '}
+                <strong>{formatMoney(walletBalance - selectedTotal)}</strong>
+              </div>
+            </div>
+            {walletBalance < selectedTotal && (
+              <p className={styles.errorText}>
+                Insufficient balance. Add at least {formatMoney(selectedTotal - walletBalance)} more.
+              </p>
+            )}
+            <ul className={styles.confirmList}>
+              {selectedEntries.slice(0, 8).map((e) => (
+                <li key={e.id}>
+                  {e.staffName} — {formatMoney(e.netSalary)}
+                </li>
+              ))}
+              {selectedEntries.length > 8 && <li>…and {selectedEntries.length - 8} more</li>}
+            </ul>
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.btnSubtle} onClick={() => setShowBulkConfirm(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                disabled={isPaying || walletBalance < selectedTotal}
+                onClick={handleBulkPay}
+              >
+                {isPaying ? 'Paying…' : `Pay ${formatMoney(selectedTotal)}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddModal && (
+        <div className={styles.overlay} onClick={() => setShowAddModal(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>{editingEntry ? 'Edit payroll entry' : 'Add payroll entry'}</h3>
+            <label className={styles.label}>
+              Staff
+              <select
+                className={styles.input}
+                value={formData.staffId}
+                disabled={!!editingEntry}
+                onChange={(e) => {
+                  const id = e.target.value;
+                  const s = staffMembers.find((m) => m.id === id);
+                  setFormData((f) => ({
+                    ...f,
+                    staffId: id,
+                    baseSalary: s
+                      ? String(Number(s.baseSalary ?? s.salary) || f.baseSalary || '')
+                      : f.baseSalary,
+                  }));
+                }}
+              >
+                <option value="">Select staff…</option>
+                {staffMembers.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.role || 'Staff'})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={styles.label}>
+              Period (YYYY-MM)
+              <input
+                type="month"
+                className={styles.input}
+                value={formData.period}
+                onChange={(e) => setFormData((f) => ({ ...f, period: e.target.value }))}
+              />
+            </label>
+            <div className={styles.formGrid}>
+              <label className={styles.label}>
+                Base salary
+                <input
+                  type="number"
+                  className={styles.input}
+                  value={formData.baseSalary}
+                  onChange={(e) => setFormData((f) => ({ ...f, baseSalary: e.target.value }))}
+                />
+              </label>
+              <label className={styles.label}>
+                Bonuses
+                <input
+                  type="number"
+                  className={styles.input}
+                  value={formData.bonuses}
+                  onChange={(e) => setFormData((f) => ({ ...f, bonuses: e.target.value }))}
+                />
+              </label>
+              <label className={styles.label}>
+                Deductions
+                <input
+                  type="number"
+                  className={styles.input}
+                  value={formData.deductions}
+                  onChange={(e) => setFormData((f) => ({ ...f, deductions: e.target.value }))}
+                />
+              </label>
+              <label className={styles.label}>
+                Overtime hours
+                <input
+                  type="number"
+                  className={styles.input}
+                  value={formData.overtimeHours}
+                  onChange={(e) => setFormData((f) => ({ ...f, overtimeHours: e.target.value }))}
+                />
+              </label>
+              <label className={styles.label}>
+                Overtime rate
+                <input
+                  type="number"
+                  className={styles.input}
+                  value={formData.overtimeRate}
+                  onChange={(e) => setFormData((f) => ({ ...f, overtimeRate: e.target.value }))}
+                />
+              </label>
+            </div>
+            <label className={styles.label}>
+              Notes
+              <input
+                type="text"
+                className={styles.input}
+                value={formData.notes}
+                onChange={(e) => setFormData((f) => ({ ...f, notes: e.target.value }))}
+              />
+            </label>
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.btnSubtle} onClick={() => setShowAddModal(false)}>
+                Cancel
+              </button>
+              <button type="button" className={styles.btnPrimary} disabled={isSaving} onClick={handleSave}>
+                {isSaving ? 'Saving…' : 'Save'}
               </button>
             </div>
           </div>
@@ -652,4 +916,3 @@ export default function PayrollPage() {
     </div>
   );
 }
-

@@ -11,9 +11,9 @@ import React, {
 } from 'react';
 import { LangProvider } from './LangContext';
 import { getSupabase } from '@/lib/supabase';
+import { ensureFirebaseAuth } from '@/lib/ensure-firebase-auth';
 import { initializeFirebase } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { signInWithCustomToken } from 'firebase/auth';
 
 type User = {
   initials: string;
@@ -33,6 +33,13 @@ type User = {
 };
 
 import { PageId, Theme } from '.';
+import type { AppNotification } from './notificationTypes';
+import { showDeviceNotification } from '@/lib/deviceNotifications';
+import {
+  loadStoredNotifications,
+  saveStoredNotifications,
+  defaultNotifications,
+} from './notificationTypes';
 
 // Define AvatarOption type locally since it's not exported from './types'
 type AvatarOption = {
@@ -72,6 +79,16 @@ interface AppContextValue {
   notificationsVisible: boolean;
   toggleNotifications: () => void;
   dismissNotifications: () => void;
+  notifications: AppNotification[];
+  unreadNotificationCount: number;
+  notificationsPanelOpen: boolean;
+  openNotificationsPanel: () => void;
+  closeNotificationsPanel: () => void;
+  markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: () => void;
+  dismissNotification: (id: string) => void;
+  clearNotifications: () => void;
+  pushNotification: (n: Omit<AppNotification, 'id' | 'createdAt' | 'read'> & { id?: string }) => void;
   aiPanelOpen: boolean;
   toggleAIPanel: () => void;
 }
@@ -159,12 +176,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     businessId: undefined,
   });
 
-  const loadUser = useCallback(async (userId: string, userEmail: string, metadata: Record<string, any> | undefined, firestore: any, firebaseAuth: any) => {
-    // Resolve the Firestore user doc key: migrated users have firebase_uid in Supabase metadata
-    const firestoreUid = metadata?.firebase_uid || userId;
-
+  const loadUser = useCallback(async (userId: string, userEmail: string, metadata: Record<string, any> | undefined, firestore: any) => {
     try {
-      const userDoc = await getDoc(doc(firestore, 'users', firestoreUid));
+      const userDoc = await getDoc(doc(firestore, 'users', userId));
       if (userDoc.exists()) {
         const data = userDoc.data();
         const displayName = (metadata?.full_name || metadata?.name) || data.displayName || data.businessName || (data.firstName ? data.firstName + ' ' + (data.lastName || '') : '') || 'User';
@@ -173,7 +187,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUser({
           initials: (firstName.charAt(0) + (displayName.split(' ')[1]?.charAt(0) || '')).toUpperCase(),
           shortName: firstName,
-          role: data.role || metadata?.role || 'Owner',
+          role: data.role || 'Owner',
           plan: data.plan || 'Free',
           id: userId,
           name: displayName,
@@ -184,81 +198,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
             color: data.avatarColor || '#fff' 
           },
           photoURL: data.photoURL,
-          businessId: data.businessId || firestoreUid,
+          businessId: data.businessId,
         });
-        return;
+      } else {
+        const displayName = (metadata?.full_name || metadata?.name) || userEmail.split('@')[0] || 'User';
+        const firstName = displayName.split(' ')[0];
+        
+        setUser({
+          initials: (firstName.charAt(0) + (displayName.split(' ')[1]?.charAt(0) || '')).toUpperCase(),
+          shortName: firstName,
+          role: 'Owner',
+          plan: 'Free',
+          id: userId,
+          name: displayName,
+          email: userEmail || '',
+          avatarContent: '👤',
+          avatarStyle: { background: '#6B3FE7', color: '#fff' },
+          photoURL: undefined,
+          businessId: undefined,
+        });
       }
     } catch (error) {
-      console.error('Error loading user data from Firestore:', error);
+      console.error('Error loading user data:', error);
     }
-
-    // Fallback: no Firestore doc found — use Supabase metadata
-    const displayName = (metadata?.full_name || metadata?.name) || userEmail.split('@')[0] || 'User';
-    const firstName = displayName.split(' ')[0];
-    
-    setUser({
-      initials: (firstName.charAt(0) + (displayName.split(' ')[1]?.charAt(0) || '')).toUpperCase(),
-      shortName: firstName,
-      role: metadata?.role || 'Owner',
-      plan: 'Free',
-      id: userId,
-      name: displayName,
-      email: userEmail || '',
-      avatarContent: '👤',
-      avatarStyle: { background: '#6B3FE7', color: '#fff' },
-      photoURL: undefined,
-      businessId: metadata?.businessId || firestoreUid,
-    });
   }, []);
 
   useEffect(() => {
     const supabase = getSupabase();
-    const { firestore, auth: firebaseAuth } = initializeFirebase();
-
-    const signInToFirebase = async (supabaseAccessToken: string) => {
-      try {
-        const res = await fetch('/api/auth/firebase-token', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${supabaseAccessToken}` },
-        });
-        if (!res.ok) {
-          console.error('Failed to get Firebase custom token:', res.status);
-          return;
-        }
-        const { customToken } = await res.json();
-        if (customToken) {
-          await signInWithCustomToken(firebaseAuth, customToken);
-        }
-      } catch (e) {
-        console.error('Error signing into Firebase Auth:', e);
-      }
-    };
-
-    const handleSession = async (session: any) => {
-      if (session?.user) {
-        const metadata = session.user.user_metadata;
-        const firestoreUid = metadata?.firebase_uid || session.user.id;
-        loadUser(session.user.id, session.user.email || '', metadata, firestore, firebaseAuth);
-
-        // Sign into Firebase Auth so Firestore rules (request.auth) work
-        if (!firebaseAuth.currentUser) {
-          const tokenResponse = await supabase.auth.getSession();
-          const accessToken = tokenResponse.data.session?.access_token;
-          if (accessToken) {
-            await signInToFirebase(accessToken);
-          }
-        }
-      }
-    };
-
+    const { firestore } = initializeFirebase();
+    
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      handleSession(session);
+      if (session?.user) {
+        ensureFirebaseAuth().catch(() => {});
+        loadUser(session.user.id, session.user.email || '', session.user.user_metadata, firestore);
+      }
     });
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      handleSession(session);
+      if (session?.user) {
+        ensureFirebaseAuth().catch(() => {});
+        loadUser(session.user.id, session.user.email || '', session.user.user_metadata, firestore);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -278,24 +260,83 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAvatarModalOpen(false);
   }, []);
 
-  // Notification state
-  const [notificationsVisible, setNotificationsVisible] = useState(() => {
-    try {
-      const dismissed = localStorage.getItem('busmo-notifications-dismissed');
-      return !dismissed; // Show on first load if not dismissed
-    } catch {
-      return true;
-    }
-  });
+  // Notification inbox
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [notificationsPanelOpen, setNotificationsPanelOpen] = useState(false);
+  const [notifHydrated, setNotifHydrated] = useState(false);
+  // Legacy tip banner (kept for optional promo strip)
+  const [notificationsVisible, setNotificationsVisible] = useState(false);
 
   const toggleNotifications = useCallback(() => {
-    setNotificationsVisible(prev => !prev);
+    setNotificationsPanelOpen((prev) => !prev);
   }, []);
 
   const dismissNotifications = useCallback(() => {
     setNotificationsVisible(false);
-    localStorage.setItem('busmo-notifications-dismissed', 'true');
+    try {
+      localStorage.setItem('busmo-notifications-dismissed', 'true');
+    } catch { /* ignore */ }
   }, []);
+
+  useEffect(() => {
+    let items = loadStoredNotifications();
+    if (items.length === 0) {
+      items = defaultNotifications();
+      saveStoredNotifications(items);
+    }
+    setNotifications(items);
+    setNotifHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!notifHydrated) return;
+    saveStoredNotifications(notifications);
+  }, [notifications, notifHydrated]);
+
+  const unreadNotificationCount = notifications.filter((n) => !n.read).length;
+
+  const openNotificationsPanel = useCallback(() => setNotificationsPanelOpen(true), []);
+  const closeNotificationsPanel = useCallback(() => setNotificationsPanelOpen(false), []);
+
+  const markNotificationRead = useCallback((id: string) => {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+  }, []);
+
+  const markAllNotificationsRead = useCallback(() => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  }, []);
+
+  const dismissNotification = useCallback((id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  }, []);
+
+  const clearNotifications = useCallback(() => {
+    setNotifications([]);
+  }, []);
+
+  const pushNotification = useCallback(
+    (n: Omit<AppNotification, 'id' | 'createdAt' | 'read'> & { id?: string }) => {
+      const item: AppNotification = {
+        id: n.id || `n-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        type: n.type,
+        title: n.title,
+        body: n.body,
+        createdAt: Date.now(),
+        read: false,
+        href: n.href,
+        category: n.category,
+      };
+      setNotifications((prev) => [item, ...prev].slice(0, 50));
+      // Mirror to device when permission granted
+      showDeviceNotification({
+        title: item.title,
+        body: item.body,
+        tag: item.id,
+        url: '/owner/dashboard',
+      }).catch(() => {});
+    },
+    []
+  );
 
   // AI Panel state
   const [aiPanelOpen, setAIPanelOpen] = useState(false);
@@ -310,6 +351,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         toast, showToast,
         user, openAvatarModal, closeAvatarModal, avatarModalOpen, saveAvatar,
         notificationsVisible, toggleNotifications, dismissNotifications,
+        notifications, unreadNotificationCount, notificationsPanelOpen,
+        openNotificationsPanel, closeNotificationsPanel,
+        markNotificationRead, markAllNotificationsRead, dismissNotification, clearNotifications,
+        pushNotification,
         aiPanelOpen, toggleAIPanel,
       }}>
         {children}

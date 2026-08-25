@@ -1,19 +1,14 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "@/app/owner/dashboard/LangContext";
-
-// Only English and French for welcome page
-const WELCOME_LANGUAGES = [
-  { code: "en" as const, name: "English", flag: "🌐" },
-  { code: "fr" as const, name: "Français", flag: "🇫🇷" },
-];
+import type { LangCode } from "@/app/owner/dashboard/translations";
+import { LANGUAGES } from "@/app/owner/dashboard/translations";
 
 export function Translator() {
   const { lang, setLang } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
@@ -22,10 +17,12 @@ export function Translator() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  const handleSelect = (code: "en" | "fr") => {
+  const handleSelect = (code: LangCode) => {
     setLang(code);
     setOpen(false);
   };
+
+  const current = LANGUAGES.find((l) => l.code === lang) ?? LANGUAGES[0];
 
   return (
     <div className="relative ml-2" ref={ref}>
@@ -35,18 +32,17 @@ export function Translator() {
         onClick={() => setOpen((v) => !v)}
         type="button"
       >
-        {/* World SVG icon */}
         <svg width="18" height="18" fill="none" viewBox="0 0 24 24" className="text-gray-600 dark:text-gray-300">
           <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
           <path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20" stroke="currentColor" strokeWidth="2"/>
         </svg>
         <span className="font-semibold text-xs">
-          {WELCOME_LANGUAGES.find(l => l.code === lang)?.flag} {WELCOME_LANGUAGES.find(l => l.code === lang)?.name}
+          {current.flag === "global" ? "🌐" : current.flag} {current.name}
         </span>
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-50">
-          {WELCOME_LANGUAGES.map((l) => (
+        <div className="absolute right-0 mt-2 w-48 max-h-72 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg z-50">
+          {LANGUAGES.map((l) => (
             <button
               key={l.code}
               className={`block w-full text-left px-4 py-2 text-sm hover:bg-purple-50 dark:hover:bg-gray-700 flex items-center gap-2 ${
@@ -55,7 +51,7 @@ export function Translator() {
               onClick={() => handleSelect(l.code)}
               type="button"
             >
-              <span className="text-lg">{l.flag}</span>
+              <span className="text-lg">{l.flag === "global" ? "🌐" : l.flag}</span>
               <span>{l.name}</span>
             </button>
           ))}

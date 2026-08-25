@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from './AppContext';
+import { notifySale, notifyLowStock } from '@/lib/deviceNotifications';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { useFirestore } from '@/firebase/provider';
@@ -9,7 +10,8 @@ import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { Product, CartItem, PaymentMethod, PaymentBreakdown, CreditCustomer } from './types';
 import { initializeFirebase } from '@/firebase';
-import { getAuthCurrentUser, getFirestoreUserId } from '@/lib/supabase-auth';
+import { offlineManager } from '@/lib/offline/offline-manager';
+import { getAuthCurrentUser } from '@/lib/supabase-auth';
 import { BrevoService } from '@/services/email/brevo-service';
 import { sendFirstSaleCelebrationEmail } from '@/services/email/business-activity-emails';
 import { ReceiptGenerator } from './ReceiptGenerator';
@@ -121,16 +123,22 @@ export function RecordSalePage() {
         setLoading(true);
 
         // First, get the user's business ID
-        const userIds = getFirestoreUserId();
+        const user = getAuthCurrentUser();
         
-        if (!userIds) {
+        if (!user) {
           console.warn('User not authenticated');
           setLoading(false);
           return;
         }
 
-        const userDoc = await getDoc(doc(firestore, 'users', userIds.firestoreUid));
-        const bId = userDoc.exists() ? (userDoc.data().businessId || userIds.firestoreUid) : userIds.firestoreUid;
+        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+        if (!userDoc.exists()) {
+          console.warn('User document not found');
+          setLoading(false);
+          return;
+        }
+
+        const bId = userDoc.data().businessId;
         if (!bId) {
           console.warn('Business ID not found for user');
           setLoading(false);
@@ -328,6 +336,7 @@ export function RecordSalePage() {
       
       console.log('refreshProducts: Fetched', fetchedProducts.length, 'active products');
       setProducts(fetchedProducts);
+        if (businessId || targetBusinessId) void offlineManager.cacheProducts((businessId || targetBusinessId) as string, fetchedProducts as any);
     } catch (error) {
       console.error('Error refreshing products:', error);
       showToast('Failed to load products');
@@ -433,9 +442,9 @@ export function RecordSalePage() {
     
     try {
       const { firestore } = initializeFirebase();
-      const userIds = getFirestoreUserId();
+      const user = getAuthCurrentUser();
       
-      if (!userIds || !firestore) {
+      if (!user || !firestore) {
         showToast('Authentication required');
         setIsProcessingSale(false);
         return;
@@ -448,15 +457,12 @@ export function RecordSalePage() {
         return;
       }
 
-      // Create user-like object with Firestore UID for downstream use
-      const user = { uid: userIds.firestoreUid, email: userIds.email, displayName: '' };
-
       // Get current user's role and staff information
-      const userDoc = await getDoc(doc(firestore, 'users', userIds.firestoreUid));
+      const userDoc = await getDoc(doc(firestore, 'users', user.uid));
       const userData = userDoc.data();
       const userRole = userData?.role || 'Owner';
       const staffId = userData?.staffId || null;
-      const staffName = userData?.displayName || userData?.fullName || 'Unknown';
+      const staffName = userData?.displayName || user.displayName || 'Unknown';
 
     // Get source location name
     const selectedLocation = stockLocations.find(loc => loc.id === sourceLocation);
@@ -517,6 +523,40 @@ export function RecordSalePage() {
         saleData.customerId = selectedCustomer;
         saleData.customerName = creditCustomers.find(c => c.id === selectedCustomer)?.name || customerName;
         saleData.customerPhone = creditCustomers.find(c => c.id === selectedCustomer)?.phone || customerPhone;
+      }
+
+      // Offline path — queue and return early
+      if (!offlineManager.isOnline()) {
+        const items = (saleData.products || []).map((p: any) => ({
+          productId: String(p.productId),
+          name: p.name,
+          quantity: p.quantity,
+          price: p.price,
+          costPrice: p.costPrice || 0,
+          emoji: p.emoji,
+        }));
+        const totalRevenue = saleData.totalRevenue || saleData.total || 0;
+        const totalCost = items.reduce((s: number, i: any) => s + (i.costPrice || 0) * i.quantity, 0);
+        await offlineManager.queueSale({
+          businessId,
+          userId: user.uid,
+          items,
+          paymentType: (saleData.paymentMethod || 'cash') as any,
+          totalRevenue,
+          totalCost,
+          totalProfit: totalRevenue - totalCost,
+          recordedBy: saleData.recordedBy || {
+            uid: user.uid,
+            email: user.email || '',
+            displayName: user.displayName || 'Owner',
+            role: 'Owner',
+          },
+        });
+        showToast('Sale saved offline. It will sync when you are back online.');
+        setIsProcessingSale(false);
+        // clear cart if handlers exist
+        try { setCart([]); } catch { /* ignore */ }
+        return;
       }
 
       // Save sale to Firestore
@@ -728,6 +768,13 @@ export function RecordSalePage() {
 
           // Send low stock alert if any items are below threshold
           if (lowStockItems.length > 0) {
+            try {
+              await notifyLowStock({
+                names: lowStockItems.map((i) => i.name),
+                count: lowStockItems.length,
+              });
+            } catch { /* non-blocking */ }
+
             if (ownerEmail) {
               await BrevoService.sendLowStockAlertEmail(
                 ownerEmail,
@@ -944,6 +991,16 @@ export function RecordSalePage() {
       }
 
       showToast(`${t('sale.saleComplete')} - ${formatMoney(subtotal)}`);
+
+      // Device notification
+      try {
+        await notifySale({
+          amountLabel: formatMoney(subtotal),
+          saleId: saleRef.id,
+          byStaff: userRole === 'Staff',
+          staffName: staffName || undefined,
+        });
+      } catch { /* non-blocking */ }
       
       // Fetch business data for receipt
       let businessName = 'Business';

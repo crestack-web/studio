@@ -5,6 +5,8 @@ import { Button } from '../Button';
 import { doc, setDoc, getDoc, getFirestore } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { initializeFirebase } from '@/firebase';
+import { getAuthCurrentUser } from '@/lib/supabase-auth';
+import { getSupabase } from '@/lib/supabase';
 import styles from './AddStaffPage.module.css';
 import { 
   ROLES, 
@@ -19,13 +21,15 @@ export default function AddStaffPage() {
   };
 
   const generateStaffPassword = () => {
-    const length = 12;
-    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-    let password = '';
-    for (let i = 0; i < length; i++) {
-      password += charset.charAt(Math.floor(Math.random() * charset.length));
-    }
-    return password;
+    const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lower = 'abcdefghijkmnopqrstuvwxyz';
+    const digits = '23456789';
+    const special = '!@#$%&*';
+    const all = upper + lower + digits + special;
+    const pick = (s: string) => s.charAt(Math.floor(Math.random() * s.length));
+    let password = pick(upper) + pick(lower) + pick(digits) + pick(special);
+    for (let i = 0; i < 8; i++) password += pick(all);
+    return password.split('').sort(() => Math.random() - 0.5).join('');
   };
 
   const getInitials = (name: string) => {
@@ -45,12 +49,16 @@ export default function AddStaffPage() {
   useEffect(() => {
     async function fetchBusinessType() {
       try {
-        const { auth, firestore } = initializeFirebase();
-        const currentUserId = auth.currentUser?.uid || '';
+        const { firestore } = initializeFirebase();
+        const currentUserId = getAuthCurrentUser()?.uid || '';
         
         if (currentUserId) {
           const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
-          const businessId = ownerDoc.data()?.businessId || 'default';
+          const businessId = ownerDoc.data()?.businessId;
+      if (!businessId) {
+        showToast('No business linked to your account.');
+        return;
+      }
           
           const businessDoc = await getDoc(doc(firestore, 'businesses', businessId));
           if (businessDoc.exists()) {
@@ -97,12 +105,25 @@ export default function AddStaffPage() {
     }
 
     try {
-      const { auth, firestore } = initializeFirebase();
-      const currentUserId = auth.currentUser?.uid || '';
-      
+      const { firestore } = initializeFirebase();
+      let currentUserId = getAuthCurrentUser()?.uid || '';
+      if (!currentUserId) {
+        const { data } = await getSupabase().auth.getSession();
+        currentUserId = data.session?.user?.id || '';
+      }
+      if (!currentUserId) {
+        showToast('Not signed in. Please refresh and log in again.');
+        return;
+      }
+
       // Get owner's business ID
       const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
-      const businessId = ownerDoc.data()?.businessId || 'default';
+      const businessId = ownerDoc.data()?.businessId;
+      if (!businessId) {
+        showToast('No business linked to your account.');
+        return;
+      }
+      const businessName = ownerDoc.data()?.businessName || ownerDoc.data()?.displayName || 'Your Business';
 
       const staffId = generateStaffId();
       const generatedPassword = generateStaffPassword();
@@ -126,6 +147,8 @@ export default function AddStaffPage() {
             staffId: staffId,
             businessId: businessId,
             permissions: selectedPermissions,
+            businessName,
+            sendInvite: true,
           }),
         });
 

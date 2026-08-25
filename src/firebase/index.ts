@@ -3,17 +3,24 @@
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { Auth, getAuth } from 'firebase/auth';
-import { Firestore, getFirestore } from 'firebase/firestore';
+import {
+  Firestore,
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore';
 import { FirebaseStorage, getStorage } from 'firebase/storage';
 
-// IMPORTANT: DO NOT MODIFY THIS FUNCTION
-export function initializeFirebase(): { firebaseApp: FirebaseApp; auth: Auth; firestore: Firestore; storage: FirebaseStorage } {
+// IMPORTANT: DO NOT MODIFY THIS FUNCTION signature — call sites depend on it.
+export function initializeFirebase(): {
+  firebaseApp: FirebaseApp;
+  auth: Auth;
+  firestore: Firestore;
+  storage: FirebaseStorage;
+} {
   if (!getApps().length) {
-    // Important! initializeApp() is called without any arguments because Firebase App Hosting
-    // integrates with the initializeApp() function to provide the environment variables needed to
-    // populate the FirebaseOptions in production. It is critical that we attempt to call initializeApp()
-    // without arguments.
-    let firebaseApp;
+    let firebaseApp: FirebaseApp;
     const isBrowser = typeof window !== 'undefined';
 
     if (!isBrowser) {
@@ -36,11 +43,30 @@ export function initializeFirebase(): { firebaseApp: FirebaseApp; auth: Auth; fi
 }
 
 export function getSdks(firebaseApp: FirebaseApp) {
+  const isBrowser = typeof window !== 'undefined';
+  let firestore: Firestore;
+
+  if (isBrowser) {
+    try {
+      // Enable offline persistence so previously-loaded data is available offline.
+      firestore = initializeFirestore(firebaseApp, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager(),
+        }),
+      });
+    } catch {
+      // Already initialized in this tab / HMR — fall back to existing instance.
+      firestore = getFirestore(firebaseApp);
+    }
+  } else {
+    firestore = getFirestore(firebaseApp);
+  }
+
   return {
     firebaseApp,
     auth: getAuth(firebaseApp),
-    firestore: getFirestore(firebaseApp),
-    storage: getStorage(firebaseApp)
+    firestore,
+    storage: getStorage(firebaseApp),
   };
 }
 

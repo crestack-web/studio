@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { initializeFirebase } from '@/firebase';
+import { getAuthCurrentUser } from '@/lib/supabase-auth';
 import { doc, getDoc, getFirestore, collection, getDocs, query } from 'firebase/firestore';
 
 interface StaffMember {
@@ -42,7 +43,7 @@ const AttendanceTab: React.FC<AttendanceTabProps> = ({ staffMembers, showToast }
   const loadAttendanceData = async () => {
     try {
       const { auth, firestore } = initializeFirebase();
-      const currentUserId = auth.currentUser?.uid || '';
+      const currentUserId = getAuthCurrentUser()?.uid || '';
       if (!currentUserId) return;
       
       const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));

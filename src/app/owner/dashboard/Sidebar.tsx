@@ -8,6 +8,7 @@ import type { PageId, NavSection } from './index';
 import { MoIcon, NavIcons } from './NavIcons';
 import styles from './Sidebar.module.css';
 import { initializeFirebase } from '@/firebase';
+import { getAuthCurrentUser } from '@/lib/supabase-auth';
 import { collection, getDocs, getFirestore, doc, getDoc } from 'firebase/firestore';
 import { checkFeatureAccess as checkRegistryAccess } from '@/lib/featureRegistry';
 import { Plan, BusinessCategory } from '@/lib/featureRegistry';
@@ -57,7 +58,7 @@ export function Sidebar() {
     const loadUserData = async () => {
       try {
         const { auth, firestore } = initializeFirebase();
-        const currentUserId = auth.currentUser?.uid || '';
+        const currentUserId = getAuthCurrentUser()?.uid || '';
         
         if (!currentUserId) {
           return;

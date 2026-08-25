@@ -1,16 +1,15 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
-import { NAV_SECTIONS } from './navItems';
 import { MoIcon } from './NavIcons';
 import { BranchSwitcher } from '@/components/BranchSwitcher';
 import { useTrialInfo } from './TrialGuard';
 import styles from './Topbar.module.css';
 
 export function Topbar() {
-  const { activePage, openSidebar, toggleTheme, theme, user, openAvatarModal, toggleNotifications, toggleAIPanel } = useApp();
+  const { openSidebar, toggleTheme, theme, user, openAvatarModal, toggleNotifications, toggleAIPanel, unreadNotificationCount, notificationsPanelOpen } = useApp();
   const { t } = useTranslation();
   const trialInfo = useTrialInfo();
   const [timeLeft, setTimeLeft] = useState(trialInfo);
@@ -40,20 +39,6 @@ export function Topbar() {
     return () => clearInterval(timer);
   }, [trialInfo]);
 
-  const currentNav = useMemo(() => {
-    for (const section of NAV_SECTIONS) {
-      const found = section.items.find(i => i.id === activePage);
-      if (found) return found;
-    }
-    return { label: t('nav.home'), tip: '' };
-  }, [activePage, t]);
-
-  const greeting = activePage === 'home' ? `${t('topbar.greeting')}, ${user.shortName} 👋` : currentNav.label;
-
-  const today = useMemo(() =>
-    new Date().toLocaleDateString('en-NG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
-  []);
-
   const getUrgencyColor = () => {
     if (!timeLeft) return 'var(--purple)';
     if (timeLeft.daysRemaining === 0 && timeLeft.hoursRemaining < 24) {
@@ -75,6 +60,7 @@ export function Topbar() {
     }
   };
 
+
   return (
     <header className={styles.topbar}>
       <button className={styles.hamburger} onClick={openSidebar} aria-label="Open navigation">
@@ -83,10 +69,16 @@ export function Topbar() {
         </svg>
       </button>
 
-      <div className={styles.titleBlock}>
-        <h1 className={styles.title}>{greeting}</h1>
-        <p className={styles.subtitle}>{activePage === 'home' ? today : ''}</p>
+      <div className={styles.brand} aria-label="Busmo">
+        <img
+          src="/email-logo.png"
+          alt="Busmo Logo"
+          className={styles.brandLogo}
+        />
+        <span className={styles.brandName}>Busmo</span>
       </div>
+
+      <div className={styles.spacer} aria-hidden />
 
       <div className={styles.actions}>
         {timeLeft && (
@@ -99,7 +91,7 @@ export function Topbar() {
             border: `1px solid ${getUrgencyColor()}30`,
             borderRadius: '8px',
             fontSize: '0.75rem',
-            fontWeight: '600',
+            fontWeight: 600,
             color: getUrgencyColor(),
           }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -147,12 +139,28 @@ export function Topbar() {
           )}
         </button>
 
-        <button className={styles.iconBtn} onClick={toggleNotifications} title={t('topbar.notifications')}>
+        <button
+          type="button"
+          className={`${styles.iconBtn} ${notificationsPanelOpen ? styles.iconBtnActive : ''}`}
+          onClick={toggleNotifications}
+          title={t('topbar.notifications')}
+          aria-label={
+            unreadNotificationCount > 0
+              ? `Notifications, ${unreadNotificationCount} unread`
+              : 'Notifications'
+          }
+          aria-expanded={notificationsPanelOpen}
+          data-notif-bell
+        >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
             <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
             <path d="M13.73 21a2 2 0 01-3.46 0"/>
           </svg>
-          <span className={styles.notifDot} />
+          {unreadNotificationCount > 0 && (
+            <span className={styles.notifBadge} aria-hidden>
+              {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+            </span>
+          )}
         </button>
 
         <div className={styles.divider} />
@@ -178,4 +186,3 @@ export function Topbar() {
     </header>
   );
 }
-

@@ -40,7 +40,17 @@ export type PageId =
   | 'customer-management'
   | 'warehouse'
   | 'stock-transfers'
-  | 'receive-stock';
+  | 'receive-stock'
+  | 'credit-tracking'
+  | 'payroll'
+  | 'email-campaigns'
+  | 'document-templates'
+  | 'menu-management'
+  | 'ingredient-tracking'
+  | 'expiry-alerts'
+  | 'production-tracking'
+  | 'audit-trail'
+  | 'staff-activity';
 
 // ── Navigation ──────────────────────────────
 export interface NavItem {

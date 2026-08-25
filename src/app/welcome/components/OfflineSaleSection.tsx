@@ -8,10 +8,10 @@ export const OfflineSaleSection: React.FC = () => (
       <div className="section-head center">
         <div className="section-label">Works Offline</div>
         <h2 className="section-title">
-          Record Sales.<em style={{ color: 'var(--purple-mid)' }}>Anytime, Anywhere.</em>
+          Your business doesn&apos;t stop when the internet does.
         </h2>
         <p className="section-sub">
-          No internet? No problem. Busmo works offline and syncs when you reconnect.
+          Record sales and keep working without connectivity. Busmo syncs when you&apos;re back online — so a network drop doesn&apos;t stop your day.
         </p>
       </div>
 

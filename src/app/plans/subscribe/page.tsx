@@ -15,9 +15,9 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 const plans = [
-  { id: 'starter', name: 'Starter', monthlyPrice: 5000, yearlyPrice: 50000 },
-  { id: 'standard', name: 'Standard', monthlyPrice: 10000, yearlyPrice: 100000 },
-  { id: 'pro', name: 'Pro', monthlyPrice: 25000, yearlyPrice: 250000 }
+  { id: 'starter', name: 'Busmo Start', monthlyPrice: 7500, yearlyPrice: 75000 },
+  { id: 'standard', name: 'Busmo Control', monthlyPrice: 20000, yearlyPrice: 200000 },
+  { id: 'pro', name: 'Busmo Scale', monthlyPrice: 40000, yearlyPrice: 400000 }
 ];
 
 interface Coupon {

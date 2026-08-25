@@ -1,28 +1,44 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+/**
+ * WarehousePage — inventory locations, transfers, invoice release, adjustments.
+ * Redesigned UI with clearer flows; data stays on businesses/{id}/…
+ */
+
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  updateDoc,
+  deleteDoc,
+  setDoc,
+  runTransaction,
+  Timestamp,
+} from 'firebase/firestore';
+import {
+  Package,
+  MapPin,
+  ArrowLeftRight,
+  ClipboardList,
+  RotateCcw,
+  Plus,
+  RefreshCw,
+  Search,
+  Warehouse,
+  AlertTriangle,
+  CheckCircle2,
+  X,
+} from 'lucide-react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, addDoc, deleteDoc, doc, runTransaction, updateDoc, getDoc, orderBy } from 'firebase/firestore';
+import { ensureFirebaseAuth } from '@/lib/ensure-firebase-auth';
+import { getAuthCurrentUser } from '@/lib/supabase-auth';
 import { useTranslation } from './LangContext';
-import { NavIcons } from './NavIcons';
 import styles from './WarehousePage.module.css';
-
-// Icon component wrapper for consistent usage
-const Icon = ({ name, size = 18 }: { name: string; size?: number }) => (
-  <NavIcons id={name} size={size} />
-);
-
-// Memoize the firebase instance to prevent re-initialization
-let cachedFirebaseInstance: ReturnType<typeof initializeFirebase> | null = null;
-const getFirebaseInstance = () => {
-  if (!cachedFirebaseInstance) {
-    cachedFirebaseInstance = initializeFirebase();
-  }
-  return cachedFirebaseInstance;
-};
 
 interface Product {
   id: string;
@@ -33,16 +49,7 @@ interface Product {
   stockByLocation: Record<string, number>;
   costPrice: number;
   sellingPrice: number;
-  imageUrl?: string;
   lowStockThreshold: number;
-}
-
-interface LocationSummary {
-  name: string;
-  type: string;
-  stockCount: number;
-  stockValue: number;
-  productCount: number;
 }
 
 interface StockLocation {
@@ -54,7 +61,6 @@ interface StockLocation {
 interface Invoice {
   id: string;
   invoiceNumber: string;
-  saleId: string;
   customerName: string;
   customerPhone: string;
   items: Array<{
@@ -70,1253 +76,1102 @@ interface Invoice {
   status: 'pending' | 'released' | 'rejected' | 'partial';
   createdAt: Date;
   releasedBy?: string;
-  releasedAt?: Date;
   notes?: string;
-  recordedBy?: {
-    uid: string;
-    displayName: string;
-    role: string;
-  };
+  recordedBy?: { displayName?: string; role?: string };
+}
+
+type TabId =
+  | 'overview'
+  | 'pending'
+  | 'released'
+  | 'locations'
+  | 'transfers'
+  | 'requests'
+  | 'returns';
+
+const TABS: { id: TabId; labelKey: string; Icon: React.ComponentType<{ size?: number }> }[] = [
+  { id: 'overview', labelKey: 'warehouse.tab.stock', Icon: Package },
+  { id: 'pending', labelKey: 'warehouse.tab.toRelease', Icon: ClipboardList },
+  { id: 'released', labelKey: 'warehouse.tab.released', Icon: CheckCircle2 },
+  { id: 'locations', labelKey: 'warehouse.tab.locations', Icon: MapPin },
+  { id: 'transfers', labelKey: 'warehouse.tab.transfers', Icon: ArrowLeftRight },
+  { id: 'requests', labelKey: 'warehouse.tab.requests', Icon: AlertTriangle },
+  { id: 'returns', labelKey: 'warehouse.tab.returns', Icon: RotateCcw },
+];
+
+function locLabel(id: string, locations: StockLocation[]) {
+  return locations.find((l) => l.id === id)?.name || id.replace(/_/g, ' ');
 }
 
 export function WarehousePage() {
   const { t } = useTranslation();
   const { showToast, user, navigateTo } = useApp();
-  const { formatMoney, currency } = useCurrency();
-  const { businessId, branches } = useBranch();
-  const firebaseInstance = getFirebaseInstance();
-  const firestore = firebaseInstance.firestore;
+  const { formatMoney } = useCurrency();
+  const { businessId: branchBusinessId } = useBranch();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'pending' | 'released' | 'locations' | 'transfers' | 'requests' | 'returns'>('overview');
+  const [businessId, setBusinessId] = useState<string | null>(
+    branchBusinessId || user?.businessId || null
+  );
+  const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [products, setProducts] = useState<Product[]>([]);
   const [stockLocations, setStockLocations] = useState<StockLocation[]>([]);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newLocationName, setNewLocationName] = useState('');
-  const [isCreatingWarehouse, setIsCreatingWarehouse] = useState(false);
-  const [locationToDelete, setLocationToDelete] = useState<StockLocation | null>(null);
   const [transferHistory, setTransferHistory] = useState<any[]>([]);
-  
-  // Invoice management state
   const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
-  const [releaseNotes, setReleaseNotes] = useState('');
-  
-  // Stock transfer modal state
-  const [showTransferModal, setShowTransferModal] = useState(false);
-  const [transferProduct, setTransferProduct] = useState<Product | null>(null);
-  const [transferQuantity, setTransferQuantity] = useState(1);
-  const [transferTarget, setTransferTarget] = useState('');
-  
-  // Stock adjustment modal state
-  const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
-  const [adjustmentProduct, setAdjustmentProduct] = useState<Product | null>(null);
-  const [adjustmentQuantity, setAdjustmentQuantity] = useState(1);
-  const [adjustmentReason, setAdjustmentReason] = useState<'damaged' | 'lost' | 'expired' | 'recount'>('damaged');
-  const [adjustmentNotes, setAdjustmentNotes] = useState('');
-  
-  // Stock requests state
   const [stockRequests, setStockRequests] = useState<any[]>([]);
-  const [selectedStockRequest, setSelectedStockRequest] = useState<any | null>(null);
-  const [showStockRequestModal, setShowStockRequestModal] = useState(false);
-  const [requestNotes, setRequestNotes] = useState('');
-  
-  // Returns state
   const [returns, setReturns] = useState<any[]>([]);
-  const [selectedReturn, setSelectedReturn] = useState<any | null>(null);
-  const [showReturnModal, setShowReturnModal] = useState(false);
-  const [returnNotes, setReturnNotes] = useState('');
 
-  const loadStockLocations = async () => {
-    if (!businessId || !firestore) return;
+  // Modals
+  const [showAddLocation, setShowAddLocation] = useState(false);
+  const [newLocationName, setNewLocationName] = useState('');
+  const [creatingLocation, setCreatingLocation] = useState(false);
 
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferProduct, setTransferProduct] = useState<Product | null>(null);
+  const [transferQty, setTransferQty] = useState(1);
+  const [transferFrom, setTransferFrom] = useState('');
+  const [transferTo, setTransferTo] = useState('');
+  const [transferring, setTransferring] = useState(false);
+
+  const [showAdjust, setShowAdjust] = useState(false);
+  const [adjustProduct, setAdjustProduct] = useState<Product | null>(null);
+  const [adjustQty, setAdjustQty] = useState(1);
+  const [adjustReason, setAdjustReason] = useState<
+    'damaged' | 'lost' | 'expired' | 'recount'
+  >('damaged');
+  const [adjustNotes, setAdjustNotes] = useState('');
+  const [adjusting, setAdjusting] = useState(false);
+
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [releaseNotes, setReleaseNotes] = useState('');
+  const [releasing, setReleasing] = useState(false);
+
+  const db = () => initializeFirebase().firestore;
+
+  const resolveBusinessId = useCallback(async (): Promise<string | null> => {
+    if (branchBusinessId) return branchBusinessId;
+    if (user?.businessId) return user.businessId;
     try {
-      const locationsQuery = query(
-        collection(firestore, 'businesses', businessId, 'stockLocations')
-      );
-      const locationsSnapshot = await getDocs(locationsQuery);
-      const loadedLocations: StockLocation[] = [];
+      await ensureFirebaseAuth();
+      const uid = user?.id || getAuthCurrentUser()?.uid;
+      if (!uid) return null;
+      const firestore = db();
+      if (!firestore) return null;
+      const snap = await getDoc(doc(firestore, 'users', uid));
+      return snap.exists() ? snap.data()?.businessId || null : null;
+    } catch {
+      return null;
+    }
+  }, [branchBusinessId, user?.businessId, user?.id]);
 
-      locationsSnapshot.forEach((doc) => {
-        const data = doc.data();
-        loadedLocations.push({
-          id: doc.id,
-          name: data.name,
-          type: data.type || doc.id,
+  const loadLocations = useCallback(
+    async (bid: string) => {
+      const firestore = db();
+      if (!firestore) return [];
+      const snap = await getDocs(
+        collection(firestore, 'businesses', bid, 'stockLocations')
+      );
+      let list: StockLocation[] = [];
+      snap.forEach((d) => {
+        const data = d.data();
+        list.push({
+          id: d.id,
+          name: data.name || d.id,
+          type: data.type || 'warehouse',
         });
       });
-
-      // Deduplicate locations by name to prevent duplicates
-      const uniqueLocations = loadedLocations.filter((location, index, self) =>
-        index === self.findIndex(l => l.name.toLowerCase() === location.name.toLowerCase())
+      list = list.filter(
+        (loc, i, self) => self.findIndex((x) => x.id === loc.id) === i
       );
 
-      // Ensure Main Store always exists - use fixed ID to prevent duplicates
-      const hasMainStore = uniqueLocations.some(loc => loc.id === 'main_store');
-      
-      if (!hasMainStore) {
-        try {
-          // Use setDoc with specific document ID to prevent duplicates
-          const { setDoc } = await import('firebase/firestore');
-          await setDoc(
-            doc(firestore, 'businesses', businessId, 'stockLocations', 'main_store'),
-            {
-              name: 'Main Store',
-              type: 'main_store',
-              createdAt: new Date(),
-            }
-          );
-          
-          // Add to loaded locations
-          uniqueLocations.push({
-            id: 'main_store',
+      if (!list.some((l) => l.id === 'main_store')) {
+        await setDoc(
+          doc(firestore, 'businesses', bid, 'stockLocations', 'main_store'),
+          {
             name: 'Main Store',
-            type: 'main_store',
-          });
-        } catch (error) {
-          console.error('Error creating main store:', error);
-        }
+            type: 'store',
+            createdAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+        list.unshift({ id: 'main_store', name: 'Main Store', type: 'store' });
       }
 
-      const sorted = uniqueLocations.sort((a, b) => {
-        const order = ['main_store', 'warehouse', 'back_store'];
-        const aIndex = order.indexOf(a.id);
-        const bIndex = order.indexOf(b.id);
-        if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-        if (aIndex !== -1) return -1;
-        if (bIndex !== -1) return 1;
-        return a.name.localeCompare(b.name);
+      const order = ['main_store', 'warehouse', 'back_store'];
+      list.sort((a, b) => {
+        const ai = order.indexOf(a.id);
+        const bi = order.indexOf(b.id);
+        if (ai === -1 && bi === -1) return a.name.localeCompare(b.name);
+        if (ai === -1) return 1;
+        if (bi === -1) return -1;
+        return ai - bi;
       });
+      setStockLocations(list);
+      return list;
+    },
+    []
+  );
 
-      setStockLocations(sorted);
-    } catch (error) {
-      console.error('Error loading stock locations:', error);
-    }
-  };
-
-  const loadTransferHistory = async () => {
-    if (!businessId || !firestore) return;
-
-    try {
-      const transfersQuery = query(
-        collection(firestore, 'businesses', businessId, 'stockTransfers')
+  const loadProducts = useCallback(
+    async (bid: string) => {
+      const firestore = db();
+      if (!firestore) return;
+      const snap = await getDocs(
+        collection(firestore, 'businesses', bid, 'products')
       );
-      const transfersSnapshot = await getDocs(transfersQuery);
-      const transfers: any[] = [];
-
-      transfersSnapshot.forEach(doc => {
-        const data = doc.data();
-        transfers.push({
-          id: doc.id,
-          ...data,
-          transferredAt: data.transferredAt?.toDate() || new Date(),
+      const list: Product[] = [];
+      snap.forEach((d) => {
+        const data = d.data();
+        if (String(data.status || '').toLowerCase() === 'deleted') return;
+        const stockByLocation =
+          data.stockByLocation && typeof data.stockByLocation === 'object'
+            ? { ...data.stockByLocation }
+            : { main_store: data.stock || data.quantity || 0 };
+        list.push({
+          id: d.id,
+          name: data.name || 'Unnamed',
+          sku: data.sku || data.barcode || '',
+          category: data.category || '',
+          stock: data.stock ?? data.quantity ?? 0,
+          stockByLocation,
+          costPrice: data.cost || data.costPrice || 0,
+          sellingPrice: data.price || 0,
+          lowStockThreshold: data.lowStockThreshold || 10,
         });
       });
+      list.sort((a, b) => a.name.localeCompare(b.name));
+      setProducts(list);
+    },
+    []
+  );
 
-      transfers.sort((a, b) => b.transferredAt - a.transferredAt);
-      setTransferHistory(transfers.slice(0, 50));
-    } catch (error) {
-      console.error('Error loading transfer history:', error);
-    }
-  };
-
-  const loadInvoices = async () => {
-    if (!businessId || !firestore) return;
-
+  const loadTransfers = useCallback(async (bid: string) => {
+    const firestore = db();
+    if (!firestore) return;
     try {
-      const invoicesQuery = query(
-        collection(firestore, 'businesses', businessId, 'invoices')
+      const snap = await getDocs(
+        collection(firestore, 'businesses', bid, 'stockTransfers')
       );
-      const invoicesSnapshot = await getDocs(invoicesQuery);
-      const loadedInvoices: Invoice[] = [];
+      const rows: any[] = [];
+      snap.forEach((d) => {
+        const data = d.data();
+        rows.push({
+          id: d.id,
+          ...data,
+          transferredAt: data.transferredAt?.toDate
+            ? data.transferredAt.toDate()
+            : data.transferredAt
+              ? new Date(data.transferredAt)
+              : new Date(),
+        });
+      });
+      rows.sort(
+        (a, b) =>
+          new Date(b.transferredAt).getTime() -
+          new Date(a.transferredAt).getTime()
+      );
+      setTransferHistory(rows.slice(0, 80));
+    } catch (e) {
+      console.warn('[Warehouse] transfers load failed', e);
+    }
+  }, []);
 
-      invoicesSnapshot.forEach(doc => {
-        const data = doc.data();
-        loadedInvoices.push({
-          id: doc.id,
-          invoiceNumber: data.invoiceNumber || '',
-          saleId: data.saleId || '',
-          customerName: data.customerName || '',
+  const loadInvoices = useCallback(async (bid: string) => {
+    const firestore = db();
+    if (!firestore) return;
+    try {
+      const snap = await getDocs(
+        collection(firestore, 'businesses', bid, 'invoices')
+      );
+      const rows: Invoice[] = [];
+      snap.forEach((d) => {
+        const data = d.data();
+        rows.push({
+          id: d.id,
+          invoiceNumber: data.invoiceNumber || d.id.slice(-6),
+          customerName: data.customerName || 'Walk-in',
           customerPhone: data.customerPhone || '',
           items: data.items || [],
-          totalAmount: data.totalAmount || 0,
-          sourceLocation: data.sourceLocation || '',
-          sourceLocationId: data.sourceLocationId || '',
+          totalAmount: data.totalAmount || data.total || 0,
+          sourceLocation: data.sourceLocation || 'Main Store',
+          sourceLocationId: data.sourceLocationId || 'main_store',
           status: data.status || 'pending',
-          createdAt: data.createdAt?.toDate() || new Date(),
+          createdAt: data.createdAt?.toDate
+            ? data.createdAt.toDate()
+            : new Date(),
           releasedBy: data.releasedBy,
-          releasedAt: data.releasedAt?.toDate(),
           notes: data.notes,
           recordedBy: data.recordedBy,
         });
       });
-
-      setInvoices(loadedInvoices);
-    } catch (error) {
-      console.error('Error loading invoices:', error);
+      rows.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      setInvoices(rows);
+    } catch (e) {
+      console.warn('[Warehouse] invoices load failed', e);
     }
-  };
+  }, []);
 
-  const handleReleaseInvoice = async (invoice: Invoice, partial: boolean = false) => {
-    if (!businessId || !firestore) return;
-
+  const loadRequests = useCallback(async (bid: string) => {
+    const firestore = db();
+    if (!firestore) return;
     try {
-      const { Timestamp } = await import('firebase/firestore');
-      
-      // Deduct inventory
-      await runTransaction(firestore, async (transaction) => {
-        for (const item of invoice.items) {
-          const productRef = doc(firestore, 'businesses', businessId, 'products', item.productId);
-          const productDoc = await transaction.get(productRef);
-          
-          if (productDoc.exists()) {
-            const data = productDoc.data();
-            const currentStock = data.stock || data.quantity || 0;
-            const quantityToDeduct = partial ? Math.floor(item.quantity / 2) : item.quantity;
-            const newStock = Math.max(0, currentStock - quantityToDeduct);
-            
-            // Update stockByLocation
-            const stockByLocation = data.stockByLocation || {};
-            if (invoice.sourceLocationId && stockByLocation[invoice.sourceLocationId] !== undefined) {
-              const currentLocationStock = stockByLocation[invoice.sourceLocationId] || 0;
-              const newLocationStock = Math.max(0, currentLocationStock - quantityToDeduct);
-              stockByLocation[invoice.sourceLocationId] = newLocationStock;
-            }
-            
-            transaction.update(productRef, {
-              stock: newStock,
-              stockByLocation: stockByLocation,
-            });
-          }
-        }
-      });
-
-      // Update invoice status
-      const invoiceRef = doc(firestore, 'businesses', businessId, 'invoices', invoice.id);
-      await updateDoc(invoiceRef, {
-        status: partial ? 'partial' : 'released',
-        releasedBy: user?.name || user?.email || 'Unknown',
-        releasedAt: Timestamp.now(),
-        notes: releaseNotes,
-      });
-
-      showToast(`✅ Invoice ${partial ? 'partially' : ''} released successfully`);
-      setShowInvoiceModal(false);
-      setSelectedInvoice(null);
-      setReleaseNotes('');
-      loadInvoices();
-      loadProducts();
-    } catch (error) {
-      console.error('Error releasing invoice:', error);
-      showToast(t('toast.invoiceReleaseFailed'));
-    }
-  };
-
-  const loadProducts = async () => {
-    if (!businessId || !firestore) {
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-
-      // First, load locations to ensure main_store exists
-      await loadStockLocations();
-      
-      const productsQuery = query(
-        collection(firestore, 'businesses', businessId, 'products'),
-        where('active', '==', true)
+      const snap = await getDocs(
+        collection(firestore, 'businesses', bid, 'stockRequests')
       );
+      const rows: any[] = [];
+      snap.forEach((d) => rows.push({ id: d.id, ...d.data() }));
+      setStockRequests(rows);
+    } catch {
+      setStockRequests([]);
+    }
+  }, []);
 
-      const productsSnapshot = await getDocs(productsQuery);
-      const productsList: Product[] = [];
-      
-      // Get current location IDs after locations are loaded
-      const currentLocations = stockLocations;
-      const locationIds = currentLocations.map(l => l.id);
-      
-      // Ensure stockByLocation has all current locations
-      productsSnapshot.forEach(doc => {
-        const data = doc.data();
-        let stockByLocation = data.stockByLocation || {};
-        
-        // If no stockByLocation or missing main_store, initialize with all stock in main_store
-        if (!stockByLocation || Object.keys(stockByLocation).length === 0) {
-          stockByLocation = {
-            main_store: data.stock || 0,
-          };
-        } else {
-          // Ensure main_store exists in stockByLocation
-          if (!('main_store' in stockByLocation)) {
-            stockByLocation.main_store = data.stock || 0;
-          }
-        }
-        
-        // Ensure all current locations have values (default to 0 if not set)
-        locationIds.forEach(locId => {
-          if (!(locId in stockByLocation)) {
-            stockByLocation[locId] = 0;
-          }
-        });
+  const loadReturns = useCallback(async (bid: string) => {
+    const firestore = db();
+    if (!firestore) return;
+    try {
+      const snap = await getDocs(
+        collection(firestore, 'businesses', bid, 'stockReturns')
+      );
+      const rows: any[] = [];
+      snap.forEach((d) => rows.push({ id: d.id, ...d.data() }));
+      setReturns(rows);
+    } catch {
+      setReturns([]);
+    }
+  }, []);
 
-        productsList.push({
-          id: doc.id,
-          name: data.name || '',
-          sku: data.attributes?.sku || '',
-          category: data.category || '',
-          stock: data.stock || 0,
-          stockByLocation,
-          costPrice: data.cost || 0,
-          sellingPrice: data.price || 0,
-          imageUrl: data.imageUrl || '',
-          lowStockThreshold: data.lowStockThreshold || 10,
-        });
-      });
-
-      setProducts(productsList);
-      await loadTransferHistory();
-    } catch (error) {
-      console.error('Error loading products:', error);
-      showToast(t('toast.warehouseLoadFailed'));
+  const refreshAll = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await ensureFirebaseAuth();
+      const bid = await resolveBusinessId();
+      if (!bid) {
+        showToast(t('common.noBusinessLinked'));
+        return;
+      }
+      setBusinessId(bid);
+      await loadLocations(bid);
+      await Promise.all([
+        loadProducts(bid),
+        loadTransfers(bid),
+        loadInvoices(bid),
+        loadRequests(bid),
+        loadReturns(bid),
+      ]);
+    } catch (e) {
+      console.error('[Warehouse] refresh failed', e);
+      showToast(t('warehouse.loadFailed'));
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [
+    resolveBusinessId,
+    loadLocations,
+    loadProducts,
+    loadTransfers,
+    loadInvoices,
+    loadRequests,
+    loadReturns,
+    showToast,
+  ]);
 
   useEffect(() => {
-    loadProducts();
-    loadInvoices();
-    loadStockRequests();
-    loadReturns();
-  }, [businessId]);
+    refreshAll();
+  }, [branchBusinessId, user?.businessId]);
 
-  const loadReturns = async () => {
-    if (!businessId || !firestore) return;
+  const pendingInvoices = useMemo(
+    () => invoices.filter((i) => i.status === 'pending' || i.status === 'partial'),
+    [invoices]
+  );
+  const releasedInvoices = useMemo(
+    () => invoices.filter((i) => i.status === 'released'),
+    [invoices]
+  );
+  const pendingRequests = useMemo(
+    () =>
+      stockRequests.filter(
+        (r) => !r.status || r.status === 'pending' || r.status === 'open'
+      ),
+    [stockRequests]
+  );
+  const pendingReturns = useMemo(
+    () =>
+      returns.filter(
+        (r) => !r.status || r.status === 'pending' || r.status === 'open'
+      ),
+    [returns]
+  );
 
-    try {
-      const returnsQuery = query(
-        collection(firestore, 'businesses', businessId, 'returns'),
-        orderBy('returnedAt', 'desc')
-      );
-      const snapshot = await getDocs(returnsQuery);
-      const returnsList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setReturns(returnsList);
-    } catch (error) {
-      console.error('Error loading returns:', error);
-    }
-  };
+  const locationSummaries = useMemo(() => {
+    return stockLocations.map((loc) => {
+      let units = 0;
+      let value = 0;
+      let productCount = 0;
+      products.forEach((p) => {
+        const q = p.stockByLocation?.[loc.id] || 0;
+        if (q > 0) {
+          productCount += 1;
+          units += q;
+          value += q * (p.costPrice || 0);
+        }
+      });
+      return { ...loc, units, value, productCount };
+    });
+  }, [stockLocations, products]);
 
-  const loadStockRequests = async () => {
-    if (!businessId || !firestore) return;
-
-    try {
-      const requestsQuery = query(
-        collection(firestore, 'businesses', businessId, 'stockRequests'),
-        orderBy('requestedAt', 'desc')
-      );
-      const snapshot = await getDocs(requestsQuery);
-      const requestsList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setStockRequests(requestsList);
-    } catch (error) {
-      console.error('Error loading stock requests:', error);
-    }
-  };
-
-  const getLocationSummary = (): LocationSummary[] => {
-    const locations: LocationSummary[] = [];
-    const addedTypes = new Set<string>();
-
-    const addLocation = (type: string, name: string, isDefault: boolean) => {
-      // Skip if already added this type
-      if (addedTypes.has(type)) {
-        return;
+  const filteredProducts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return products.filter((p) => {
+      if (selectedLocation !== 'all') {
+        const at = p.stockByLocation?.[selectedLocation] ?? 0;
+        // When filtering by location, show products that have (or had) stock there,
+        // or whose only recorded stock is at main_store for legacy products.
+        if (at <= 0) {
+          const hasAnyLoc = Object.keys(p.stockByLocation || {}).length > 0;
+          if (hasAnyLoc) return false;
+          if (selectedLocation !== 'main_store') return false;
+        }
       }
+      if (!q) return true;
+      return (
+        p.name.toLowerCase().includes(q) ||
+        (p.sku || '').toLowerCase().includes(q) ||
+        (p.category || '').toLowerCase().includes(q)
+      );
+    });
+  }, [products, searchQuery, selectedLocation]);
 
-      const stockCount = products.reduce((sum, p) => sum + (p.stockByLocation?.[type] || 0), 0);
-      const stockValue = products.reduce((sum, p) => sum + ((p.stockByLocation?.[type] || 0) * p.costPrice), 0);
-      const productCount = products.filter(p => (p.stockByLocation?.[type] || 0) > 0).length;
+  const displayStock = (p: Product) => {
+    if (selectedLocation === 'all') return p.stock;
+    return p.stockByLocation?.[selectedLocation] ?? 0;
+  };
 
-      if (!isDefault || stockCount > 0) {
-        locations.push({
+  const totalUnits = products.reduce((s, p) => s + (p.stock || 0), 0);
+  const totalValue = products.reduce(
+    (s, p) => s + (p.stock || 0) * (p.costPrice || 0),
+    0
+  );
+  const lowStockCount = products.filter(
+    (p) => p.stock > 0 && p.stock <= p.lowStockThreshold
+  ).length;
+  const outOfStock = products.filter((p) => p.stock <= 0).length;
+
+  // ── Actions ────────────────────────────────────────────
+
+  const createLocation = async () => {
+    const name = newLocationName.trim();
+    if (!name || !businessId) return;
+    setCreatingLocation(true);
+    try {
+      const firestore = db();
+      if (!firestore) throw new Error('Unavailable');
+      const id = name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_|_$/g, '');
+      await setDoc(
+        doc(firestore, 'businesses', businessId, 'stockLocations', id || `loc_${Date.now()}`),
+        {
           name,
-          type,
-          stockCount,
-          stockValue,
-          productCount,
-        });
-        addedTypes.add(type);
-      }
-    };
-
-    if (stockLocations.length > 0) {
-      stockLocations.forEach(loc => {
-        addLocation(loc.type, loc.name, false);
-      });
-    } else {
-      addLocation('main_store', 'Main Store', true);
-      addLocation('back_store', 'Back Store', true);
-      addLocation('warehouse', 'Warehouse', true);
-    }
-
-    return locations;
-  };
-
-  const getFilteredProducts = () => {
-    let filtered = products;
-
-    if (searchQuery) {
-      filtered = filtered.filter(p =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (p.sku && p.sku.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()))
+          type: 'warehouse',
+          createdAt: new Date().toISOString(),
+          createdBy: user?.id || null,
+        },
+        { merge: true }
       );
+      showToast(t('warehouse.locationCreated'));
+      setShowAddLocation(false);
+      setNewLocationName('');
+      await loadLocations(businessId);
+    } catch (e: any) {
+      showToast(e?.message || t('warehouse.locationCreateFailed'));
+    } finally {
+      setCreatingLocation(false);
     }
-
-    if (selectedLocation !== 'all') {
-      filtered = filtered.filter(p => (p.stockByLocation?.[selectedLocation] || 0) > 0);
-    }
-
-    return filtered;
   };
 
-  const getTotalStockValue = () => {
-    return products.reduce((sum, p) => sum + (p.stock * p.costPrice), 0);
-  };
-
-  const getTotalStockCount = () => {
-    return products.reduce((sum, p) => sum + p.stock, 0);
-  };
-
-  const locationSummary = getLocationSummary();
-  const filteredProducts = getFilteredProducts();
-
-  const handleTransfer = async (product: Product, target: string, quantity: number) => {
-    if (!businessId || !firestore) {
-      showToast(t('toast.businessNotAvailable'));
+  const deleteLocation = async (loc: StockLocation) => {
+    if (!businessId || loc.id === 'main_store') {
+      showToast(t('warehouse.mainStoreProtected'));
       return;
     }
-
-    if (quantity <= 0 || quantity > product.stock) {
-      showToast(t('toast.invalidTransfer'));
+    if (!confirm(`Delete location “${loc.name}”? Stock maps are not auto-moved.`))
       return;
-    }
-
     try {
-      await runTransaction(firestore, async (transaction) => {
-        const productRef = doc(firestore, 'businesses', businessId, 'products', product.id);
-        const productDoc = await transaction.get(productRef);
+      const firestore = db();
+      if (!firestore) return;
+      await deleteDoc(
+        doc(firestore, 'businesses', businessId, 'stockLocations', loc.id)
+      );
+      showToast(t('warehouse.locationRemoved'));
+      await loadLocations(businessId);
+    } catch (e: any) {
+      showToast(e?.message || t('warehouse.deleteFailed'));
+    }
+  };
 
-        if (!productDoc.exists()) {
-          throw new Error('Product not found');
-        }
+  const openTransfer = (p: Product) => {
+    setTransferProduct(p);
+    const from =
+      selectedLocation !== 'all'
+        ? selectedLocation
+        : stockLocations[0]?.id || 'main_store';
+    setTransferFrom(from);
+    const other = stockLocations.find((l) => l.id !== from);
+    setTransferTo(other?.id || '');
+    setTransferQty(1);
+    setShowTransfer(true);
+  };
 
-        const data = productDoc.data();
-        const stockByLocation = data.stockByLocation || {
-          main_store: data.stock || 0,
-          back_store: 0,
-          warehouse: 0,
+  const submitTransfer = async () => {
+    if (!businessId || !transferProduct || !transferFrom || !transferTo) return;
+    if (transferFrom === transferTo) {
+      showToast(t('warehouse.chooseDifferent'));
+      return;
+    }
+    const available =
+      transferProduct.stockByLocation?.[transferFrom] ??
+      (transferFrom === 'main_store' ? transferProduct.stock : 0);
+    if (transferQty <= 0 || transferQty > available) {
+      showToast(t('warehouse.insufficientStock', { available }));
+      return;
+    }
+    setTransferring(true);
+    try {
+      const firestore = db();
+      if (!firestore) throw new Error('Unavailable');
+      await runTransaction(firestore, async (tx) => {
+        const ref = doc(
+          firestore,
+          'businesses',
+          businessId,
+          'products',
+          transferProduct.id
+        );
+        const snap = await tx.get(ref);
+        if (!snap.exists()) throw new Error('Product not found');
+        const data = snap.data();
+        const map = {
+          ...(data.stockByLocation || {
+            main_store: data.stock || 0,
+          }),
         };
-
-        const sourceStock = stockByLocation[selectedLocation];
-        const targetStock = stockByLocation[target] || 0;
-
-        if (!sourceStock || sourceStock < quantity) {
-          throw new Error(`Insufficient stock in selected location`);
-        }
-
-        stockByLocation[selectedLocation] = sourceStock - quantity;
-        stockByLocation[target] = targetStock + quantity;
-
-        transaction.update(productRef, {
-          stockByLocation,
+        const src = map[transferFrom] || 0;
+        if (src < transferQty) throw new Error('Insufficient stock in source');
+        map[transferFrom] = src - transferQty;
+        map[transferTo] = (map[transferTo] || 0) + transferQty;
+        const total = Object.values(map).reduce(
+          (s: number, n: any) => s + (Number(n) || 0),
+          0
+        );
+        tx.update(ref, {
+          stockByLocation: map,
+          stock: total,
           updatedAt: new Date(),
         });
-
-        const transferLogRef = doc(collection(firestore, 'businesses', businessId, 'stockTransfers'));
-        transaction.set(transferLogRef, {
-          productId: product.id,
-          productName: product.name,
-          fromLocation: selectedLocation,
-          toLocation: target,
-          quantity: quantity,
-          transferredBy: user?.id,
-          transferredAt: new Date(),
+        const logRef = doc(
+          collection(firestore, 'businesses', businessId, 'stockTransfers')
+        );
+        tx.set(logRef, {
+          productId: transferProduct.id,
+          productName: transferProduct.name,
+          fromLocation: transferFrom,
+          toLocation: transferTo,
+          quantity: transferQty,
+          transferredBy: user?.id || null,
+          transferredByName: user?.name || user?.email || '',
+          transferredAt: Timestamp.now(),
         });
       });
-
-      showToast(t('toast.stockTransferred'));
-      await loadProducts();
-      setSelectedLocation('all');
-    } catch (error: any) {
-      console.error('Error transferring product:', error);
-      showToast(`❌ Transfer failed: ${error.message}`);
+      showToast(t('warehouse.transferred'));
+      setShowTransfer(false);
+      await loadProducts(businessId);
+      await loadTransfers(businessId);
+    } catch (e: any) {
+      showToast(e?.message || t('warehouse.transferFailed'));
+    } finally {
+      setTransferring(false);
     }
   };
 
-  const handleAdjustment = async (product: Product, quantity: number, reason: 'damaged' | 'lost' | 'expired' | 'recount', notes: string) => {
-    if (!businessId || !firestore) {
-      showToast(t('toast.businessNotAvailable'));
+  const openAdjust = (p: Product) => {
+    setAdjustProduct(p);
+    setAdjustQty(1);
+    setAdjustReason('damaged');
+    setAdjustNotes('');
+    setShowAdjust(true);
+  };
+
+  const submitAdjust = async () => {
+    if (!businessId || !adjustProduct) return;
+    if (adjustQty <= 0) {
+      showToast(t('warehouse.invalidQty'));
       return;
     }
-
-    if (quantity <= 0 || quantity > product.stock) {
-      showToast(t('toast.invalidAdjustment'));
-      return;
-    }
-
+    setAdjusting(true);
     try {
-      await runTransaction(firestore, async (transaction) => {
-        const productRef = doc(firestore, 'businesses', businessId, 'products', product.id);
-        const productDoc = await transaction.get(productRef);
-
-        if (!productDoc.exists()) {
-          throw new Error('Product not found');
-        }
-
-        const data = productDoc.data();
-        const stockByLocation = data.stockByLocation || {
-          main_store: data.stock || 0,
-          back_store: 0,
-          warehouse: 0,
+      const firestore = db();
+      if (!firestore) throw new Error('Unavailable');
+      const loc =
+        selectedLocation !== 'all' ? selectedLocation : 'main_store';
+      await runTransaction(firestore, async (tx) => {
+        const ref = doc(
+          firestore,
+          'businesses',
+          businessId,
+          'products',
+          adjustProduct.id
+        );
+        const snap = await tx.get(ref);
+        if (!snap.exists()) throw new Error('Product not found');
+        const data = snap.data();
+        const map = {
+          ...(data.stockByLocation || { main_store: data.stock || 0 }),
         };
-
-        const locationStock = stockByLocation[selectedLocation] || 0;
-
-        if (locationStock < quantity) {
-          throw new Error(`Insufficient stock in selected location`);
+        if (adjustReason === 'recount') {
+          map[loc] = adjustQty;
+        } else {
+          const cur = map[loc] || 0;
+          if (cur < adjustQty) throw new Error('Not enough stock at location');
+          map[loc] = cur - adjustQty;
         }
-
-        stockByLocation[selectedLocation] = locationStock - quantity;
-        const newTotalStock = Object.values(stockByLocation).reduce((sum: number, val: any) => sum + val, 0);
-
-        transaction.update(productRef, {
-          stock: newTotalStock,
-          stockByLocation,
+        const total = Object.values(map).reduce(
+          (s: number, n: any) => s + (Number(n) || 0),
+          0
+        );
+        tx.update(ref, {
+          stockByLocation: map,
+          stock: total,
           updatedAt: new Date(),
         });
-
-        const adjustmentLogRef = doc(collection(firestore, 'businesses', businessId, 'stockAdjustments'));
-        transaction.set(adjustmentLogRef, {
-          productId: product.id,
-          productName: product.name,
-          location: selectedLocation,
-          quantity: quantity,
-          reason: reason,
-          notes: notes,
-          adjustedBy: user?.id,
-          adjustedAt: new Date(),
+        const logRef = doc(
+          collection(firestore, 'businesses', businessId, 'stockAdjustments')
+        );
+        tx.set(logRef, {
+          productId: adjustProduct.id,
+          productName: adjustProduct.name,
+          location: loc,
+          quantity: adjustQty,
+          reason: adjustReason,
+          notes: adjustNotes,
+          adjustedBy: user?.id || null,
+          adjustedAt: Timestamp.now(),
         });
       });
-
-      showToast(`✅ Stock adjusted successfully (${reason})`);
-      await loadProducts();
-      setShowAdjustmentModal(false);
-      setAdjustmentProduct(null);
-      setAdjustmentQuantity(1);
-      setAdjustmentNotes('');
-    } catch (error: any) {
-      console.error('Error adjusting stock:', error);
-      showToast(`❌ Adjustment failed: ${error.message}`);
+      showToast(
+        adjustReason === 'recount' ? t('warehouse.recounted') : t('warehouse.adjusted')
+      );
+      setShowAdjust(false);
+      await loadProducts(businessId);
+    } catch (e: any) {
+      showToast(e?.message || t('warehouse.adjustFailed'));
+    } finally {
+      setAdjusting(false);
     }
   };
 
-  const handleStockRequest = async (requestId: string, approved: boolean) => {
-    if (!businessId || !firestore) {
-      showToast(t('toast.businessNotAvailable'));
-      return;
-    }
-
+  const releaseInvoice = async (partial = false) => {
+    if (!businessId || !selectedInvoice) return;
+    setReleasing(true);
     try {
-      const requestRef = doc(firestore, 'businesses', businessId, 'stockRequests', requestId);
-      await updateDoc(requestRef, {
-        status: approved ? 'approved' : 'rejected',
-        processedBy: user?.id,
-        processedAt: new Date(),
-        notes: requestNotes,
+      const firestore = db();
+      if (!firestore) throw new Error('Unavailable');
+      await runTransaction(firestore, async (tx) => {
+        for (const item of selectedInvoice.items) {
+          const ref = doc(
+            firestore,
+            'businesses',
+            businessId,
+            'products',
+            item.productId
+          );
+          const snap = await tx.get(ref);
+          if (!snap.exists()) continue;
+          const data = snap.data();
+          const qty = partial
+            ? Math.floor(item.quantity / 2)
+            : item.quantity;
+          const map = { ...(data.stockByLocation || {}) };
+          const locId = selectedInvoice.sourceLocationId || 'main_store';
+          if (map[locId] !== undefined) {
+            map[locId] = Math.max(0, (map[locId] || 0) - qty);
+          }
+          const newStock = Math.max(0, (data.stock || 0) - qty);
+          tx.update(ref, { stock: newStock, stockByLocation: map });
+        }
       });
-
-      showToast(`✅ Stock request ${approved ? 'approved' : 'rejected'}`);
-      await loadStockRequests();
-      setShowStockRequestModal(false);
-      setSelectedStockRequest(null);
-      setRequestNotes('');
-    } catch (error) {
-      console.error('Error processing stock request:', error);
-      showToast(t('toast.stockRequestFailed'));
+      await updateDoc(
+        doc(firestore, 'businesses', businessId, 'invoices', selectedInvoice.id),
+        {
+          status: partial ? 'partial' : 'released',
+          releasedBy: user?.name || user?.email || 'Owner',
+          releasedAt: Timestamp.now(),
+          notes: releaseNotes,
+        }
+      );
+      showToast(partial ? t('warehouse.partiallyReleased') : t('warehouse.released'));
+      setSelectedInvoice(null);
+      setReleaseNotes('');
+      await loadInvoices(businessId);
+      await loadProducts(businessId);
+    } catch (e: any) {
+      showToast(e?.message || t('warehouse.releaseFailed'));
+    } finally {
+      setReleasing(false);
     }
   };
 
-  const handleReturn = async (returnId: string, approved: boolean) => {
-    if (!businessId || !firestore) {
-      showToast(t('toast.businessNotAvailable'));
-      return;
-    }
-
+  const handleRequest = async (id: string, approved: boolean) => {
+    if (!businessId) return;
     try {
-      const returnRef = doc(firestore, 'businesses', businessId, 'returns', returnId);
-      
-      if (approved) {
-        await runTransaction(firestore, async (transaction) => {
-          const returnDoc = await transaction.get(returnRef);
-          if (!returnDoc.exists()) {
-            throw new Error('Return not found');
-          }
-
-          const returnData = returnDoc.data();
-          
-          // Update product stock
-          const productRef = doc(firestore, 'businesses', businessId, 'products', returnData.productId);
-          const productDoc = await transaction.get(productRef);
-          
-          if (productDoc.exists()) {
-            const productData = productDoc.data();
-            const stockByLocation = productData.stockByLocation || {};
-            const locationStock = stockByLocation[returnData.location] || 0;
-            
-            stockByLocation[returnData.location] = locationStock + returnData.quantity;
-            const newTotalStock = Object.values(stockByLocation).reduce((sum: number, val: any) => sum + val, 0);
-
-            transaction.update(productRef, {
-              stock: newTotalStock,
-              stockByLocation,
-              updatedAt: new Date(),
-            });
-          }
-
-          transaction.update(returnRef, {
-            status: 'approved',
-            processedBy: user?.id,
-            processedAt: new Date(),
-            notes: returnNotes,
-          });
-        });
-      } else {
-        await updateDoc(returnRef, {
-          status: 'rejected',
-          processedBy: user?.id,
-          processedAt: new Date(),
-          notes: returnNotes,
-        });
-      }
-
-      showToast(`✅ Return ${approved ? 'approved' : 'rejected'}`);
-      await loadReturns();
-      await loadProducts();
-      setShowReturnModal(false);
-      setSelectedReturn(null);
-      setReturnNotes('');
-    } catch (error) {
-      console.error('Error processing return:', error);
-      showToast(t('toast.returnFailed'));
+      const firestore = db();
+      if (!firestore) return;
+      await updateDoc(
+        doc(firestore, 'businesses', businessId, 'stockRequests', id),
+        {
+          status: approved ? 'approved' : 'rejected',
+          reviewedAt: Timestamp.now(),
+          reviewedBy: user?.id || null,
+        }
+      );
+      showToast(t('warehouse.requestUpdated'));
+      await loadRequests(businessId);
+    } catch {
+      showToast(t('warehouse.requestFailed'));
     }
   };
 
-  const availableLocations = stockLocations.length > 0
-    ? stockLocations
-    : [
-        { id: 'main_store', name: 'Main Store', type: 'main_store' },
-        { id: 'warehouse', name: 'Warehouse', type: 'warehouse' },
-        { id: 'back_store', name: 'Back Store', type: 'back_store' },
-      ];
+  const handleReturn = async (id: string, approved: boolean) => {
+    if (!businessId) return;
+    try {
+      const firestore = db();
+      if (!firestore) return;
+      await updateDoc(
+        doc(firestore, 'businesses', businessId, 'stockReturns', id),
+        {
+          status: approved ? 'approved' : 'rejected',
+          reviewedAt: Timestamp.now(),
+          reviewedBy: user?.id || null,
+        }
+      );
+      showToast(t('warehouse.returnUpdated'));
+      await loadReturns(businessId);
+    } catch {
+      showToast(t('warehouse.returnFailed'));
+    }
+  };
 
-  // Show full warehouse page
-  const pendingInvoices = invoices.filter(inv => inv.status === 'pending');
-  const releasedInvoices = invoices.filter(inv => inv.status === 'released' || inv.status === 'partial');
+  // ── Render ─────────────────────────────────────────────
+
+  if (isLoading) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.loading}>
+          <div className={styles.spinner} />
+          {t('warehouse.loading')}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={styles.wrapper}>
-      <div className={styles.pageHeader}>
+    <div className={styles.page}>
+      <header className={styles.hero}>
         <div>
-          <h2 className={styles.pageTitle}>Warehouse</h2>
-          <p className={styles.pageDesc}>Manage stock, releases, and transfers</p>
+          <h1 className={styles.heroTitle}>
+            <Warehouse size={22} strokeWidth={2.2} aria-hidden />
+            {t('warehouse.title')}
+          </h1>
+          <p className={styles.heroSub}>
+            {t('warehouse.subtitle')}
+          </p>
         </div>
-        <div className={styles.headerActions}>
-          <div className={styles.searchBar}>
-            <input
-              type="text"
-              className={styles.searchInput}
-              placeholder="Search products, invoices..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+        <div className={styles.heroActions}>
+          <button
+            type="button"
+            className={styles.btnSecondary}
+            onClick={() => navigateTo('receive-stock' as any)}
+          >
+            <Package size={16} />
+            {t('warehouse.receiveStock')}
+          </button>
+          <button
+            type="button"
+            className={styles.btnPrimary}
+            onClick={() => setShowAddLocation(true)}
+          >
+            <Plus size={16} />
+            Location
+          </button>
+          <button
+            type="button"
+            className={styles.btnGhost}
+            onClick={() => refreshAll()}
+          >
+            <RefreshCw size={16} />
+            {t('warehouse.refresh')}
+          </button>
+        </div>
+      </header>
+
+      <div className={styles.stats}>
+        <div className={styles.statCard}>
+          <div className={styles.statLabel}>{t('warehouse.totalUnits')}</div>
+          <div className={styles.statValue}>{totalUnits.toLocaleString()}</div>
+          <div className={styles.statHint}>{products.length} {t('warehouse.productsCount')}</div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statLabel}>{t('warehouse.stockValue')}</div>
+          <div className={`${styles.statValue} ${styles.statValueOk}`}>
+            {formatMoney(totalValue)}
           </div>
-          <button
-            className={`${styles.actionButton} ${styles.addButton}`}
-            onClick={() => setShowAdjustmentModal(true)}
+          <div className={styles.statHint}>{t('warehouse.acrossLocations')}</div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statLabel}>{t('warehouse.lowStock')}</div>
+          <div
+            className={`${styles.statValue} ${
+              lowStockCount ? styles.statValueWarn : ''
+            }`}
           >
-            <Icon name="inventory" size={18} />
-            <span style={{ marginLeft: 8 }}>Stock Adjustment</span>
-          </button>
-          <button
-            className={`${styles.actionButton} ${styles.addButton}`}
-            onClick={() => setShowAddModal(true)}
+            {lowStockCount}
+          </div>
+          <div className={styles.statHint}>{outOfStock} {t('warehouse.outOfStock')}</div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statLabel}>{t('warehouse.awaitingRelease')}</div>
+          <div
+            className={`${styles.statValue} ${
+              pendingInvoices.length ? styles.statValueDanger : ''
+            }`}
           >
-            <Icon name="add" size={18} />
-            <span style={{ marginLeft: 8 }}>Add Warehouse</span>
-          </button>
+            {pendingInvoices.length}
+          </div>
+          <div className={styles.statHint}>
+            {stockLocations.length} {t('warehouse.locationsCount')}
+          </div>
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className={styles.tabNavigation}>
-        <button
-          className={`${styles.tabButton} ${activeTab === 'overview' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('overview')}
-        >
-          <Icon name="home" size={16} />
-          <span style={{ marginLeft: 6 }}>Overview</span>
-        </button>
-          <button
-            className={`${styles.tabButton} ${activeTab === 'pending' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('pending')}
-          >
-            <Icon name="inbox" size={16} />
-            <span style={{ marginLeft: 6 }}>Pending Releases</span>
-            {pendingInvoices.length > 0 && <span className={styles.tabBadge}>{pendingInvoices.length}</span>}
-          </button>
-        <button
-          className={`${styles.tabButton} ${activeTab === 'released' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('released')}
-        >
-          <Icon name="check-circle" size={16} />
-          <span style={{ marginLeft: 6 }}>Released History</span>
-        </button>
-        <button
-          className={`${styles.tabButton} ${activeTab === 'locations' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('locations')}
-        >
-          <Icon name="warehouse" size={16} />
-          <span style={{ marginLeft: 6 }}>Locations</span>
-        </button>
-        <button
-          className={`${styles.tabButton} ${activeTab === 'transfers' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('transfers')}
-        >
-          <Icon name="stock-transfers" size={16} />
-          <span style={{ marginLeft: 6 }}>Transfers</span>
-        </button>
-          <button
-            className={`${styles.tabButton} ${activeTab === 'requests' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('requests')}
-          >
-            <Icon name="package" size={16} />
-            <span style={{ marginLeft: 6 }}>Stock Requests</span>
-            {stockRequests.filter(r => r.status === 'pending').length > 0 && (
-              <span className={styles.tabBadge}>{stockRequests.filter(r => r.status === 'pending').length}</span>
-            )}
-          </button>
-          <button
-            className={`${styles.tabButton} ${activeTab === 'returns' ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab('returns')}
-          >
-            <Icon name="rotate" size={16} />
-            <span style={{ marginLeft: 6 }}>Returns</span>
-            {returns.filter(r => r.status === 'pending').length > 0 && (
-              <span className={styles.tabBadge}>{returns.filter(r => r.status === 'pending').length}</span>
-            )}
-          </button>
-      </div>
+      <nav className={styles.tabs} aria-label={t('warehouse.sectionsAria')}>
+        {TABS.map((tab) => {
+          let count = 0;
+          if (tab.id === 'pending') count = pendingInvoices.length;
+          if (tab.id === 'requests') count = pendingRequests.length;
+          if (tab.id === 'returns') count = pendingReturns.length;
+          const Icon = tab.Icon;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              className={`${styles.tab} ${
+                activeTab === tab.id ? styles.tabActive : ''
+              }`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <Icon size={15} />
+              {t(tab.labelKey as any)}
+              {count > 0 ? <span className={styles.badge}>{count}</span> : null}
+            </button>
+          );
+        })}
+      </nav>
 
-      {/* Overview Tab */}
+      {/* ── Stock overview ── */}
       {activeTab === 'overview' && (
         <>
-          <div className={styles.totalStats}>
-            <div className={styles.totalStat}>
-              <span className={styles.totalStatLabel}>Total Stock</span>
-              <span className={styles.totalStatValue}>{getTotalStockCount().toLocaleString()} units</span>
+          <div className={styles.toolbar}>
+            <div className={styles.search}>
+              <Search size={16} aria-hidden />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t('warehouse.searchProducts')}
+              />
             </div>
-            <div className={styles.totalStat}>
-              <span className={styles.totalStatLabel}>Total Value</span>
-              <span className={styles.totalStatValue}>{formatMoney(getTotalStockValue())}</span>
-            </div>
-            <div className={styles.totalStat}>
-              <span className={styles.totalStatLabel}>Pending Releases</span>
-              <span className={styles.totalStatValue}>{pendingInvoices.length}</span>
-            </div>
-            <div className={styles.totalStat}>
-              <span className={styles.totalStatLabel}>Released Today</span>
-              <span className={styles.totalStatValue}>
-                {releasedInvoices.filter(inv => {
-                  const today = new Date();
-                  return inv.releasedAt && 
-                    inv.releasedAt.toDateString() === today.toDateString();
-                }).length}
-              </span>
-            </div>
+            <select
+              className={styles.select}
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+            >
+              <option value="all">{t('warehouse.allLocations')}</option>
+              {stockLocations.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
           </div>
 
-          {/* Low Stock Alerts */}
-          <div className={styles.lowStockSection}>
-            <h3 className={styles.sectionTitle}>
-              <Icon name="alert-triangle" size={20} />
-              <span style={{ marginLeft: 8 }}>Low Stock Alerts</span>
-            </h3>
-            {products.filter(p => p.stock < 10).length === 0 ? (
-              <div className={styles.emptyState}>
-                <div className={styles.emptyIcon}>
-                  <Icon name="check-circle" size={48} />
+          {locationSummaries.length > 0 && (
+            <div className={styles.locationGrid}>
+              {locationSummaries.map((loc) => (
+                <div
+                  key={loc.id}
+                  className={`${styles.locCard} ${
+                    selectedLocation === loc.id ? styles.locCardActive : ''
+                  }`}
+                  onClick={() =>
+                    setSelectedLocation(
+                      selectedLocation === loc.id ? 'all' : loc.id
+                    )
+                  }
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) =>
+                    e.key === 'Enter' &&
+                    setSelectedLocation(
+                      selectedLocation === loc.id ? 'all' : loc.id
+                    )
+                  }
+                >
+                  <div className={styles.locName}>{loc.name}</div>
+                  <div className={styles.locMeta}>{loc.type}</div>
+                  <div className={styles.locStats}>
+                    <span>{loc.units} units</span>
+                    <span>{loc.productCount} SKUs</span>
+                    <span>{formatMoney(loc.value)}</span>
+                  </div>
                 </div>
-                <h3>All Stock Levels Healthy</h3>
-                <p>No products are running low on stock</p>
+              ))}
+            </div>
+          )}
+
+          <div className={styles.panel}>
+            <div className={styles.panelHead}>
+              <h2 className={styles.panelTitle}>
+                Inventory
+                {selectedLocation !== 'all'
+                  ? ` · ${locLabel(selectedLocation, stockLocations)}`
+                  : ''}
+              </h2>
+            </div>
+            {filteredProducts.length === 0 ? (
+              <div className={styles.empty}>
+                <h3>{t('warehouse.noProducts')}</h3>
+                <p>{t('warehouse.noProductsHint')}</p>
+                <button
+                  type="button"
+                  className={styles.btnPrimary}
+                  onClick={() => navigateTo('add-product' as any)}
+                >
+                  {t('warehouse.addProduct')}
+                </button>
               </div>
             ) : (
-              <div className={styles.lowStockList}>
-                {products.filter(p => p.stock < 10).slice(0, 5).map(product => (
-                  <div key={product.id} className={styles.lowStockItem}>
-                    <div className={styles.lowStockInfo}>
-                      <div className={styles.lowStockName}>{product.name}</div>
-                      <div className={styles.lowStockLevel}>
-                        Stock: <span className={styles.lowStockCount}>{product.stock}</span>
-                      </div>
-                    </div>
-                    <div className={styles.lowStockActions}>
-                      <button
-                        className={styles.quickActionBtn}
-                        onClick={() => {
-                          setAdjustmentProduct(product);
-                          setAdjustmentReason('recount');
-                          setShowAdjustmentModal(true);
-                        }}
-                      >
-                        Adjust
-                      </button>
-                      <button
-                        className={styles.quickActionBtn}
-                        onClick={() => {
-                          setTransferProduct(product);
-                          setShowTransferModal(true);
-                        }}
-                      >
-                        Transfer
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                {products.filter(p => p.stock < 10).length > 5 && (
-                  <div className={styles.viewAllLink}>
-                    + {products.filter(p => p.stock < 10).length - 5} more products
-                  </div>
-                )}
+              <div className={styles.tableWrap}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>{t('common.product')}</th>
+                      <th>{t('warehouse.tab.stock')}</th>
+                      <th>{t('common.value')}</th>
+                      <th>{t('common.status')}</th>
+                      <th>{t('common.actions')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredProducts.map((p) => {
+                      const qty = displayStock(p);
+                      const low = qty > 0 && qty <= p.lowStockThreshold;
+                      const oos = qty <= 0;
+                      return (
+                        <tr key={p.id}>
+                          <td>
+                            <div className={styles.productCell}>
+                              <span className={styles.productName}>{p.name}</span>
+                              {p.sku ? (
+                                <span className={styles.productSku}>{p.sku}</span>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td>
+                            <strong>{qty}</strong>
+                          </td>
+                          <td>{formatMoney(qty * (p.costPrice || 0))}</td>
+                          <td>
+                            {oos ? (
+                              <span className={`${styles.pill} ${styles.pillDanger}`}>
+                                {t('warehouse.stockOut')}
+                              </span>
+                            ) : low ? (
+                              <span className={`${styles.pill} ${styles.pillWarn}`}>
+                                {t('warehouse.stockLow')}
+                              </span>
+                            ) : (
+                              <span className={`${styles.pill} ${styles.pillOk}`}>
+                                {t('warehouse.stockOk')}
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            <div className={styles.rowActions}>
+                              <button
+                                type="button"
+                                className={styles.iconBtn}
+                                onClick={() => openTransfer(p)}
+                              >
+                                {t('warehouse.transfer')}
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.iconBtn}
+                                onClick={() => openAdjust(p)}
+                              >
+                                {t('warehouse.adjust')}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
-          </div>
-
-          <div className={styles.locationsGrid}>
-            {locationSummary.map(location => (
-              <div
-                key={location.type}
-                className={`${styles.locationCard} ${selectedLocation === location.type ? styles.active : ''}`}
-                onClick={() => setSelectedLocation(selectedLocation === location.type ? 'all' : location.type)}
-              >
-                <div className={styles.locationHeader}>
-                  <div className={styles.locationContent}>
-                  <div className={styles.locationIcon}>
-                      {location.type === 'main_store' && <Icon name="shop" size={24} />}
-                      {location.type === 'back_store' && <Icon name="package" size={24} />}
-                      {location.type === 'warehouse' && <Icon name="warehouse" size={24} />}
-                      {!['main_store', 'back_store', 'warehouse'].includes(location.type) && <Icon name="map-pin" size={24} />}
-                    </div>
-                    <h3 className={styles.locationName}>{location.name}</h3>
-                  </div>
-                  {!['main_store', 'back_store', 'warehouse'].includes(location.type) && (
-                    <button
-                      className={styles.deleteLocationBtn}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const loc = stockLocations.find(l => l.type === location.type);
-                        if (loc) setLocationToDelete(loc);
-                      }}
-                    >
-                      ×
-                    </button>
-                  )}
-                </div>
-                <div className={styles.locationStats}>
-                  <div className={styles.locationStat}>
-                    <span className={styles.locationStatLabel}>Stock</span>
-                    <span className={styles.locationStatValue}>{location.stockCount.toLocaleString()}</span>
-                  </div>
-                  <div className={styles.locationStat}>
-                    <span className={styles.locationStatLabel}>Value</span>
-                    <span className={styles.locationStatValue}>{formatMoney(location.stockValue)}</span>
-                  </div>
-                  <div className={styles.locationStat}>
-                    <span className={styles.locationStatLabel}>Products</span>
-                    <span className={styles.locationStatValue}>{location.productCount}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            <div
-              className={`${styles.locationCard} ${selectedLocation === 'all' ? styles.active : ''}`}
-              onClick={() => setSelectedLocation('all')}
-            >
-              <div className={styles.locationHeader}>
-                  <div className={styles.locationContent}>
-                   <div className={styles.locationIcon}><Icon name="branches" size={24} /></div>
-                   <h3 className={styles.locationName}>All Locations</h3>
-                 </div>
-              </div>
-              <div className={styles.locationStats}>
-                <div className={styles.locationStat}>
-                  <span className={styles.locationStatLabel}>Stock</span>
-                  <span className={styles.locationStatValue}>{getTotalStockCount().toLocaleString()}</span>
-                </div>
-                <div className={styles.locationStat}>
-                  <span className={styles.locationStatLabel}>Value</span>
-                  <span className={styles.locationStatValue}>{formatMoney(getTotalStockValue())}</span>
-                </div>
-                <div className={styles.locationStat}>
-                  <span className={styles.locationStatLabel}>Products</span>
-                  <span className={styles.locationStatValue}>{products.length}</span>
-                </div>
-              </div>
-            </div>
           </div>
         </>
       )}
 
-      {/* Pending Releases Tab */}
+      {/* ── Pending invoices ── */}
       {activeTab === 'pending' && (
-        <div className={styles.productsSection}>
-          <div className={styles.productsHeader}>
-            <h3 className={styles.productsTitle}>Pending Releases</h3>
-            <div className={styles.headerRight}>
-              <input
-                type="text"
-                className={styles.searchInput}
-                placeholder="Search invoice number or customer..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+        <div className={styles.panel}>
+          <div className={styles.panelHead}>
+            <h2 className={styles.panelTitle}>{t('warehouse.pendingTitle')}</h2>
           </div>
-
           {pendingInvoices.length === 0 ? (
-            <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>
-                <Icon name="check-circle" size={48} />
-              </div>
-              <h3>No Pending Releases</h3>
-              <p>All invoices have been processed</p>
+            <div className={styles.empty}>
+              <h3>{t('warehouse.nothingPending')}</h3>
+              <p>{t('warehouse.nothingPendingHint')}</p>
             </div>
           ) : (
-            <div className={styles.invoiceList}>
-              {pendingInvoices.filter(inv => 
-                inv.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                inv.customerName.toLowerCase().includes(searchQuery.toLowerCase())
-              ).map(invoice => (
-                <div key={invoice.id} className={styles.invoiceCard}>
-                  <div className={styles.invoiceHeader}>
-                    <div>
-                      <h3>{invoice.invoiceNumber}</h3>
-                      <p className={styles.customerInfo}>{invoice.customerName}</p>
-                    </div>
-                  <div className={styles.invoiceMeta}>
-                    <span className={styles.date}>{invoice.createdAt.toLocaleDateString()}</span>
-                    <span className={styles.invoiceAmount}>{formatMoney(invoice.totalAmount)}</span>
+            pendingInvoices.map((inv) => (
+              <div key={inv.id} className={styles.listCard}>
+                <div className={styles.listMain}>
+                  <div className={styles.listTitle}>
+                    #{inv.invoiceNumber} · {inv.customerName}
                   </div>
-                  </div>
-                  
-                  <div className={styles.invoiceDetails}>
-                    <p><strong>Items:</strong> {invoice.items.length}</p>
-                    <p><strong>Warehouse:</strong> {invoice.sourceLocation}</p>
-                    <p><strong>Salesperson:</strong> {invoice.recordedBy?.displayName || 'Unknown'}</p>
-                  </div>
-                  
-                  <div className={styles.invoiceActions}>
-                    <button 
-                      className={styles.actionButton}
-                      onClick={() => {
-                        setSelectedInvoice(invoice);
-                        setShowInvoiceModal(true);
-                      }}
-                    >
-                      <Icon name="clipboard" size={16} />
-                      <span style={{ marginLeft: 6 }}>Review & Release</span>
-                    </button>
+                  <div className={styles.listMeta}>
+                    {inv.items.length} lines · {formatMoney(inv.totalAmount)} ·{' '}
+                    {inv.sourceLocation} · {inv.createdAt.toLocaleString()}
                   </div>
                 </div>
-              ))}
-            </div>
+                <button
+                  type="button"
+                  className={styles.btnPrimary}
+                  onClick={() => {
+                    setSelectedInvoice(inv);
+                    setReleaseNotes('');
+                  }}
+                >
+                  {t('common.review')}
+                </button>
+              </div>
+            ))
           )}
         </div>
       )}
 
-      {/* Released History Tab */}
+      {/* ── Released ── */}
       {activeTab === 'released' && (
-        <div className={styles.productsSection}>
-          <div className={styles.productsHeader}>
-            <h3 className={styles.productsTitle}>Released History</h3>
-            <div className={styles.headerRight}>
-              <input
-                type="text"
-                className={styles.searchInput}
-                placeholder="Search invoice number or customer..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
+        <div className={styles.panel}>
+          <div className={styles.panelHead}>
+            <h2 className={styles.panelTitle}>{t('warehouse.releasedTitle')}</h2>
           </div>
-
           {releasedInvoices.length === 0 ? (
-            <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>
-                <Icon name="check-circle" size={48} />
-              </div>
-              <h3>No Released Invoices</h3>
-              <p>No invoices have been released yet</p>
+            <div className={styles.empty}>
+              <h3>{t('warehouse.noReleases')}</h3>
+              <p>{t('warehouse.noReleasesHint')}</p>
             </div>
           ) : (
-            <div className={styles.invoiceList}>
-              {releasedInvoices.filter(inv => 
-                inv.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                inv.customerName.toLowerCase().includes(searchQuery.toLowerCase())
-              ).map(invoice => (
-                <div key={invoice.id} className={styles.invoiceCard}>
-                  <div className={styles.invoiceHeader}>
-                    <div>
-                      <h3>{invoice.invoiceNumber}</h3>
-                      <p className={styles.customerInfo}>{invoice.customerName}</p>
-                    </div>
-                    <div className={styles.invoiceMeta}>
-                      <span className={styles.date}>{invoice.releasedAt?.toLocaleDateString() || invoice.createdAt.toLocaleDateString()}</span>
-                      <span className={`${styles.statusBadge} ${styles.statusReleased}`}>{invoice.status}</span>
-                    </div>
+            releasedInvoices.slice(0, 40).map((inv) => (
+              <div key={inv.id} className={styles.listCard}>
+                <div className={styles.listMain}>
+                  <div className={styles.listTitle}>
+                    #{inv.invoiceNumber} · {inv.customerName}
                   </div>
-                  
-                  <div className={styles.invoiceDetails}>
-                    <p><strong>Released By:</strong> {invoice.releasedBy}</p>
-                    <p><strong>Warehouse:</strong> {invoice.sourceLocation}</p>
-                    <p><strong>Total:</strong> {formatMoney(invoice.totalAmount)}</p>
+                  <div className={styles.listMeta}>
+                    {formatMoney(inv.totalAmount)} · {t('warehouse.releasedBy')}{' '}
+                    {inv.releasedBy || '—'}
                   </div>
                 </div>
-              ))}
-            </div>
+                <span className={`${styles.pill} ${styles.pillOk}`}>{t('warehouse.tab.released')}</span>
+              </div>
+            ))
           )}
         </div>
       )}
 
-      {/* Stock Requests Tab */}
-      {activeTab === 'requests' && (
-        <div className={styles.productsSection}>
-          <div className={styles.productsHeader}>
-            <h3 className={styles.productsTitle}>Stock Requests</h3>
-          </div>
-          
-          {stockRequests.length === 0 ? (
-            <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>
-                <Icon name="inbox" size={48} />
-              </div>
-              <h3>No Stock Requests</h3>
-              <p>No stock requests have been submitted yet</p>
-            </div>
-          ) : (
-            <div className={styles.invoiceList}>
-              {stockRequests.map(request => (
-                <div key={request.id} className={styles.invoiceCard}>
-                  <div className={styles.invoiceHeader}>
-                    <div>
-                      <h3>{request.productName}</h3>
-                      <p className={styles.customerInfo}>Quantity: {request.quantity}</p>
-                    </div>
-                    <div className={styles.invoiceMeta}>
-                      <span className={styles.date}>{new Date(request.requestedAt?.toDate?.() || request.requestedAt).toLocaleDateString()}</span>
-                      <span className={`${styles.statusBadge} ${
-                        request.status === 'pending' ? styles.statusPending :
-                        request.status === 'approved' ? styles.statusReleased :
-                        styles.statusRejected
-                      }`}>{request.status}</span>
-                    </div>
-                  </div>
-                  
-                  <div className={styles.invoiceDetails}>
-                    <p><strong>Location:</strong> {request.location}</p>
-                    <p><strong>Requested By:</strong> {request.requestedBy}</p>
-                    {request.status === 'pending' && (
-                      <div className={styles.invoiceActions}>
-                        <button
-                          className={styles.actionButton}
-                          onClick={() => {
-                            setSelectedStockRequest(request);
-                            setShowStockRequestModal(true);
-                          }}
-                        >
-                          Process Request
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Returns Tab */}
-      {activeTab === 'returns' && (
-        <div className={styles.productsSection}>
-          <div className={styles.productsHeader}>
-            <h3 className={styles.productsTitle}>Returns</h3>
-          </div>
-          
-          {returns.length === 0 ? (
-            <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>
-                <Icon name="archive" size={48} />
-              </div>
-              <h3>No Returns</h3>
-              <p>No returns have been submitted yet</p>
-            </div>
-          ) : (
-            <div className={styles.invoiceList}>
-              {returns.map(returnItem => (
-                <div key={returnItem.id} className={styles.invoiceCard}>
-                  <div className={styles.invoiceHeader}>
-                    <div>
-                      <h3>{returnItem.productName}</h3>
-                      <p className={styles.customerInfo}>Quantity: {returnItem.quantity}</p>
-                    </div>
-                    <div className={styles.invoiceMeta}>
-                      <span className={styles.date}>{new Date(returnItem.returnedAt?.toDate?.() || returnItem.returnedAt).toLocaleDateString()}</span>
-                      <span className={`${styles.statusBadge} ${
-                        returnItem.status === 'pending' ? styles.statusPending :
-                        returnItem.status === 'approved' ? styles.statusReleased :
-                        styles.statusRejected
-                      }`}>{returnItem.status}</span>
-                    </div>
-                  </div>
-                  
-                  <div className={styles.invoiceDetails}>
-                    <p><strong>Location:</strong> {returnItem.location}</p>
-                    <p><strong>Reason:</strong> {returnItem.reason}</p>
-                    <p><strong>Customer:</strong> {returnItem.customerName}</p>
-                    {returnItem.status === 'pending' && (
-                      <div className={styles.invoiceActions}>
-                        <button
-                          className={styles.actionButton}
-                          onClick={() => {
-                            setSelectedReturn(returnItem);
-                            setShowReturnModal(true);
-                          }}
-                        >
-                          Process Return
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Locations Tab */}
+      {/* ── Locations ── */}
       {activeTab === 'locations' && (
-        <div className={styles.productsSection}>
-          <div className={styles.productsHeader}>
-            <h3 className={styles.productsTitle}>Stock Locations</h3>
+        <div className={styles.panel}>
+          <div className={styles.panelHead}>
+            <h2 className={styles.panelTitle}>{t('warehouse.locationsTitle')}</h2>
+            <button
+              type="button"
+              className={styles.btnPrimary}
+              onClick={() => setShowAddLocation(true)}
+            >
+              + Add
+            </button>
           </div>
-          <div className={styles.locationsGrid}>
-            {locationSummary.map(location => (
-              <div
-                key={location.type}
-                className={`${styles.locationCard} ${selectedLocation === location.type ? styles.active : ''}`}
-                onClick={() => setSelectedLocation(selectedLocation === location.type ? 'all' : location.type)}
-              >
-                <div className={styles.locationHeader}>
-                  <div className={styles.locationContent}>
-                    <div className={styles.locationIcon}>
-                      {location.type === 'main_store' && <Icon name="shop" size={24} />}
-                      {location.type === 'back_store' && <Icon name="package" size={24} />}
-                      {location.type === 'warehouse' && <Icon name="warehouse" size={24} />}
-                      {!['main_store', 'back_store', 'warehouse'].includes(location.type) && <Icon name="map-pin" size={24} />}
-                    </div>
-                    <h3 className={styles.locationName}>{location.name}</h3>
-                  </div>
-                  {!['main_store', 'back_store', 'warehouse'].includes(location.type) && (
-                    <button
-                      className={styles.deleteLocationBtn}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const loc = stockLocations.find(l => l.type === location.type);
-                        if (loc) setLocationToDelete(loc);
-                      }}
-                    >
-                      ×
-                    </button>
-                  )}
+          <div className={styles.locationGrid}>
+            {locationSummaries.map((loc) => (
+              <div key={loc.id} className={styles.locCard}>
+                <div className={styles.locName}>{loc.name}</div>
+                <div className={styles.locMeta}>
+                  {loc.type} · id: {loc.id}
                 </div>
-                <div className={styles.locationStats}>
-                  <div className={styles.locationStat}>
-                    <span className={styles.locationStatLabel}>Stock</span>
-                    <span className={styles.locationStatValue}>{location.stockCount.toLocaleString()}</span>
-                  </div>
-                  <div className={styles.locationStat}>
-                    <span className={styles.locationStatLabel}>Value</span>
-                    <span className={styles.locationStatValue}>{formatMoney(location.stockValue)}</span>
-                  </div>
-                  <div className={styles.locationStat}>
-                    <span className={styles.locationStatLabel}>Products</span>
-                    <span className={styles.locationStatValue}>{location.productCount}</span>
-                  </div>
+                <div className={styles.locStats}>
+                  <span>{loc.units} units</span>
+                  <span>{formatMoney(loc.value)}</span>
                 </div>
+                {loc.id !== 'main_store' && (
+                  <button
+                    type="button"
+                    className={styles.btnDanger}
+                    style={{ marginTop: 10, width: '100%' }}
+                    onClick={() => deleteLocation(loc)}
+                  >
+                    {t('common.delete')}
+                  </button>
+                )}
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Transfers Tab */}
+      {/* ── Transfers ── */}
       {activeTab === 'transfers' && (
-        <div className={styles.productsSection}>
-          <div className={styles.productsHeader}>
-            <h3 className={styles.productsTitle}>Stock Transfers</h3>
-            <button
-              className={`${styles.actionButton} ${styles.addButton}`}
-              onClick={() => setShowTransferModal(true)}
-            >
-              + New Transfer
-            </button>
+        <div className={styles.panel}>
+          <div className={styles.panelHead}>
+            <h2 className={styles.panelTitle}>{t('warehouse.transferHistory')}</h2>
           </div>
-          
           {transferHistory.length === 0 ? (
-            <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>
-                <Icon name="truck" size={48} />
-              </div>
-              <h3>No Transfer History</h3>
-              <p>No stock transfers have been recorded yet</p>
+            <div className={styles.empty}>
+              <h3>{t('warehouse.noTransfers')}</h3>
+              <p>{t('warehouse.noTransfersHint')}</p>
             </div>
           ) : (
-            <div className={styles.historyList}>
-              {transferHistory.map(transfer => (
-                <div key={transfer.id} className={styles.historyItem}>
-                  <div className={styles.historyIcon}>
-                    <Icon name="truck" size={24} />
-                  </div>
-                  <div className={styles.historyContent}>
-                    <div className={styles.historyProduct}>{transfer.productName}</div>
-                    <div className={styles.historyDetails}>
-                      {transfer.fromLocation} → {transfer.toLocation} • {transfer.quantity} units
+            <div className={styles.timeline}>
+              {transferHistory.map((t) => (
+                <div key={t.id} className={styles.timelineItem}>
+                  <div className={styles.timelineDot} />
+                  <div>
+                    <div className={styles.listTitle}>
+                      {t.productName} · {t.quantity} units
                     </div>
-                  </div>
-                  <div className={styles.historyTime}>
-                    {new Date(transfer.transferredAt).toLocaleString()}
+                    <div className={styles.listMeta}>
+                      {locLabel(t.fromLocation, stockLocations)} →{' '}
+                      {locLabel(t.toLocation, stockLocations)}
+                      {t.transferredAt
+                        ? ` · ${new Date(t.transferredAt).toLocaleString()}`
+                        : ''}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1325,511 +1180,406 @@ export function WarehousePage() {
         </div>
       )}
 
-      {/* Invoice Review Modal */}
-      {showInvoiceModal && selectedInvoice && (
-        <div className={styles.modalOverlay} onClick={() => setShowInvoiceModal(false)}>
-          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Review Invoice: {selectedInvoice.invoiceNumber}</h2>
-              <button className={styles.modalClose} onClick={() => setShowInvoiceModal(false)}>×</button>
+      {/* ── Requests ── */}
+      {activeTab === 'requests' && (
+        <div className={styles.panel}>
+          <div className={styles.panelHead}>
+            <h2 className={styles.panelTitle}>{t('warehouse.requestsTitle')}</h2>
+          </div>
+          {stockRequests.length === 0 ? (
+            <div className={styles.empty}>
+              <h3>{t('warehouse.noRequests')}</h3>
+              <p>{t('warehouse.noRequestsHint')}</p>
+            </div>
+          ) : (
+            stockRequests.map((r) => (
+              <div key={r.id} className={styles.listCard}>
+                <div className={styles.listMain}>
+                  <div className={styles.listTitle}>
+                    {r.productName || r.title || 'Stock request'}
+                  </div>
+                  <div className={styles.listMeta}>
+                    Qty {r.quantity || '—'} · {r.status || 'pending'}
+                  </div>
+                </div>
+                {(!r.status || r.status === 'pending' || r.status === 'open') && (
+                  <div className={styles.rowActions}>
+                    <button
+                      type="button"
+                      className={styles.btnPrimary}
+                      onClick={() => handleRequest(r.id, true)}
+                    >
+                      {t('common.approve')}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.btnGhost}
+                      onClick={() => handleRequest(r.id, false)}
+                    >
+                      {t('common.reject')}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ── Returns ── */}
+      {activeTab === 'returns' && (
+        <div className={styles.panel}>
+          <div className={styles.panelHead}>
+            <h2 className={styles.panelTitle}>{t('warehouse.returnsTitle')}</h2>
+          </div>
+          {returns.length === 0 ? (
+            <div className={styles.empty}>
+              <h3>{t('warehouse.noReturns')}</h3>
+              <p>{t('warehouse.noReturnsHint')}</p>
+            </div>
+          ) : (
+            returns.map((r) => (
+              <div key={r.id} className={styles.listCard}>
+                <div className={styles.listMain}>
+                  <div className={styles.listTitle}>
+                    {r.productName || r.reason || 'Return'}
+                  </div>
+                  <div className={styles.listMeta}>
+                    Qty {r.quantity || '—'} · {r.status || 'pending'}
+                  </div>
+                </div>
+                {(!r.status || r.status === 'pending' || r.status === 'open') && (
+                  <div className={styles.rowActions}>
+                    <button
+                      type="button"
+                      className={styles.btnPrimary}
+                      onClick={() => handleReturn(r.id, true)}
+                    >
+                      {t('common.accept')}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.btnGhost}
+                      onClick={() => handleReturn(r.id, false)}
+                    >
+                      {t('common.reject')}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ── Add location modal ── */}
+      {showAddLocation && (
+        <div className={styles.overlay} onClick={() => setShowAddLocation(false)}>
+          <div
+            className={styles.modal}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal
+          >
+            <div className={styles.modalHead}>
+              <h2>{t('warehouse.newLocation')}</h2>
+              <button
+                type="button"
+                className={styles.modalClose}
+                onClick={() => setShowAddLocation(false)}
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
             </div>
             <div className={styles.modalBody}>
-              <div className={styles.invoiceDetailsFull}>
-                <div className={styles.detailRow}>
-                  <span className={styles.label}>Customer:</span>
-                  <span>{selectedInvoice.customerName}</span>
+              <div className={styles.field}>
+                <label htmlFor="loc-name">{t('warehouse.locationName')}</label>
+                <input
+                  id="loc-name"
+                  value={newLocationName}
+                  onChange={(e) => setNewLocationName(e.target.value)}
+                  placeholder={t('warehouse.locationPlaceholder')}
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={styles.btnGhost}
+                onClick={() => setShowAddLocation(false)}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                disabled={!newLocationName.trim() || creatingLocation}
+                onClick={createLocation}
+              >
+                {creatingLocation ? t('warehouse.creating') : t('warehouse.createLocation')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Transfer modal ── */}
+      {showTransfer && transferProduct && (
+        <div className={styles.overlay} onClick={() => setShowTransfer(false)}>
+          <div
+            className={styles.modal}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal
+          >
+            <div className={styles.modalHead}>
+              <h2>{t('warehouse.transferStock')}</h2>
+              <button
+                type="button"
+                className={styles.modalClose}
+                onClick={() => setShowTransfer(false)}
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <p style={{ margin: 0, fontWeight: 650 }}>{transferProduct.name}</p>
+              <div className={styles.field}>
+                <label>{t('warehouse.from')}</label>
+                <select
+                  value={transferFrom}
+                  onChange={(e) => setTransferFrom(e.target.value)}
+                >
+                  {stockLocations.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name} (
+                      {transferProduct.stockByLocation?.[l.id] || 0} available)
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles.field}>
+                <label>{t('warehouse.to')}</label>
+                <select
+                  value={transferTo}
+                  onChange={(e) => setTransferTo(e.target.value)}
+                >
+                  <option value="">{t('warehouse.selectDestination')}</option>
+                  {stockLocations
+                    .filter((l) => l.id !== transferFrom)
+                    .map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div className={styles.field}>
+                <label>{t('common.quantity')}</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={transferQty}
+                  onChange={(e) =>
+                    setTransferQty(Math.max(1, parseInt(e.target.value, 10) || 1))
+                  }
+                />
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={styles.btnGhost}
+                onClick={() => setShowTransfer(false)}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                disabled={transferring || !transferTo}
+                onClick={submitTransfer}
+              >
+                {transferring ? t('warehouse.moving') : t('warehouse.transfer')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Adjust modal ── */}
+      {showAdjust && adjustProduct && (
+        <div className={styles.overlay} onClick={() => setShowAdjust(false)}>
+          <div
+            className={styles.modal}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal
+          >
+            <div className={styles.modalHead}>
+              <h2>{t('warehouse.adjustStock')}</h2>
+              <button
+                type="button"
+                className={styles.modalClose}
+                onClick={() => setShowAdjust(false)}
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <p style={{ margin: 0, fontWeight: 650 }}>{adjustProduct.name}</p>
+              <div className={styles.field}>
+                <label>{t('warehouse.reason')}</label>
+                <select
+                  value={adjustReason}
+                  onChange={(e) => setAdjustReason(e.target.value as any)}
+                >
+                  <option value="damaged">{t('warehouse.reasonDamaged')}</option>
+                  <option value="lost">{t('warehouse.reasonLost')}</option>
+                  <option value="expired">{t('warehouse.reasonExpired')}</option>
+                  <option value="recount">{t('warehouse.reasonRecount')}</option>
+                </select>
+              </div>
+              <div className={styles.field}>
+                <label>
+                  {adjustReason === 'recount'
+                    ? t('warehouse.qtyNew')
+                    : t('warehouse.qtyRemove')}
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={adjustQty}
+                  onChange={(e) =>
+                    setAdjustQty(Math.max(0, parseInt(e.target.value, 10) || 0))
+                  }
+                />
+              </div>
+              <div className={styles.field}>
+                <label>{t('common.notes')}</label>
+                <textarea
+                  value={adjustNotes}
+                  onChange={(e) => setAdjustNotes(e.target.value)}
+                  placeholder={t('warehouse.notesPlaceholder')}
+                />
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={styles.btnGhost}
+                onClick={() => setShowAdjust(false)}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                disabled={adjusting}
+                onClick={submitAdjust}
+              >
+                {adjusting ? t('warehouse.saving') : t('warehouse.saveAdjustment')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Invoice release modal ── */}
+      {selectedInvoice && (
+        <div className={styles.overlay} onClick={() => setSelectedInvoice(null)}>
+          <div
+            className={`${styles.modal} ${styles.modalWide}`}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal
+          >
+            <div className={styles.modalHead}>
+              <h2>Release #{selectedInvoice.invoiceNumber}</h2>
+              <button
+                type="button"
+                className={styles.modalClose}
+                onClick={() => setSelectedInvoice(null)}
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.detailGrid}>
+                <div>
+                  <span>{t('common.customer')}</span>
+                  <strong>{selectedInvoice.customerName}</strong>
                 </div>
-                <div className={styles.detailRow}>
-                  <span className={styles.label}>Phone:</span>
-                  <span>{selectedInvoice.customerPhone || 'N/A'}</span>
+                <div>
+                  <span>{t('common.phone')}</span>
+                  <strong>{selectedInvoice.customerPhone || '—'}</strong>
                 </div>
-                <div className={styles.detailRow}>
-                  <span className={styles.label}>Source Location:</span>
-                  <span>{selectedInvoice.sourceLocation}</span>
+                <div>
+                  <span>{t('warehouse.source')}</span>
+                  <strong>{selectedInvoice.sourceLocation}</strong>
                 </div>
-                <div className={styles.detailRow}>
-                  <span className={styles.label}>Date:</span>
-                  <span>{selectedInvoice.createdAt.toLocaleString()}</span>
-                </div>
-                <div className={styles.detailRow}>
-                  <span className={styles.label}>Salesperson:</span>
-                  <span>{selectedInvoice.recordedBy?.displayName || 'Unknown'}</span>
+                <div>
+                  <span>{t('common.total')}</span>
+                  <strong>{formatMoney(selectedInvoice.totalAmount)}</strong>
                 </div>
               </div>
-              
-              <h3>Items</h3>
-              <div className={styles.itemsTable}>
-                <table>
+              <div className={styles.tableWrap}>
+                <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th>Item</th>
-                      <th>Qty</th>
-                      <th>Price</th>
-                      <th>Total</th>
+                      <th>{t('warehouse.item')}</th>
+                      <th>{t('warehouse.qty')}</th>
+                      <th>{t('common.total')}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedInvoice.items.map((item, index) => (
-                      <tr key={index}>
+                    {selectedInvoice.items.map((item, i) => (
+                      <tr key={i}>
                         <td>{item.name}</td>
                         <td>{item.quantity}</td>
-                        <td>{formatMoney(item.price)}</td>
                         <td>{formatMoney(item.total)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              
-              <div className={styles.totalRow}>
-                <strong>Total: {formatMoney(selectedInvoice.totalAmount)}</strong>
-              </div>
-              
-              <div className={styles.notesSection}>
-                <label>Release Notes:</label>
+              <div className={styles.field}>
+                <label>{t('warehouse.releaseNotes')}</label>
                 <textarea
                   value={releaseNotes}
                   onChange={(e) => setReleaseNotes(e.target.value)}
-                  placeholder="Add any notes about this release..."
-                  className={styles.notesTextarea}
+                  placeholder={t('warehouse.releaseNotesPh')}
                 />
               </div>
             </div>
             <div className={styles.modalFooter}>
-              <button 
-                className={styles.modalBtn}
-                onClick={() => setShowInvoiceModal(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                className={`${styles.modalBtn} ${styles.modalBtnPrimary}`}
-                onClick={() => handleReleaseInvoice(selectedInvoice, false)}
-              >
-                Release Goods
-              </button>
-              <button 
-                className={`${styles.modalBtn} ${styles.modalBtnPrimary}`}
-                onClick={() => handleReleaseInvoice(selectedInvoice, true)}
-              >
-                Partial Release
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showAddModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowAddModal(false)}>
-          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Add Warehouse</h2>
-              <button className={styles.modalClose} onClick={() => setShowAddModal(false)}>×</button>
-            </div>
-            <div className={styles.modalBody}>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Warehouse Name</label>
-                <input
-                  type="text"
-                  className={styles.formInput}
-                  placeholder="e.g., Cold Room, Display Area"
-                  value={newLocationName}
-                  onChange={(e) => setNewLocationName(e.target.value)}
-                />
-              </div>
-              <div className={styles.modalActions}>
-                <button className={styles.modalBtn} onClick={() => setShowAddModal(false)}>Cancel</button>
-                <button
-                  className={`${styles.modalBtn} ${styles.modalBtnPrimary}`}
-                  onClick={async () => {
-                    if (!newLocationName.trim() || !businessId || !firestore) return;
-
-                    const slug = newLocationName
-                      .trim()
-                      .toLowerCase()
-                      .replace(/[^a-z0-9]+/g, '_')
-                      .replace(/^_+|_+$/g, '');
-
-                    if (!slug) {
-                      showToast(t('toast.invalidWarehouse'));
-                      return;
-                    }
-
-                    setIsCreatingWarehouse(true);
-                    console.log('📦 [WarehousePage] Creating warehouse:', {
-                      name: newLocationName.trim(),
-                      type: slug,
-                      businessId,
-                    });
-
-                    try {
-                      const docRef = await addDoc(
-                        collection(firestore, 'businesses', businessId, 'stockLocations'),
-                        {
-                          name: newLocationName.trim(),
-                          type: slug,
-                          createdAt: new Date(),
-                        }
-                      );
-
-                      console.log('✅ [WarehousePage] Warehouse created successfully:', docRef.id);
-                      await loadStockLocations();
-                      setShowAddModal(false);
-                      setNewLocationName('');
-                      showToast(t('toast.warehouseCreated'));
-                    } catch (error) {
-                      console.error('❌ [WarehousePage] Error creating warehouse:', error);
-                      showToast(t('toast.warehouseCreateFailed'));
-                    } finally {
-                      setIsCreatingWarehouse(false);
-                    }
-                  }}
-                  disabled={!newLocationName.trim() || isCreatingWarehouse}
-                >
-                  {isCreatingWarehouse ? 'Creating...' : 'Create Warehouse'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {locationToDelete && (
-        <div className={styles.modalOverlay} onClick={() => setLocationToDelete(null)}>
-          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Delete Warehouse</h2>
-              <button className={styles.modalClose} onClick={() => setLocationToDelete(null)}>×</button>
-            </div>
-            <div className={styles.modalBody}>
-              <p className={styles.modalDescription}>
-                Are you sure you want to delete "<strong>{locationToDelete.name}</strong>"? This will remove this warehouse location from stock tracking.
-              </p>
-              <div className={styles.modalActions}>
-                <button className={styles.modalBtn} onClick={() => setLocationToDelete(null)}>Cancel</button>
-                <button
-                  className={`${styles.modalBtn} ${styles.modalBtnDanger}`}
-                  onClick={async () => {
-                    if (!locationToDelete || !businessId || !firestore) return;
-
-                    try {
-                      await deleteDoc(
-                        doc(firestore, 'businesses', businessId, 'stockLocations', locationToDelete.id)
-                      );
-
-                      if (selectedLocation === locationToDelete.type) {
-                        setSelectedLocation('all');
-                      }
-
-                      await loadProducts();
-                      setLocationToDelete(null);
-                      showToast(t('toast.warehouseDeleted'));
-                    } catch (error) {
-                      console.error('Error deleting warehouse:', error);
-                      showToast(t('toast.warehouseDeleteFailed'));
-                    }
-                  }}
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Stock Transfer Modal */}
-      {showTransferModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowTransferModal(false)}>
-          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Stock Transfer</h2>
-              <button className={styles.modalClose} onClick={() => setShowTransferModal(false)}>×</button>
-            </div>
-            <div className={styles.modalBody}>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Select Product</label>
-                <select
-                  className={styles.formInput}
-                  value={transferProduct?.id || ''}
-                  onChange={(e) => {
-                    const product = products.find(p => p.id === e.target.value);
-                    setTransferProduct(product || null);
-                  }}
-                >
-                  <option value="">Select a product...</option>
-                  {products.filter(p => p.stock > 0).map(product => (
-                    <option key={product.id} value={product.id}>
-                      {product.name} (Stock: {product.stock})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {transferProduct && (
-                <>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Source Location</label>
-                    <select
-                      className={styles.formInput}
-                      value={selectedLocation}
-                      onChange={(e) => setSelectedLocation(e.target.value)}
-                    >
-                      {locationSummary.map(loc => (
-                        <option key={loc.type} value={loc.type}>
-                          {loc.name} (Stock: {transferProduct.stockByLocation?.[loc.type] || 0})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Target Location</label>
-                    <select
-                      className={styles.formInput}
-                      value={transferTarget}
-                      onChange={(e) => setTransferTarget(e.target.value)}
-                    >
-                      <option value="">Select target location...</option>
-                      {locationSummary
-                        .filter(loc => loc.type !== selectedLocation)
-                        .map(loc => (
-                          <option key={loc.type} value={loc.type}>
-                            {loc.name}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Quantity</label>
-                    <input
-                      type="number"
-                      className={styles.formInput}
-                      min="1"
-                      max={transferProduct.stockByLocation?.[selectedLocation] || 0}
-                      value={transferQuantity}
-                      onChange={(e) => setTransferQuantity(parseInt(e.target.value) || 1)}
-                    />
-                    <small>Available: {transferProduct.stockByLocation?.[selectedLocation] || 0}</small>
-                  </div>
-                </>
-              )}
-            </div>
-            <div className={styles.modalActions}>
-              <button className={styles.modalBtn} onClick={() => setShowTransferModal(false)}>Cancel</button>
               <button
-                className={`${styles.modalBtn} ${styles.modalBtnPrimary}`}
-                onClick={() => {
-                  if (transferProduct && transferTarget) {
-                    handleTransfer(transferProduct, transferTarget, transferQuantity);
-                    setShowTransferModal(false);
-                    setTransferProduct(null);
-                    setTransferQuantity(1);
-                    setTransferTarget('');
-                  }
-                }}
-                disabled={!transferProduct || !transferTarget || transferQuantity <= 0}
+                type="button"
+                className={styles.btnGhost}
+                onClick={() => setSelectedInvoice(null)}
               >
-                Transfer Stock
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Stock Adjustment Modal */}
-      {showAdjustmentModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowAdjustmentModal(false)}>
-          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Stock Adjustment</h2>
-              <button className={styles.modalClose} onClick={() => setShowAdjustmentModal(false)}>×</button>
-            </div>
-            <div className={styles.modalBody}>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Select Product</label>
-                <select
-                  className={styles.formInput}
-                  value={adjustmentProduct?.id || ''}
-                  onChange={(e) => {
-                    const product = products.find(p => p.id === e.target.value);
-                    setAdjustmentProduct(product || null);
-                  }}
-                >
-                  <option value="">Select a product...</option>
-                  {products.filter(p => p.stock > 0).map(product => (
-                    <option key={product.id} value={product.id}>
-                      {product.name} (Stock: {product.stock})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {adjustmentProduct && (
-                <>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Location</label>
-                    <select
-                      className={styles.formInput}
-                      value={selectedLocation}
-                      onChange={(e) => setSelectedLocation(e.target.value)}
-                    >
-                      {locationSummary.map(loc => (
-                        <option key={loc.type} value={loc.type}>
-                          {loc.name} (Stock: {adjustmentProduct.stockByLocation?.[loc.type] || 0})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Reason</label>
-                    <select
-                      className={styles.formInput}
-                      value={adjustmentReason}
-                      onChange={(e) => setAdjustmentReason(e.target.value as any)}
-                    >
-                      <option value="damaged">Damaged</option>
-                      <option value="lost">Lost</option>
-                      <option value="expired">Expired</option>
-                      <option value="recount">Recount</option>
-                    </select>
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Quantity</label>
-                    <input
-                      type="number"
-                      className={styles.formInput}
-                      min="1"
-                      max={adjustmentProduct.stockByLocation?.[selectedLocation] || 0}
-                      value={adjustmentQuantity}
-                      onChange={(e) => setAdjustmentQuantity(parseInt(e.target.value) || 1)}
-                    />
-                    <small>Available: {adjustmentProduct.stockByLocation?.[selectedLocation] || 0}</small>
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Notes</label>
-                    <textarea
-                      className={styles.formInput}
-                      value={adjustmentNotes}
-                      onChange={(e) => setAdjustmentNotes(e.target.value)}
-                      placeholder="Add any additional notes..."
-                      rows={3}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-            <div className={styles.modalActions}>
-              <button className={styles.modalBtn} onClick={() => setShowAdjustmentModal(false)}>Cancel</button>
-              <button
-                className={`${styles.modalBtn} ${styles.modalBtnPrimary}`}
-                onClick={() => {
-                  if (adjustmentProduct) {
-                    handleAdjustment(adjustmentProduct, adjustmentQuantity, adjustmentReason, adjustmentNotes);
-                  }
-                }}
-                disabled={!adjustmentProduct || adjustmentQuantity <= 0}
-              >
-                Adjust Stock
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Stock Request Modal */}
-      {showStockRequestModal && selectedStockRequest && (
-        <div className={styles.modalOverlay} onClick={() => setShowStockRequestModal(false)}>
-          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Process Stock Request</h2>
-              <button className={styles.modalClose} onClick={() => setShowStockRequestModal(false)}>×</button>
-            </div>
-            <div className={styles.modalBody}>
-              <div className={styles.invoiceDetails}>
-                <p><strong>Product:</strong> {selectedStockRequest.productName}</p>
-                <p><strong>Quantity:</strong> {selectedStockRequest.quantity}</p>
-                <p><strong>Location:</strong> {selectedStockRequest.location}</p>
-                <p><strong>Requested By:</strong> {selectedStockRequest.requestedBy}</p>
-                <p><strong>Requested At:</strong> {new Date(selectedStockRequest.requestedAt?.toDate?.() || selectedStockRequest.requestedAt).toLocaleString()}</p>
-              </div>
-              
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Notes</label>
-                <textarea
-                  className={styles.formInput}
-                  value={requestNotes}
-                  onChange={(e) => setRequestNotes(e.target.value)}
-                  placeholder="Add notes for this request..."
-                  rows={3}
-                />
-              </div>
-            </div>
-            <div className={styles.modalActions}>
-              <button className={styles.modalBtn} onClick={() => setShowStockRequestModal(false)}>Cancel</button>
-              <button
-                className={`${styles.modalBtn} ${styles.modalBtnDanger}`}
-                onClick={() => handleStockRequest(selectedStockRequest.id, false)}
-              >
-                Reject
+                {t('common.cancel')}
               </button>
               <button
-                className={`${styles.modalBtn} ${styles.modalBtnPrimary}`}
-                onClick={() => handleStockRequest(selectedStockRequest.id, true)}
+                type="button"
+                className={styles.btnSecondary}
+                disabled={releasing}
+                onClick={() => releaseInvoice(true)}
               >
-                Approve
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Return Modal */}
-      {showReturnModal && selectedReturn && (
-        <div className={styles.modalOverlay} onClick={() => setShowReturnModal(false)}>
-          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Process Return</h2>
-              <button className={styles.modalClose} onClick={() => setShowReturnModal(false)}>×</button>
-            </div>
-            <div className={styles.modalBody}>
-              <div className={styles.invoiceDetails}>
-                <p><strong>Product:</strong> {selectedReturn.productName}</p>
-                <p><strong>Quantity:</strong> {selectedReturn.quantity}</p>
-                <p><strong>Location:</strong> {selectedReturn.location}</p>
-                <p><strong>Reason:</strong> {selectedReturn.reason}</p>
-                <p><strong>Customer:</strong> {selectedReturn.customerName}</p>
-                <p><strong>Returned At:</strong> {new Date(selectedReturn.returnedAt?.toDate?.() || selectedReturn.returnedAt).toLocaleString()}</p>
-              </div>
-              
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Notes</label>
-                <textarea
-                  className={styles.formInput}
-                  value={returnNotes}
-                  onChange={(e) => setReturnNotes(e.target.value)}
-                  placeholder="Add notes for this return..."
-                  rows={3}
-                />
-              </div>
-            </div>
-            <div className={styles.modalActions}>
-              <button className={styles.modalBtn} onClick={() => setShowReturnModal(false)}>Cancel</button>
-              <button
-                className={`${styles.modalBtn} ${styles.modalBtnDanger}`}
-                onClick={() => handleReturn(selectedReturn.id, false)}
-              >
-                Reject
+                {t('warehouse.partialRelease')}
               </button>
               <button
-                className={`${styles.modalBtn} ${styles.modalBtnPrimary}`}
-                onClick={() => handleReturn(selectedReturn.id, true)}
+                type="button"
+                className={styles.btnPrimary}
+                disabled={releasing}
+                onClick={() => releaseInvoice(false)}
               >
-                Approve & Restock
+                {releasing ? t('warehouse.releasing') : t('warehouse.releaseFull')}
               </button>
             </div>
           </div>
@@ -1838,3 +1588,5 @@ export function WarehousePage() {
     </div>
   );
 }
+
+export default WarehousePage;

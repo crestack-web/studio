@@ -4,22 +4,40 @@ import React from 'react';
 
 const INDUSTRIES = [
   {
-    name: "Restaurant",
-    icon: "🍽️",
-    challenge: "Managing food costs and tracking daily profit margins",
-    solution: "Recipe costing, daily profit tracking, and expense categorization"
-  },
-  {
-    name: "Wholesale",
-    icon: "📦",
-    challenge: "Managing bulk orders and tracking inventory across multiple clients",
-    solution: "Bulk order management, client tracking, and real-time inventory levels"
-  },
-  {
-    name: "Supermarket",
+    name: "Retail & shops",
     icon: "🛒",
-    challenge: "Managing thousands of SKUs and preventing stock shortages",
-    solution: "Bulk product management, low stock alerts, and sales analytics"
+    challenge: "Sales, stock and cash handled by staff while the owner is away",
+    solution: "Visibility into sales, inventory and money movement from one place"
+  },
+  {
+    name: "Wholesale & distribution",
+    icon: "📦",
+    challenge: "Bulk stock, credit and multiple customers hard to track by hand",
+    solution: "Inventory, credit and sales linked so balances stay clear"
+  },
+  {
+    name: "Fashion & product brands",
+    icon: "👕",
+    challenge: "Stock value and true profit unclear after costs and returns",
+    solution: "Stock levels, costs and profit in plain view"
+  },
+  {
+    name: "Restaurants & food",
+    icon: "🍽️",
+    challenge: "Daily sales, ingredients and expenses hard to reconcile",
+    solution: "Sales, expenses and profit tracking built for busy operations"
+  },
+  {
+    name: "Multi-location businesses",
+    icon: "🏬",
+    challenge: "Cannot stand in every branch to know what happened",
+    solution: "Central visibility across locations where supported"
+  },
+  {
+    name: "Teams with staff",
+    icon: "👥",
+    challenge: "Staff handle money and stock without owner oversight",
+    solution: "Permissions, activity and accountability tools"
   }
 ];
 
@@ -27,12 +45,13 @@ export const IndustryUseCases: React.FC = () => (
   <section className="industry-use-cases-section">
     <div className="max-w">
       <div className="section-head center">
-        <div className="section-label">Industry Solutions</div>
+        <div className="section-label">Who Busmo is for</div>
         <h2 className="section-title">
-          Built for <em style={{ color: 'var(--purple-mid)' }}>Your Business</em>
+          Built for businesses that have grown beyond{' '}
+          <em style={{ color: 'var(--purple-mid)' }}>notebooks and spreadsheets.</em>
         </h2>
         <p className="section-sub">
-          Whether you run a small shop or a growing enterprise, Busmo adapts to your needs.
+          Especially useful when you have staff, inventory, cash handling, credit or more than one location.
         </p>
       </div>
 
@@ -42,19 +61,15 @@ export const IndustryUseCases: React.FC = () => (
             <div className="industry-icon">{industry.icon}</div>
             <h3 className="industry-name">{industry.name}</h3>
             <div className="industry-challenge">
-              <span className="industry-label">Challenge:</span>
+              <span className="industry-label">Common situation:</span>
               <span>{industry.challenge}</span>
             </div>
             <div className="industry-solution">
-              <span className="industry-label solution-label">Busmo Solution:</span>
+              <span className="industry-label solution-label">With Busmo:</span>
               <span>{industry.solution}</span>
             </div>
           </div>
         ))}
-      </div>
-
-      <div className="industry-see-all">
-        <a href="#" className="see-all-link">See all industries →</a>
       </div>
     </div>
   </section>

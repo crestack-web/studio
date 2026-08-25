@@ -15,6 +15,7 @@ import { BrevoService } from '@/services/email/brevo-service';
 import { sendStaffRoleUpdatedEmail, sendStaffRemovedEmail } from '@/services/email/team-management-emails';
 import { isRestaurantBusiness, getBusinessCategory } from './utils/restaurantHelpers';
 import AttendanceTab from './AttendanceTab';
+import { StaffPayrollSection } from './StaffPayrollSection';
 
 interface StaffMember {
   id: string;
@@ -94,21 +95,104 @@ export default function StaffPage() {
   };
 
   const generateStaffPassword = () => {
-    const length = 12;
-    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-    let password = '';
-    for (let i = 0; i < length; i++) {
-      password += charset.charAt(Math.floor(Math.random() * charset.length));
-    }
-    return password;
+    // Guaranteed mix so Supabase accepts the temp password
+    const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const lower = 'abcdefghijkmnopqrstuvwxyz';
+    const digits = '23456789';
+    const special = '!@#$%&*';
+    const all = upper + lower + digits + special;
+    const pick = (s: string) => s.charAt(Math.floor(Math.random() * s.length));
+    let password = pick(upper) + pick(lower) + pick(digits) + pick(special);
+    for (let i = 0; i < 8; i++) password += pick(all);
+    return password
+      .split('')
+      .sort(() => Math.random() - 0.5)
+      .join('');
   };
 
   const getInitials = (name: string) => {
     return name.split(' ').map((n) => n[0]).join('').toUpperCase().substring(0, 2);
   };
+
+  const AVATAR_PALETTE = [
+    { bg: '#D1FAE5', color: '#14A05A' },
+    { bg: '#EDE8FC', color: '#7C3AED' },
+    { bg: '#EFF6FF', color: '#2563EB' },
+    { bg: '#FEF3C7', color: '#D97706' },
+    { bg: '#FEE2E2', color: '#DC2626' },
+    { bg: '#CCFBF1', color: '#0D9488' },
+  ];
+
+  const getAvatarColors = (seed: string) => {
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) | 0;
+    return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+  };
+
   const { navigateTo, showToast, user } = useApp();
+
+  /** Resolve owner business from Supabase-backed AppContext (never Firebase Auth). */
+  const resolveOwnerScope = async () => {
+    const { firestore } = initializeFirebase();
+    if (!firestore) throw new Error('Data service unavailable');
+
+    let ownerUserId = user?.id || '';
+    let businessId = user?.businessId || '';
+
+    // Wait briefly if AppContext still hydrating
+    if (!ownerUserId || !businessId) {
+      try {
+        const { getSupabase } = await import('@/lib/supabase');
+        const supabase = getSupabase();
+        const { data } = await supabase.auth.getSession();
+        const sUser = data.session?.user;
+        if (sUser) {
+          ownerUserId = sUser.id;
+          const ownerDoc = await getDoc(doc(firestore, 'users', sUser.id));
+          if (ownerDoc.exists()) {
+            const d = ownerDoc.data() || {};
+            businessId = d.businessId ? String(d.businessId) : businessId;
+          }
+          if (!businessId && sUser.user_metadata?.businessId) {
+            businessId = String(sUser.user_metadata.businessId);
+          }
+        }
+      } catch (e) {
+        console.warn('[StaffPage] resolveOwnerScope session fallback failed', e);
+      }
+    }
+
+    if (!ownerUserId) throw new Error('Not signed in. Please refresh and log in again.');
+    if (!businessId) throw new Error('No business linked to this owner account.');
+
+    let businessName = 'Your Business';
+    let ownerName = user?.name || 'Business Owner';
+    let ownerEmail = user?.email || '';
+    try {
+      const ownerDoc = await getDoc(doc(firestore, 'users', ownerUserId));
+      if (ownerDoc.exists()) {
+        const d = ownerDoc.data() || {};
+        businessName =
+          d.businessName || d.name || d.displayName || businessName;
+        ownerName = d.fullName || d.displayName || d.name || ownerName;
+        ownerEmail = d.email || ownerEmail;
+      }
+      const bizDoc = await getDoc(doc(firestore, 'businesses', businessId));
+      if (bizDoc.exists()) {
+        const b = bizDoc.data() || {};
+        businessName = b.businessName || b.name || businessName;
+      }
+    } catch {
+      /* non-fatal */
+    }
+
+    return { firestore, ownerUserId, businessId, businessName, ownerName, ownerEmail };
+  };
+
   const { t } = useTranslation();
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -156,38 +240,43 @@ export default function StaffPage() {
   const [conversations, setConversations] = useState<{ [key: string]: { id: string; messages: ChatMessage[] } }>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load staff from Firestore on mount
+  // Load staff from Firestore when owner business is known (Supabase session)
   useEffect(() => {
+    let cancelled = false;
+
     const loadStaffFromFirestore = async () => {
       try {
-        const { auth, firestore } = initializeFirebase();
-        const currentUserId = auth.currentUser?.uid || '';
-        
-        if (!currentUserId) {
-          console.error('No current user found');
+        // Wait until AppContext has hydrated the owner user
+        if (!user?.id && !user?.businessId) {
           return;
         }
 
-        // Get owner's business ID
-        const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
-        const businessId = ownerDoc.data()?.businessId || 'default';
+        const { firestore, businessId } = await resolveOwnerScope();
+        if (cancelled) return;
 
-        // Check if business is a restaurant
         const restaurant = await isRestaurantBusiness(businessId);
-        setIsRestaurant(restaurant);
+        if (!cancelled) setIsRestaurant(restaurant);
 
-        // Load staff from Firestore
-        const staffCollection = collection(firestore, 'businesses', businessId, 'staff');
+        const staffCollection = collection(
+          firestore,
+          'businesses',
+          businessId,
+          'staff'
+        );
         const staffSnapshot = await getDocs(staffCollection);
-        
+        if (cancelled) return;
+
         const staffList: StaffMember[] = [];
-        staffSnapshot.forEach((doc) => {
-          const data = doc.data();
-          const avatarBg = ['#D1FAE5', '#EDE8FC', '#EFF6FF', '#FEF3C7', '#FEE2E2', '#CCFBF1'][Math.floor(Math.random() * 6)];
-          const avatarColor = ['#14A05A', '#7C3AED', '#2563EB', '#D97706', '#DC2626', '#0D9488'][Math.floor(Math.random() * 6)];
-          
+        staffSnapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const status = String(data.status || 'active').toLowerCase();
+          if (status === 'removed') return;
+
+          const seed = data.staffId || docSnap.id || data.name || '';
+          const { bg: avatarBg, color: avatarColor } = getAvatarColors(seed);
+
           staffList.push({
-            id: doc.id,
+            id: docSnap.id,
             staffId: data.staffId || '',
             name: data.name || '',
             role: data.role || '',
@@ -203,31 +292,37 @@ export default function StaffPage() {
         });
 
         setStaffMembers(staffList);
-        
-        // Also save to localStorage for backup
-        localStorage.setItem('staff-members', JSON.stringify(staffList));
+        localStorage.setItem(
+          `staff-members:${businessId}`,
+          JSON.stringify(staffList)
+        );
       } catch (error) {
         console.error('Error loading staff from Firestore:', error);
-        // Fallback to localStorage if Firestore fails
-        const savedStaff = localStorage.getItem('staff-members');
-        if (savedStaff) {
-          try {
-            const parsedStaff = JSON.parse(savedStaff);
-            const migratedStaff = parsedStaff.map((staff: any) => ({
-              ...staff,
-              permissions: staff.permissions || {},
-            }));
-            setStaffMembers(migratedStaff);
-          } catch (e) {
-            console.error('Failed to load staff from localStorage');
+        // Scoped localStorage fallback only (never a shared global list)
+        try {
+          const bid = user?.businessId;
+          if (bid) {
+            const savedStaff = localStorage.getItem(`staff-members:${bid}`);
+            if (savedStaff) {
+              const parsedStaff = JSON.parse(savedStaff);
+              setStaffMembers(
+                parsedStaff.map((staff: any) => ({
+                  ...staff,
+                  permissions: staff.permissions || {},
+                }))
+              );
+            }
           }
+        } catch (e) {
+          console.error('Failed to load staff from localStorage');
         }
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     loadStaffFromFirestore();
-    
-    // Load conversations
+
     const savedConvos = localStorage.getItem('staff-chat-conversations');
     if (savedConvos) {
       try {
@@ -238,7 +333,11 @@ export default function StaffPage() {
     } else {
       initializeConversations();
     }
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.businessId]);
 
   // Save staff to localStorage whenever it changes
   useEffect(() => {
@@ -335,15 +434,17 @@ export default function StaffPage() {
     ];
 
     try {
-      const { auth, firestore } = initializeFirebase();
-      const currentUserId = auth.currentUser?.uid || '';
+      const { firestore, businessId: scopedBusinessId, businessName: scopedBusinessName, ownerName: scopedOwnerName, ownerEmail: scopedOwnerEmail, ownerUserId } = await resolveOwnerScope();
+      const currentUserId = ownerUserId;
 
       // Get current owner's business ID
-      const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
-      const businessId = ownerDoc.data()?.businessId || 'default';
+      const businessId = scopedBusinessId;
+      const businessName = scopedBusinessName;
 
       let firebaseUser: any;
       let isNewUser = true;
+      let inviteEmailSent = false;
+      let inviteEmailError: string | null = null;
 
       try {
         // Call API route to create staff user using admin SDK
@@ -355,10 +456,12 @@ export default function StaffPage() {
             email: newStaffEmail.trim(),
             password: password,
             name: newStaffName.trim(),
-            role: newStaffRole.trim(),
+            role: newStaffRole.trim() || 'Staff',
             staffId: staffId,
             businessId: businessId,
             permissions: newStaffPermissions,
+            businessName,
+            sendInvite: true,
           }),
         });
 
@@ -370,6 +473,8 @@ export default function StaffPage() {
 
         firebaseUser = { uid: data.uid };
         isNewUser = data.isNewUser;
+        inviteEmailSent = !!data.emailSent;
+        inviteEmailError = data.emailError || null;
       } catch (authError: any) {
         console.error('Error creating staff:', authError);
         const errorMessage = authError.message || 'Failed to create staff member. Please try again.';
@@ -411,22 +516,12 @@ export default function StaffPage() {
       showToast(t('toast.staffAddedSuccess'));
       setIsAddingStaff(false);
       
-      // Send staff invitation email using Brevo
-      try {
-        const { auth, firestore } = initializeFirebase();
-        const ownerDoc = await getDoc(doc(firestore, 'users', auth.currentUser?.uid || ''));
-        const businessName = ownerDoc.data()?.businessName || 'Your Business';
-        
-        await BrevoService.sendStaffInvitationEmail(
-          newStaffEmail.trim(),
-          newStaff.name,
-          businessName,
-          password
-        );
+      // Invitation email is sent server-side via Resend in /api/staff/create
+      if (inviteEmailSent) {
         console.log('Staff invitation email sent successfully');
-      } catch (emailError) {
-        console.error('Failed to send staff invitation email:', emailError);
-        // Don't fail the whole process if email fails
+      } else if (inviteEmailError) {
+        console.error('Failed to send staff invitation email:', inviteEmailError);
+        showToast('Staff created, but invitation email failed. Share the temp password manually.');
       }
       
       // Create conversation for new staff
@@ -464,13 +559,12 @@ export default function StaffPage() {
     setIsRemovingStaff(true);
 
     try {
-      const { auth, firestore } = initializeFirebase();
-      const currentUserId = auth.currentUser?.uid || '';
-      const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
-      const businessId = ownerDoc.data()?.businessId || 'default';
-      const businessName = ownerDoc.data()?.businessName || 'Your Business';
-      const ownerName = ownerDoc.data()?.fullName || ownerDoc.data()?.displayName || 'Business Owner';
-      const ownerEmail = ownerDoc.data()?.email;
+      const { firestore, businessId: scopedBusinessId, businessName: scopedBusinessName, ownerName: scopedOwnerName, ownerEmail: scopedOwnerEmail, ownerUserId } = await resolveOwnerScope();
+      const currentUserId = ownerUserId;
+      const businessId = scopedBusinessId;
+      const businessName = scopedBusinessName;
+      const ownerName = scopedOwnerName;
+      const ownerEmail = scopedOwnerEmail;
 
       // Remove from businesses/staff collection
       await setDoc(doc(firestore, 'businesses', businessId, 'staff', staffToRemove.id), {
@@ -522,10 +616,9 @@ export default function StaffPage() {
     if (confirm(`Are you sure you want to ban ${staffName}? They will not be able to access the dashboard.`)) {
       setIsBanningStaff(true);
       try {
-        const { auth, firestore } = initializeFirebase();
-        const currentUserId = auth.currentUser?.uid || '';
-        const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
-        const businessId = ownerDoc.data()?.businessId || 'default';
+        const { firestore, businessId: scopedBusinessId, businessName: scopedBusinessName, ownerName: scopedOwnerName, ownerEmail: scopedOwnerEmail, ownerUserId } = await resolveOwnerScope();
+        const currentUserId = ownerUserId;
+        const businessId = scopedBusinessId;
 
         // Update status in businesses/staff collection
         await setDoc(doc(firestore, 'businesses', businessId, 'staff', staffId), {
@@ -586,10 +679,9 @@ export default function StaffPage() {
     setIsSavingTargets(true);
 
     try {
-      const { auth, firestore } = initializeFirebase();
-      const currentUserId = auth.currentUser?.uid || '';
-      const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
-      const businessId = ownerDoc.data()?.businessId || 'default';
+      const { firestore, businessId: scopedBusinessId, businessName: scopedBusinessName, ownerName: scopedOwnerName, ownerEmail: scopedOwnerEmail, ownerUserId } = await resolveOwnerScope();
+      const currentUserId = ownerUserId;
+      const businessId = scopedBusinessId;
 
       // Update targets in Firestore
       await setDoc(doc(firestore, 'businesses', businessId, 'staff', targetStaff.id), {
@@ -624,13 +716,12 @@ export default function StaffPage() {
     setIsSavingPermissions(true);
 
     try {
-      const { auth, firestore } = initializeFirebase();
-      const currentUserId = auth.currentUser?.uid || '';
-      const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
-      const businessId = ownerDoc.data()?.businessId || 'default';
-      const businessName = ownerDoc.data()?.businessName || 'Your Business';
-      const ownerName = ownerDoc.data()?.fullName || ownerDoc.data()?.displayName || 'Business Owner';
-      const ownerEmail = ownerDoc.data()?.email;
+      const { firestore, businessId: scopedBusinessId, businessName: scopedBusinessName, ownerName: scopedOwnerName, ownerEmail: scopedOwnerEmail, ownerUserId } = await resolveOwnerScope();
+      const currentUserId = ownerUserId;
+      const businessId = scopedBusinessId;
+      const businessName = scopedBusinessName;
+      const ownerName = scopedOwnerName;
+      const ownerEmail = scopedOwnerEmail;
 
       // Update permissions in Firestore
       await setDoc(doc(firestore, 'businesses', businessId, 'staff', editingStaff.id), {
@@ -763,6 +854,23 @@ export default function StaffPage() {
     return conversations[selectedChat];
   };
 
+  const q = searchQuery.trim().toLowerCase();
+  const filteredStaff = q
+    ? staffMembers.filter((m) =>
+        m.name.toLowerCase().includes(q) ||
+        (m.role || '').toLowerCase().includes(q) ||
+        (m.staffId || '').toLowerCase().includes(q) ||
+        (m.email || '').toLowerCase().includes(q)
+      )
+    : staffMembers;
+
+  const teamStats = {
+    total: staffMembers.length,
+    online: staffMembers.filter((m) => m.online).length,
+    revenue: staffMembers.reduce((s, m) => s + (Number(m.revenue) || 0), 0),
+    transactions: staffMembers.reduce((s, m) => s + (Number(m.transactions) || 0), 0),
+  };
+
   return (
     <div className={styles.wrapper}>
       <div className={styles.pageHeader}>
@@ -770,114 +878,182 @@ export default function StaffPage() {
           <h2 className={styles.pageTitle}>{t('staff.title')}</h2>
           <p className={styles.pageDesc}>{t('staff.subtitle')}</p>
         </div>
-        <div className={styles.headerActions}>
-          <Button variant="primary" size="sm" onClick={() => setShowAddModal(true)}>+ {t('staff.addMember')}</Button>
-        </div>
       </div>
 
       {/* Tab Navigation */}
-      <div className={styles.tabNav}>
+      <div className={styles.tabNav} role="tablist">
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'staff'}
           className={`${styles.tabBtn} ${activeTab === 'staff' ? styles.active : ''}`}
           onClick={() => setActiveTab('staff')}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-          {t('nav.staff')}
+          <span>{t('nav.staff')}</span>
+          {staffMembers.length > 0 && <span className={styles.tabCount}>{staffMembers.length}</span>}
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'attendance'}
           className={`${styles.tabBtn} ${activeTab === 'attendance' ? styles.active : ''}`}
           onClick={() => setActiveTab('attendance')}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          Attendance
+          <span>Attendance</span>
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'payroll'}
           className={`${styles.tabBtn} ${activeTab === 'payroll' ? styles.active : ''}`}
           onClick={() => setActiveTab('payroll')}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-          Payroll
+          <span>Payroll</span>
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'chat'}
           className={`${styles.tabBtn} ${activeTab === 'chat' ? styles.active : ''}`}
           onClick={() => setActiveTab('chat')}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-          {t('nav.chat')}
+          <span>{t('nav.chat')}</span>
         </button>
       </div>
 
       {/* Staff cards */}
       {activeTab === 'staff' && (
-        staffMembers.length === 0 ? (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            textAlign: 'center',
-            padding: '80px 20px',
-          }}>
-            <svg width="120" height="120" viewBox="0 0 120 120" fill="none" style={{ marginBottom: '24px' }}>
-              <circle cx="60" cy="60" r="58" fill="var(--surface)"></circle>
-              <circle cx="60" cy="60" r="56" fill="none" stroke="rgba(42,191,191,.12)" strokeWidth="1.5" strokeDasharray="6,4"></circle>
-              <rect x="24" y="68" width="24" height="4" rx="2" fill="rgba(255,255,255,.08)"></rect>
-              <rect x="28" y="72" width="4" height="12" rx="2" fill="rgba(255,255,255,.07)"></rect>
-              <rect x="40" y="72" width="4" height="12" rx="2" fill="rgba(255,255,255,.07)"></rect>
-              <rect x="24" y="58" width="24" height="10" rx="4" fill="none" stroke="rgba(42,191,191,.15)" strokeWidth="1.5" strokeDasharray="3,3"></rect>
-              <rect x="72" y="68" width="24" height="4" rx="2" fill="rgba(255,255,255,.08)"></rect>
-              <rect x="76" y="72" width="4" height="12" rx="2" fill="rgba(255,255,255,.07)"></rect>
-              <rect x="88" y="72" width="4" height="12" rx="2" fill="rgba(255,255,255,.07)"></rect>
-              <rect x="72" y="58" width="24" height="10" rx="4" fill="none" stroke="rgba(42,191,191,.15)" strokeWidth="1.5" strokeDasharray="3,3"></rect>
-              <circle cx="36" cy="52" r="8" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.06)" strokeWidth="1.5" strokeDasharray="2,2"></circle>
-              <circle cx="84" cy="52" r="8" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.06)" strokeWidth="1.5" strokeDasharray="2,2"></circle>
-              <circle cx="60" cy="44" r="13" fill="#F5C9A0"></circle>
-              <path d="M47 40 C47 31 73 31 73 40 L73 36 C73 28 47 28 47 36 Z" fill="#2C1A0E"></path>
-              <circle cx="54" cy="43" r="2.8" fill="#1A2B3C"></circle>
-              <circle cx="66" cy="43" r="2.8" fill="#1A2B3C"></circle>
-              <circle cx="55" cy="41.8" r="1" fill="white"></circle>
-              <circle cx="67" cy="41.8" r="1" fill="white"></circle>
-              <path d="M54 49 Q60 53 66 49" stroke="#CC7A3A" strokeWidth="1.8" strokeLinecap="round" fill="none"></path>
-              <circle cx="74" cy="32" r="10" fill="#162334" stroke="#2ABFBF" strokeWidth="1.5"></circle>
-              <line x1="74" y1="27" x2="74" y2="37" stroke="#2ABFBF" strokeWidth="2.5" strokeLinecap="round"></line>
-              <line x1="69" y1="32" x2="79" y2="32" stroke="#2ABFBF" strokeWidth="2.5" strokeLinecap="round"></line>
-              <rect x="50" y="57" width="20" height="13" rx="5" fill="#F5C9A0"></rect>
-              <ellipse cx="60" cy="74" rx="15" ry="6" fill="#1A8F8F" opacity=".8"></ellipse>
+        isLoading ? (
+          <div className={styles.loadingState}>
+            <div className={styles.spinner} aria-hidden />
+            <p>Loading team…</p>
+          </div>
+        ) : staffMembers.length === 0 ? (
+          <div className={styles.emptyState}>
+            <svg width="120" height="120" viewBox="0 0 120 120" fill="none" style={{ marginBottom: '24px' }} aria-hidden>
+              <circle cx="60" cy="60" r="58" fill="var(--surface)" />
+              <circle cx="60" cy="60" r="56" fill="none" stroke="rgba(42,191,191,.12)" strokeWidth="1.5" strokeDasharray="6,4" />
+              <rect x="24" y="68" width="24" height="4" rx="2" fill="rgba(255,255,255,.08)" />
+              <rect x="28" y="72" width="4" height="12" rx="2" fill="rgba(255,255,255,.07)" />
+              <rect x="40" y="72" width="4" height="12" rx="2" fill="rgba(255,255,255,.07)" />
+              <rect x="24" y="58" width="24" height="10" rx="4" fill="none" stroke="rgba(42,191,191,.15)" strokeWidth="1.5" strokeDasharray="3,3" />
+              <rect x="72" y="68" width="24" height="4" rx="2" fill="rgba(255,255,255,.08)" />
+              <rect x="76" y="72" width="4" height="12" rx="2" fill="rgba(255,255,255,.07)" />
+              <rect x="88" y="72" width="4" height="12" rx="2" fill="rgba(255,255,255,.07)" />
+              <rect x="72" y="58" width="24" height="10" rx="4" fill="none" stroke="rgba(42,191,191,.15)" strokeWidth="1.5" strokeDasharray="3,3" />
+              <circle cx="36" cy="52" r="8" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.06)" strokeWidth="1.5" strokeDasharray="2,2" />
+              <circle cx="84" cy="52" r="8" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.06)" strokeWidth="1.5" strokeDasharray="2,2" />
+              <circle cx="60" cy="44" r="13" fill="#F5C9A0" />
+              <path d="M47 40 C47 31 73 31 73 40 L73 36 C73 28 47 28 47 36 Z" fill="#2C1A0E" />
+              <circle cx="54" cy="43" r="2.8" fill="#1A2B3C" />
+              <circle cx="66" cy="43" r="2.8" fill="#1A2B3C" />
+              <circle cx="55" cy="41.8" r="1" fill="white" />
+              <circle cx="67" cy="41.8" r="1" fill="white" />
+              <path d="M54 49 Q60 53 66 49" stroke="#CC7A3A" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+              <circle cx="74" cy="32" r="10" fill="#162334" stroke="#2ABFBF" strokeWidth="1.5" />
+              <line x1="74" y1="27" x2="74" y2="37" stroke="#2ABFBF" strokeWidth="2.5" strokeLinecap="round" />
+              <line x1="69" y1="32" x2="79" y2="32" stroke="#2ABFBF" strokeWidth="2.5" strokeLinecap="round" />
+              <rect x="50" y="57" width="20" height="13" rx="5" fill="#F5C9A0" />
+              <ellipse cx="60" cy="74" rx="15" ry="6" fill="#1A8F8F" opacity=".8" />
             </svg>
-            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-1)', marginBottom: '8px' }}>
-              No staff members yet
-            </div>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-3)', marginBottom: '24px', maxWidth: '300px' }}>
+            <h3 className={styles.emptyTitle}>No staff members yet</h3>
+            <p className={styles.emptyDesc}>
               Add your first team member to start managing staff and tracking performance.
             </p>
             <Button variant="primary" onClick={() => setShowAddModal(true)}>+ Add Your First Staff</Button>
           </div>
         ) : (
+          <>
+            <div className={styles.summaryBar}>
+              <div className={styles.summaryItem}>
+                <span className={styles.summaryValue}>{teamStats.total}</span>
+                <span className={styles.summaryLabel}>Team</span>
+              </div>
+              <div className={styles.summaryItem}>
+                <span className={styles.summaryValue}>
+                  <span className={styles.onlineDot} />
+                  {teamStats.online}
+                </span>
+                <span className={styles.summaryLabel}>Online</span>
+              </div>
+              <div className={styles.summaryItem}>
+                <span className={styles.summaryValue}>₦{teamStats.revenue.toLocaleString()}</span>
+                <span className={styles.summaryLabel}>Revenue</span>
+              </div>
+              <div className={styles.summaryItem}>
+                <span className={styles.summaryValue}>{teamStats.transactions}</span>
+                <span className={styles.summaryLabel}>Sales</span>
+              </div>
+            </div>
+
+            <div className={styles.toolbar}>
+              <div className={styles.searchWrap}>
+                <svg className={styles.searchIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16} aria-hidden>
+                  <circle cx="11" cy="11" r="8"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input
+                  type="search"
+                  className={styles.searchInput}
+                  placeholder="Search by name, role, or ID…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  aria-label="Search staff"
+                />
+                {searchQuery && (
+                  <button type="button" className={styles.searchClear} onClick={() => setSearchQuery('')} aria-label="Clear search">
+                    ×
+                  </button>
+                )}
+              </div>
+              <span className={styles.resultCount}>
+                {filteredStaff.length === staffMembers.length
+                  ? `${staffMembers.length} member${staffMembers.length === 1 ? '' : 's'}`
+                  : `${filteredStaff.length} of ${staffMembers.length}`}
+              </span>
+            </div>
+
+            {filteredStaff.length === 0 ? (
+              <div className={styles.emptyStateCompact}>
+                <p>No staff match “{searchQuery}”.</p>
+                <button type="button" className={styles.linkBtn} onClick={() => setSearchQuery('')}>Clear search</button>
+              </div>
+            ) : (
           <div className={styles.staffGrid}>
-            {staffMembers.map((member) => (
+            {filteredStaff.map((member) => (
               <div key={member.id} className={styles.staffCard}>
-                <div
-                  className={styles.staffAvatar}
-                  style={{ background: member.avatarBg, color: member.avatarColor }}
-                >
-                  {member.initials}
+                <div className={styles.avatarWrap}>
+                  <div
+                    className={styles.staffAvatar}
+                    style={{ background: member.avatarBg, color: member.avatarColor }}
+                  >
+                    {member.initials}
+                  </div>
+                  <span
+                    className={`${styles.statusDot} ${member.online ? styles.statusOnline : styles.statusOffline}`}
+                    title={member.online ? 'Online' : 'Offline'}
+                  />
                 </div>
                 <div className={styles.staffName}>{member.name}</div>
                 <div className={styles.staffRole}>
-                  <Pill color="purple">{member.role}</Pill>
+                  <Pill color="purple">{member.role || 'Staff'}</Pill>
                 </div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-3)', marginBottom: '10px' }}>
-                  ID: {member.staffId}
+                <div className={styles.staffId}>
+                  ID: {member.staffId || '—'}
                 </div>
                 <div className={styles.staffStats}>
                   <div className={styles.statItem}>
-                    <div className={styles.statValue}>₦{member.revenue.toLocaleString()}</div>
+                    <div className={styles.statValue}>₦{(Number(member.revenue) || 0).toLocaleString()}</div>
                     <div className={styles.statLabel}>Revenue</div>
                   </div>
                   <div className={styles.statDivider} />
                   <div className={styles.statItem}>
-                    <div className={styles.statValue}>{member.transactions}</div>
-                    <div className={styles.statLabel}>Transactions</div>
+                    <div className={styles.statValue}>{Number(member.transactions) || 0}</div>
+                    <div className={styles.statLabel}>Sales</div>
                   </div>
                 </div>
                 <div className={styles.staffActions}>
@@ -932,6 +1108,7 @@ export default function StaffPage() {
 
             {/* Add new card */}
             <button
+              type="button"
               className={styles.addCard}
               onClick={() => setShowAddModal(true)}
             >
@@ -939,6 +1116,8 @@ export default function StaffPage() {
               <div className={styles.addLabel}>Add Team Member</div>
             </button>
           </div>
+            )}
+          </>
         )
       )}
 
@@ -958,7 +1137,8 @@ export default function StaffPage() {
       )}
 
 
-      {/* Payroll Tab - All Business Types */}
+      
+      {/* Payroll Tab — wallet funding + bulk pay */}
       {activeTab === 'payroll' && (
         <Card>
           <CardHeader>
@@ -970,142 +1150,24 @@ export default function StaffPage() {
             </CardIcon>
             Payroll & Salary Management
           </CardHeader>
-          <div style={{ padding: '20px' }}>
-            <div style={{ 
-              marginBottom: '20px', 
-              padding: '16px', 
-              background: 'linear-gradient(135deg, var(--green-bg), var(--blue-bg))',
-              borderRadius: '8px',
-              border: '1px solid var(--green)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                <span style={{ fontSize: '1.2rem' }}>💰</span>
-                <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-1)' }}>
-                  Owner Wallet Integration Coming Soon
-                </div>
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-2)', lineHeight: 1.5 }}>
-                Soon you'll be able to pay staff salaries directly from your owner wallet. Configure staff salary amounts and payment dates below.
-              </div>
-            </div>
-            
-            <div style={{ marginBottom: '20px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <Button 
-                variant="primary" 
-                size="sm" 
-                onClick={() => setShowPayrollModal(true)}
-              >
-                + Configure Salary
-              </Button>
-              <Button variant="subtle" size="sm" onClick={() => showToast(t('toast.featureComingSoon'))}>
-                Payroll History
-              </Button>
-              <Button variant="subtle" size="sm" onClick={() => showToast(t('toast.featureComingSoon'))}>
-                Export
-              </Button>
-            </div>
-
-            {staffMembers.length === 0 ? (
-              <div style={{ 
-                textAlign: 'center', 
-                padding: '60px 20px',
-                background: 'var(--bg)',
-                borderRadius: '8px',
-                border: '1px solid var(--border)'
-              }}>
-                <div style={{ fontSize: '3rem', marginBottom: '16px' }}>👥</div>
-                <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-1)', marginBottom: '8px' }}>
-                  No staff members yet
-                </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-3)', marginBottom: '20px' }}>
-                  Add staff members first to configure their salaries.
-                </div>
-                <Button variant="primary" onClick={() => setShowAddModal(true)}>+ Add Staff Member</Button>
-              </div>
-            ) : (
-              <div style={{ 
-                border: '1px solid var(--border)', 
-                borderRadius: '8px', 
-                overflow: 'hidden' 
-              }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead style={{ background: 'var(--bg)' }}>
-                    <tr>
-                      <th style={{ padding: '12px', textAlign: 'left', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Staff</th>
-                      <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Base Salary (₦)</th>
-                      <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Payment Frequency</th>
-                      <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Next Payment</th>
-                      <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Status</th>
-                      <th style={{ padding: '12px', textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-2)' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {staffMembers.map(member => (
-                      <tr key={member.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: '12px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div style={{ 
-                              width: '32px', 
-                              height: '32px', 
-                              borderRadius: '50%', 
-                              background: member.avatarBg, 
-                              color: member.avatarColor,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '0.75rem',
-                              fontWeight: 600
-                            }}>
-                              {member.initials}
-                            </div>
-                            <div>
-                              <div style={{ fontWeight: 500, fontSize: '0.9rem' }}>{member.name}</div>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>{member.role}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem', fontWeight: 600 }}>
-                          ₦{(member.salary || 0).toLocaleString()}
-                        </td>
-                        <td style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem' }}>
-                          {member.paymentFrequency || 'Monthly'}
-                        </td>
-                        <td style={{ padding: '12px', textAlign: 'center', fontSize: '0.85rem' }}>
-                          {member.nextPaymentDate || 'Not set'}
-                        </td>
-                        <td style={{ padding: '12px', textAlign: 'center' }}>
-                          <span style={{ 
-                            padding: '4px 8px', 
-                            borderRadius: '12px', 
-                            fontSize: '0.75rem', 
-                            fontWeight: 500,
-                            background: member.salary ? 'var(--green-bg)' : 'var(--amber-bg)',
-                            color: member.salary ? 'var(--green)' : 'var(--amber)'
-                          }}>
-                            {member.salary ? 'Configured' : 'Not Set'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px', textAlign: 'center' }}>
-                          <Button 
-                            variant="subtle" 
-                            size="sm"
-                            onClick={() => {
-                              setEditingStaff(member);
-                              setShowPayrollModal(true);
-                            }}
-                          >
-                            Edit
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <StaffPayrollSection
+            staffMembers={staffMembers}
+            businessId={user?.businessId}
+            userId={user?.id}
+            showToast={showToast}
+            onSalaryConfigured={(staffId, salary, frequency, nextDate) => {
+              setStaffMembers((prev) =>
+                prev.map((s) =>
+                  s.id === staffId
+                    ? { ...s, salary, paymentFrequency: frequency, nextPaymentDate: nextDate }
+                    : s
+                )
+              );
+            }}
+          />
         </Card>
       )}
+
 
       {/* Performance Tab */}
       {activeTab === 'performance' && selectedPerformanceStaff && (

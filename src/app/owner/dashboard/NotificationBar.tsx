@@ -3,26 +3,33 @@
 import React from 'react';
 import { useApp } from './AppContext';
 
+/** Optional promo strip — disabled by default; inbox lives in NotificationsPanel */
 export const NotificationBar: React.FC = () => {
-  const { notificationsVisible, dismissNotifications } = useApp();
+  const { notificationsVisible, dismissNotifications, navigateTo } = useApp();
 
   if (!notificationsVisible) return null;
 
   return (
-    <div className="owner-notification-bar">
+    <div className="owner-notification-bar" role="status">
       <div className="owner-notification-content">
-        <span className="owner-notification-icon">📢</span>
+        <span className="owner-notification-icon" aria-hidden>📢</span>
         <span className="owner-notification-text">
-          <strong>Tip of the day:</strong> Record your daily expenses to get accurate profit insights. 
-          <button className="owner-notification-action" onClick={() => {}}>
+          <strong>Tip:</strong> Record daily expenses for accurate profit insights.
+          <button
+            type="button"
+            className="owner-notification-action"
+            onClick={() => {
+              navigateTo('add-expense');
+              dismissNotifications();
+            }}
+          >
             Add Expense →
           </button>
         </span>
       </div>
-      <button className="owner-notification-dismiss" onClick={dismissNotifications}>
+      <button type="button" className="owner-notification-dismiss" onClick={dismissNotifications} aria-label="Dismiss">
         ✕
       </button>
     </div>
   );
 };
-

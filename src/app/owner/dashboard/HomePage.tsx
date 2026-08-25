@@ -50,13 +50,21 @@ export function HomePage() {
   const [selectedPeriod, setSelectedPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   
   // Real data state
-  const [todayData, setTodayData] = useState({ sales: 0, profit: 0, transactions: 0 });
+  // Period-scoped metrics for Business Health (changes with daily/weekly/monthly)
   const [metrics, setMetrics] = useState({
     totalRevenue: 0,
     totalProfit: 0,
     totalExpenses: 0,
     cashBalance: 0,
+    transactions: 0,
   });
+  // Always calendar-day data for Daily Check — independent of selectedPeriod
+  const [dailyCheck, setDailyCheck] = useState({
+    sales: 0,
+    profit: 0,
+    transactions: 0,
+  });
+  const [dailyLoading, setDailyLoading] = useState(true);
   const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);
   const [topProduct, setTopProduct] = useState<any>(null);
   const [forecastItems, setForecastItems] = useState<any[]>([]);
@@ -100,6 +108,7 @@ export function HomePage() {
         if (!firestore) {
           console.warn('Firestore not initialized, using empty state');
           setLoading(false);
+          setDailyLoading(false);
           return;
         }
 
@@ -107,6 +116,7 @@ export function HomePage() {
         if (!user.id) {
           console.warn('User not loaded yet, using empty state');
           setLoading(false);
+          setDailyLoading(false);
           return;
         }
 
@@ -117,6 +127,7 @@ export function HomePage() {
         if (!userDoc.exists()) {
           console.warn('User document not found');
           setLoading(false);
+          setDailyLoading(false);
           return;
         }
 
@@ -126,63 +137,12 @@ export function HomePage() {
         if (!businessId) {
           console.warn('No business ID found for user');
           setLoading(false);
+          setDailyLoading(false);
           return;
         }
 
-        // Calculate date range based on selected period
-        const now = new Date();
-        let startDate: Date;
-        
-        if (selectedPeriod === 'daily') {
-          startDate = new Date();
-          startDate.setHours(0, 0, 0, 0);
-        } else if (selectedPeriod === 'weekly') {
-          startDate = new Date();
-          startDate.setDate(startDate.getDate() - 7);
-        } else if (selectedPeriod === 'monthly') {
-          startDate = new Date();
-          startDate.setMonth(startDate.getMonth() - 1);
-        } else {
-          startDate = new Date();
-          startDate.setHours(0, 0, 0, 0);
-        }
-
-        // Fetch yesterday's sales for comparison
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        yesterday.setHours(0, 0, 0, 0);
-        const yesterdayEnd = new Date();
-        yesterdayEnd.setDate(yesterdayEnd.getDate() - 1);
-        yesterdayEnd.setHours(23, 59, 59, 999);
-
-        const yesterdayQuery = query(
-          collection(firestore, 'businesses', businessId, 'sales'),
-          where('createdAt', '>=', Timestamp.fromDate(yesterday)),
-          where('createdAt', '<=', Timestamp.fromDate(yesterdayEnd))
-        );
-
-        const yesterdaySnapshot = await getDocs(yesterdayQuery);
-        let yesterdayTotal = 0;
-        yesterdaySnapshot.forEach(doc => {
-          const data = doc.data();
-          yesterdayTotal += data.totalRevenue || data.total || 0;
-        });
-        setYesterdaySales(yesterdayTotal);
-
-        // Fetch sales for the selected period
-        const salesQuery = query(
-          collection(firestore, 'businesses', businessId, 'sales'),
-          where('createdAt', '>=', Timestamp.fromDate(startDate))
-        );
-
-        const salesSnapshot = await getDocs(salesQuery);
-        let sales = 0, profit = 0, transactions = 0;
-        const productRevenue = new Map<string, { name: string; revenue: number; quantity: number }>();
-
-        salesSnapshot.forEach(doc => {
-          const data = doc.data();
-          sales += data.totalRevenue || data.total || 0;
-          
+        // Helpers
+        const saleProfit = (data: any) => {
           let docProfit = 0;
           if (data.products && Array.isArray(data.products)) {
             docProfit = data.products.reduce((sum: number, p: any) => {
@@ -193,22 +153,98 @@ export function HomePage() {
             }, 0);
           }
           if (data.discount) docProfit -= data.discount;
-          profit += docProfit;
-          
+          return docProfit;
+        };
+
+        // ── Daily Check (always calendar today + yesterday) — independent of selectedPeriod
+        // Single range query (no composite index): from yesterday 00:00, split client-side.
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const yesterdayStart = new Date(todayStart);
+        yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+        const todayStartMs = todayStart.getTime();
+
+        const saleTimestampMs = (data: any): number => {
+          const c = data?.createdAt;
+          if (!c) return 0;
+          if (typeof c.toDate === 'function') return c.toDate().getTime();
+          if (typeof c.toMillis === 'function') return c.toMillis();
+          if (typeof c === 'number') return c;
+          if (typeof c === 'string' || c instanceof Date) return new Date(c).getTime();
+          if (typeof c.seconds === 'number') return c.seconds * 1000;
+          return 0;
+        };
+
+        try {
+          const recentSnap = await getDocs(
+            query(
+              collection(firestore, 'businesses', businessId, 'sales'),
+              where('createdAt', '>=', Timestamp.fromDate(yesterdayStart))
+            )
+          );
+
+          let daySales = 0, dayProfit = 0, dayTx = 0;
+          let yesterdayTotal = 0;
+
+          recentSnap.forEach((d) => {
+            const data = d.data();
+            const ms = saleTimestampMs(data);
+            const revenue = Number(data.totalRevenue ?? data.total ?? 0) || 0;
+            if (ms >= todayStartMs) {
+              daySales += revenue;
+              dayProfit += saleProfit(data);
+              dayTx += 1;
+            } else if (ms >= yesterdayStart.getTime()) {
+              yesterdayTotal += revenue;
+            }
+          });
+
+          setDailyCheck({ sales: daySales, profit: dayProfit, transactions: dayTx });
+          setYesterdaySales(yesterdayTotal);
+        } catch (dailyErr) {
+          console.error('Daily Check fetch failed:', dailyErr);
+          // Keep last known dailyCheck values; still unblock UI
+        } finally {
+          setDailyLoading(false);
+        }
+
+        // ── Business Health period range (daily / weekly / monthly)
+        let startDate: Date;
+        if (selectedPeriod === 'weekly') {
+          startDate = new Date();
+          startDate.setDate(startDate.getDate() - 7);
+        } else if (selectedPeriod === 'monthly') {
+          startDate = new Date();
+          startDate.setMonth(startDate.getMonth() - 1);
+        } else {
+          startDate = new Date(todayStart);
+        }
+
+        // Fetch sales for the selected period
+        const salesQuery = query(
+          collection(firestore, 'businesses', businessId, 'sales'),
+          where('createdAt', '>=', Timestamp.fromDate(startDate))
+        );
+
+        const salesSnapshot = await getDocs(salesQuery);
+        let sales = 0, profit = 0, transactions = 0;
+        let pendingTotal = 0;
+        const productRevenue = new Map<string, { name: string; revenue: number; quantity: number }>();
+
+        salesSnapshot.forEach(doc => {
+          const data = doc.data();
+          sales += data.totalRevenue || data.total || 0;
+          profit += saleProfit(data);
           transactions += 1;
-          
-          // Track credit sales for pending collections
-          let pendingAmt = 0;
+
           if (data.paymentBreakdown && Array.isArray(data.paymentBreakdown)) {
             data.paymentBreakdown.forEach((pb: any) => {
               if (pb.method === 'credit' && !pb.received) {
-                pendingAmt += pb.amount;
+                pendingTotal += pb.amount || 0;
               }
             });
           }
-          pendingAmt > 0 && setPendingCollections(prev => prev + pendingAmt);
-          
-          // Track product revenue
+
           if (data.products && Array.isArray(data.products)) {
             data.products.forEach((p: any) => {
               const existing = productRevenue.get(p.productId || p.name) || {
@@ -222,13 +258,12 @@ export function HomePage() {
             });
           }
         });
+        setPendingCollections(pendingTotal);
 
         // Get top product
         const topProductData = Array.from(productRevenue.values())
           .sort((a, b) => b.revenue - a.revenue)[0];
         setTopProduct(topProductData || null);
-
-        setTodayData({ sales, profit, transactions });
 
         // Fetch low stock products from businesses collection
         const productsQuery = query(
@@ -275,6 +310,7 @@ export function HomePage() {
           totalProfit: profit,
           totalExpenses: totalExpenses,
           cashBalance,
+          transactions,
         });
 
         // Calculate improved cash runway
@@ -288,9 +324,11 @@ export function HomePage() {
       } catch (error) {
         console.error('Error fetching data:', error);
         // Keep empty state as fallback
-        setTodayData({ sales: 0, profit: 0, transactions: 0 });
+        setDailyCheck({ sales: 0, profit: 0, transactions: 0 });
+        setMetrics({ totalRevenue: 0, totalProfit: 0, totalExpenses: 0, cashBalance: 0, transactions: 0 });
       } finally {
         setLoading(false);
+        setDailyLoading(false);
       }
   }
 
@@ -404,8 +442,8 @@ export function HomePage() {
   // Format metrics for display
   const dailyBurn = metrics.totalExpenses / 30;
   const displayMetrics = [
-    { label: t('home.totalSales'), value: formatMoney(todayData.sales), trend: `+${todayData.transactions} txns`, trendType: 'up' as const },
-    { label: t('home.netProfit'), value: formatMoney(todayData.profit), trend: `${profitMargin}% margin`, trendType: (profitMarginValue >= 25 ? 'up' : 'down') as 'up' | 'down' | 'neutral' },
+    { label: t('home.totalSales'), value: formatMoney(metrics.totalRevenue), trend: `+${metrics.transactions} txns`, trendType: 'up' as const },
+    { label: t('home.netProfit'), value: formatMoney(metrics.totalProfit), trend: `${profitMargin}% margin`, trendType: (profitMarginValue >= 25 ? 'up' : 'down') as 'up' | 'down' | 'neutral' },
     { label: t('home.totalExpenses'), value: formatMoney(metrics.totalExpenses), trend: dailyBurn > 0 ? `${Math.round(dailyBurn)}/day` : t('home.noExpenses'), trendType: 'neutral' as const },
     { label: t('home.cashBalance'), value: formatMoney(metrics.cashBalance), trend: metrics.totalExpenses === 0 && metrics.totalRevenue === 0 ? t('home.noDataYet') : `${cashRunway} days runway`, trendType: (cashRunway >= 30 ? 'up' : cashRunway >= 14 ? 'neutral' : 'down') as 'up' | 'down' | 'neutral' },
   ];
@@ -458,6 +496,22 @@ export function HomePage() {
     <div className={`${styles.layout} ${aiPanelOpen ? styles.layoutWithAI : ''}`}>
       {/* ── Left column ── */}
       <div className={styles.left}>
+
+
+        {/* Welcome */}
+        <div className={styles.welcomeBanner}>
+          <h1 className={styles.welcomeTitle}>
+            {t('topbar.greeting')}, {user.shortName || 'there'} 👋
+          </h1>
+          <p className={styles.welcomeDate}>
+            {new Date().toLocaleDateString('en-NG', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </p>
+        </div>
 
         {/* Business Health */}
         <Card>
@@ -516,17 +570,20 @@ export function HomePage() {
             {QUICK_ACTIONS.map(qa => (
               <button
                 key={qa.labelKey}
+                type="button"
                 className={[styles.qaBtn, qa.primary ? styles.qaPrimary : ''].join(' ')}
                 onClick={() => qa.page ? navigateTo(qa.page as any) : showToast(`${t(qa.labelKey as any)}…`)}
               >
-                {['sale', 'add-product', 'add-expense', 'cashflow'].includes(qa.icon) ? (
-                  <NavIcons id={qa.icon} size={18} />
-                ) : (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                    <path d={qa.icon}/>
-                  </svg>
-                )}
-                {t(qa.labelKey as any)}
+                <span className={styles.qaIcon} aria-hidden>
+                  {['sale', 'add-product', 'add-expense', 'cashflow'].includes(qa.icon) ? (
+                    <NavIcons id={qa.icon} size={18} />
+                  ) : (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <path d={qa.icon}/>
+                    </svg>
+                  )}
+                </span>
+                <span className={styles.qaLabel}>{t(qa.labelKey as any)}</span>
               </button>
             ))}
           </div>
@@ -582,7 +639,7 @@ export function HomePage() {
           </Card>
         ) : (
           <>
-        {/* Daily Business Check */}
+        {/* Daily Business Check — always calendar day; independent of Business Health period */}
         <Card>
           <CardHeader>
             <CardIcon bg="var(--purple-bg)">
@@ -590,75 +647,128 @@ export function HomePage() {
                 <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
               </svg>
             </CardIcon>
-            Daily Check
+            <div className={styles.dailyCheckHeader}>
+              <span>{t('home.dailyCheck.title')}</span>
+              <span className={styles.dailyCheckBadge}>{t('home.dailyCheck.todayOnly')}</span>
+            </div>
           </CardHeader>
-          {loading ? (
-            <div style={{ padding: '20px', color: 'var(--text-3)', fontSize: '0.8rem' }}>Loading...</div>
+          {dailyLoading ? (
+            <div className={styles.dailyCheckBody}>
+              <div className={styles.dailyCheckSkeleton} />
+              <div className={styles.dailyCheckGrid}>
+                <div className={styles.dailyCheckSkeletonSm} />
+                <div className={styles.dailyCheckSkeletonSm} />
+                <div className={styles.dailyCheckSkeletonSm} />
+                <div className={styles.dailyCheckSkeletonSm} />
+              </div>
+            </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '0 12px 12px' }}>
-              {/* Revenue row */}
-              <div className={styles.insightItem} style={{ background: 'var(--bg)', border: 'none', borderRadius: '10px', padding: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--green-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" width="20" height="20">
-                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
-                  </svg>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.3px' }}>Revenue Today</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-1)', marginTop: '2px' }}>{formatMoney(todayData.sales)}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: yesterdaySales === 0 ? 'var(--text-3)' : todayData.sales >= yesterdaySales ? 'var(--green)' : 'var(--red)' }}>
-                    {yesterdaySales === 0 ? '—' : todayData.sales >= yesterdaySales ? `↑ ${Math.round((todayData.sales / yesterdaySales - 1) * 100)}%` : `↓ ${Math.round((1 - todayData.sales / yesterdaySales) * 100)}%`}
-                  </div>
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-3)' }}>vs yesterday</div>
-                </div>
-              </div>
+            <div className={styles.dailyCheckBody}>
+              {(() => {
+                const vsPct =
+                  yesterdaySales > 0
+                    ? Math.round(((dailyCheck.sales - yesterdaySales) / yesterdaySales) * 100)
+                    : null;
+                const beating = vsPct !== null && vsPct >= 0;
+                const alertCount = lowStockProducts.length + (pendingCollections > 0 ? 1 : 0);
+                return (
+                  <>
+                    <div className={styles.dailyHero}>
+                      <div className={styles.dailyHeroIcon} aria-hidden>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" width="22" height="22">
+                          <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                          <polyline points="17 6 23 6 23 12" />
+                        </svg>
+                      </div>
+                      <div className={styles.dailyHeroMain}>
+                        <div className={styles.dailyHeroLabel}>{t('home.dailyCheck.revenueToday')}</div>
+                        <div className={styles.dailyHeroValue}>{formatMoney(dailyCheck.sales)}</div>
+                        {yesterdaySales > 0 && (
+                          <div className={styles.dailyProgressTrack} aria-hidden>
+                            <div
+                              className={styles.dailyProgressFill}
+                              style={{
+                                width: `${Math.min(100, Math.round((dailyCheck.sales / Math.max(yesterdaySales, 1)) * 100))}%`,
+                                background: beating ? 'var(--green)' : 'var(--red)',
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <div className={styles.dailyHeroCompare}>
+                        <div
+                          className={`${styles.dailyComparePct} ${
+                            vsPct === null ? '' : beating ? styles.dailyUp : styles.dailyDown
+                          }`}
+                        >
+                          {vsPct === null ? '—' : `${beating ? '↑' : '↓'} ${Math.abs(vsPct)}%`}
+                        </div>
+                        <div className={styles.dailyCompareLabel}>{t('home.dailyCheck.vsYesterday')}</div>
+                        {yesterdaySales > 0 && (
+                          <div className={styles.dailyCompareYest}>{formatMoney(yesterdaySales)}</div>
+                        )}
+                      </div>
+                    </div>
 
-              {/* Mini grid: Profit, Cash, Transactions, Alerts */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <div className={styles.insightItem} style={{ background: 'var(--bg)', border: 'none', borderRadius: '10px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase' }}>Profit</div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: todayData.profit >= 0 ? 'var(--green)' : 'var(--red)' }}>{formatMoney(todayData.profit)}</div>
-                </div>
-                <div className={styles.insightItem} style={{ background: 'var(--bg)', border: 'none', borderRadius: '10px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase' }}>Cash on Hand</div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-1)' }}>{formatMoney(metrics.cashBalance)}</div>
-                </div>
-                <div className={styles.insightItem} style={{ background: 'var(--bg)', border: 'none', borderRadius: '10px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                  <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase' }}>Transactions</div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-1)' }}>{todayData.transactions}</div>
-                </div>
-                <div className={styles.insightItem} style={{ background: lowStockProducts.length + (pendingCollections > 0 ? 1 : 0) > 0 ? 'var(--red-bg)' : 'var(--green-bg)', border: 'none', borderRadius: '10px', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '2px', cursor: (lowStockProducts.length > 0 || pendingCollections > 0) ? 'pointer' : 'default' }}
-                  onClick={() => { const count = lowStockProducts.length + (pendingCollections > 0 ? 1 : 0); if (count > 0) navigateTo('inventory'); }}>
-                  <div style={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', color: lowStockProducts.length + (pendingCollections > 0 ? 1 : 0) > 0 ? 'var(--red)' : 'var(--green)' }}>Alerts</div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 700, color: lowStockProducts.length + (pendingCollections > 0 ? 1 : 0) > 0 ? 'var(--red)' : 'var(--green)' }}>
-                    {lowStockProducts.length + (pendingCollections > 0 ? 1 : 0) > 0
-                      ? `${lowStockProducts.length + (pendingCollections > 0 ? 1 : 0)} need attention`
-                      : 'All clear'}
-                  </div>
-                </div>
-              </div>
+                    <div className={styles.dailyCheckGrid}>
+                      <div className={styles.dailyStat}>
+                        <div className={styles.dailyStatLabel}>{t('home.dailyCheck.profit')}</div>
+                        <div
+                          className={styles.dailyStatValue}
+                          style={{ color: dailyCheck.profit >= 0 ? 'var(--green)' : 'var(--red)' }}
+                        >
+                          {formatMoney(dailyCheck.profit)}
+                        </div>
+                      </div>
+                      <div className={styles.dailyStat}>
+                        <div className={styles.dailyStatLabel}>{t('home.dailyCheck.cash')}</div>
+                        <div className={styles.dailyStatValue}>{formatMoney(metrics.cashBalance)}</div>
+                      </div>
+                      <div className={styles.dailyStat}>
+                        <div className={styles.dailyStatLabel}>{t('home.dailyCheck.sales')}</div>
+                        <div className={styles.dailyStatValue}>{dailyCheck.transactions}</div>
+                      </div>
+                      <div
+                        className={`${styles.dailyStat} ${alertCount > 0 ? styles.dailyStatAlert : styles.dailyStatOk}`}
+                        role={alertCount > 0 ? 'button' : undefined}
+                        tabIndex={alertCount > 0 ? 0 : undefined}
+                        onClick={() => {
+                          if (alertCount > 0) navigateTo('inventory');
+                        }}
+                        onKeyDown={(e) => {
+                          if (alertCount > 0 && (e.key === 'Enter' || e.key === ' ')) navigateTo('inventory');
+                        }}
+                      >
+                        <div className={styles.dailyStatLabel}>{t('home.dailyCheck.alerts')}</div>
+                        <div className={styles.dailyStatValue}>
+                          {alertCount > 0 ? t('home.dailyCheck.alertsOpen', { count: alertCount }) : t('home.dailyCheck.allClear')}
+                        </div>
+                      </div>
+                    </div>
 
-              {/* MO daily tip */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '10px', background: 'var(--purple-bg)', cursor: 'pointer' }} onClick={toggleAIPanel}>
-                <MoIcon size={10} />
-                <span style={{ fontSize: '0.78rem', color: 'var(--purple)', fontWeight: 500, flex: 1 }}>
-                  {todayData.transactions === 0
-                    ? 'No sales yet today — ask MO for tips to boost traffic.'
-                    : todayData.sales > yesterdaySales && yesterdaySales > 0
-                      ? `You're beating yesterday by ${formatMoney(todayData.sales - yesterdaySales)}! Keep it up.`
-                      : todayData.sales > 0
-                        ? `${formatMoney(todayData.sales)} in today — ask MO for insights on your top products.`
-                        : 'Ask MO anything about your business performance.'}
-                </span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth="2" width="14" height="14"><polyline points="9 18 15 12 9 6"/></svg>
-              </div>
+                    <button type="button" className={styles.dailyMoTip} onClick={toggleAIPanel}>
+                      <MoIcon size={12} />
+                      <span>
+                        {dailyCheck.transactions === 0
+                          ? t('home.dailyCheck.tipNoSales')
+                          : dailyCheck.sales > yesterdaySales && yesterdaySales > 0
+                            ? t('home.dailyCheck.tipBeating', { amount: formatMoney(dailyCheck.sales - yesterdaySales) })
+                            : dailyCheck.sales > 0
+                              ? t('home.dailyCheck.tipSales', { amount: formatMoney(dailyCheck.sales) })
+                              : t('home.dailyCheck.tipDefault')}
+                      </span>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" aria-hidden>
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                    </button>
+                  </>
+                );
+              })()}
             </div>
           )}
         </Card>
 
-        {/* Smart Forecasts */}
+        {/* Smart Insights — actionable, priority-sorted */}
         <Card>
           <CardHeader>
             <CardIcon bg="var(--blue-bg)">
@@ -666,53 +776,188 @@ export function HomePage() {
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
               </svg>
             </CardIcon>
-            Smart Insights
+            {t('home.insights.title')}
           </CardHeader>
-          <div className={styles.forecastList}>
+          <div className={styles.insightsBody}>
             {loading ? (
-              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-3)' }}>
-                {t('home.loading')}...
+              <div className={styles.insightsLoading}>
+                <div className={styles.insightSkeleton} />
+                <div className={styles.insightSkeleton} />
+                <div className={styles.insightSkeleton} />
               </div>
             ) : (
-              <>
-                {/* Cash Runway - Most Critical */}
-                <div className={styles.forecastItemMinimal} style={{ cursor: 'pointer' }}>
-                  <div className={styles.forecastIcon} style={{ background: cashRunway >= 30 ? 'var(--green-bg)' : cashRunway >= 14 ? 'var(--amber-bg)' : 'var(--red-bg)', color: cashRunway >= 30 ? 'var(--green)' : cashRunway >= 14 ? 'var(--amber)' : 'var(--red)' }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>
-                  </div>
-                  <div className={styles.forecastInfo}>
-                    <div className={styles.forecastLabel}>Cash Runway</div>
-                    <div className={styles.forecastValue}>{cashRunway >= 999 ? '∞ days' : `${cashRunway} days`}</div>
-                  </div>
-                </div>
+              (() => {
+                type Severity = 'critical' | 'warning' | 'positive' | 'info';
+                type Insight = {
+                  id: string;
+                  severity: Severity;
+                  title: string;
+                  body: string;
+                  actionLabel?: string;
+                  onAction?: () => void;
+                };
 
-                {/* Top Product - What's Working */}
-                {topProduct && (
-                  <div className={styles.forecastItemMinimal} style={{ cursor: 'pointer' }}>
-                    <div className={styles.forecastIcon} style={{ background: 'var(--green-bg)', color: 'var(--green)' }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
-                    </div>
-                    <div className={styles.forecastInfo}>
-                      <div className={styles.forecastLabel}>Top Seller</div>
-                      <div className={styles.forecastValue}>{topProduct.name} ({topProduct.quantity} sold)</div>
-                    </div>
-                  </div>
-                )}
+                const insights: Insight[] = [];
 
-                {/* Urgent Restock - Actionable */}
-                {lowStockProducts.length > 0 && (
-                  <div className={styles.forecastItemMinimal} onClick={() => navigateTo('inventory')} style={{ cursor: 'pointer' }}>
-                    <div className={styles.forecastIcon} style={{ background: 'var(--red-bg)', color: 'var(--red)' }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                // Cash runway
+                if (cashRunway <= 0) {
+                  insights.push({
+                    id: 'runway-zero',
+                    severity: 'critical',
+                    title: t('home.insights.runwayZero.title'),
+                    body: t('home.insights.runwayZero.body'),
+                    actionLabel: t('home.insights.runwayZero.action'),
+                    onAction: () => navigateTo('cashflow'),
+                  });
+                } else if (cashRunway < 14) {
+                  insights.push({
+                    id: 'runway-low',
+                    severity: 'critical',
+                    title: t('home.insights.runwayLow.title'),
+                    body: t('home.insights.runwayLow.body', { days: cashRunway }),
+                    actionLabel: t('home.insights.runwayLow.action'),
+                    onAction: () => navigateTo('cashflow'),
+                  });
+                } else if (cashRunway < 30) {
+                  insights.push({
+                    id: 'runway-mid',
+                    severity: 'warning',
+                    title: t('home.insights.runwayMid.title'),
+                    body: t('home.insights.runwayMid.body', { days: cashRunway }),
+                    actionLabel: t('home.insights.runwayMid.action'),
+                    onAction: () => navigateTo('cashflow'),
+                  });
+                } else {
+                  insights.push({
+                    id: 'runway-ok',
+                    severity: 'positive',
+                    title: cashRunway >= 999
+                      ? t('home.insights.runwayOkHealthy.title')
+                      : t('home.insights.runwayOkSolid.title'),
+                    body: cashRunway >= 999
+                      ? t('home.insights.runwayOkHealthy.body')
+                      : t('home.insights.runwayOkSolid.body', { days: cashRunway }),
+                  });
+                }
+
+                // Low stock
+                if (lowStockProducts.length > 0) {
+                  const names = lowStockProducts.slice(0, 3).map((p: any) => p.name).join(', ');
+                  const extra =
+                    lowStockProducts.length > 3
+                      ? t('home.insights.stock.more', { count: lowStockProducts.length - 3 })
+                      : '';
+                  insights.push({
+                    id: 'stock',
+                    severity: lowStockProducts.length >= 3 ? 'critical' : 'warning',
+                    title:
+                      lowStockProducts.length === 1
+                        ? t('home.insights.stockOne.title')
+                        : t('home.insights.stockMany.title', { count: lowStockProducts.length }),
+                    body: t('home.insights.stock.body', { names: `${names}${extra}` }),
+                    actionLabel: t('home.insights.stock.action'),
+                    onAction: () => navigateTo('inventory'),
+                  });
+                }
+
+                // Pending collections
+                if (pendingCollections > 0) {
+                  insights.push({
+                    id: 'credit',
+                    severity: 'warning',
+                    title: t('home.insights.credit.title'),
+                    body: t('home.insights.credit.body', { amount: formatMoney(pendingCollections) }),
+                    actionLabel: t('home.insights.credit.action'),
+                    onAction: () => navigateTo('credit-tracking'),
+                  });
+                }
+
+                // Top seller
+                if (topProduct?.name) {
+                  insights.push({
+                    id: 'top',
+                    severity: 'positive',
+                    title: t('home.insights.topSeller.title'),
+                    body: t('home.insights.topSeller.body', {
+                      name: topProduct.name,
+                      qty: topProduct.quantity || 0,
+                      amount: formatMoney(topProduct.revenue || 0),
+                    }),
+                    actionLabel: t('home.insights.topSeller.action'),
+                    onAction: () => navigateTo('statement'),
+                  });
+                }
+
+                // 7-day projection from period velocity
+                const revForecast = forecastItems.find((f: any) => f.labelKey === 'home.forecast.revenue');
+                if (revForecast?.value) {
+                  insights.push({
+                    id: 'proj',
+                    severity: 'info',
+                    title: t('home.insights.proj.title'),
+                    body: t('home.insights.proj.body', { amount: revForecast.value }),
+                    actionLabel: t('home.insights.proj.action'),
+                    onAction: () => toggleAIPanel(),
+                  });
+                }
+
+                // Quiet day nudge (uses true daily check)
+                if (dailyCheck.transactions === 0) {
+                  insights.push({
+                    id: 'quiet',
+                    severity: 'info',
+                    title: t('home.insights.quiet.title'),
+                    body: t('home.insights.quiet.body'),
+                    actionLabel: t('home.insights.quiet.action'),
+                    onAction: () => navigateTo('sale'),
+                  });
+                }
+
+                // Cap list
+                const shown = insights.slice(0, 5);
+
+                if (shown.length === 0) {
+                  return (
+                    <div className={styles.insightsEmpty}>
+                      <p>{t('home.insights.empty')}</p>
+                      <p className={styles.insightsEmptyHint}>{t('home.insights.emptyHint')}</p>
                     </div>
-                    <div className={styles.forecastInfo}>
-                      <div className={styles.forecastLabel}>Restock Urgent</div>
-                      <div className={styles.forecastValue}>{lowStockProducts.slice(0, 3).map(p => p.name).join(', ')}</div>
-                    </div>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth={2} width={16} height={16}><polyline points="9 18 15 12 9 6"/></svg>
-                  </div>
-                )}
-              </>
+                  );
+                }
+
+                return (
+                  <ul className={styles.insightsList}>
+                    {shown.map((item) => (
+                      <li key={item.id} className={`${styles.insightCard} ${styles[`insight_${item.severity}`]}`}>
+                        <div className={styles.insightAccent} aria-hidden />
+                        <div className={styles.insightContent}>
+                          <div className={styles.insightTitleRow}>
+                            <span className={styles.insightTitle}>{item.title}</span>
+                            <span className={`${styles.insightTag} ${styles[`tag_${item.severity}`]}`}>
+                              {item.severity === 'critical'
+                              ? t('home.insights.severity.critical')
+                              : item.severity === 'warning'
+                                ? t('home.insights.severity.warning')
+                                : item.severity === 'positive'
+                                  ? t('home.insights.severity.positive')
+                                  : t('home.insights.severity.info')}
+                            </span>
+                          </div>
+                          <p className={styles.insightBody}>{item.body}</p>
+                          {item.onAction && item.actionLabel && (
+                            <button type="button" className={styles.insightAction} onClick={item.onAction}>
+                              {item.actionLabel}
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                                <polyline points="9 18 15 12 9 6" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                );
+              })()
             )}
           </div>
         </Card>
@@ -763,7 +1008,7 @@ export function HomePage() {
                   </div>
                   <div className={styles.detailRow}>
                     <span className={styles.detailLabel}>Current Period Revenue</span>
-                    <span className={styles.detailValue}>{formatMoney(todayData.sales)}</span>
+                    <span className={styles.detailValue}>{formatMoney(dailyCheck.sales)}</span>
                   </div>
                   <div className={styles.detailRow}>
                     <span className={styles.detailLabel}>Growth Rate</span>
@@ -783,7 +1028,7 @@ export function HomePage() {
                   </div>
                   <div className={styles.detailRow}>
                     <span className={styles.detailLabel}>Current Period Profit</span>
-                    <span className={styles.detailValue}>{formatMoney(todayData.profit)}</span>
+                    <span className={styles.detailValue}>{formatMoney(dailyCheck.profit)}</span>
                   </div>
                   <div className={styles.detailRow}>
                     <span className={styles.detailLabel}>Profit Margin</span>
