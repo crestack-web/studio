@@ -237,7 +237,7 @@ export default function CapitalPage() {
     }
 
     loadCapitalData();
-  }, [navigateTo, showToast, formatCurrency, user.id, firestore]);
+  }, [navigateTo, showToast, user.id]);
 
   if (loading) {
     return (
