@@ -46,13 +46,17 @@ export async function POST(request: NextRequest) {
     const user = data.user;
     const auth = getAdminAuth();
 
-    // Ensure a Firebase Auth user exists with the same UID as Supabase
+    // For migrated users, use the old Firebase UID stored in Supabase metadata
+    // so the Firebase Auth UID matches the existing Firestore doc path
+    const firebaseUid = (user.user_metadata?.firebase_uid as string) || user.id;
+
+    // Ensure a Firebase Auth user exists with the resolved UID
     try {
-      await auth.getUser(user.id);
+      await auth.getUser(firebaseUid);
     } catch {
       try {
         await auth.createUser({
-          uid: user.id,
+          uid: firebaseUid,
           email: user.email || undefined,
           emailVerified: !!user.email_confirmed_at,
           displayName:
@@ -61,7 +65,6 @@ export async function POST(request: NextRequest) {
             undefined,
         });
       } catch (createErr: any) {
-        // Race: user may have been created between get and create
         if (createErr?.code !== 'auth/uid-already-exists') {
           console.error('[firebase-token] createUser failed', createErr);
           return NextResponse.json(
@@ -80,9 +83,9 @@ export async function POST(request: NextRequest) {
       claims.businessId = String(user.user_metadata.businessId);
     }
 
-    const firebaseToken = await auth.createCustomToken(user.id, claims);
+    const firebaseToken = await auth.createCustomToken(firebaseUid, claims);
 
-    return NextResponse.json({ firebaseToken, uid: user.id });
+    return NextResponse.json({ firebaseToken, uid: firebaseUid });
   } catch (err: any) {
     console.error('[firebase-token]', err);
     return NextResponse.json(

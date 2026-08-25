@@ -177,8 +177,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
 
   const loadUser = useCallback(async (userId: string, userEmail: string, metadata: Record<string, any> | undefined, firestore: any) => {
+    // For migrated users, Firestore doc is under firebase_uid not Supabase UID
+    const firestoreUid = metadata?.firebase_uid || userId;
+
     try {
-      const userDoc = await getDoc(doc(firestore, 'users', userId));
+      const userDoc = await getDoc(doc(firestore, 'users', firestoreUid));
       if (userDoc.exists()) {
         const data = userDoc.data();
         const displayName = (metadata?.full_name || metadata?.name) || data.displayName || data.businessName || (data.firstName ? data.firstName + ' ' + (data.lastName || '') : '') || 'User';
@@ -187,7 +190,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUser({
           initials: (firstName.charAt(0) + (displayName.split(' ')[1]?.charAt(0) || '')).toUpperCase(),
           shortName: firstName,
-          role: data.role || 'Owner',
+          role: data.role || metadata?.role || 'Owner',
           plan: data.plan || 'Free',
           id: userId,
           name: displayName,
@@ -198,7 +201,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             color: data.avatarColor || '#fff' 
           },
           photoURL: data.photoURL,
-          businessId: data.businessId,
+          businessId: data.businessId || firestoreUid,
         });
       } else {
         const displayName = (metadata?.full_name || metadata?.name) || userEmail.split('@')[0] || 'User';
@@ -207,7 +210,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUser({
           initials: (firstName.charAt(0) + (displayName.split(' ')[1]?.charAt(0) || '')).toUpperCase(),
           shortName: firstName,
-          role: 'Owner',
+          role: metadata?.role || 'Owner',
           plan: 'Free',
           id: userId,
           name: displayName,
@@ -215,7 +218,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           avatarContent: '👤',
           avatarStyle: { background: '#6B3FE7', color: '#fff' },
           photoURL: undefined,
-          businessId: undefined,
+          businessId: metadata?.businessId || firestoreUid,
         });
       }
     } catch (error) {
