@@ -3,7 +3,15 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
-import { fetchDocs, addDoc, updateDoc, deleteDoc, toDate } from '@/lib/supabase-client-data';
+import { initializeFirebase } from '@/firebase';
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+} from 'firebase/firestore';
 import { checkFeatureAccess } from '@/lib/featureRestrictions';
 import { Plus, Edit2, Trash2, Search, Factory, Package, TrendingUp, Clock, AlertCircle, DollarSign, X } from 'lucide-react';
 import styles from './ProductionPage.module.css';
@@ -46,8 +54,6 @@ interface Material {
   unit: string;
   unitCost: number;
 }
-
-let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
 
 export default function ProductionPage() {
   const { user, showToast } = useApp();
