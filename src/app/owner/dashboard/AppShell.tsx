@@ -34,6 +34,7 @@ import { Toast }           from './Toast';
 import { NotificationBar } from './NotificationBar';
 import { NotificationsPanel } from './NotificationsPanel';
 import { DeviceNotificationsBridge } from './DeviceNotificationsBridge';
+import { NetworkStatus, NetworkStatusStyles } from '@/components/app/NetworkStatus';
 import MenuManagementPage from './MenuManagementPage';
 import IngredientsPage from './IngredientsPage';
 import ExpiryAlertsPage from './ExpiryAlertsPage';
@@ -137,6 +138,8 @@ export function AppShell() {
       <AvatarModal />
       <Toast />
       <DeviceNotificationsBridge />
+      <NetworkStatusStyles />
+      <NetworkStatus />
     </div>
   );
 }

@@ -22,6 +22,7 @@ import {
 } from './OtherPages';
 import { useStaffWorkspaceOptional } from './StaffContext';
 import './busmo.css';
+import { NetworkStatus, NetworkStatusStyles } from '@/components/app/NetworkStatus';
 
 interface StaffDashboardProps {
   staff?: StaffUser;
@@ -268,6 +269,8 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
         visible={toast.visible}
         onClose={() => setToast({ ...toast, visible: false })}
       />
+      <NetworkStatusStyles />
+      <NetworkStatus />
     </div>
   );
 };

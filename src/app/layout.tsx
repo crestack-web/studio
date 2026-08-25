@@ -6,7 +6,6 @@ import { ReactNode } from 'react';
 import Script from 'next/script';
 import './globals.css';
 import { PwaRegister } from '@/components/app/pwa-register';
-import { NetworkStatus, NetworkStatusStyles } from '@/components/app/NetworkStatus';
 
 export default function RootLayout({
   children,
@@ -44,8 +43,6 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen">
         <PwaRegister />
-        <NetworkStatusStyles />
-        <NetworkStatus />
         {children}
       </body>
     </html>
