@@ -14,6 +14,7 @@ import {
 import { fetchProducts } from '../services/dataService';
 import { formatCurrency } from '@/lib/currency';
 import { ReceiptGenerator } from '../../../owner/dashboard/ReceiptGenerator';
+import { offlineManager } from '@/lib/offline/offline-manager';
 
 interface SalePageProps {
   onComplete?: (saleData?: any) => void;
@@ -98,14 +99,17 @@ export function SalePage({
     async function loadData() {
       try {
         const { firestore } = initializeFirebase();
-        if (!firestore) {
-          console.error('[SalePage] Firestore unavailable');
+        if (!firestore || !offlineManager.isOnline()) {
+          // Offline / no Firestore: load cached products
+          const cached = await offlineManager.getCachedProducts(businessId);
+          if (!cancelled && cached.length) setProducts(cached as any);
           return;
         }
 
         const fetchedProducts = await fetchProducts(firestore, businessId);
         if (cancelled) return;
         setProducts(fetchedProducts);
+        if (businessId) void offlineManager.cacheProducts(businessId, fetchedProducts as any);
 
         const businessDoc = await getDoc(doc(firestore, 'businesses', businessId));
         if (cancelled) return;
@@ -129,6 +133,10 @@ export function SalePage({
         }
       } catch (error) {
         console.error('[SalePage] Error loading data:', error);
+        try {
+          const cached = await offlineManager.getCachedProducts(businessId);
+          if (!cancelled && cached.length) setProducts(cached as any);
+        } catch { /* ignore */ }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -240,9 +248,6 @@ export function SalePage({
 
     setSubmitting(true);
     try {
-      const { firestore } = initializeFirebase();
-      if (!firestore) throw new Error('Data service unavailable');
-
       const saleProducts = cart.map((item) => {
         const product = getProduct(item.productId);
         return {
@@ -253,6 +258,59 @@ export function SalePage({
           quantity: item.quantity,
         };
       });
+
+      // Offline path: queue sale in IndexedDB and finish locally
+      if (!offlineManager.isOnline()) {
+        const totalCost = saleProducts.reduce(
+          (s, p) => s + (p.costPrice || 0) * p.quantity,
+          0
+        );
+        const profit = saleProducts.reduce(
+          (acc, p) => acc + (p.price - (p.costPrice || 0)) * p.quantity,
+          0
+        );
+        const primaryMethod =
+          paymentMethods.length === 1 ? paymentMethods[0].method : 'cash';
+        await offlineManager.queueSale({
+          businessId,
+          userId: staffId,
+          items: saleProducts.map((p) => ({
+            productId: p.productId,
+            name: p.name,
+            quantity: p.quantity,
+            price: p.price,
+            costPrice: p.costPrice || 0,
+          })),
+          paymentType: (primaryMethod as any) || 'cash',
+          totalRevenue: total,
+          totalCost,
+          totalProfit: profit,
+          recordedBy: {
+            uid: staffId,
+            email: '',
+            displayName: staffName || 'Staff',
+            role: staffRole || 'Staff',
+            staffId,
+          },
+        });
+        // Optimistic local stock bump
+        setProducts((prev: any[]) =>
+          prev.map((prod) => {
+            const sold = saleProducts.find((s) => s.productId === prod.id);
+            if (!sold) return prod;
+            return { ...prod, stock: Math.max(0, (prod.stock || 0) - sold.quantity) };
+          })
+        );
+        setCart([]);
+        setPaymentMethods([{ method: 'cash', amount: 0, received: true }]);
+        alert('Sale saved offline. It will sync when you are back online.');
+        onComplete?.({ offline: true, total });
+        setSubmitting(false);
+        return;
+      }
+
+      const { firestore } = initializeFirebase();
+      if (!firestore) throw new Error('Data service unavailable');
 
       const expectedCash = getCashAmount();
       const expectedBank = getBankAmount();
