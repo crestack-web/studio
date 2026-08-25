@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
-import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, orderBy, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { fetchDocs, updateDoc, toDate } from '@/lib/supabase-client-data';
 import { checkFeatureAccess } from '@/lib/featureRestrictions';
 import { AlertTriangle, Calendar, Search, Filter, Trash2, Package, DollarSign, TrendingDown, MessageSquare } from 'lucide-react';
 import styles from './ExpiryAlertsPage.module.css';
@@ -22,8 +21,6 @@ interface ExpiringProduct {
   location: string;
   supplier?: string;
 }
-
-let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
 
 export default function ExpiryAlertsPage() {
   const { user, showToast, navigateTo } = useApp();
@@ -58,34 +55,32 @@ export default function ExpiryAlertsPage() {
     try {
       if (!user?.businessId) return;
       
-      const { firestore } = initializeFirebase();
-      const productsCollection = collection(firestore, 'businesses', user.businessId, 'products');
-      const snapshot = await getDocs(productsCollection);
+      const rows = await fetchDocs(`businesses/${user.businessId}/products`);
       
       const now = new Date();
       const filterDate = new Date();
       filterDate.setDate(filterDate.getDate() + filterDays);
       
-      const products = snapshot.docs
-        .map(doc => {
-          const data = doc.data();
-          const expiryDate = data.expiryDate?.toDate();
+      const products = rows
+        .map(row => {
+          const data = row as Record<string, unknown>;
+          const expiryDate = toDate(data.expiryDate);
           const daysUntilExpiry = expiryDate 
             ? Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
             : null;
           
           return {
-            id: doc.id,
-            name: data.name || 'Unknown',
-            category: data.category || 'uncategorized',
-            quantity: data.stock || 0,
-            unit: data.unit || 'pieces',
-            unitCost: data.cost || 0,
-            totalValue: (data.stock || 0) * (data.cost || 0),
+            id: String(data.id),
+            name: String(data.name || 'Unknown'),
+            category: String(data.category || 'uncategorized'),
+            quantity: Number(data.stock || 0),
+            unit: String(data.unit || 'pieces'),
+            unitCost: Number(data.cost || 0),
+            totalValue: Number(data.stock || 0) * Number(data.cost || 0),
             expiryDate,
             daysUntilExpiry: daysUntilExpiry || 0,
-            location: data.location || 'main-store',
-            supplier: data.supplier,
+            location: String(data.location || 'main-store'),
+            supplier: data.supplier as string | undefined,
           };
         })
         .filter(product => {
@@ -113,11 +108,10 @@ export default function ExpiryAlertsPage() {
     try {
       if (!user?.businessId) return;
       
-      const { firestore } = initializeFirebase();
-      await updateDoc(doc(firestore, 'businesses', user.businessId, 'products', productId), {
+      await updateDoc(`businesses/${user.businessId}/products`, productId, {
         expiryDate: null,
         expiryAlertCleared: true,
-        expiryAlertClearedAt: new Date(),
+        expiryAlertClearedAt: new Date().toISOString(),
       });
       
       showToast('Product marked as sold');
@@ -135,13 +129,12 @@ export default function ExpiryAlertsPage() {
     try {
       if (!user?.businessId) return;
       
-      const { firestore } = initializeFirebase();
-      await updateDoc(doc(firestore, 'businesses', user.businessId, 'products', productId), {
+      await updateDoc(`businesses/${user.businessId}/products`, productId, {
         stock: 0,
         expiryDate: null,
         disposed: true,
         disposalReason: reason,
-        disposedAt: new Date(),
+        disposedAt: new Date().toISOString(),
       });
       
       showToast('Product disposed successfully');

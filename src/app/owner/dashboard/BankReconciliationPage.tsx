@@ -4,9 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
-import { useFirestore } from '@/firebase/provider';
-import { initializeFirebase } from '@/firebase';
-import { getFirestore, collection, query, where, getDocs, Timestamp, doc, getDoc, orderBy } from 'firebase/firestore';
+import { fetchDocs } from '@/lib/supabase-client-data';
 import styles from './BankReconciliationPage.module.css';
 
 interface BankTransaction {
@@ -37,7 +35,6 @@ export function BankReconciliationPage() {
   const { showToast, user } = useApp();
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();
-  const firestore = useFirestore();
   
   const [loading, setLoading] = useState(true);
   const [businessId, setBusinessId] = useState<string | null>(null);
@@ -62,30 +59,22 @@ export function BankReconciliationPage() {
   }, [businessId]);
 
   async function fetchTransactions() {
-    if (!businessId || !firestore) return;
+    if (!businessId) return;
 
     try {
       setLoading(true);
 
       // Fetch Busmo sales
-      const salesQuery = query(
-        collection(firestore, 'businesses', businessId, 'sales'),
-        orderBy('createdAt', 'desc')
-      );
-      const salesSnapshot = await getDocs(salesQuery);
+      const salesData = await fetchDocs(`businesses/${businessId}/sales`, { orderBy: { field: 'created_at', ascending: false } });
 
       // Fetch Busmo expenses
-      const expensesQuery = query(
-        collection(firestore, 'businesses', businessId, 'expenses'),
-        orderBy('createdAt', 'desc')
-      );
-      const expensesSnapshot = await getDocs(expensesQuery);
+      const expensesData = await fetchDocs(`businesses/${businessId}/expenses`, { orderBy: { field: 'created_at', ascending: false } });
 
       // Convert to Busmo transactions - ONLY include bank-related payments
       const busmoTx: BusmoTransaction[] = [];
 
-      salesSnapshot.forEach(doc => {
-        const data = doc.data();
+      salesData.forEach((item: any) => {
+        const data = item;
         const paymentMethod = data.paymentMethod || 'cash';
         const paymentMethods = data.paymentMethods || {};
         
@@ -105,8 +94,8 @@ export function BankReconciliationPage() {
           }
           
           busmoTx.push({
-            id: doc.id,
-            date: data.createdAt?.toDate() || new Date(),
+            id: item.id,
+            date: data.createdAt ? new Date(data.createdAt) : new Date(),
             description: isSplit 
               ? `Sale (Split): ${data.products?.[0]?.name || 'Multiple items'} - Bank portion: ${formatMoney(bankAmount)}`
               : `Sale: ${data.products?.[0]?.name || 'Multiple items'}`,
@@ -120,8 +109,8 @@ export function BankReconciliationPage() {
         }
       });
 
-      expensesSnapshot.forEach(doc => {
-        const data = doc.data();
+      expensesData.forEach((item: any) => {
+        const data = item;
         const paymentMethod = data.paymentMethod || 'transfer';
         
         // Only include expenses with bank payment methods
@@ -129,8 +118,8 @@ export function BankReconciliationPage() {
         
         if (hasBankPayment) {
           busmoTx.push({
-            id: doc.id,
-            date: data.createdAt?.toDate() || new Date(),
+            id: item.id,
+            date: data.createdAt ? new Date(data.createdAt) : new Date(),
             description: data.description || data.category || 'Expense',
             amount: data.amount || 0,
             type: 'expense',

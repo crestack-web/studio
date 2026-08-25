@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
-import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { fetchDocs, addDoc, updateDoc, deleteDoc as sbDeleteDoc } from '@/lib/supabase-client-data';
 import { Plus, Edit2, Trash2, Search, Users, DollarSign, TrendingUp, Phone, Mail, MapPin, Calendar, Filter } from 'lucide-react';
 import styles from './CustomersPage.module.css';
 
@@ -36,18 +35,9 @@ interface CustomerTransaction {
   createdAt: Date;
 }
 
-let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
-
 export default function CustomersPage() {
   const { user, showToast } = useApp();
   const { formatMoney } = useCurrency();
-  const { firestore } = React.useMemo(() => {
-    if (!firestoreInstance) {
-      const initialized = initializeFirebase();
-      firestoreInstance = initialized.firestore;
-    }
-    return { firestore: firestoreInstance };
-  }, []);
 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [transactions, setTransactions] = useState<CustomerTransaction[]>([]);
@@ -78,15 +68,12 @@ export default function CustomersPage() {
     try {
       if (!user?.businessId) return;
       
-      const { firestore } = initializeFirebase();
-      const customersCollection = collection(firestore, 'businesses', user.businessId, 'customers');
-      const snapshot = await getDocs(customersCollection);
+      const data = await fetchDocs<Customer>(`businesses/${user.businessId}/customers`);
       
-      const customerData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        lastPurchaseDate: doc.data().lastPurchaseDate?.toDate(),
+      const customerData = data.map(c => ({
+        ...c,
+        createdAt: c.createdAt ? new Date(c.createdAt as unknown as string) : new Date(),
+        lastPurchaseDate: c.lastPurchaseDate ? new Date(c.lastPurchaseDate as unknown as string) : undefined,
       })) as Customer[];
       
       setCustomers(customerData);
@@ -128,15 +115,17 @@ export default function CustomersPage() {
     try {
       if (!user?.businessId) return;
       
-      const { firestore } = initializeFirebase();
-      const transactionsCollection = collection(firestore, 'businesses', user.businessId, 'customerTransactions');
-      const q = query(transactionsCollection, where('customerId', '==', customerId), orderBy('createdAt', 'desc'));
-      const snapshot = await getDocs(q);
+      const data = await fetchDocs<CustomerTransaction>(
+        `businesses/${user.businessId}/customerTransactions`,
+        {
+          filters: [{ field: 'customer_id', op: '=', value: customerId }],
+          orderBy: { field: 'created_at', ascending: false },
+        }
+      );
       
-      const transactionData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
+      const transactionData = data.map(t => ({
+        ...t,
+        createdAt: t.createdAt ? new Date(t.createdAt as unknown as string) : new Date(),
       })) as CustomerTransaction[];
       
       setTransactions(transactionData);
@@ -151,9 +140,6 @@ export default function CustomersPage() {
     try {
       setIsSaving(true);
       if (!user?.businessId) return;
-      
-      const { firestore } = initializeFirebase();
-      const customersCollection = collection(firestore, 'businesses', user.businessId, 'customers');
       
       const customerData = {
         name: formData.name,
@@ -171,10 +157,10 @@ export default function CustomersPage() {
       };
 
       if (editingCustomer) {
-        await updateDoc(doc(customersCollection, editingCustomer.id), customerData);
+        await updateDoc(`businesses/${user.businessId}/customers`, editingCustomer.id, customerData);
         showToast('Customer updated successfully');
       } else {
-        await addDoc(customersCollection, customerData);
+        await addDoc(`businesses/${user.businessId}/customers`, { ...customerData, id: crypto.randomUUID() });
         showToast('Customer added successfully');
       }
 
@@ -196,8 +182,7 @@ export default function CustomersPage() {
     try {
       if (!user?.businessId) return;
       
-      const { firestore } = initializeFirebase();
-      await deleteDoc(doc(firestore, 'businesses', user.businessId, 'customers', customerId));
+      await sbDeleteDoc(`businesses/${user.businessId}/customers`, customerId);
       
       showToast('Customer deleted successfully');
       loadCustomers();

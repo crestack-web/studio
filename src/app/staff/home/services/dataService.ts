@@ -1,10 +1,11 @@
 /**
  * Staff Data Service
  * Shared data access layer for staff dashboard
- * Connects staff to owner's Firestore data
+ * Connects staff to owner's Supabase data
  */
 
-import { Firestore, collection, query, where, getDocs, getDoc, addDoc, updateDoc, doc, Timestamp, orderBy, limit } from 'firebase/firestore';
+import { fetchDocs, fetchDoc, addDoc, updateDoc, type QueryFilter } from '@/lib/supabase-client-data';
+import { getSupabase } from '@/lib/supabase';
 
 // ═══════════════════════════════════════════
 //  Types
@@ -36,10 +37,10 @@ export interface Sale {
   profit?: number;
   paymentMethod: string;
   note?: string;
-  soldBy?: string; // Staff ID who made the sale
-  soldByName?: string; // Staff name
+  soldBy?: string;
+  soldByName?: string;
   businessId?: string;
-  createdAt: Timestamp;
+  createdAt: string;
 }
 
 export interface Business {
@@ -63,35 +64,31 @@ export interface Business {
  * Fetch all active products for a business
  */
 export async function fetchProducts(
-  db: Firestore,
-  businessId: string
+  db?: any,
+  businessId?: string
 ): Promise<Product[]> {
   try {
     console.log('Fetching products for businessId:', businessId);
-    
-    // Use 'businesses' collection to match owner's Firestore structure
-    // Don't filter by 'active' status to ensure all products are accessible
-    const productsQuery = collection(db, 'businesses', businessId, 'products');
 
-    const snapshot = await getDocs(productsQuery);
-    console.log('Products snapshot size:', snapshot.size);
-    const products: Product[] = [];
+    const rawProducts = await fetchDocs<Record<string, any>>(
+      `businesses/${businessId}/products`
+    );
+    console.log('Products snapshot size:', rawProducts.length);
 
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      console.log('Product data:', doc.id, data);
-      products.push({
-        id: doc.id,
+    const products: Product[] = rawProducts.map((data) => {
+      console.log('Product data:', data.id, data);
+      return {
+        id: data.id,
         name: data.name || 'Unnamed Product',
         price: data.price || 0,
-        costPrice: data.cost || 0, // Map 'cost' field from existing structure
-        stock: data.stock || 0,
-        emoji: data.attributes?.emoji || '📦', // Get emoji from attributes
-        lowStockThreshold: data.lowStockThreshold || 10,
-        active: data.active ?? true,
+        costPrice: data.costPrice || data.cost || 0,
+        stock: data.stock || data.stockLevel || data.stock_level || 0,
+        emoji: data.attributes?.emoji || data.emoji || '📦',
+        lowStockThreshold: data.lowStockThreshold || data.reorder_level || 10,
+        active: data.active != null ? data.active : (data.status === 'active'),
         category: data.category,
-        imageUrl: data.imageUrl || '',
-      });
+        imageUrl: data.imageUrl || data.image_url || '',
+      };
     });
 
     console.log('Fetched products:', products);
@@ -106,22 +103,24 @@ export async function fetchProducts(
  * Update product stock after a sale
  */
 export async function updateProductStock(
-  db: Firestore,
-  businessId: string,
-  productId: string,
-  quantitySold: number
+  db?: any,
+  businessId?: string,
+  productId?: string,
+  quantitySold?: number
 ): Promise<void> {
   try {
-    const productRef = doc(db, 'businesses', businessId, 'products', productId);
-    const productDoc = await getDoc(productRef);
-    
-    if (productDoc.exists()) {
-      const currentStock = productDoc.data().stock || 0;
-      const newStock = Math.max(0, currentStock - quantitySold);
-      
-      await updateDoc(productRef, {
+    const productDoc = await fetchDoc<Record<string, any>>(
+      `businesses/${businessId}/products`,
+      productId!
+    );
+
+    if (productDoc) {
+      const currentStock = productDoc.stock || productDoc.stockLevel || productDoc.stock_level || 0;
+      const newStock = Math.max(0, currentStock - (quantitySold || 0));
+
+      await updateDoc(`businesses/${businessId}/products`, productId!, {
         stock: newStock,
-        updatedAt: Timestamp.now(),
+        updatedAt: new Date().toISOString(),
       });
     }
   } catch (error) {
@@ -138,9 +137,9 @@ export async function updateProductStock(
  * Record a new sale
  */
 export async function recordSale(
-  db: Firestore,
-  businessId: string,
-  saleData: {
+  db?: any,
+  businessId?: string,
+  saleData?: {
     products: Array<{
       productId: string;
       name: string;
@@ -158,28 +157,28 @@ export async function recordSale(
   }
 ): Promise<string> {
   try {
-    // Calculate profit
-    const profit = saleData.products.reduce((acc, p) => {
+    const products = saleData?.products || [];
+    const profit = products.reduce((acc, p) => {
       return acc + ((p.price - (p.costPrice || 0)) * p.quantity);
     }, 0);
 
-    // Use 'businesses' collection to match owner's Firestore structure
-    const saleRef = await addDoc(collection(db, 'businesses', businessId, 'sales'), {
-      products: saleData.products,
-      total: saleData.total,
+    const id = await addDoc(`businesses/${businessId}/sales`, {
+      id: crypto.randomUUID(),
+      products: products,
+      total: saleData?.total || 0,
       profit,
-      paymentMethod: saleData.paymentMethod,
-      paymentMethods: saleData.paymentMethods,
-      notes: saleData.note || '', // Map 'note' to 'notes' for existing structure
-      soldBy: saleData.soldBy || 'unknown',
-      soldByName: saleData.soldByName || 'Unknown Staff',
-      recordedBy: saleData.recordedBy,
+      paymentMethod: saleData?.paymentMethod || 'cash',
+      paymentMethods: saleData?.paymentMethods,
+      notes: saleData?.note || '',
+      soldBy: saleData?.soldBy || 'unknown',
+      soldByName: saleData?.soldByName || 'Unknown Staff',
+      recordedBy: saleData?.recordedBy,
       businessId,
-      createdAt: Timestamp.now(),
+      createdAt: new Date().toISOString(),
       status: 'completed',
     });
 
-    return saleRef.id;
+    return id;
   } catch (error) {
     console.error('Error recording sale:', error);
     throw error;
@@ -190,36 +189,31 @@ export async function recordSale(
  * Fetch recent sales for a business
  */
 export async function fetchRecentSales(
-  db: Firestore,
-  businessId: string,
+  db?: any,
+  businessId?: string,
   limitCount: number = 50
 ): Promise<Sale[]> {
   try {
-    // Use 'businesses' collection
-    const salesQuery = query(
-      collection(db, 'businesses', businessId, 'sales'),
-      orderBy('createdAt', 'desc'),
-      limit(limitCount)
+    const rawSales = await fetchDocs<Record<string, any>>(
+      `businesses/${businessId}/sales`,
+      {
+        orderBy: { field: 'created_at', ascending: false },
+        limit: limitCount,
+      }
     );
 
-    const snapshot = await getDocs(salesQuery);
-    const sales: Sale[] = [];
-
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      sales.push({
-        id: doc.id,
-        products: data.products || [],
-        total: data.totalRevenue ?? data.total ?? 0,
-        profit: data.profit || 0,
-        paymentMethod: data.paymentMethod || 'cash',
-        note: data.notes || '',
-        soldBy: data.soldBy || 'unknown',
-        soldByName: data.soldByName || 'Unknown',
-        businessId: data.businessId,
-        createdAt: data.createdAt,
-      });
-    });
+    const sales: Sale[] = rawSales.map((data) => ({
+      id: data.id,
+      products: data.products || data.items || [],
+      total: data.totalRevenue ?? data.total_revenue ?? data.total ?? 0,
+      profit: data.profit || 0,
+      paymentMethod: data.paymentMethod || data.payment_method || 'cash',
+      note: data.notes || data.note || '',
+      soldBy: data.soldBy || 'unknown',
+      soldByName: data.soldByName || 'Unknown',
+      businessId: data.businessId || data.business_id,
+      createdAt: data.createdAt || data.created_at || '',
+    }));
 
     return sales;
   } catch (error) {
@@ -232,41 +226,41 @@ export async function fetchRecentSales(
  * Fetch today's sales for a business
  */
 export async function fetchTodaysSales(
-  db: Firestore,
-  businessId: string,
+  db?: any,
+  businessId?: string,
   staffId?: string
 ): Promise<{ sales: number; profit: number; transactions: number }> {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayStart = Timestamp.fromDate(today);
+    const todayStart = today.toISOString();
 
-    // Use 'businesses' collection
-    let salesQuery = query(
-      collection(db, 'businesses', businessId, 'sales'),
-      where('createdAt', '>=', todayStart)
-    );
+    const filters: QueryFilter[] = [
+      { field: 'created_at', op: '>=', value: todayStart },
+    ];
 
-    // If staffId provided, filter by staff member's sales
     if (staffId) {
-      salesQuery = query(
-        collection(db, 'businesses', businessId, 'sales'),
-        where('createdAt', '>=', todayStart),
-        where('recordedBy.staffId', '==', staffId)
-      );
+      filters.push({
+        field: 'metadata',
+        op: 'like',
+        value: `%"staffId":"${staffId}"%`,
+      });
     }
 
-    const snapshot = await getDocs(salesQuery);
+    const rawSales = await fetchDocs<Record<string, any>>(
+      `businesses/${businessId}/sales`,
+      { filters }
+    );
+
     let sales = 0;
     let profit = 0;
     let transactions = 0;
 
-    snapshot.forEach(doc => {
-      const data = doc.data();
-      sales += data.totalRevenue ?? data.total ?? 0;
+    for (const data of rawSales) {
+      sales += data.totalRevenue ?? data.total_revenue ?? data.total ?? 0;
       profit += data.profit || 0;
       transactions += 1;
-    });
+    }
 
     return { sales, profit, transactions };
   } catch (error) {
@@ -283,20 +277,21 @@ export async function fetchTodaysSales(
  * Fetch business information
  */
 export async function fetchBusiness(
-  db: Firestore,
-  businessId: string
+  db?: any,
+  businessId?: string
 ): Promise<Business | null> {
   try {
-    const businessRef = doc(db, 'businesses', businessId);
-    const businessSnap = await getDoc(businessRef);
-    
-    if (!businessSnap.exists()) return null;
+    const data = await fetchDoc<Record<string, any>>(
+      'businesses',
+      businessId!
+    );
 
-    const data = businessSnap.data();
+    if (!data) return null;
+
     return {
-      id: businessSnap.id,
-      businessName: data.businessName || 'Unnamed Business',
-      ownerId: data.ownerId || '',
+      id: data.id,
+      businessName: data.businessName || data.business_name || 'Unnamed Business',
+      ownerId: data.ownerId || data.owner_id || '',
       staff: data.staff || [],
     };
   } catch (error) {
@@ -309,17 +304,20 @@ export async function fetchBusiness(
  * Get staff member's business ID from user document
  */
 export async function getStaffBusinessId(
-  db: Firestore,
-  userId: string
+  db?: any,
+  userId?: string
 ): Promise<string | null> {
   try {
-    const userRef = doc(db, 'users', userId);
-    const userSnap = await getDoc(userRef);
-    
-    if (!userSnap.exists()) return null;
-    
-    const data = userSnap.data();
-    return data.businessId || null;
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId!)
+      .single();
+
+    if (error || !data) return null;
+
+    return data.businessId || data.business_id || null;
   } catch (error) {
     console.error('Error fetching staff business ID:', error);
     return null;

@@ -4,10 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { useTranslation } from './LangContext';
-import { initializeFirebase } from '@/firebase';
+import { fetchDocs, fetchDoc, addDoc } from '@/lib/supabase-client-data';
+import { getSupabase } from '@/lib/supabase';
 import { getAuthCurrentUser } from '@/lib/supabase-auth';
-import { collection, getDocs, query, where, orderBy, doc, getDoc, addDoc } from 'firebase/firestore';
-import { Timestamp } from 'firebase/firestore';
 import { checkFeatureAccess, Plan, BusinessCategory } from '@/lib/featureRegistry';
 import { Supplier } from './types';
 import styles from './SuppliersPage.module.css';
@@ -46,19 +45,10 @@ interface Product {
   imageUrl?: string;
 }
 
-let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
-
 export default function SuppliersPage() {
   const { showToast, user } = useApp();
   const { formatMoney, currency } = useCurrency();
   const { t } = useTranslation();
-  const { firestore } = React.useMemo(() => {
-    if (!firestoreInstance) {
-      const initialized = initializeFirebase();
-      firestoreInstance = initialized.firestore;
-    }
-    return { firestore: firestoreInstance };
-  }, []);
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
@@ -77,26 +67,29 @@ export default function SuppliersPage() {
 
   useEffect(() => {
     loadSuppliers();
-  }, [user?.businessId, firestore]);
+  }, [user?.businessId]);
 
   const checkSupplierAccess = async () => {
     if (!user?.id) return;
     
     try {
-      const { auth, firestore } = initializeFirebase();
       const currentUserId = getAuthCurrentUser()?.uid || '';
       
       if (!currentUserId) return;
 
-      // Get owner's business ID and user data
-      const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
-      const businessId = ownerDoc.data()?.businessId || 'default';
-      const category = ownerDoc.data()?.category || ownerDoc.data()?.selectedCategory || 'retail';
-      const features = ownerDoc.data()?.selectedFeatures || [];
-      const prefs = ownerDoc.data()?.featurePreferences || {};
-      const plan = ownerDoc.data()?.plan || 'starter';
-      const subscriptionStatus = ownerDoc.data()?.subscriptionStatus;
-      const trialEndDate = ownerDoc.data()?.trialEndDate?.toDate();
+      const { data: ownerData } = await getSupabase()
+        .from('users')
+        .select('*')
+        .eq('id', currentUserId)
+        .single();
+
+      const businessId = ownerData?.businessId || 'default';
+      const category = ownerData?.category || ownerData?.selectedCategory || 'retail';
+      const features = ownerData?.selectedFeatures || [];
+      const prefs = ownerData?.featurePreferences || {};
+      const plan = ownerData?.plan || 'starter';
+      const subscriptionStatus = ownerData?.subscriptionStatus;
+      const trialEndDate = ownerData?.trialEndDate ? new Date(ownerData.trialEndDate) : undefined;
       
       // Check if user is in trial
       const now = new Date();
@@ -139,7 +132,7 @@ export default function SuppliersPage() {
   };
 
   const loadSuppliers = async () => {
-    if (!user?.businessId || !firestore) {
+    if (!user?.businessId) {
       setIsLoading(false);
       return;
     }
@@ -147,41 +140,42 @@ export default function SuppliersPage() {
     try {
       setIsLoading(true);
       
-      const suppliersSnapshot = await getDocs(collection(firestore, 'businesses', user.businessId, 'suppliers'));
+      const suppliersData = await fetchDocs<Record<string, unknown>>(
+        `businesses/${user.businessId}/suppliers`
+      );
       const suppliersList: Supplier[] = [];
 
-      suppliersSnapshot.forEach(doc => {
-        const data = doc.data();
+      suppliersData.forEach((data: Record<string, unknown>) => {
         if (data.status === 'active') {
           suppliersList.push({
-            id: doc.id,
-            businessId: data.businessId || user.businessId,
-            supplierName: data.supplierName || data.businessName || 'Unnamed Supplier',
-            businessName: data.businessName || data.supplierName || 'Unnamed Supplier',
-            phone: data.phone || '',
-            email: data.email,
-            address: data.address,
-            notes: data.notes,
-            paymentTerms: data.paymentTerms || 'net_30',
-            customPaymentDays: data.customPaymentDays,
-            creditLimit: data.creditLimit || 0,
-            openingBalance: data.openingBalance || 0,
-            currentBalance: data.currentBalance || 0,
-            category: data.category || 'general',
-            status: data.status || 'active',
-            taxId: data.taxId,
-            bankAccount: data.bankAccount,
-            contactPerson: data.contactPerson,
-            createdAt: data.createdAt?.toDate() || new Date(),
-            updatedAt: data.updatedAt?.toDate() || new Date(),
-            lastPurchaseDate: data.lastPurchaseDate?.toDate(),
-            lastPaymentDate: data.lastPaymentDate?.toDate(),
-            totalPurchases: data.totalPurchases || 0,
-            totalPayments: data.totalPayments || 0,
-            purchaseCount: data.purchaseCount || 0,
-            paymentCount: data.paymentCount || 0,
-            averagePaymentDays: data.averagePaymentDays || 0,
-            creditUtilization: data.creditUtilization || 0,
+            id: data.id as string,
+            businessId: (data.businessId as string) || user.businessId || '',
+            supplierName: (data.supplierName as string) || (data.businessName as string) || 'Unnamed Supplier',
+            businessName: (data.businessName as string) || (data.supplierName as string) || 'Unnamed Supplier',
+            phone: (data.phone as string) || '',
+            email: data.email as string,
+            address: data.address as string,
+            notes: data.notes as string,
+            paymentTerms: ((data.paymentTerms as string) || 'net_30') as any,
+            customPaymentDays: data.customPaymentDays as number,
+            creditLimit: (data.creditLimit as number) || 0,
+            openingBalance: (data.openingBalance as number) || 0,
+            currentBalance: (data.currentBalance as number) || 0,
+            category: ((data.category as string) || 'general') as any,
+            status: ((data.status as string) || 'active') as any,
+            taxId: data.taxId as string,
+            bankAccount: data.bankAccount as any,
+            contactPerson: data.contactPerson as any,
+            createdAt: new Date(data.createdAt as string),
+            updatedAt: new Date(data.updatedAt as string),
+            lastPurchaseDate: data.lastPurchaseDate ? new Date(data.lastPurchaseDate as string) : undefined,
+            lastPaymentDate: data.lastPaymentDate ? new Date(data.lastPaymentDate as string) : undefined,
+            totalPurchases: (data.totalPurchases as number) || 0,
+            totalPayments: (data.totalPayments as number) || 0,
+            purchaseCount: (data.purchaseCount as number) || 0,
+            paymentCount: (data.paymentCount as number) || 0,
+            averagePaymentDays: (data.averagePaymentDays as number) || 0,
+            creditUtilization: (data.creditUtilization as number) || 0,
           });
         }
       });
@@ -212,37 +206,36 @@ export default function SuppliersPage() {
       const businessId = user.businessId;
 
       // Load stock receipts for this supplier
-      const receiptsQuery = query(
-        collection(firestore, 'businesses', businessId, 'stockReceipts'),
-        where('supplierId', '==', supplier.id),
-        orderBy('createdAt', 'desc')
+      const receiptsData = await fetchDocs<Record<string, unknown>>(
+        `businesses/${businessId}/stockReceipts`,
+        {
+          filters: [{ field: 'supplierId', op: '=', value: supplier.id }],
+          orderBy: { field: 'created_at', ascending: false },
+        }
       );
-      
-      const receiptsSnapshot = await getDocs(receiptsQuery);
       const receiptsList: StockReceipt[] = [];
       
-      receiptsSnapshot.forEach(doc => {
-        const data = doc.data();
-        const createdAtDate = data.createdAt?.toDate() || new Date();
-        const receivedDate = data.receivedAt ? new Date(data.receivedAt) : createdAtDate;
+      receiptsData.forEach((data: Record<string, unknown>) => {
+        const createdAtDate = new Date(data.createdAt as string);
+        const receivedDate = data.receivedAt ? new Date(data.receivedAt as string) : createdAtDate;
         
         receiptsList.push({
-          id: doc.id,
+          id: data.id as string,
           businessId,
-          supplierId: data.supplierId,
-          supplierName: data.supplierName || supplier.businessName || 'Unknown Supplier',
-          purchaseOrderId: data.purchaseOrderId,
-          receiptNumber: data.receiptNumber || doc.id,
-          items: data.items || [],
-          subtotal: data.subtotal || 0,
-          tax: data.tax || 0,
-          total: data.total || data.totalCost || 0,
+          supplierId: data.supplierId as string,
+          supplierName: (data.supplierName as string) || supplier.businessName || 'Unknown Supplier',
+          purchaseOrderId: data.purchaseOrderId as string,
+          receiptNumber: (data.receiptNumber as string) || (data.id as string),
+          items: (data.items as StockReceipt['items']) || [],
+          subtotal: (data.subtotal as number) || 0,
+          tax: (data.tax as number) || 0,
+          total: (data.total as number) || 0,
           receivedDate,
-          notes: data.notes,
-          receivedBy: data.receivedBy || user.id,
-          receivedByName: data.receivedByName || 'Unknown',
+          notes: data.notes as string,
+          receivedBy: (data.receivedBy as string) || user.id,
+          receivedByName: (data.receivedByName as string) || 'Unknown',
           createdAt: createdAtDate,
-          updatedAt: data.updatedAt?.toDate() || new Date(),
+          updatedAt: new Date(data.updatedAt as string),
         });
       });
       
@@ -262,14 +255,16 @@ export default function SuppliersPage() {
       const productsList: Product[] = [];
       for (const productId of Array.from(productIds)) {
         try {
-          const productDoc = await getDoc(doc(firestore, 'businesses', businessId, 'products', productId));
-          if (productDoc.exists()) {
-            const data = productDoc.data();
+          const productData = await fetchDoc<Record<string, unknown>>(
+            `businesses/${businessId}/products`,
+            productId
+          );
+          if (productData) {
             productsList.push({
-              id: productDoc.id,
-              name: data.name || '',
-              sku: data.attributes?.sku,
-              imageUrl: data.imageUrl,
+              id: productData.id as string,
+              name: (productData.name as string) || '',
+              sku: productData.sku as string,
+              imageUrl: productData.imageUrl as string,
             });
           }
         } catch (error) {
@@ -286,15 +281,15 @@ export default function SuppliersPage() {
     }
   };
 
-  const formatDate = (timestamp: Timestamp | Date | undefined) => {
+  const formatDate = (timestamp: Date | string | undefined) => {
     if (!timestamp) return 'N/A';
-    const date = timestamp instanceof Date ? timestamp : timestamp.toDate();
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
     return date.toLocaleDateString();
   };
 
   const handleCreateSupplier = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!user?.businessId || !firestore) {
+    if (!user?.businessId) {
       showToast(t('toast.businessIdNotFound'));
       return;
     }
@@ -309,8 +304,8 @@ export default function SuppliersPage() {
       const address = formData.get('address') as string;
       const paymentTerms = formData.get('paymentTerms') as string;
 
-      const suppliersRef = collection(firestore, 'businesses', user.businessId, 'suppliers');
       const newSupplier = {
+        id: crypto.randomUUID(),
         businessId: user.businessId,
         supplierName,
         businessName,
@@ -328,8 +323,8 @@ export default function SuppliersPage() {
         bankAccount: null,
         contactPerson: null,
         notes: null,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         lastPurchaseDate: null,
         lastPaymentDate: null,
         totalPurchases: 0,
@@ -340,7 +335,7 @@ export default function SuppliersPage() {
         creditUtilization: 0,
       };
 
-      await addDoc(suppliersRef, newSupplier);
+      await addDoc(`businesses/${user.businessId}/suppliers`, newSupplier);
       showToast(t('toast.supplierCreated'));
       setShowAddSupplierModal(false);
       loadSuppliers();

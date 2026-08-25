@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
-import { useFirestore } from '@/firebase/provider';
-import { initializeFirebase } from '@/firebase';
-import { getFirestore, collection, query, where, getDocs, Timestamp, doc, getDoc } from 'firebase/firestore';
+import { fetchDocs } from '@/lib/supabase-client-data';
+import { getSupabase } from '@/lib/supabase';
 import { Card, CardHeader, CardIcon } from './Card';
 import { MetricCard } from './Badge';
 import { Button, ActionLink } from './Button';
@@ -26,14 +25,6 @@ const MO_SUGGESTION_KEYS = [
   'mo.suggest.addProduct',
 ];
 
-// Initialize Firebase once
-let firestore: ReturnType<typeof getFirestore> | null = null;
-try {
-  const firebaseApp = initializeFirebase();
-  firestore = getFirestore(firebaseApp.firebaseApp);
-} catch (error) {
-  console.warn('Firebase not initialized:', error);
-}
 
 // ═══════════════════════════════════════════
 //  HomePage
@@ -43,7 +34,6 @@ export function HomePage() {
   const { navigateTo, showToast, user, aiPanelOpen, toggleAIPanel } = useApp();
   const { t, lang } = useTranslation();  // Add lang to trigger re-renders
   const { formatMoney } = useCurrency();
-  const firestore = useFirestore();
 
   const [moResponse, setMoResponse] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,7 +67,7 @@ export function HomePage() {
   // Fetch real data on mount
   useEffect(() => {
     fetchData();
-  }, [selectedPeriod, user.id, firestore]);
+  }, [selectedPeriod, user.id]);
 
   // Add effect to listen for data refresh events triggered by MO
   useEffect(() => {
@@ -98,15 +88,15 @@ export function HomePage() {
       // For now, we'll just log that cleanup happened
       console.log('🧹 [HomePage] Unsubscribing from data refresh events');
     };
-  }, [user.id, firestore, selectedPeriod]);
+  }, [user.id, selectedPeriod]);
 
   async function fetchData() {
     try {
       setLoading(true);
 
-        // Check if firestore is available
-        if (!firestore) {
-          console.warn('Firestore not initialized, using empty state');
+        // Check if Supabase is available
+        if (!getSupabase()) {
+          console.warn('Supabase not initialized, using empty state');
           setLoading(false);
           setDailyLoading(false);
           return;
@@ -120,19 +110,21 @@ export function HomePage() {
           return;
         }
 
-        // Get user's business ID from Firestore
-        const userDocRef = doc(firestore, 'users', user.id);
-        const userDoc = await getDoc(userDocRef);
+        // Get user's business ID from Supabase
+        const { data: userData, error: userError } = await getSupabase()
+          .from('users')
+          .select('*')
+          .eq('id', user.id)
+          .single();
 
-        if (!userDoc.exists()) {
+        if (userError || !userData) {
           console.warn('User document not found');
           setLoading(false);
           setDailyLoading(false);
           return;
         }
 
-        const userData = userDoc.data();
-        const businessId = userData.businessId;
+        const businessId = userData.businessId || userData.business_id;
 
         if (!businessId) {
           console.warn('No business ID found for user');
@@ -176,18 +168,15 @@ export function HomePage() {
         };
 
         try {
-          const recentSnap = await getDocs(
-            query(
-              collection(firestore, 'businesses', businessId, 'sales'),
-              where('createdAt', '>=', Timestamp.fromDate(yesterdayStart))
-            )
+          const recentSales = await fetchDocs(
+            `businesses/${businessId}/sales`,
+            { filters: [{ field: 'created_at', op: '>=', value: yesterdayStart.toISOString() }] }
           );
 
           let daySales = 0, dayProfit = 0, dayTx = 0;
           let yesterdayTotal = 0;
 
-          recentSnap.forEach((d) => {
-            const data = d.data();
+          recentSales.forEach((data: any) => {
             const ms = saleTimestampMs(data);
             const revenue = Number(data.totalRevenue ?? data.total ?? 0) || 0;
             if (ms >= todayStartMs) {
@@ -221,18 +210,16 @@ export function HomePage() {
         }
 
         // Fetch sales for the selected period
-        const salesQuery = query(
-          collection(firestore, 'businesses', businessId, 'sales'),
-          where('createdAt', '>=', Timestamp.fromDate(startDate))
+        const salesData = await fetchDocs(
+          `businesses/${businessId}/sales`,
+          { filters: [{ field: 'created_at', op: '>=', value: startDate.toISOString() }] }
         );
 
-        const salesSnapshot = await getDocs(salesQuery);
         let sales = 0, profit = 0, transactions = 0;
         let pendingTotal = 0;
         const productRevenue = new Map<string, { name: string; revenue: number; quantity: number }>();
 
-        salesSnapshot.forEach(doc => {
-          const data = doc.data();
+        salesData.forEach((data: any) => {
           sales += data.totalRevenue || data.total || 0;
           profit += saleProfit(data);
           transactions += 1;
@@ -266,22 +253,20 @@ export function HomePage() {
         setTopProduct(topProductData || null);
 
         // Fetch low stock products from businesses collection
-        const productsQuery = query(
-          collection(firestore, 'businesses', businessId, 'products'),
-          where('active', '==', true)
+        const productsData = await fetchDocs(
+          `businesses/${businessId}/products`,
+          { filters: [{ field: 'status', op: '=', value: 'active' }] }
         );
 
-        const productsSnapshot = await getDocs(productsQuery);
         const lowStock: any[] = [];
         const allProducts: any[] = [];
 
-        productsSnapshot.forEach(doc => {
-          const data = doc.data();
+        productsData.forEach((data: any) => {
           const threshold = data.lowStockThreshold || 10;
-          const productData = { id: doc.id, name: data.name, stock: data.stock || 0, threshold, costPrice: data.costPrice || 0, sellPrice: data.price || 0 };
+          const productData = { id: data.id, name: data.name, stock: data.stock || data.stockLevel || 0, threshold, costPrice: data.costPrice || data.cost || 0, sellPrice: data.price || data.sellingPrice || 0 };
           allProducts.push(productData);
           
-          if (data.stock <= threshold) {
+          if ((data.stock || data.stockLevel || 0) <= threshold) {
             lowStock.push(productData);
           }
         });
@@ -289,15 +274,13 @@ export function HomePage() {
         setLowStockProducts(lowStock.sort((a, b) => a.stock - b.stock));
 
         // Fetch expenses to calculate cash runway (only for selected period)
-        const expensesQuery = query(
-          collection(firestore, 'businesses', businessId, 'expenses'),
-          where('createdAt', '>=', Timestamp.fromDate(startDate))
+        const expensesData = await fetchDocs(
+          `businesses/${businessId}/expenses`,
+          { filters: [{ field: 'created_at', op: '>=', value: startDate.toISOString() }] }
         );
-        
-        const expensesSnapshot = await getDocs(expensesQuery);
+
         let totalExpenses = 0;
-        expensesSnapshot.forEach(doc => {
-          const data = doc.data();
+        expensesData.forEach((data: any) => {
           totalExpenses += data.amount || 0;
         });
 
@@ -314,7 +297,7 @@ export function HomePage() {
         });
 
         // Calculate improved cash runway
-        const improvedCashRunway = await calculateCashRunway(businessId, firestore);
+        const improvedCashRunway = await calculateCashRunway(businessId);
         setCashRunway(improvedCashRunway);
 
         // Calculate and set forecast data
@@ -340,17 +323,13 @@ export function HomePage() {
 
   // Calculate cash runway - improved accuracy
   // Use actual bank balances and calculate average monthly burn from historical data
-  const calculateCashRunway = async (businessId: string, firestore: any) => {
+  const calculateCashRunway = async (businessId: string) => {
     try {
       // Fetch bank accounts for actual cash balance
-      const bankAccountsQuery = query(
-        collection(firestore, 'businesses', businessId, 'bankAccounts')
-      );
-      const bankAccountsSnapshot = await getDocs(bankAccountsQuery);
+      const bankAccountsData = await fetchDocs(`businesses/${businessId}/bankAccounts`);
       let actualCashBalance = 0;
-      bankAccountsSnapshot.forEach(doc => {
-        const data = doc.data();
-        actualCashBalance += data.balance || 0;
+      bankAccountsData.forEach((data: any) => {
+        actualCashBalance += data.balance || data.currentBalance || 0;
       });
 
       // If no bank accounts, fall back to calculated balance
@@ -362,27 +341,23 @@ export function HomePage() {
       const ninetyDaysAgo = new Date();
       ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
       
-      const expensesQuery = query(
-        collection(firestore, 'businesses', businessId, 'expenses'),
-        where('createdAt', '>=', Timestamp.fromDate(ninetyDaysAgo))
+      const expensesData90 = await fetchDocs(
+        `businesses/${businessId}/expenses`,
+        { filters: [{ field: 'created_at', op: '>=', value: ninetyDaysAgo.toISOString() }] }
       );
-      const expensesSnapshot = await getDocs(expensesQuery);
       let totalExpenses90Days = 0;
-      expensesSnapshot.forEach(doc => {
-        const data = doc.data();
+      expensesData90.forEach((data: any) => {
         totalExpenses90Days += data.amount || 0;
       });
 
       // Fetch sales from last 90 days for revenue inflow
-      const salesQuery = query(
-        collection(firestore, 'businesses', businessId, 'sales'),
-        where('createdAt', '>=', Timestamp.fromDate(ninetyDaysAgo))
+      const salesData90 = await fetchDocs(
+        `businesses/${businessId}/sales`,
+        { filters: [{ field: 'created_at', op: '>=', value: ninetyDaysAgo.toISOString() }] }
       );
-      const salesSnapshot = await getDocs(salesQuery);
       let totalRevenue90Days = 0;
       let totalCashCollected90Days = 0;
-      salesSnapshot.forEach(doc => {
-        const data = doc.data();
+      salesData90.forEach((data: any) => {
         const totalRevenue = data.totalRevenue || data.total || 0;
         totalRevenue90Days += totalRevenue;
         

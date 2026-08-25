@@ -4,9 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
-import { useFirestore } from '@/firebase/provider';
-import { initializeFirebase } from '@/firebase';
-import { getFirestore, collection, query, where, getDocs, Timestamp, doc, getDoc, orderBy } from 'firebase/firestore';
+import { fetchDocs } from '@/lib/supabase-client-data';
+import { getSupabase } from '@/lib/supabase';
+import { getFirestoreUserId } from '@/lib/supabase-auth';
 import styles from './ReportsPage.module.css';
 
 type PeriodType = 'today' | 'week' | 'month' | 'year' | 'custom';
@@ -38,8 +38,7 @@ export function ReportsPage() {
   const { showToast, user } = useApp();
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();
-  const firestore = useFirestore();
-  
+
   const [period, setPeriod] = useState<PeriodType>('month');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -50,13 +49,33 @@ export function ReportsPage() {
   const [revenueBreakdown, setRevenueBreakdown] = useState<RevenueBreakdown[]>([]);
 
   useEffect(() => {
+    async function resolveBusinessId() {
+      if (user?.businessId) {
+        setBusinessId(user.businessId);
+        return;
+      }
+      const userIds = getFirestoreUserId();
+      if (!userIds) return;
+      const { data: userDoc } = await getSupabase()
+        .from('users')
+        .select('*')
+        .eq('id', userIds.firestoreUid)
+        .single();
+      if (userDoc) {
+        setBusinessId(userDoc.businessId || userDoc.business_id || null);
+      }
+    }
+    resolveBusinessId();
+  }, [user?.businessId, user?.id]);
+
+  useEffect(() => {
     if (businessId) {
       fetchPnLData();
     }
   }, [businessId, period, startDate, endDate]);
 
   async function fetchPnLData() {
-    if (!businessId || !firestore) return;
+    if (!businessId) return;
 
     try {
       setLoading(true);
@@ -91,28 +110,25 @@ export function ReportsPage() {
           end = new Date(now);
       }
 
-      const startTimestamp = Timestamp.fromDate(start);
-      const endTimestamp = Timestamp.fromDate(end);
+      const startIso = start.toISOString();
+      const endIso = end.toISOString();
 
-      // Fetch sales
-      const salesQuery = query(
-        collection(firestore, 'businesses', businessId, 'sales'),
-        where('createdAt', '>=', startTimestamp),
-        where('createdAt', '<=', endTimestamp),
-        orderBy('createdAt', 'desc')
-      );
-      const salesSnapshot = await getDocs(salesQuery);
+      const salesData = await fetchDocs(`businesses/${businessId}/sales`, {
+        filters: [
+          { field: 'createdAt', op: '>=', value: startIso },
+          { field: 'createdAt', op: '<=', value: endIso },
+        ],
+        orderBy: { field: 'created_at', ascending: false },
+      });
 
-      // Fetch expenses
-      const expensesQuery = query(
-        collection(firestore, 'businesses', businessId, 'expenses'),
-        where('createdAt', '>=', startTimestamp),
-        where('createdAt', '<=', endTimestamp),
-        orderBy('createdAt', 'desc')
-      );
-      const expensesSnapshot = await getDocs(expensesQuery);
+      const expensesData = await fetchDocs(`businesses/${businessId}/expenses`, {
+        filters: [
+          { field: 'createdAt', op: '>=', value: startIso },
+          { field: 'createdAt', op: '<=', value: endIso },
+        ],
+        orderBy: { field: 'created_at', ascending: false },
+      });
 
-      // Calculate P&L
       let revenue = 0;
       let cogs = 0;
       let operatingExpenses = 0;
@@ -120,11 +136,10 @@ export function ReportsPage() {
       const paymentMethodTotals: Record<string, number> = {};
       const expenseCategoryTotals: Record<string, number> = {};
 
-      salesSnapshot.forEach(doc => {
-        const data = doc.data();
-        const total = data.totalRevenue || data.total || 0;
-        const profit = data.profit || 0;
-        const paymentMethod = data.paymentMethod || 'cash';
+      salesData.forEach((sale: any) => {
+        const total = sale.totalRevenue || sale.total || 0;
+        const profit = sale.profit || 0;
+        const paymentMethod = sale.paymentMethod || 'cash';
         
         revenue += total;
         cogs += (total - profit);
@@ -133,10 +148,9 @@ export function ReportsPage() {
         paymentMethodTotals[paymentMethod] = (paymentMethodTotals[paymentMethod] || 0) + total;
       });
 
-      expensesSnapshot.forEach(doc => {
-        const data = doc.data();
-        const amount = data.amount || 0;
-        const category = data.category || 'Other';
+      expensesData.forEach((exp: any) => {
+        const amount = exp.amount || 0;
+        const category = exp.category || 'Other';
         
         operatingExpenses += amount;
         expenseCategoryTotals[category] = (expenseCategoryTotals[category] || 0) + amount;
@@ -154,10 +168,9 @@ export function ReportsPage() {
         netProfit,
         profitMargin,
         salesCount,
-        expenseCount: expensesSnapshot.size,
+        expenseCount: expensesData.length,
       });
 
-      // Calculate expense categories breakdown
       const expenseCategoriesArray = Object.entries(expenseCategoryTotals)
         .map(([category, amount]) => ({
           category,
@@ -167,7 +180,6 @@ export function ReportsPage() {
         .sort((a, b) => b.amount - a.amount);
       setExpenseCategories(expenseCategoriesArray);
 
-      // Calculate revenue breakdown by payment method
       const revenueBreakdownArray = Object.entries(paymentMethodTotals)
         .map(([paymentMethod, amount]) => ({
           paymentMethod,

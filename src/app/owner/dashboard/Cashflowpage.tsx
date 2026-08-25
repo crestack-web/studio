@@ -5,8 +5,7 @@ import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
-import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, orderBy, limit, addDoc, Timestamp, doc, getDoc, updateDoc, runTransaction } from 'firebase/firestore';
+import { fetchDocs, addDoc as sbAddDoc, updateDoc as sbUpdateDoc, runBatch, toISOString } from '@/lib/supabase-client-data';
 import { Building2, Package, TrendingDown, Wallet, ArrowUpRight, X, Plus, ShoppingCart, TrendingUp, Banknote } from 'lucide-react';
 import styles from './Cashflowpage.module.css';
 
@@ -42,20 +41,11 @@ interface Transaction {
   accountName?: string;
 }
 
-let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
-
 export default function Cashflowpage() {
   const { showToast, user } = useApp();
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();
   const { businessId } = useBranch();
-  const { firestore } = React.useMemo(() => {
-    if (!firestoreInstance) {
-      const initialized = initializeFirebase();
-      firestoreInstance = initialized.firestore;
-    }
-    return { firestore: firestoreInstance };
-  }, []);
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,53 +109,42 @@ export default function Cashflowpage() {
     loadProducts();
     loadSuppliers();
     loadPurchases();
-  }, [businessId, firestore]);
+  }, [businessId]);
 
   useEffect(() => {
     loadData();
-  }, [businessId, firestore, dateFilter, customStartDate, customEndDate, products]);
+  }, [businessId, dateFilter, customStartDate, customEndDate, products]);
 
   const loadProducts = async () => {
-    if (!businessId || !firestore) return;
+    if (!businessId) return;
     try {
-      const productsQuery = query(
-        collection(firestore, 'businesses', businessId, 'products'),
-        where('active', '==', true)
-      );
-      const productsSnapshot = await getDocs(productsQuery);
-      const productsList: any[] = [];
-      productsSnapshot.forEach(doc => {
-        const data = doc.data();
-        productsList.push({
-          id: doc.id,
-          ...data,
-          costPrice: data.cost || data.costPrice || 0,
-        });
+      const productsList = await fetchDocs(`businesses/${businessId}/products`, {
+        filters: [{ field: 'status', op: '=', value: 'active' }],
       });
-      setProducts(productsList);
+      setProducts(productsList.map((data: any) => ({
+        id: data.id,
+        ...data,
+        costPrice: data.cost || data.costPrice || 0,
+      })));
     } catch (error) {
       console.error('Error loading products:', error);
     }
   };
 
   const loadSuppliers = async () => {
-    if (!businessId || !firestore) return;
+    if (!businessId) return;
     try {
-      const suppliersSnapshot = await getDocs(collection(firestore, 'businesses', businessId, 'suppliers'));
-      const suppliersList: Supplier[] = [];
-      suppliersSnapshot.forEach(doc => {
-        const data = doc.data();
-        if (data.status === 'active') {
-          suppliersList.push({
-            id: doc.id,
-            supplierName: data.supplierName || data.businessName || 'Unnamed Supplier',
-            businessName: data.businessName || data.supplierName || 'Unnamed Supplier',
-            phone: data.phone || '',
-            email: data.email,
-            currentBalance: data.currentBalance || 0,
-          });
-        }
-      });
+      const allSuppliers = await fetchDocs(`businesses/${businessId}/suppliers`);
+      const suppliersList: Supplier[] = allSuppliers
+        .filter((data: any) => data.status === 'active')
+        .map((data: any) => ({
+          id: data.id,
+          supplierName: data.supplierName || data.businessName || 'Unnamed Supplier',
+          businessName: data.businessName || data.supplierName || 'Unnamed Supplier',
+          phone: data.phone || '',
+          email: data.email,
+          currentBalance: data.currentBalance || 0,
+        }));
       setSuppliers(suppliersList);
     } catch (error) {
       console.error('Error loading suppliers:', error);
@@ -173,31 +152,25 @@ export default function Cashflowpage() {
   };
 
   const loadPurchases = async () => {
-    if (!businessId || !firestore) return;
+    if (!businessId) return;
     try {
-      const receiptsQuery = query(
-        collection(firestore, 'businesses', businessId, 'stockReceipts'),
-        orderBy('createdAt', 'desc'),
-        limit(50)
-      );
-      const receiptsSnapshot = await getDocs(receiptsQuery);
-      const purchasesList: any[] = [];
-      receiptsSnapshot.forEach(doc => {
-        const data = doc.data();
-        purchasesList.push({
-          id: doc.id,
-          receiptNumber: data.receiptNumber,
-          supplierId: data.supplierId,
-          supplierName: data.supplierName,
-          items: data.items || [],
-          totalQuantity: data.totalQuantity,
-          totalCost: data.totalCost,
-          paymentMethod: data.paymentMethod,
-          paidAmount: data.paidAmount,
-          creditAmount: data.creditAmount,
-          createdAt: data.createdAt?.toDate() || new Date(),
-        });
+      const receipts = await fetchDocs(`businesses/${businessId}/stockReceipts`, {
+        orderBy: { field: 'created_at', ascending: false },
+        limit: 50,
       });
+      const purchasesList: any[] = receipts.map((data: any) => ({
+        id: data.id,
+        receiptNumber: data.receiptNumber,
+        supplierId: data.supplierId,
+        supplierName: data.supplierName,
+        items: data.items || [],
+        totalQuantity: data.totalQuantity,
+        totalCost: data.totalCost,
+        paymentMethod: data.paymentMethod,
+        paidAmount: data.paidAmount,
+        creditAmount: data.creditAmount,
+        createdAt: toISOString(data.createdAt) || new Date().toISOString(),
+      }));
       setPurchases(purchasesList);
     } catch (error) {
       console.error('Error loading purchases:', error);
@@ -205,14 +178,14 @@ export default function Cashflowpage() {
   };
 
   const handleCreateProduct = async () => {
-    if (!businessId || !firestore) return;
+    if (!businessId) return;
     if (!newProduct.name || !newProduct.costPrice) {
       showToast('Please fill in product name and cost price');
       return;
     }
 
     try {
-      const productRef = await addDoc(collection(firestore, 'businesses', businessId, 'products'), {
+      const productId = await sbAddDoc(`businesses/${businessId}/products`, {
         name: newProduct.name,
         cost: newProduct.costPrice,
         sellingPrice: newProduct.sellingPrice || newProduct.costPrice * 1.2,
@@ -220,13 +193,13 @@ export default function Cashflowpage() {
         unit: newProduct.unit,
         stock: 0,
         active: true,
-        createdAt: Timestamp.now(),
+        createdAt: new Date().toISOString(),
         createdBy: user?.id || 'system',
         createdByName: user?.name || 'System',
       });
 
       await loadProducts();
-      setStockAddition({ ...stockAddition, productId: productRef.id, costPrice: newProduct.costPrice });
+      setStockAddition({ ...stockAddition, productId, costPrice: newProduct.costPrice });
       setNewProduct({ name: '', costPrice: 0, sellingPrice: 0, category: '', unit: 'piece' });
       setShowNewProductForm(false);
       showToast('Product created successfully');
@@ -266,7 +239,7 @@ export default function Cashflowpage() {
   };
 
   const loadData = async () => {
-    if (!businessId || !firestore) {
+    if (!businessId) {
       setLoading(false);
       return;
     }
@@ -274,47 +247,26 @@ export default function Cashflowpage() {
     try {
       setLoading(true);
       
-      const accountsQuery = query(
-        collection(firestore, 'businesses', businessId, 'bankAccounts'),
-        where('isActive', '==', true)
-      );
-      
-      const accountsSnapshot = await getDocs(accountsQuery);
-      const accountsList: BankAccount[] = [];
-      
-      accountsSnapshot.forEach(doc => {
-        const data = doc.data();
-        accountsList.push({
-          id: doc.id,
-          accountName: data.accountName,
-          bankName: data.bankName,
-          currentBalance: data.currentBalance,
-          isActive: data.isActive,
-          isDefault: data.isDefault,
-          isPosDefault: data.isPosDefault,
-        });
+      const accountsList: BankAccount[] = await fetchDocs(`businesses/${businessId}/bankAccounts`, {
+        filters: [{ field: 'is_active', op: '=', value: true }],
       });
       
       setBankAccounts(accountsList);
       
       const dateRange = getDateRange();
-      let transactionsQuery = query(
-        collection(firestore, 'businesses', businessId, 'bankTransactions'),
-        orderBy('createdAt', 'desc'),
-        limit(50)
-      );
-
+      const txFilters: any[] = [];
       if (dateRange && dateFilter !== 'all') {
-        transactionsQuery = query(
-          collection(firestore, 'businesses', businessId, 'bankTransactions'),
-          where('createdAt', '>=', Timestamp.fromDate(dateRange.startDate)),
-          where('createdAt', '<=', Timestamp.fromDate(dateRange.endDate)),
-          orderBy('createdAt', 'desc'),
-          limit(50)
+        txFilters.push(
+          { field: 'created_at', op: '>=', value: dateRange.startDate.toISOString() },
+          { field: 'created_at', op: '<=', value: dateRange.endDate.toISOString() }
         );
       }
 
-      const snapshot = await getDocs(transactionsQuery);
+      const bankTxDocs = await fetchDocs(`businesses/${businessId}/bankTransactions`, {
+        filters: txFilters.length > 0 ? txFilters : undefined,
+        orderBy: { field: 'created_at', ascending: false },
+        limit: 50,
+      });
       
       const transactionMap = new Map<string, Transaction>();
       const saleIdsInBankTx = new Set<string>();
@@ -325,14 +277,13 @@ export default function Cashflowpage() {
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
       
-      snapshot.forEach(doc => {
-        const data = doc.data();
+      for (const data of bankTxDocs) {
         const amount = data.amount || 0;
         const isCredit = data.type === 'money_in';
-        const date = data.createdAt?.toDate() || new Date();
+        const date = toISOString(data.createdAt) ? new Date(toISOString(data.createdAt)!) : new Date();
 
-        transactionMap.set(doc.id, {
-          id: doc.id,
+        transactionMap.set(data.id, {
+          id: data.id,
           date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
           type: data.category || 'Other',
           description: data.description || '',
@@ -350,30 +301,25 @@ export default function Cashflowpage() {
           cashBalance -= amount;
           if (date >= monthStart) monthOut += amount;
         }
-      });
+      }
 
-      let salesQuery = query(
-        collection(firestore, 'businesses', businessId, 'sales'),
-        orderBy('createdAt', 'desc'),
-        limit(50)
-      );
-
+      const salesFilters: any[] = [];
       if (dateRange && dateFilter !== 'all') {
-        salesQuery = query(
-          collection(firestore, 'businesses', businessId, 'sales'),
-          where('createdAt', '>=', Timestamp.fromDate(dateRange.startDate)),
-          where('createdAt', '<=', Timestamp.fromDate(dateRange.endDate)),
-          orderBy('createdAt', 'desc'),
-          limit(50)
+        salesFilters.push(
+          { field: 'created_at', op: '>=', value: dateRange.startDate.toISOString() },
+          { field: 'created_at', op: '<=', value: dateRange.endDate.toISOString() }
         );
       }
 
-      const salesSnapshot = await getDocs(salesQuery);
+      const salesDocs = await fetchDocs(`businesses/${businessId}/sales`, {
+        filters: salesFilters.length > 0 ? salesFilters : undefined,
+        orderBy: { field: 'created_at', ascending: false },
+        limit: 50,
+      });
       
-      salesSnapshot.forEach(doc => {
-        const data = doc.data();
+      for (const data of salesDocs) {
         const amount = data.totalRevenue || data.totalAmount || 0;
-        const date = data.createdAt?.toDate() || new Date();
+        const date = toISOString(data.createdAt) ? new Date(toISOString(data.createdAt)!) : new Date();
 
         const paymentBreakdown = data.paymentBreakdown || [];
         const bankPayment = paymentBreakdown
@@ -387,28 +333,28 @@ export default function Cashflowpage() {
           .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
         
         if (bankPayment > 0) {
-          transactionMap.set(`sale-${doc.id}`, {
-            id: `sale-${doc.id}`,
+          transactionMap.set(`sale-${data.id}`, {
+            id: `sale-${data.id}`,
             date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
             type: 'Sale',
-            description: `Sale #${doc.id.slice(-6)}`,
+            description: `Sale #${data.id.slice(-6)}`,
             amount: bankPayment,
             credit: true,
             accountName: data.bankAccountId ? accountsList.find(a => a.id === data.bankAccountId)?.accountName : 'Default Account',
           });
           
-          if (!saleIdsInBankTx.has(doc.id)) {
+          if (!saleIdsInBankTx.has(data.id)) {
             cashBalance += bankPayment;
             if (date >= monthStart) monthIn += bankPayment;
           }
         }
         
         if (cashPayment > 0) {
-          transactionMap.set(`sale-cash-${doc.id}`, {
-            id: `sale-cash-${doc.id}`,
+          transactionMap.set(`sale-cash-${data.id}`, {
+            id: `sale-cash-${data.id}`,
             date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
             type: 'Cash Sale',
-            description: `Sale #${doc.id.slice(-6)}`,
+            description: `Sale #${data.id.slice(-6)}`,
             amount: cashPayment,
             credit: true,
             accountName: 'Cash',
@@ -420,36 +366,31 @@ export default function Cashflowpage() {
         if (creditPayment > 0 && date >= monthStart) {
           monthIn += creditPayment;
         }
-      });
+      }
       
-      let expensesQuery = query(
-        collection(firestore, 'businesses', businessId, 'expenses'),
-        orderBy('createdAt', 'desc'),
-        limit(100)
-      );
-
+      const expenseFilters: any[] = [];
       if (dateRange && dateFilter !== 'all') {
-        expensesQuery = query(
-          collection(firestore, 'businesses', businessId, 'expenses'),
-          where('createdAt', '>=', Timestamp.fromDate(dateRange.startDate)),
-          where('createdAt', '<=', Timestamp.fromDate(dateRange.endDate)),
-          orderBy('createdAt', 'desc'),
-          limit(100)
+        expenseFilters.push(
+          { field: 'created_at', op: '>=', value: dateRange.startDate.toISOString() },
+          { field: 'created_at', op: '<=', value: dateRange.endDate.toISOString() }
         );
       }
 
-      const expensesSnapshot = await getDocs(expensesQuery);
+      const expensesDocs = await fetchDocs(`businesses/${businessId}/expenses`, {
+        filters: expenseFilters.length > 0 ? expenseFilters : undefined,
+        orderBy: { field: 'created_at', ascending: false },
+        limit: 100,
+      });
       
-      for (const expenseDoc of expensesSnapshot.docs) {
-        const data = expenseDoc.data();
+      for (const data of expensesDocs) {
         const amount = data.amount || 0;
-        const date = data.createdAt?.toDate() || new Date();
+        const date = toISOString(data.createdAt) ? new Date(toISOString(data.createdAt)!) : new Date();
 
         const isBankPayment = data.paymentMethod === 'Bank Transfer' || 
                               data.paymentMethod === 'POS / Card';
         
-        transactionMap.set(`expense-${expenseDoc.id}`, {
-          id: `expense-${expenseDoc.id}`,
+        transactionMap.set(`expense-${data.id}`, {
+          id: `expense-${data.id}`,
           date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
           type: data.category || 'Expense',
           description: data.description || `Expense: ${data.category}`,
@@ -464,7 +405,7 @@ export default function Cashflowpage() {
           const defaultAccount = accountsList.find(a => a.isDefault || a.isPosDefault) || accountsList[0];
           if (defaultAccount && defaultAccount.currentBalance >= amount) {
             const newBalance = defaultAccount.currentBalance - amount;
-            await updateDoc(doc(firestore, 'businesses', businessId, 'bankAccounts', defaultAccount.id), {
+            await sbUpdateDoc(`businesses/${businessId}/bankAccounts`, defaultAccount.id, {
               currentBalance: newBalance,
             });
             
@@ -477,15 +418,15 @@ export default function Cashflowpage() {
               amount: amount,
               balanceAfter: newBalance,
               description: data.description || `Expense: ${data.category}`,
-              createdAt: Timestamp.now(),
+              createdAt: new Date().toISOString(),
             };
-            await addDoc(collection(firestore, 'businesses', businessId, 'bankTransactions'), transactionData);
+            await sbAddDoc(`businesses/${businessId}/bankTransactions`, transactionData);
           }
         }
       }
       
       purchases.forEach(purchase => {
-        const purchaseDate = purchase.createdAt?.toDate() || new Date();
+        const purchaseDate = toISOString(purchase.createdAt) ? new Date(toISOString(purchase.createdAt)!) : new Date();
         transactionMap.set(`purchase-${purchase.id}`, {
           id: `purchase-${purchase.id}`,
           date: purchaseDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
@@ -537,7 +478,7 @@ export default function Cashflowpage() {
   }
 
   const handleAddAccount = async () => {
-    if (!businessId || !firestore) return;
+    if (!businessId) return;
     
     const duplicate = bankAccounts.find(
       acc => acc.accountName.toLowerCase() === newAccount.accountName.toLowerCase() && 
@@ -563,9 +504,9 @@ export default function Cashflowpage() {
         isActive: true,
         isDefault: bankAccounts.length === 0,
         isPosDefault: newAccount.isPosDefault || bankAccounts.length === 0,
-        createdAt: Timestamp.now(),
+        createdAt: new Date().toISOString(),
       };
-      await addDoc(collection(firestore, 'businesses', businessId, 'bankAccounts'), accountData);
+      await sbAddDoc(`businesses/${businessId}/bankAccounts`, accountData);
       showToast('✅ Account added successfully');
       setActiveAction(null);
       setNewAccount({ accountName: '', bankName: '', initialBalance: 0, isPosDefault: false });
@@ -579,7 +520,7 @@ export default function Cashflowpage() {
   };
 
   const handleAddMoney = async () => {
-    if (!businessId || !firestore) return;
+    if (!businessId) return;
     try {
       const account = bankAccounts.find(a => a.id === moneyTransaction.accountId);
       if (!account) {
@@ -588,7 +529,7 @@ export default function Cashflowpage() {
       }
 
       const newBalance = account.currentBalance + moneyTransaction.amount;
-      await updateDoc(doc(firestore, 'businesses', businessId, 'bankAccounts', moneyTransaction.accountId), {
+      await sbUpdateDoc(`businesses/${businessId}/bankAccounts`, moneyTransaction.accountId, {
         currentBalance: newBalance,
       });
 
@@ -601,9 +542,9 @@ export default function Cashflowpage() {
         amount: moneyTransaction.amount,
         balanceAfter: newBalance,
         description: moneyTransaction.description,
-        createdAt: Timestamp.now(),
+        createdAt: new Date().toISOString(),
       };
-      await addDoc(collection(firestore, 'businesses', businessId, 'bankTransactions'), transactionData);
+      await sbAddDoc(`businesses/${businessId}/bankTransactions`, transactionData);
       showToast('✅ Money added successfully');
       setActiveAction(null);
       setMoneyTransaction({ accountId: '', amount: 0, description: '', category: '' });
@@ -615,7 +556,7 @@ export default function Cashflowpage() {
   };
 
   const handleTakeMoney = async () => {
-    if (!businessId || !firestore) return;
+    if (!businessId) return;
     try {
       const account = bankAccounts.find(a => a.id === moneyTransaction.accountId);
       if (!account) {
@@ -629,7 +570,7 @@ export default function Cashflowpage() {
       }
 
       const newBalance = account.currentBalance - moneyTransaction.amount;
-      await updateDoc(doc(firestore, 'businesses', businessId, 'bankAccounts', moneyTransaction.accountId), {
+      await sbUpdateDoc(`businesses/${businessId}/bankAccounts`, moneyTransaction.accountId, {
         currentBalance: newBalance,
       });
 
@@ -642,9 +583,9 @@ export default function Cashflowpage() {
         amount: moneyTransaction.amount,
         balanceAfter: newBalance,
         description: moneyTransaction.description,
-        createdAt: Timestamp.now(),
+        createdAt: new Date().toISOString(),
       };
-      await addDoc(collection(firestore, 'businesses', businessId, 'bankTransactions'), transactionData);
+      await sbAddDoc(`businesses/${businessId}/bankTransactions`, transactionData);
       showToast('✅ Money taken successfully');
       setActiveAction(null);
       setMoneyTransaction({ accountId: '', amount: 0, description: '', category: '' });
@@ -656,7 +597,7 @@ export default function Cashflowpage() {
   };
 
   const handleReduceStock = async () => {
-    if (!businessId || !firestore) return;
+    if (!businessId) return;
     try {
       const product = products.find(p => p.id === stockReduction.productId);
       if (!product) {
@@ -670,7 +611,7 @@ export default function Cashflowpage() {
       }
 
       const newStock = product.stock - stockReduction.quantity;
-      await updateDoc(doc(firestore, 'businesses', businessId, 'products', stockReduction.productId), {
+      await sbUpdateDoc(`businesses/${businessId}/products`, stockReduction.productId, {
         stock: newStock,
       });
 
@@ -685,9 +626,9 @@ export default function Cashflowpage() {
           amount: product.costPrice * stockReduction.quantity,
           balanceAfter: defaultAccount.currentBalance,
           description: `Stock reduction: ${product.name} - ${stockReduction.quantity} units. Reason: ${stockReduction.reason}`,
-          createdAt: Timestamp.now(),
+          createdAt: new Date().toISOString(),
         };
-        await addDoc(collection(firestore, 'businesses', businessId, 'bankTransactions'), transactionData);
+        await sbAddDoc(`businesses/${businessId}/bankTransactions`, transactionData);
       }
 
       showToast('✅ Stock reduced successfully');
@@ -702,7 +643,7 @@ export default function Cashflowpage() {
   };
 
   const handleAddPurchase = async () => {
-    if (!businessId || !firestore) return;
+    if (!businessId) return;
     setIsAddingPurchase(true);
     try {
       const product = products.find(p => p.id === stockAddition.productId);
@@ -737,46 +678,60 @@ export default function Cashflowpage() {
         paymentMethod = 'credit';
       }
 
-      await runTransaction(firestore, async (transaction) => {
-        const productRef = doc(firestore, 'businesses', businessId, 'products', stockAddition.productId);
-        const productDoc = await transaction.get(productRef);
-        
-        let accountDoc: any = null;
-        let accountRef: any = null;
-        if (stockAddition.bankAccountId && (stockAddition.paymentMethod === 'cash' || stockAddition.paymentMethod === 'partial')) {
-          accountRef = doc(firestore, 'businesses', businessId, 'bankAccounts', stockAddition.bankAccountId);
-          accountDoc = await transaction.get(accountRef);
-        }
-        
-        let supplierDoc: any = null;
-        let supplierRef: any = null;
-        if (stockAddition.supplierId) {
-          supplierRef = doc(firestore, 'businesses', businessId, 'suppliers', stockAddition.supplierId);
-          supplierDoc = await transaction.get(supplierRef);
-        }
+      const operations: Array<{ type: 'add' | 'update'; path: string; id?: string; data?: Record<string, unknown> }> = [];
 
-        if (productDoc.exists()) {
-          const currentStock = productDoc.data().stock || 0;
-          transaction.update(productRef, {
-            stock: currentStock + stockAddition.quantity,
+      const currentProduct = await fetchDocs(`businesses/${businessId}/products`, {
+        filters: [{ field: 'id', op: '=', value: stockAddition.productId }],
+        limit: 1,
+      });
+      if (currentProduct.length > 0) {
+        const currentStock = (currentProduct[0] as any).stock || (currentProduct[0] as any).stock_level || 0;
+        operations.push({
+          type: 'update',
+          path: `businesses/${businessId}/products`,
+          id: stockAddition.productId,
+          data: { stock: currentStock + stockAddition.quantity },
+        });
+      }
+
+      let accountDocData: any = null;
+      if (stockAddition.bankAccountId && (stockAddition.paymentMethod === 'cash' || stockAddition.paymentMethod === 'partial')) {
+        const accounts = await fetchDocs(`businesses/${businessId}/bankAccounts`, {
+          filters: [{ field: 'id', op: '=', value: stockAddition.bankAccountId }],
+          limit: 1,
+        });
+        accountDocData = accounts[0] || null;
+      }
+
+      let supplierDocData: any = null;
+      if (stockAddition.supplierId) {
+        const supplierDocs = await fetchDocs(`businesses/${businessId}/suppliers`, {
+          filters: [{ field: 'id', op: '=', value: stockAddition.supplierId }],
+          limit: 1,
+        });
+        supplierDocData = supplierDocs[0] || null;
+      }
+
+      if (stockAddition.paymentMethod === 'cash' || stockAddition.paymentMethod === 'partial') {
+        if (stockAddition.bankAccountId && accountDocData) {
+          const currentBalance = accountDocData.currentBalance || 0;
+          if (currentBalance < paidAmount) {
+            throw new Error('Insufficient bank balance');
+          }
+          operations.push({
+            type: 'update',
+            path: `businesses/${businessId}/bankAccounts`,
+            id: stockAddition.bankAccountId,
+            data: { currentBalance: currentBalance - paidAmount },
           });
-        }
 
-        if (stockAddition.paymentMethod === 'cash' || stockAddition.paymentMethod === 'partial') {
-          if (stockAddition.bankAccountId && accountDoc && accountDoc.exists()) {
-            const currentBalance = accountDoc.data().currentBalance || 0;
-            if (currentBalance < paidAmount) {
-              throw new Error('Insufficient bank balance');
-            }
-            transaction.update(accountRef, {
-              currentBalance: currentBalance - paidAmount,
-            });
-
-            const bankTxnRef = doc(collection(firestore, 'businesses', businessId, 'bankTransactions'));
-            transaction.set(bankTxnRef, {
+          operations.push({
+            type: 'add',
+            path: `businesses/${businessId}/bankTransactions`,
+            data: {
               transactionNumber: `TXN-${Date.now()}`,
               bankAccountId: stockAddition.bankAccountId,
-              accountName: accountDoc.data().accountName,
+              accountName: accountDocData.accountName,
               type: 'money_out',
               category: stockAddition.paymentMethod === 'partial' ? 'Purchase Payment' : 'Purchase',
               amount: paidAmount,
@@ -784,30 +739,37 @@ export default function Cashflowpage() {
               description: stockAddition.paymentMethod === 'partial' 
                 ? `Partial payment: ${product.name} - ${stockAddition.quantity} units`
                 : `Purchase: ${product.name} - ${stockAddition.quantity} units`,
-              createdAt: Timestamp.now(),
-            });
-          }
-        }
-
-        let supplierName = 'No Supplier';
-        if (stockAddition.supplierId && supplierDoc && supplierDoc.exists()) {
-          const supplierData = supplierDoc.data();
-          supplierName = supplierData.supplierName || supplierData.name || 'Unknown Supplier';
-          const currentBalance = supplierData.currentBalance || 0;
-          const newBalance = currentBalance + creditAmount;
-
-          transaction.update(supplierRef, {
-            currentBalance: newBalance,
-            totalPurchases: (supplierData.totalPurchases || 0) + purchaseAmount,
-            totalPayments: (supplierData.totalPayments || 0) + paidAmount,
-            purchaseCount: (supplierData.purchaseCount || 0) + 1,
-            paymentCount: paidAmount > 0 ? (supplierData.paymentCount || 0) + 1 : supplierData.paymentCount,
-            lastPurchaseDate: Timestamp.now(),
-            lastPaymentDate: paidAmount > 0 ? Timestamp.now() : supplierData.lastPaymentDate,
+              createdAt: new Date().toISOString(),
+            },
           });
+        }
+      }
 
-          const ledgerRef = doc(collection(firestore, 'businesses', businessId, 'supplierLedger'));
-          transaction.set(ledgerRef, {
+      let supplierName = 'No Supplier';
+      if (stockAddition.supplierId && supplierDocData) {
+        supplierName = supplierDocData.supplierName || supplierDocData.name || 'Unknown Supplier';
+        const currentBalance = supplierDocData.currentBalance || 0;
+        const newBalance = currentBalance + creditAmount;
+
+        operations.push({
+          type: 'update',
+          path: `businesses/${businessId}/suppliers`,
+          id: stockAddition.supplierId,
+          data: {
+            currentBalance: newBalance,
+            totalPurchases: (supplierDocData.totalPurchases || 0) + purchaseAmount,
+            totalPayments: (supplierDocData.totalPayments || 0) + paidAmount,
+            purchaseCount: (supplierDocData.purchaseCount || 0) + 1,
+            paymentCount: paidAmount > 0 ? (supplierDocData.paymentCount || 0) + 1 : supplierDocData.paymentCount,
+            lastPurchaseDate: new Date().toISOString(),
+            lastPaymentDate: paidAmount > 0 ? new Date().toISOString() : supplierDocData.lastPaymentDate,
+          },
+        });
+
+        operations.push({
+          type: 'add',
+          path: `businesses/${businessId}/supplierLedger`,
+          data: {
             supplierId: stockAddition.supplierId,
             businessId: businessId,
             type: 'purchase',
@@ -815,8 +777,8 @@ export default function Cashflowpage() {
             balanceAfter: newBalance,
             description: `Purchase: ${product.name} - ${stockAddition.quantity} units`,
             reference: stockAddition.referenceNumber,
-            date: Timestamp.now(),
-            createdAt: Timestamp.now(),
+            date: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
             createdBy: user?.id || 'system',
             createdByName: user?.name || 'System',
             metadata: {
@@ -830,11 +792,14 @@ export default function Cashflowpage() {
               purchaseDate: stockAddition.purchaseDate,
               notes: stockAddition.notes,
             },
-          });
+          },
+        });
 
-          if (paidAmount > 0) {
-            const paymentLedgerRef = doc(collection(firestore, 'businesses', businessId, 'supplierLedger'));
-            transaction.set(paymentLedgerRef, {
+        if (paidAmount > 0) {
+          operations.push({
+            type: 'add',
+            path: `businesses/${businessId}/supplierLedger`,
+            data: {
               supplierId: stockAddition.supplierId,
               businessId: businessId,
               type: 'payment',
@@ -842,8 +807,8 @@ export default function Cashflowpage() {
               balanceAfter: newBalance,
               description: `Payment for purchase: ${product.name}`,
               reference: `PAY-${Date.now()}`,
-              date: Timestamp.now(),
-              createdAt: Timestamp.now(),
+              date: new Date().toISOString(),
+              createdAt: new Date().toISOString(),
               createdBy: user?.id || 'system',
               createdByName: user?.name || 'System',
               metadata: {
@@ -851,12 +816,15 @@ export default function Cashflowpage() {
                 productName: product.name,
                 paymentMethod,
               },
-            });
-          }
+            },
+          });
         }
+      }
 
-        const receiptRef = doc(collection(firestore, 'businesses', businessId, 'stockReceipts'));
-        transaction.set(receiptRef, {
+      operations.push({
+        type: 'add',
+        path: `businesses/${businessId}/stockReceipts`,
+        data: {
           receiptNumber: stockAddition.referenceNumber,
           supplierId: stockAddition.supplierId || null,
           supplierName: supplierName,
@@ -876,9 +844,11 @@ export default function Cashflowpage() {
           receivedBy: user?.id || 'system',
           receivedByName: user?.name || 'System',
           notes: stockAddition.notes,
-          createdAt: Timestamp.now(),
-        });
+          createdAt: new Date().toISOString(),
+        },
       });
+
+      await runBatch(operations);
 
       showToast(`✅ Purchase recorded successfully${creditAmount > 0 ? ` - ${formatMoney(creditAmount)} added to credit` : ''}`);
       setActiveAction(null);
@@ -909,7 +879,7 @@ export default function Cashflowpage() {
   };
 
   const handlePaySupplier = async () => {
-    if (!businessId || !firestore) return;
+    if (!businessId) return;
     try {
       if (!supplierPayment.supplierId || supplierPayment.amount <= 0) {
         showToast('❌ Please select a supplier and enter a valid amount');
@@ -930,21 +900,31 @@ export default function Cashflowpage() {
       const paymentAmount = supplierPayment.amount;
       const newBalance = (supplier.currentBalance || 0) - paymentAmount;
 
-      await runTransaction(firestore, async (transaction) => {
-        const supplierRef = doc(firestore, 'businesses', businessId, 'suppliers', supplierPayment.supplierId);
-        const supplierDoc = await transaction.get(supplierRef);
-        
-        if (supplierDoc.exists()) {
-          const supplierData = supplierDoc.data();
-          transaction.update(supplierRef, {
+      const operations: Array<{ type: 'add' | 'update'; path: string; id?: string; data?: Record<string, unknown> }> = [];
+
+      const supplierDocs = await fetchDocs(`businesses/${businessId}/suppliers`, {
+        filters: [{ field: 'id', op: '=', value: supplierPayment.supplierId }],
+        limit: 1,
+      });
+
+      if (supplierDocs.length > 0) {
+        const supplierData = supplierDocs[0];
+        operations.push({
+          type: 'update',
+          path: `businesses/${businessId}/suppliers`,
+          id: supplierPayment.supplierId,
+          data: {
             currentBalance: newBalance,
             totalPayments: (supplierData.totalPayments || 0) + paymentAmount,
             paymentCount: (supplierData.paymentCount || 0) + 1,
-            lastPaymentDate: Timestamp.now(),
-          });
+            lastPaymentDate: new Date().toISOString(),
+          },
+        });
 
-          const ledgerRef = doc(collection(firestore, 'businesses', businessId, 'supplierLedger'));
-          transaction.set(ledgerRef, {
+        operations.push({
+          type: 'add',
+          path: `businesses/${businessId}/supplierLedger`,
+          data: {
             supplierId: supplierPayment.supplierId,
             businessId: businessId,
             type: 'payment',
@@ -952,43 +932,54 @@ export default function Cashflowpage() {
             balanceAfter: newBalance,
             description: supplierPayment.description || `Payment to ${supplier.supplierName || supplier.businessName}`,
             reference: `PAY-${Date.now()}`,
-            date: Timestamp.now(),
-            createdAt: Timestamp.now(),
+            date: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
             createdBy: user?.id || 'system',
             createdByName: user?.name || 'System',
             metadata: {
               paymentMethod: supplierPayment.paymentMethod,
             },
+          },
+        });
+
+        if (supplierPayment.bankAccountId && (supplierPayment.paymentMethod === 'cash' || supplierPayment.paymentMethod === 'transfer' || supplierPayment.paymentMethod === 'pos')) {
+          const accounts = await fetchDocs(`businesses/${businessId}/bankAccounts`, {
+            filters: [{ field: 'id', op: '=', value: supplierPayment.bankAccountId }],
+            limit: 1,
           });
+          if (accounts.length > 0) {
+            const accountDocData = accounts[0];
+            const currentBalance = accountDocData.currentBalance || 0;
+            if (currentBalance < paymentAmount) {
+              throw new Error('Insufficient bank balance');
+            }
+            operations.push({
+              type: 'update',
+              path: `businesses/${businessId}/bankAccounts`,
+              id: supplierPayment.bankAccountId,
+              data: { currentBalance: currentBalance - paymentAmount },
+            });
 
-          if (supplierPayment.bankAccountId && (supplierPayment.paymentMethod === 'cash' || supplierPayment.paymentMethod === 'transfer' || supplierPayment.paymentMethod === 'pos')) {
-            const accountRef = doc(firestore, 'businesses', businessId, 'bankAccounts', supplierPayment.bankAccountId);
-            const accountDoc = await transaction.get(accountRef);
-            if (accountDoc.exists()) {
-              const currentBalance = accountDoc.data().currentBalance || 0;
-              if (currentBalance < paymentAmount) {
-                throw new Error('Insufficient bank balance');
-              }
-              transaction.update(accountRef, {
-                currentBalance: currentBalance - paymentAmount,
-              });
-
-              const bankTxnRef = doc(collection(firestore, 'businesses', businessId, 'bankTransactions'));
-              transaction.set(bankTxnRef, {
+            operations.push({
+              type: 'add',
+              path: `businesses/${businessId}/bankTransactions`,
+              data: {
                 transactionNumber: `TXN-${Date.now()}`,
                 bankAccountId: supplierPayment.bankAccountId,
-                accountName: accountDoc.data().accountName,
+                accountName: accountDocData.accountName,
                 type: 'money_out',
                 category: 'Supplier Payment',
                 amount: paymentAmount,
                 balanceAfter: currentBalance - paymentAmount,
                 description: `Payment to ${supplier.supplierName || supplier.businessName}`,
-                createdAt: Timestamp.now(),
-              });
-            }
+                createdAt: new Date().toISOString(),
+              },
+            });
           }
         }
-      });
+      }
+
+      await runBatch(operations);
 
       showToast(`✅ Payment of ${formatMoney(paymentAmount)} made to ${supplier.supplierName || supplier.businessName}`);
       setActiveAction(null);

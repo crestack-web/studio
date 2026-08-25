@@ -222,8 +222,8 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ hasAccess, sessionSale
         }
         const saleRecords: SalesHistoryItem[] = filtered.map((sale) => ({
           id: sale.id,
-          time: sale.createdAt?.toDate
-            ? new Date(sale.createdAt.toDate()).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          time: sale.createdAt
+            ? new Date(sale.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
             : '',
           items: (sale.products || []).map((p: any) => `${p.name} ×${p.quantity}`).join(', '),
           amount: sale.total,

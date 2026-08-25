@@ -4,9 +4,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
-import { useFirestore } from '@/firebase/provider';
-import { collection, getDocs, query, orderBy, limit, Timestamp, doc, getDoc, where, updateDoc, runTransaction } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
+import { fetchDocs, fetchDoc } from '@/lib/supabase-client-data';
 import { getFirestoreUserId } from '@/lib/supabase-auth';
 import styles from './Statementpage.module.css';
 
@@ -71,7 +69,6 @@ export function StatementPage() {
   const { showToast } = useApp();
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();
-  const firestore = useFirestore();
   const printRef = useRef<HTMLDivElement>(null);
   
   // Custom date range state
@@ -94,15 +91,11 @@ export function StatementPage() {
     totalCOGS: 0,
   });
 
-  // Fetch real data from Firestore
   useEffect(() => {
     async function fetchData() {
-      if (!firestore) return;
-      
       try {
         setLoading(true);
 
-        // Get user's business ID
         const userIds = getFirestoreUserId();
         
         if (!userIds) {
@@ -111,53 +104,49 @@ export function StatementPage() {
           return;
         }
 
-        const userDoc = await getDoc(doc(firestore, 'users', userIds.firestoreUid));
-        if (!userDoc.exists()) {
+        const userData = await fetchDoc('users', userIds.firestoreUid);
+        if (!userData) {
           console.warn('User document not found');
           setLoading(false);
           return;
         }
 
-        const businessId = userDoc.data().businessId;
+        const businessId = userData.businessId as string;
         if (!businessId) {
           console.warn('Business ID not found');
           setLoading(false);
           return;
         }
 
-        // Parse date range
-        const startTimestamp = Timestamp.fromDate(new Date(startDate));
-        const endDate_next = new Date(endDate);
-        endDate_next.setDate(endDate_next.getDate() + 1); // Include end date
-        const endTimestamp = Timestamp.fromDate(endDate_next);
+        const endDateNext = new Date(endDate);
+        endDateNext.setDate(endDateNext.getDate() + 1);
+        const startISO = new Date(startDate).toISOString();
+        const endISO = endDateNext.toISOString();
 
-        // Fetch sales from business collection
-        const salesQuery = query(
-          collection(firestore, 'businesses', businessId, 'sales'),
-          where('createdAt', '>=', startTimestamp),
-          where('createdAt', '<', endTimestamp),
-          orderBy('createdAt', 'desc')
-        );
+        const salesDocs = await fetchDocs('businesses/' + businessId + '/sales', {
+          filters: [
+            { field: 'createdAt', op: '>=', value: startISO },
+            { field: 'createdAt', op: '<', value: endISO },
+          ],
+          orderBy: { field: 'createdAt', ascending: false },
+        });
 
-        const salesSnapshot = await getDocs(salesQuery);
         let totalRevenue = 0;
         let totalCOGS = 0;
-
         const saleTransactions: Transaction[] = [];
         let runningBalance = 0;
 
-        salesSnapshot.forEach((doc) => {
-          const data = doc.data();
-          const amount = data.total || data.totalRevenue || 0;
-          const date = data.createdAt?.toDate() || new Date();
+        for (const data of salesDocs) {
+          const amount = (data.total as number) || (data.totalRevenue as number) || 0;
+          const date = data.createdAt ? new Date(data.createdAt as string) : new Date();
           
           totalRevenue += amount;
           runningBalance += amount;
 
-          // Calculate actual COGS from products
+          const products = (data.products || data.items || []) as any[];
           let saleCOGS = 0;
-          if (data.products && Array.isArray(data.products)) {
-            saleCOGS = data.products.reduce((sum: number, p: any) => {
+          if (products.length > 0) {
+            saleCOGS = products.reduce((sum: number, p: any) => {
               const costPrice = p.costPrice || p.cost || 0;
               const quantity = p.quantity || 1;
               return sum + (costPrice * quantity);
@@ -166,55 +155,50 @@ export function StatementPage() {
           totalCOGS += saleCOGS;
 
           saleTransactions.push({
-            id: doc.id,
+            id: data.id as string,
             date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-            ref: `SALE-${doc.id.substring(0, 5).toUpperCase()}`,
+            ref: `SALE-${(data.id as string).substring(0, 5).toUpperCase()}`,
             type: 'Sale',
-            description: `Sale (${data.products?.length || 0} items)`,
+            description: `Sale (${products.length} items)`,
             debit: 0,
             credit: amount,
             balance: runningBalance,
           });
+        }
+
+        const expensesDocs = await fetchDocs('businesses/' + businessId + '/expenses', {
+          filters: [
+            { field: 'createdAt', op: '>=', value: startISO },
+            { field: 'createdAt', op: '<', value: endISO },
+          ],
+          orderBy: { field: 'createdAt', ascending: false },
         });
 
-        // Fetch expenses from business collection
-        const expensesQuery = query(
-          collection(firestore, 'businesses', businessId, 'expenses'),
-          where('createdAt', '>=', startTimestamp),
-          where('createdAt', '<', endTimestamp),
-          orderBy('createdAt', 'desc')
-        );
-
-        const expensesSnapshot = await getDocs(expensesQuery);
         let totalExpenses = 0;
-
         const expenseTransactions: Transaction[] = [];
 
-        expensesSnapshot.forEach(doc => {
-          const data = doc.data();
-          const amount = data.amount || 0;
-          const date = data.createdAt?.toDate() || new Date();
+        for (const data of expensesDocs) {
+          const amount = (data.amount as number) || 0;
+          const date = data.createdAt ? new Date(data.createdAt as string) : new Date();
 
           totalExpenses += amount;
           runningBalance -= amount;
 
           expenseTransactions.push({
-            id: doc.id,
+            id: data.id as string,
             date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-            ref: `EXP-${doc.id.substring(0, 5).toUpperCase()}`,
+            ref: `EXP-${(data.id as string).substring(0, 5).toUpperCase()}`,
             type: 'Expense',
             description: `${data.category || 'Expense'}: ${data.title || data.description || 'Expense'}`,
             debit: amount,
             credit: 0,
             balance: runningBalance,
           });
-        });
+        }
 
-        // Combine and sort transactions
         const allTransactions = [...saleTransactions, ...expenseTransactions]
           .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-        // Recalculate running balance
         let balance = 0;
         allTransactions.reverse().forEach(tx => {
           balance += (tx.credit - tx.debit);
@@ -222,37 +206,30 @@ export function StatementPage() {
         });
         allTransactions.reverse();
 
-        // Fetch products to calculate opening and closing stock values
-        const productsQuery = query(
-          collection(firestore, 'businesses', businessId, 'products'),
-          where('active', '==', true)
-        );
-
-        const productsSnapshot = await getDocs(productsQuery);
-        let closingStock = 0;
-        let openingStock = 0;
-        const stockSummary: StockItem[] = [];
-
-        // Create a map to track sales per product
-        const productSalesMap = new Map<string, number>();
-        
-        salesSnapshot.forEach((doc) => {
-          const data = doc.data();
-          if (data.products && Array.isArray(data.products)) {
-            data.products.forEach((p: any) => {
-              const productId = p.productId || p.id;
-              const quantity = p.quantity || 1;
-              productSalesMap.set(productId, (productSalesMap.get(productId) || 0) + quantity);
-            });
-          }
+        const productsDocs = await fetchDocs('businesses/' + businessId + '/products', {
+          filters: [{ field: 'active', op: '=', value: true }],
         });
 
-        productsSnapshot.forEach(doc => {
-          const data = doc.data();
-          const currentStock = data.stock || 0;
-          const costPrice = data.cost || data.costPrice || 0;
-          const soldQuantity = productSalesMap.get(doc.id) || 0;
-          const openingStockQuantity = currentStock + soldQuantity; // Opening stock = current + sold
+        let closingStock = 0;
+        let openingStock = 0;
+        const stockSummaryItems: StockItem[] = [];
+
+        const productSalesMap = new Map<string, number>();
+        
+        for (const data of salesDocs) {
+          const products = (data.products || data.items || []) as any[];
+          for (const p of products) {
+            const productId = p.productId || p.id;
+            const quantity = p.quantity || 1;
+            productSalesMap.set(productId, (productSalesMap.get(productId) || 0) + quantity);
+          }
+        }
+
+        for (const data of productsDocs) {
+          const currentStock = (data.stock as number) || (data.stockLevel as number) || 0;
+          const costPrice = (data.cost as number) || (data.costPrice as number) || 0;
+          const soldQuantity = productSalesMap.get(data.id as string) || 0;
+          const openingStockQuantity = currentStock + soldQuantity;
           
           const openingValue = openingStockQuantity * costPrice;
           const closingValue = currentStock * costPrice;
@@ -260,8 +237,8 @@ export function StatementPage() {
           openingStock += openingValue;
           closingStock += closingValue;
 
-          stockSummary.push({
-            product: data.name || 'Unknown Product',
+          stockSummaryItems.push({
+            product: (data.name as string) || 'Unknown Product',
             open: openingStockQuantity,
             sold: soldQuantity,
             loss: 0,
@@ -269,7 +246,7 @@ export function StatementPage() {
             close: currentStock,
             value: closingValue,
           });
-        });
+        }
 
         setTransactions(allTransactions);
         const grossProfit = totalRevenue - totalCOGS;
@@ -282,7 +259,7 @@ export function StatementPage() {
           openingStock,
           totalCOGS,
         });
-        setStockSummary(stockSummary);
+        setStockSummary(stockSummaryItems);
       } catch (error) {
         console.error('Error fetching statement data:', error);
         showToast('Failed to load statement data');
@@ -292,7 +269,7 @@ export function StatementPage() {
     }
 
     fetchData();
-  }, [firestore, showToast, startDate, endDate]);
+  }, [showToast, startDate, endDate]);
 
   const stmtId = `STMT-${Date.now().toString().substring(5)}`;
 

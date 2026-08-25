@@ -5,9 +5,8 @@ import {
   getDaysUntilStockout,
 } from './inventoryData';
 import { useCurrency } from './CurrencyContext';
-import { initializeFirebase } from '@/firebase';
 import { getAuthCurrentUser, getFirestoreUserId } from '@/lib/supabase-auth';
-import { doc, getDoc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
+import { fetchDoc, updateDoc } from '@/lib/supabase-client-data';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -82,12 +81,10 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
     if (!qty || isNaN(qty) || !product) return;
 
     try {
-      const { firestore } = initializeFirebase();
       const userIds = getFirestoreUserId();
       
       if (!userIds) return;
 
-      // Keep the Firebase-shaped shape used below for businessId and the movement entry
       const user = {
         uid: userIds.firestoreUid,
         email: userIds.email,
@@ -95,7 +92,10 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
       };
 
       const businessId = user.uid;
-      const productRef = doc(firestore, 'businesses', businessId, 'products', product.id);
+      const collectionPath = `businesses/${businessId}/products`;
+
+      const currentProduct = await fetchDoc<Record<string, unknown>>(collectionPath, product.id);
+      const currentMovement = Array.isArray(currentProduct?.movement) ? (currentProduct.movement as unknown[]) : Array.isArray(product.movement) ? product.movement : [];
       
       let newStock = product.stock;
       if (adjustType === 'add') newStock = product.stock + qty;
@@ -116,10 +116,9 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
         },
       };
 
-      await updateDoc(productRef, {
+      await updateDoc(collectionPath, product.id, {
         stock: newStock,
-        movement: arrayUnion(movementEntry),
-        updatedAt: Timestamp.now(),
+        movement: [...currentMovement, movementEntry],
       });
 
       setSaved(true);

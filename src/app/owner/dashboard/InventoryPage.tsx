@@ -7,8 +7,8 @@ import DeadStockInsights from './DeadStockInsights';
 import ProductDetailModal from './ProductDetailModal';
 import { AddProductPage } from './Addproductpage';
 import { useTranslation } from './LangContext';
-import { useFirestore } from '@/firebase/provider';
-import { collection, getDocs, query, where, addDoc, updateDoc, doc, getDoc, runTransaction, deleteDoc } from 'firebase/firestore';
+import { fetchDocs, fetchDoc, addDoc as sbAddDoc, updateDoc as sbUpdateDoc, deleteDoc as sbDeleteDoc, runBatch } from '@/lib/supabase-client-data';
+import { getSupabase } from '@/lib/supabase';
 import { useApp } from './AppContext';
 import { useBranch } from '@/context/BranchContext';
 import { sendOutOfStockAlertEmail, sendOverstockWarningEmail } from '@/services/email/inventory-emails';
@@ -17,7 +17,6 @@ import './inventory.css';
 const InventoryPage: React.FC = () => {
   const { t } = useTranslation();
   const { showToast, user } = useApp();
-  const firestore = useFirestore();
   const { isProUser, branches, businessId, selectedBranchId } = useBranch();
   
   const [products, setProducts] = useState<Product[]>([]);
@@ -38,7 +37,7 @@ const InventoryPage: React.FC = () => {
 
   useEffect(() => {
     const fetchProducts = async () => {
-      if (!user?.id || !firestore) {
+      if (!user?.id) {
         setIsLoading(true);
         return;
       }
@@ -52,13 +51,12 @@ const InventoryPage: React.FC = () => {
           return;
         }
 
-        // Load business category from Firestore
+        // Load business category from Supabase
         try {
-          const userSnapshot = await getDocs(query(collection(firestore, 'users'), where('__name__', '==', user.id)));
-          if (!userSnapshot.empty) {
-            const userData = userSnapshot.docs[0].data();
-            if (userData.category || userData.businessType) {
-              setBusinessCategory((userData.category || userData.businessType).toLowerCase());
+          const { data: userData } = await getSupabase().from('users').select('*').eq('id', user.id).single();
+          if (userData) {
+            if (userData.category || userData.business_type) {
+              setBusinessCategory((userData.category || userData.business_type).toLowerCase());
             }
           }
         } catch (e) {
@@ -66,63 +64,49 @@ const InventoryPage: React.FC = () => {
         }
 
         // Determine products collection path based on selected branch
-        let productsQuery;
+        let productsPath: string;
+        let productsFilters = [{ field: 'status', op: '=' as const, value: 'active' }];
         if (selectedBranchId && isProUser) {
-          productsQuery = query(
-            collection(firestore, 'businesses', effectiveBusinessId, 'branches', selectedBranchId, 'products'),
-            where('active', '==', true)
-          );
+          productsPath = `businesses/${effectiveBusinessId}/branches/${selectedBranchId}/products`;
         } else {
-          productsQuery = query(
-            collection(firestore, 'businesses', effectiveBusinessId, 'products'),
-            where('active', '==', true)
-          );
+          productsPath = `businesses/${effectiveBusinessId}/products`;
         }
         
-        const productsSnapshot = await getDocs(productsQuery);
-        const productsList: Product[] = [];
-        
-        productsSnapshot.forEach(doc => {
-          const data = doc.data();
-          const lastSaleDate = data.lastSaleDate?.toDate ? data.lastSaleDate.toDate() : null;
-          productsList.push({
-            id: doc.id,
-            name: data.name || '',
-            sku: data.sku || '',
-            category: data.category || '',
-            stock: data.stock || 0,
-            currentStock: data.stock || 0,
-            costPrice: data.cost || data.costPrice || 0,
-            sellingPrice: data.price || 0,
-            unitsSold30d: data.unitsSold30d || 0,
-            totalSalesCount: data.totalSalesCount || 0,
-            lastSaleDate: lastSaleDate ? lastSaleDate.toLocaleDateString() : '',
-            lastSalePrice: data.lastSalePrice || 0,
-            reorderThreshold: data.lowStockThreshold || 10,
-            suggestedReorder: 0,
-            emoji: data.attributes?.emoji || '',
-            trend: 'flat' as const,
-            movement: [],
-            imageUrl: data.imageUrl || '',
-          });
+        const productsData = await fetchDocs(productsPath, {
+          filters: productsFilters,
         });
+        
+        const productsList: Product[] = productsData.map((data: any) => ({
+          id: data.id,
+          name: data.name || '',
+          sku: data.sku || '',
+          category: data.category || '',
+          stock: data.stock || 0,
+          currentStock: data.stock || 0,
+          costPrice: data.cost || data.costPrice || 0,
+          sellingPrice: data.price || 0,
+          unitsSold30d: data.unitsSold30d || 0,
+          totalSalesCount: data.totalSalesCount || 0,
+          lastSaleDate: data.lastSaleDate || '',
+          lastSalePrice: data.lastSalePrice || 0,
+          reorderThreshold: data.lowStockThreshold || 10,
+          suggestedReorder: 0,
+          emoji: data.attributes?.emoji || '',
+          trend: 'flat' as const,
+          movement: [],
+          imageUrl: data.imageUrl || '',
+        }));
 
         setProducts(productsList);
         
         // Load stock locations
         try {
-          const locationsQuery = collection(firestore, 'businesses', effectiveBusinessId, 'stockLocations');
-          const locationsSnapshot = await getDocs(locationsQuery);
-          const loadedLocations: Array<{ id: string; name: string; type: string }> = [];
-          
-          locationsSnapshot.forEach(doc => {
-            const data = doc.data();
-            loadedLocations.push({
-              id: doc.id,
-              name: data.name,
-              type: data.type,
-            });
-          });
+          const locationsData = await fetchDocs(`businesses/${effectiveBusinessId}/stockLocations`);
+          const loadedLocations: Array<{ id: string; name: string; type: string }> = locationsData.map((data: any) => ({
+            id: data.id,
+            name: data.name,
+            type: data.type,
+          }));
           
           // Deduplicate locations by name to prevent duplicates
           const uniqueLocations = loadedLocations.filter((location, index, self) =>
@@ -145,7 +129,6 @@ const InventoryPage: React.FC = () => {
       } catch (err: any) {
         console.error('Error fetching products:', err);
         
-        // Handle Firebase permissions error specifically
         if (err.code === 'permission-denied' || err.message?.includes('Missing or insufficient permissions')) {
           setError('You do not have permission to access this data. Please contact your administrator or check your account permissions.');
         } else {
@@ -159,7 +142,7 @@ const InventoryPage: React.FC = () => {
     };
 
     fetchProducts();
-  }, [user?.id, firestore, selectedBranchId, isProUser]);
+  }, [user?.id, businessId, selectedBranchId, isProUser]);
 
   const handleProductUpdate = async (updated: Product) => {
     try {
@@ -169,25 +152,24 @@ const InventoryPage: React.FC = () => {
         return;
       }
 
-      // Update product in Firestore
-      const productRef = doc(firestore, 'businesses', effectiveBusinessId, 'products', updated.id);
-      await updateDoc(productRef, {
+      // Update product in Supabase
+      await sbUpdateDoc(`businesses/${effectiveBusinessId}/products`, updated.id, {
         price: updated.sellingPrice,
         cost: updated.costPrice,
         lowStockThreshold: updated.reorderThreshold,
         updatedAt: new Date(),
       });
 
-      console.log('✅ Product updated in Firestore:', updated.id);
+      console.log('✅ Product updated in Supabase:', updated.id);
       showToast('✅ Product updated successfully');
 
       // Check for out of stock or overstock conditions and send alerts
       try {
-        const ownerDoc = await getDoc(doc(firestore, 'users', user.id));
-        const businessName = ownerDoc.data()?.businessName || 'Your Business';
-        const ownerEmail = ownerDoc.data()?.email;
-        const ownerName = ownerDoc.data()?.fullName || ownerDoc.data()?.displayName || 'Business Owner';
-        const emailPrefs = ownerDoc.data()?.emailPreferences;
+        const ownerData = await fetchDoc(`users`, user.id) as any;
+        const businessName = ownerData?.businessName || 'Your Business';
+        const ownerEmail = ownerData?.email;
+        const ownerName = ownerData?.fullName || ownerData?.displayName || 'Business Owner';
+        const emailPrefs = ownerData?.emailPreferences;
 
         if (emailPrefs?.outOfStock !== false && ownerEmail) {
           // Check if out of stock
@@ -239,7 +221,7 @@ const InventoryPage: React.FC = () => {
 
   // Handle product transfer between warehouses or branches
   const handleProductTransfer = async (product: Product, target: string, quantity: number, type: 'branch' | 'warehouse') => {
-    if (!businessId || !firestore) {
+    if (!businessId) {
       showToast('❌ Business information not available');
       return;
     }
@@ -250,74 +232,82 @@ const InventoryPage: React.FC = () => {
     }
 
     try {
-      await runTransaction(firestore, async (transaction) => {
-        if (type === 'warehouse') {
-          // Transfer between warehouse locations (main_store, back_store, warehouse)
-          const productRef = doc(firestore, 'businesses', businessId, 'products', product.id);
-          const productDoc = await transaction.get(productRef);
-          
-          if (!productDoc.exists()) {
-            throw new Error('Product not found');
-          }
+      if (type === 'warehouse') {
+        // Transfer between warehouse locations (main_store, back_store, warehouse)
+        const productData = await fetchDoc(`businesses/${businessId}/products`, product.id) as any;
+        
+        if (!productData) {
+          throw new Error('Product not found');
+        }
 
-          const data = productDoc.data();
-          const stockByLocation = data.stockByLocation || {};
+        const stockByLocation = productData.stockByLocation || {};
+        const sourceStock = stockByLocation[sourceLocation] || 0;
+        const targetStock = stockByLocation[target] || 0;
 
-          const sourceStock = stockByLocation[sourceLocation] || 0;
-          const targetStock = stockByLocation[target] || 0;
+        if (sourceStock < quantity) {
+          throw new Error(`Insufficient stock in ${sourceLocation}`);
+        }
 
-          if (sourceStock < quantity) {
-            throw new Error(`Insufficient stock in ${sourceLocation}`);
-          }
+        stockByLocation[sourceLocation] = sourceStock - quantity;
+        stockByLocation[target] = targetStock + quantity;
 
-          stockByLocation[sourceLocation] = sourceStock - quantity;
-          stockByLocation[target] = targetStock + quantity;
+        const transferId = crypto.randomUUID();
 
-          transaction.update(productRef, {
-            stockByLocation,
-            updatedAt: new Date(),
-          });
+        await runBatch([
+          {
+            type: 'update',
+            path: `businesses/${businessId}/products`,
+            id: product.id,
+            data: { stockByLocation, updatedAt: new Date() },
+          },
+          {
+            type: 'add',
+            path: `businesses/${businessId}/stockTransfers`,
+            id: transferId,
+            data: {
+              productId: product.id,
+              productName: product.name,
+              fromLocation: sourceLocation,
+              toLocation: target,
+              quantity: quantity,
+              transferredBy: user.id,
+              transferredAt: new Date(),
+            },
+          },
+        ]);
+      } else {
+        // Transfer between branches (sequential operations, best-effort)
+        const sourceProductData = await fetchDoc(`businesses/${businessId}/products`, product.id) as any;
+        
+        if (!sourceProductData) {
+          throw new Error('Source product not found');
+        }
 
-          // Log the transfer
-          const transferLogRef = doc(collection(firestore, 'businesses', businessId, 'stockTransfers'));
-          transaction.set(transferLogRef, {
-            productId: product.id,
-            productName: product.name,
-            fromLocation: sourceLocation,
-            toLocation: target,
-            quantity: quantity,
-            transferredBy: user.id,
-            transferredAt: new Date(),
+        const sourceStock = sourceProductData.stock || 0;
+
+        if (sourceStock < quantity) {
+          throw new Error('Insufficient stock in source branch');
+        }
+
+        // Check if target product exists
+        const targetProductData = await fetchDoc(`businesses/${businessId}/branches/${target}/products`, product.id) as any;
+
+        const ops: Array<{ type: 'add' | 'update'; path: string; id: string; data: Record<string, unknown> }> = [];
+
+        if (targetProductData) {
+          const targetStock = targetProductData.stock || 0;
+          ops.push({
+            type: 'update',
+            path: `businesses/${businessId}/branches/${target}/products`,
+            id: product.id,
+            data: { stock: targetStock + quantity, updatedAt: new Date() },
           });
         } else {
-          // Transfer between branches (existing logic)
-          const sourceProductRef = doc(firestore, 'businesses', businessId, 'products', product.id);
-          const sourceProductDoc = await transaction.get(sourceProductRef);
-          
-          if (!sourceProductDoc.exists()) {
-            throw new Error('Source product not found');
-          }
-
-          const sourceData = sourceProductDoc.data();
-          const sourceStock = sourceData.stock || 0;
-
-          if (sourceStock < quantity) {
-            throw new Error('Insufficient stock in source branch');
-          }
-
-          const targetProductRef = doc(firestore, 'businesses', businessId, 'branches', target, 'products', product.id);
-          const targetProductDoc = await transaction.get(targetProductRef);
-
-          if (targetProductDoc.exists()) {
-            const targetData = targetProductDoc.data();
-            const targetStock = targetData.stock || 0;
-            
-            transaction.update(targetProductRef, {
-              stock: targetStock + quantity,
-              updatedAt: new Date(),
-            });
-          } else {
-            transaction.set(targetProductRef, {
+          ops.push({
+            type: 'add',
+            path: `businesses/${businessId}/branches/${target}/products`,
+            id: product.id,
+            data: {
               name: product.name,
               sku: product.sku,
               category: product.category,
@@ -329,16 +319,23 @@ const InventoryPage: React.FC = () => {
               active: true,
               createdAt: new Date(),
               updatedAt: new Date(),
-            });
-          }
-
-          transaction.update(sourceProductRef, {
-            stock: sourceStock - quantity,
-            updatedAt: new Date(),
+            },
           });
+        }
 
-          const transferLogRef = doc(collection(firestore, 'businesses', businessId, 'transfers'));
-          transaction.set(transferLogRef, {
+        ops.push({
+          type: 'update',
+          path: `businesses/${businessId}/products`,
+          id: product.id,
+          data: { stock: sourceStock - quantity, updatedAt: new Date() },
+        });
+
+        const transferId = crypto.randomUUID();
+        ops.push({
+          type: 'add',
+          path: `businesses/${businessId}/transfers`,
+          id: transferId,
+          data: {
             productId: product.id,
             productName: product.name,
             fromBranch: businessId,
@@ -346,40 +343,38 @@ const InventoryPage: React.FC = () => {
             quantity: quantity,
             transferredBy: user.id,
             transferredAt: new Date(),
-          });
-        }
-      });
+          },
+        });
+
+        await runBatch(ops);
+      }
 
       showToast('✅ Product transferred successfully');
       
       // Refresh products
-      const productsSnapshot = await getDocs(query(
-        collection(firestore, 'businesses', businessId, 'products'),
-        where('active', '==', true)
-      ));
-      
-      const productsList: Product[] = [];
-      productsSnapshot.forEach(doc => {
-        const data = doc.data();
-        productsList.push({
-          id: doc.id,
-          name: data.name || '',
-          sku: data.sku || '',
-          category: data.category || '',
-          stock: data.stock || 0,
-          currentStock: data.stock || 0,
-          costPrice: data.cost || data.costPrice || 0,
-          sellingPrice: data.price || 0,
-          unitsSold30d: data.unitsSold30d || 0,
-          lastSaleDate: data.lastSaleDate || '',
-          reorderThreshold: data.lowStockThreshold || 10,
-          suggestedReorder: 0,
-          emoji: data.attributes?.emoji || '',
-          trend: 'flat' as const,
-          movement: [],
-          imageUrl: data.imageUrl || '',
-        });
+      const effectiveBusinessId = user.businessId || businessId;
+      const productsData = await fetchDocs(`businesses/${effectiveBusinessId}/products`, {
+        filters: [{ field: 'status', op: '=', value: 'active' }],
       });
+      
+      const productsList: Product[] = productsData.map((data: any) => ({
+        id: data.id,
+        name: data.name || '',
+        sku: data.sku || '',
+        category: data.category || '',
+        stock: data.stock || 0,
+        currentStock: data.stock || 0,
+        costPrice: data.cost || data.costPrice || 0,
+        sellingPrice: data.price || 0,
+        unitsSold30d: data.unitsSold30d || 0,
+        lastSaleDate: data.lastSaleDate || '',
+        reorderThreshold: data.lowStockThreshold || 10,
+        suggestedReorder: 0,
+        emoji: data.attributes?.emoji || '',
+        trend: 'flat' as const,
+        movement: [],
+        imageUrl: data.imageUrl || '',
+      }));
 
       setProducts(productsList);
       setShowTransferModal(false);
@@ -392,7 +387,7 @@ const InventoryPage: React.FC = () => {
 
   // Handle product deletion
   const handleDeleteProduct = async (product: Product) => {
-    if (!businessId || !firestore) {
+    if (!businessId) {
       showToast('❌ Business information not available');
       return;
     }
@@ -404,39 +399,34 @@ const InventoryPage: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      const productRef = doc(firestore, 'businesses', businessId, 'products', product.id);
-      await deleteDoc(productRef);
+      await sbDeleteDoc(`businesses/${businessId}/products`, product.id);
       
       showToast('✅ Product deleted successfully');
       
       // Refresh products
-      const productsSnapshot = await getDocs(query(
-        collection(firestore, 'businesses', businessId, 'products'),
-        where('active', '==', true)
-      ));
-      
-      const productsList: Product[] = [];
-      productsSnapshot.forEach(doc => {
-        const data = doc.data();
-        productsList.push({
-          id: doc.id,
-          name: data.name || '',
-          sku: data.sku || '',
-          category: data.category || '',
-          stock: data.stock || 0,
-          currentStock: data.stock || 0,
-          costPrice: data.cost || data.costPrice || 0,
-          sellingPrice: data.price || 0,
-          unitsSold30d: data.unitsSold30d || 0,
-          lastSaleDate: data.lastSaleDate || '',
-          reorderThreshold: data.lowStockThreshold || 10,
-          suggestedReorder: 0,
-          emoji: data.attributes?.emoji || '',
-          trend: 'flat' as const,
-          movement: [],
-          imageUrl: data.imageUrl || '',
-        });
+      const effectiveBusinessId = user.businessId || businessId;
+      const productsData = await fetchDocs(`businesses/${effectiveBusinessId}/products`, {
+        filters: [{ field: 'status', op: '=', value: 'active' }],
       });
+      
+      const productsList: Product[] = productsData.map((data: any) => ({
+        id: data.id,
+        name: data.name || '',
+        sku: data.sku || '',
+        category: data.category || '',
+        stock: data.stock || 0,
+        currentStock: data.stock || 0,
+        costPrice: data.cost || data.costPrice || 0,
+        sellingPrice: data.price || 0,
+        unitsSold30d: data.unitsSold30d || 0,
+        lastSaleDate: data.lastSaleDate || '',
+        reorderThreshold: data.lowStockThreshold || 10,
+        suggestedReorder: 0,
+        emoji: data.attributes?.emoji || '',
+        trend: 'flat' as const,
+        movement: [],
+        imageUrl: data.imageUrl || '',
+      }));
       
       setProducts(productsList);
     } catch (error: any) {
@@ -447,7 +437,7 @@ const InventoryPage: React.FC = () => {
 
   // Handle product deactivation
   const handleDeactivateProduct = async (product: Product) => {
-    if (!businessId || !firestore) {
+    if (!businessId) {
       showToast('❌ Business information not available');
       return;
     }
@@ -459,39 +449,34 @@ const InventoryPage: React.FC = () => {
     if (!confirmed) return;
 
     try {
-      const productRef = doc(firestore, 'businesses', businessId, 'products', product.id);
-      await updateDoc(productRef, { active: false, updatedAt: new Date() });
+      await sbUpdateDoc(`businesses/${businessId}/products`, product.id, { status: 'inactive', updatedAt: new Date() });
       
       showToast('✅ Product deactivated successfully');
       
       // Refresh products
-      const productsSnapshot = await getDocs(query(
-        collection(firestore, 'businesses', businessId, 'products'),
-        where('active', '==', true)
-      ));
-      
-      const productsList: Product[] = [];
-      productsSnapshot.forEach(doc => {
-        const data = doc.data();
-        productsList.push({
-          id: doc.id,
-          name: data.name || '',
-          sku: data.sku || '',
-          category: data.category || '',
-          stock: data.stock || 0,
-          currentStock: data.stock || 0,
-          costPrice: data.cost || data.costPrice || 0,
-          sellingPrice: data.price || 0,
-          unitsSold30d: data.unitsSold30d || 0,
-          lastSaleDate: data.lastSaleDate || '',
-          reorderThreshold: data.lowStockThreshold || 10,
-          suggestedReorder: 0,
-          emoji: data.attributes?.emoji || '',
-          trend: 'flat' as const,
-          movement: [],
-          imageUrl: data.imageUrl || '',
-        });
+      const effectiveBusinessId = user.businessId || businessId;
+      const productsData = await fetchDocs(`businesses/${effectiveBusinessId}/products`, {
+        filters: [{ field: 'status', op: '=', value: 'active' }],
       });
+      
+      const productsList: Product[] = productsData.map((data: any) => ({
+        id: data.id,
+        name: data.name || '',
+        sku: data.sku || '',
+        category: data.category || '',
+        stock: data.stock || 0,
+        currentStock: data.stock || 0,
+        costPrice: data.cost || data.costPrice || 0,
+        sellingPrice: data.price || 0,
+        unitsSold30d: data.unitsSold30d || 0,
+        lastSaleDate: data.lastSaleDate || '',
+        reorderThreshold: data.lowStockThreshold || 10,
+        suggestedReorder: 0,
+        emoji: data.attributes?.emoji || '',
+        trend: 'flat' as const,
+        movement: [],
+        imageUrl: data.imageUrl || '',
+      }));
       
       setProducts(productsList);
     } catch (error: any) {
@@ -601,14 +586,15 @@ const InventoryPage: React.FC = () => {
         }
       }
 
-      // Add imported products to Firestore
+      // Add imported products to Supabase
       const addImportedProducts = async () => {
         try {
-          const businessId = user?.businessId || 'demo';
+          const effectiveBusinessId = user?.businessId || businessId || 'demo';
           for (const product of importedProducts) {
-            await addDoc(collection(firestore, 'businesses', businessId, 'products'), {
+            await sbAddDoc(`businesses/${effectiveBusinessId}/products`, {
               ...product,
-              active: true,
+              id: crypto.randomUUID(),
+              status: 'active',
               createdAt: new Date(),
               lowStockThreshold: 10,
             });

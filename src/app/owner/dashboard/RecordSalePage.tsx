@@ -3,13 +3,12 @@ import { useApp } from './AppContext';
 import { notifySale, notifyLowStock } from '@/lib/deviceNotifications';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
-import { useFirestore } from '@/firebase/provider';
 import { useBranch } from '@/context/BranchContext';
-import { collection, getDocs, query, where, addDoc, doc, getDoc, updateDoc, runTransaction, orderBy, Timestamp, limit } from 'firebase/firestore';
 import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { Product, CartItem, PaymentMethod, PaymentBreakdown, CreditCustomer } from './types';
-import { initializeFirebase } from '@/firebase';
+import { fetchDocs, addDoc as sbAddDoc, updateDoc as sbUpdateDoc, fetchDoc } from '@/lib/supabase-client-data';
+import { getSupabase } from '@/lib/supabase';
 import { offlineManager } from '@/lib/offline/offline-manager';
 import { getAuthCurrentUser } from '@/lib/supabase-auth';
 import { BrevoService } from '@/services/email/brevo-service';
@@ -26,7 +25,6 @@ export function RecordSalePage() {
   const { navigateTo, showToast } = useApp();
   const { t } = useTranslation();
   const { formatMoney, currencyCode } = useCurrency();
-  const firestore = useFirestore();
   const { branches, isProUser } = useBranch();
 
   const [isMounted, setIsMounted] = useState(false);
@@ -117,8 +115,6 @@ export function RecordSalePage() {
   // Fetch real products from Firestore
   useEffect(() => {
     async function fetchProducts() {
-      if (!firestore) return;
-      
       try {
         setLoading(true);
 
@@ -131,14 +127,14 @@ export function RecordSalePage() {
           return;
         }
 
-        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
-        if (!userDoc.exists()) {
+        const { data: userDoc, error: userError } = await getSupabase().from('users').select('*').eq('id', user.uid).single();
+        if (userError || !userDoc) {
           console.warn('User document not found');
           setLoading(false);
           return;
         }
 
-        const bId = userDoc.data().businessId;
+        const bId = userDoc.businessId || userDoc.business_id;
         if (!bId) {
           console.warn('Business ID not found for user');
           setLoading(false);
@@ -149,28 +145,27 @@ export function RecordSalePage() {
 
         // Fetch business category and receipt theme
         try {
-          const businessDoc = await getDoc(doc(firestore, 'businesses', bId));
-          if (businessDoc.exists()) {
-            const data = businessDoc.data();
-            const category = data?.category || '';
+          const { data: businessDoc } = await getSupabase().from('businesses').select('*').eq('id', bId).single();
+          if (businessDoc) {
+            const category = businessDoc.category || '';
             setBusinessCategory(category.toLowerCase());
             
             // Load inventory deduction mode
-            setInventoryDeductionMode(data?.inventoryDeductionMode || 'immediate');
+            setInventoryDeductionMode(businessDoc.inventoryDeductionMode || businessDoc.inventory_deduction_mode || 'immediate');
             
             // Load receipt theme
-            if (data?.receiptTheme) {
-              setReceiptTheme(data.receiptTheme);
+            if (businessDoc.receiptTheme || businessDoc.receipt_theme) {
+              setReceiptTheme(businessDoc.receiptTheme || businessDoc.receipt_theme);
             }
             
             // Load business logo
-            if (data?.logoUrl) {
-              setBusinessLogo(data.logoUrl);
+            if (businessDoc.logoUrl || businessDoc.logo_url) {
+              setBusinessLogo(businessDoc.logoUrl || businessDoc.logo_url);
             }
             
             // Load receipt type setting
-            if (data?.receiptType) {
-              setReceiptType(data.receiptType);
+            if (businessDoc.receiptType || businessDoc.receipt_type) {
+              setReceiptType(businessDoc.receiptType || businessDoc.receipt_type);
             }
           }
         } catch (error) {
@@ -179,18 +174,13 @@ export function RecordSalePage() {
 
         // Load bank accounts to get default POS account
         try {
-          const bankAccountsQuery = query(
-            collection(firestore, 'businesses', bId, 'bankAccounts'),
-            where('isActive', '==', true)
-          );
-          const bankAccountsSnapshot = await getDocs(bankAccountsQuery);
+          const bankAccounts = await fetchDocs(`businesses/${bId}/bankAccounts`, { filters: [{ field: 'is_active', op: '=', value: true }] });
           let posDefaultAccount = null;
-          bankAccountsSnapshot.forEach(doc => {
-            const data = doc.data();
-            if (data.isPosDefault) {
-              posDefaultAccount = doc.id;
+          for (const acct of bankAccounts) {
+            if ((acct as any).isPosDefault || (acct as any).is_pos_default) {
+              posDefaultAccount = (acct as any).id;
             }
-          });
+          }
           setBankAccountId(posDefaultAccount);
         } catch (error) {
           console.error('Error loading bank accounts:', error);
@@ -202,22 +192,17 @@ export function RecordSalePage() {
         
         // Load stock locations
         try {
-          const locationsQuery = query(
-            collection(firestore, 'businesses', bId, 'stockLocations'),
-            where('isActive', '==', true)
-          );
-          const locationsSnapshot = await getDocs(locationsQuery);
+          const locations = await fetchDocs(`businesses/${bId}/stockLocations`, { filters: [{ field: 'is_active', op: '=', value: true }] });
           const loadedLocations: Array<{ id: string; name: string; type: string }> = [];
           
           // Only use actual locations created by the owner - no defaults
-          locationsSnapshot.forEach(doc => {
-            const data = doc.data();
+          for (const loc of locations) {
             loadedLocations.push({
-              id: doc.id,
-              name: data.name,
-              type: data.type,
+              id: (loc as any).id,
+              name: (loc as any).name,
+              type: (loc as any).type,
             });
-          });
+          }
           
           setStockLocations(loadedLocations);
           
@@ -233,28 +218,23 @@ export function RecordSalePage() {
 
         // Load credit customers
         try {
-          const creditCustomersQuery = query(
-            collection(firestore, 'businesses', bId, 'credit_customers'),
-            orderBy('createdAt', 'desc')
-          );
-          const creditCustomersSnapshot = await getDocs(creditCustomersQuery);
+          const creditCustomersData = await fetchDocs(`businesses/${bId}/credit_customers`, { orderBy: { field: 'created_at', ascending: false } });
           const loadedCreditCustomers: CreditCustomer[] = [];
-          creditCustomersSnapshot.forEach(doc => {
-            const data = doc.data();
+          for (const data of creditCustomersData) {
             loadedCreditCustomers.push({
-              id: doc.id,
-              name: data.name || '',
-              phone: data.phone || '',
-              email: data.email || '',
-              address: data.address || '',
-              businessType: data.businessType || 'individual',
-              notes: data.notes || '',
-              createdAt: data.createdAt?.toDate() || new Date(),
-              totalCreditLimit: data.totalCreditLimit,
-              currentBalance: data.currentBalance || 0,
-              isRegularCustomer: data.isRegularCustomer || false,
+              id: (data as any).id,
+              name: (data as any).name || '',
+              phone: (data as any).phone || '',
+              email: (data as any).email || '',
+              address: (data as any).address || '',
+              businessType: (data as any).businessType || (data as any).business_type || 'individual',
+              notes: (data as any).notes || '',
+              createdAt: (data as any).createdAt ? new Date((data as any).createdAt) : (data as any).created_at ? new Date((data as any).created_at) : new Date(),
+              totalCreditLimit: (data as any).totalCreditLimit || (data as any).credit_limit,
+              currentBalance: (data as any).currentBalance || (data as any).current_balance || 0,
+              isRegularCustomer: (data as any).isRegularCustomer || (data as any).is_regular_customer || false,
             });
-          });
+          }
           setCreditCustomers(loadedCreditCustomers);
         } catch (error) {
           console.error('Error loading credit customers:', error);
@@ -268,13 +248,13 @@ export function RecordSalePage() {
     }
 
     fetchProducts();
-  }, [firestore, showToast, branches, isProUser]);
+  }, [showToast, branches, isProUser]);
 
   // Helper function to refresh products from Firestore
   async function refreshProducts(bizId?: string) {
     const targetBusinessId = bizId || businessId;
-    if (!firestore || !targetBusinessId) {
-      console.error('refreshProducts: Missing firestore or businessId', { firestore: !!firestore, businessId: targetBusinessId });
+    if (!targetBusinessId) {
+      console.error('refreshProducts: Missing businessId', { businessId: targetBusinessId });
       return;
     }
     
@@ -282,29 +262,29 @@ export function RecordSalePage() {
       console.log('refreshProducts: Starting fetch for businessId:', targetBusinessId);
       
       // Re-fetch business category for filtering
-      const businessDoc = await getDoc(doc(firestore, 'businesses', targetBusinessId));
       let currentCategory = '';
-      if (businessDoc.exists()) {
-        currentCategory = (businessDoc.data()?.category || '').toLowerCase();
-        console.log('refreshProducts: Business category:', currentCategory);
-      } else {
+      try {
+        const { data: businessDoc } = await getSupabase().from('businesses').select('*').eq('id', targetBusinessId).single();
+        if (businessDoc) {
+          currentCategory = (businessDoc.category || '').toLowerCase();
+          console.log('refreshProducts: Business category:', currentCategory);
+        } else {
+          console.warn('refreshProducts: Business document not found');
+        }
+      } catch {
         console.warn('refreshProducts: Business document not found');
       }
       
-      const productsQuery = query(
-        collection(firestore, 'businesses', targetBusinessId, 'products'),
-        where('active', '==', true)
-      );
+      const fetchedProductsData = await fetchDocs(`businesses/${targetBusinessId}/products`, {
+        filters: [{ field: 'status', op: '=', value: 'active' }],
+      });
       
-      console.log('refreshProducts: Executing products query');
-      const snapshot = await getDocs(productsQuery);
-      console.log('refreshProducts: Query returned', snapshot.size, 'products');
+      console.log('refreshProducts: Query returned', fetchedProductsData.length, 'products');
       
       const fetchedProducts: Product[] = [];
       
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        const productType = data.type || data.category || 'product';
+      for (const data of fetchedProductsData) {
+        const productType = (data as any).type || (data as any).category || 'product';
         
         // For restaurant/cafe businesses, exclude ingredients from saleable products
         const isRestaurant = currentCategory.toLowerCase().includes('restaurant') || 
@@ -312,27 +292,27 @@ export function RecordSalePage() {
         
         // For restaurant/cafe businesses, exclude ingredients from saleable products
         if (isRestaurant && productType.toLowerCase() === 'ingredient') {
-          console.log('Skipping ingredient:', data.name);
-          return;
+          console.log('Skipping ingredient:', (data as any).name);
+          continue;
         }
         
         fetchedProducts.push({
-          id: doc.id,
-          name: data.name || 'Unnamed Product',
-          price: data.price || 0,
-          costPrice: data.cost || data.costPrice || 0,
-          stock: data.stock || data.quantity || 0,
-          stockByLocation: data.stockByLocation || {
-            main_store: data.stock || 0,
+          id: (data as any).id,
+          name: (data as any).name || 'Unnamed Product',
+          price: (data as any).price || 0,
+          costPrice: (data as any).costPrice || (data as any).cost || 0,
+          stock: (data as any).stock || (data as any).stock_level || (data as any).quantity || 0,
+          stockByLocation: (data as any).stockByLocation || {
+            main_store: (data as any).stock || (data as any).stock_level || 0,
             back_store: 0,
             warehouse: 0,
           },
-          emoji: data.emoji || '📦',
-          lowStockThreshold: data.lowStockThreshold || 10,
-          imageUrl: data.imageUrl || '',
+          emoji: (data as any).emoji || '📦',
+          lowStockThreshold: (data as any).lowStockThreshold || 10,
+          imageUrl: (data as any).imageUrl || (data as any).image_url || '',
           type: productType,
         });
-      });
+      }
       
       console.log('refreshProducts: Fetched', fetchedProducts.length, 'active products');
       setProducts(fetchedProducts);
@@ -396,7 +376,7 @@ export function RecordSalePage() {
     if (isProcessingSale) return; // Prevent duplicate submissions
 
     // Validate stock availability before processing sale
-    if (!firestore || !businessId) {
+    if (!businessId) {
       return showToast('System not ready. Please refresh the page.');
     }
 
@@ -404,12 +384,10 @@ export function RecordSalePage() {
     
     // Check stock for each item in cart
     for (const item of cart) {
-      const productRef = doc(firestore, 'businesses', businessId, 'products', item.id.toString());
-      const productDoc = await getDoc(productRef);
+      const productData = await fetchDoc(`businesses/${businessId}/products`, item.id.toString());
       
-      if (productDoc.exists()) {
-        const data = productDoc.data();
-        const currentStock = data.stock || data.quantity || 0;
+      if (productData) {
+        const currentStock = (productData as any).stock || (productData as any).stock_level || (productData as any).quantity || 0;
         
         if (currentStock < item.qty) {
           stockValidationErrors.push(
@@ -441,10 +419,9 @@ export function RecordSalePage() {
     setIsProcessingSale(true);
     
     try {
-      const { firestore } = initializeFirebase();
       const user = getAuthCurrentUser();
       
-      if (!user || !firestore) {
+      if (!user) {
         showToast('Authentication required');
         setIsProcessingSale(false);
         return;
@@ -458,11 +435,10 @@ export function RecordSalePage() {
       }
 
       // Get current user's role and staff information
-      const userDoc = await getDoc(doc(firestore, 'users', user.uid));
-      const userData = userDoc.data();
+      const { data: userData } = await getSupabase().from('users').select('*').eq('id', user.uid).single();
       const userRole = userData?.role || 'Owner';
-      const staffId = userData?.staffId || null;
-      const staffName = userData?.displayName || user.displayName || 'Unknown';
+      const staffId = userData?.staffId || userData?.staff_id || null;
+      const staffName = userData?.displayName || userData?.display_name || user.displayName || 'Unknown';
 
     // Get source location name
     const selectedLocation = stockLocations.find(loc => loc.id === sourceLocation);
@@ -514,8 +490,8 @@ export function RecordSalePage() {
             role: userRole,
             staffId: staffId,
           },
-          createdAt: Timestamp.now(),
-          recordedAt: Timestamp.now(),
+          createdAt: new Date().toISOString(),
+          recordedAt: new Date().toISOString(),
         };
 
       // Only add customer fields if a customer is actually selected (not empty string)
@@ -560,12 +536,13 @@ export function RecordSalePage() {
       }
 
       // Save sale to Firestore
-      const saleRef = await addDoc(collection(firestore, 'businesses', businessId, 'sales'), saleData);
+      const saleId = await sbAddDoc(`businesses/${businessId}/sales`, { ...saleData, id: crypto.randomUUID() });
+      const saleRef = { id: saleId };
 
       // Create cash flow entry for the sale
       try {
-        await addDoc(collection(firestore, 'businesses', businessId, 'cashFlow'), {
-          date: Timestamp.now(),
+        await sbAddDoc(`businesses/${businessId}/cashFlow`, {
+          date: new Date().toISOString(),
           moneyIn: expectedCash,
           moneyOut: 0,
           category: 'Sale',
@@ -573,7 +550,7 @@ export function RecordSalePage() {
           saleId: saleRef.id,
           paymentMethod: paymentBreakdown.length === 1 ? paymentBreakdown[0].method : 'split',
           sourceLocation: sourceLocationName,
-          createdAt: Timestamp.now(),
+          createdAt: new Date().toISOString(),
         });
         console.log('✅ Cash flow entry created for sale');
       } catch (cashFlowError) {
@@ -583,13 +560,12 @@ export function RecordSalePage() {
 
       // Record audit trail for sale creation
       try {
-        const userDoc = await getDoc(doc(firestore, 'users', user.uid));
-        const userData = userDoc.data();
+        const { data: auditUserData } = await getSupabase().from('users').select('*').eq('id', user.uid).single();
         
-        await addDoc(collection(firestore, 'businesses', businessId, 'auditTrail'), {
+        await sbAddDoc(`businesses/${businessId}/auditTrail`, {
           userId: user.uid,
           userName: staffName,
-          userEmail: user.email || userData?.email || '',
+          userEmail: user.email || auditUserData?.email || '',
           action: 'create',
           entityType: 'sale',
           entityId: saleRef.id,
@@ -612,7 +588,7 @@ export function RecordSalePage() {
             expectedBank,
             sourceLocation: sourceLocationName,
           },
-          timestamp: Timestamp.now(),
+          timestamp: new Date().toISOString(),
           ipAddress: null,
           userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
         });
@@ -625,27 +601,26 @@ export function RecordSalePage() {
       // Update bank account balance if sale has bank/POS/card payments
       if (expectedBank > 0 && bankAccountId) {
         try {
-          const bankAccountRef = doc(firestore, 'businesses', businessId, 'bankAccounts', bankAccountId);
-          const bankAccountDoc = await getDoc(bankAccountRef);
+          const bankAccountDoc = await fetchDoc(`businesses/${businessId}/bankAccounts`, bankAccountId);
           
-          if (bankAccountDoc.exists()) {
-            const currentBalance = bankAccountDoc.data().currentBalance || 0;
-            await updateDoc(bankAccountRef, {
+          if (bankAccountDoc) {
+            const currentBalance = (bankAccountDoc as any).currentBalance || (bankAccountDoc as any).current_balance || 0;
+            await sbUpdateDoc(`businesses/${businessId}/bankAccounts`, bankAccountId, {
               currentBalance: currentBalance + expectedBank
             });
             
             // Create bank transaction record
-            await addDoc(collection(firestore, 'businesses', businessId, 'bankTransactions'), {
+            await sbAddDoc(`businesses/${businessId}/bankTransactions`, {
               transactionNumber: `SALE-${Date.now()}`,
               bankAccountId: bankAccountId,
-              accountName: bankAccountDoc.data().accountName,
+              accountName: (bankAccountDoc as any).accountName || (bankAccountDoc as any).name,
               type: 'money_in',
               category: 'Sale',
               amount: expectedBank,
               balanceAfter: currentBalance + expectedBank,
               description: `Sale #${saleRef.id.slice(-6)}`,
               saleId: saleRef.id,
-              createdAt: new Date(),
+              createdAt: new Date().toISOString(),
             });
           }
         } catch (error) {
@@ -684,22 +659,20 @@ export function RecordSalePage() {
           },
         };
 
-        await addDoc(collection(firestore, 'businesses', businessId, 'invoices'), invoiceData);
+        await sbAddDoc(`businesses/${businessId}/invoices`, invoiceData);
       }
 
       // Only deduct inventory if mode is immediate
       if (inventoryDeductionMode === 'immediate') {
-      // Update product stock in a transaction (deduct from specific location)
-      await runTransaction(firestore, async (transaction) => {
-        for (const item of cart) {
-          const productRef = doc(firestore, 'businesses', businessId, 'products', item.id.toString());
-          const productDoc = await transaction.get(productRef);
+      // Update product stock sequentially (no true atomicity on client, best-effort)
+      for (const item of cart) {
+        try {
+          const productData = await fetchDoc(`businesses/${businessId}/products`, item.id.toString());
           
-          if (productDoc.exists()) {
-            const data = productDoc.data();
-            const currentStock = data.stock || data.quantity || 0;
+          if (productData) {
+            const currentStock = (productData as any).stock || (productData as any).stock_level || (productData as any).quantity || 0;
             
-            // Double-check stock availability in transaction (prevents race conditions)
+            // Double-check stock availability (prevents race conditions)
             if (currentStock < item.qty) {
               throw new Error(`Insufficient stock for ${item.name}. Only ${currentStock} available.`);
             }
@@ -707,7 +680,7 @@ export function RecordSalePage() {
             const newStock = Math.max(0, currentStock - item.qty);
             
             // Update stockByLocation - use dynamic locations
-            const stockByLocation = data.stockByLocation || {};
+            const stockByLocation = (productData as any).stockByLocation || {};
             
             // Only deduct from location if sourceLocation is specified and exists
             if (sourceLocation && stockByLocation[sourceLocation] !== undefined) {
@@ -722,43 +695,44 @@ export function RecordSalePage() {
               stockByLocation[sourceLocation] = newLocationStock;
             }
             
-            transaction.update(productRef, {
+            await sbUpdateDoc(`businesses/${businessId}/products`, item.id.toString(), {
               stock: newStock,
               stockByLocation: stockByLocation,
               lastSaleLocation: sourceLocation,
               lastSaleLocationName: sourceLocationName,
-              lastSaleDate: Timestamp.now(),
-              unitsSold30d: (data.unitsSold30d || 0) + item.qty,
-              totalSalesCount: (data.totalSalesCount || 0) + item.qty,
+              lastSaleDate: new Date().toISOString(),
+              unitsSold30d: ((productData as any).unitsSold30d || 0) + item.qty,
+              totalSalesCount: ((productData as any).totalSalesCount || 0) + item.qty,
               lastSalePrice: item.price,
             });
           }
+        } catch (err) {
+          console.error(`Failed to update stock for ${item.name}:`, err);
+          throw err; // Re-throw to abort sale
         }
-      });
+      }
 
       // Check for low stock items and send alert
       try {
         // Check if low stock notifications are enabled
-        const ownerDoc = await getDoc(doc(firestore, 'users', user.uid));
-        const emailPrefs = ownerDoc.data()?.emailPreferences;
-        const businessName = ownerDoc.data()?.businessName || 'Your Business';
+        const { data: ownerDoc } = await getSupabase().from('users').select('*').eq('id', user.uid).single();
+        const emailPrefs = ownerDoc?.emailPreferences || ownerDoc?.email_preferences;
+        const businessName = ownerDoc?.businessName || ownerDoc?.business_name || 'Your Business';
         const ownerEmail = user.email;
-        const ownerName = ownerDoc.data()?.fullName || ownerDoc.data()?.displayName || 'Business Owner';
+        const ownerName = ownerDoc?.fullName || ownerDoc?.full_name || ownerDoc?.displayName || ownerDoc?.display_name || 'Business Owner';
         
         if (emailPrefs?.lowStock !== false) {
           const lowStockItems: Array<{ name: string; stock: number; threshold: number }> = [];
           for (const item of cart) {
-            const productRef = doc(firestore, 'businesses', businessId, 'products', item.id.toString());
-            const productDoc = await getDoc(productRef);
+            const productData = await fetchDoc(`businesses/${businessId}/products`, item.id.toString());
             
-            if (productDoc.exists()) {
-              const data = productDoc.data();
-              const stock = data.stock || 0;
-              const threshold = data.lowStockThreshold || 10;
+            if (productData) {
+              const stock = (productData as any).stock || (productData as any).stock_level || 0;
+              const threshold = (productData as any).lowStockThreshold || 10;
               
               if (stock <= threshold) {
                 lowStockItems.push({
-                  name: data.name || item.name,
+                  name: (productData as any).name || item.name,
                   stock,
                   threshold,
                 });
@@ -788,15 +762,13 @@ export function RecordSalePage() {
 
         // Check if this is the first sale and send celebration email
         if (emailPrefs?.firstSale !== false && ownerEmail) {
-          const salesQuery = query(
-            collection(firestore, 'businesses', businessId, 'sales'),
-            orderBy('createdAt', 'desc'),
-            limit(2)
-          );
-          const salesSnapshot = await getDocs(salesQuery);
+          const recentSales = await fetchDocs(`businesses/${businessId}/sales`, {
+            orderBy: { field: 'created_at', ascending: false },
+            limit: 2,
+          });
           
-          // If this is the first sale (snapshot size is 1, which is the sale we just created)
-          if (salesSnapshot.size === 1) {
+          // If this is the first sale (recentSales size is 1, which is the sale we just created)
+          if (recentSales.length === 1) {
           await sendFirstSaleCelebrationEmail({
             email: ownerEmail,
             name: ownerName,
@@ -821,7 +793,9 @@ export function RecordSalePage() {
 
         // If no customer selected, create a new one
         if (!customerId && creditCustomerName) {
-          const newCustomerRef = await addDoc(collection(firestore, 'businesses', businessId, 'credit_customers'), {
+          const newCustomerId = crypto.randomUUID();
+          await sbAddDoc(`businesses/${businessId}/credit_customers`, {
+            id: newCustomerId,
             name: creditCustomerName,
             phone: creditCustomerPhone,
             email: '',
@@ -831,9 +805,9 @@ export function RecordSalePage() {
             totalCreditLimit: null,
             currentBalance: creditPayment.amount,
             isRegularCustomer: false,
-            createdAt: new Date(),
+            createdAt: new Date().toISOString(),
           });
-          customerId = newCustomerRef.id;
+          customerId = newCustomerId;
         }
 
         if (customerId) {
@@ -849,7 +823,7 @@ export function RecordSalePage() {
           const dueDate = new Date(year, month - 1, day);
 
           // Create credit transaction
-          await addDoc(collection(firestore, 'businesses', businessId, 'credit_transactions'), {
+          await sbAddDoc(`businesses/${businessId}/credit_transactions`, {
             customerId,
             customerName: creditCustomerName || (selectedCreditCustomer ? creditCustomers.find(c => c.id === customerId)?.name : null) || 'Unknown',
             saleId: saleRef.id,
@@ -875,7 +849,7 @@ export function RecordSalePage() {
           });
 
           // Update customer balance
-          await updateDoc(doc(firestore, 'businesses', businessId, 'credit_customers', customerId), {
+          await sbUpdateDoc(`businesses/${businessId}/credit_customers`, customerId, {
             currentBalance: (creditCustomers.find(c => c.id === customerId)?.currentBalance || 0) + creditPayment.amount,
           });
 
@@ -883,17 +857,15 @@ export function RecordSalePage() {
         }
       }
 
-      // Update product stock in a transaction (deduct from specific location)
-      await runTransaction(firestore, async (transaction) => {
-        for (const item of cart) {
-          const productRef = doc(firestore, 'businesses', businessId, 'products', item.id.toString());
-          const productDoc = await transaction.get(productRef);
+      // Update product stock sequentially (no true atomicity on client, best-effort)
+      for (const item of cart) {
+        try {
+          const productData = await fetchDoc(`businesses/${businessId}/products`, item.id.toString());
           
-          if (productDoc.exists()) {
-            const data = productDoc.data();
-            const currentStock = data.stock || data.quantity || 0;
+          if (productData) {
+            const currentStock = (productData as any).stock || (productData as any).stock_level || (productData as any).quantity || 0;
             
-            // Double-check stock availability in transaction (prevents race conditions)
+            // Double-check stock availability (prevents race conditions)
             if (currentStock < item.qty) {
               throw new Error(`Insufficient stock for ${item.name}. Only ${currentStock} available.`);
             }
@@ -901,7 +873,7 @@ export function RecordSalePage() {
             const newStock = Math.max(0, currentStock - item.qty);
             
             // Update stockByLocation - use dynamic locations
-            const stockByLocation = data.stockByLocation || {};
+            const stockByLocation = (productData as any).stockByLocation || {};
             
             // Only deduct from location if sourceLocation is specified and exists
             if (sourceLocation && stockByLocation[sourceLocation] !== undefined) {
@@ -916,36 +888,37 @@ export function RecordSalePage() {
               stockByLocation[sourceLocation] = newLocationStock;
             }
             
-            transaction.update(productRef, {
+            await sbUpdateDoc(`businesses/${businessId}/products`, item.id.toString(), {
               stock: newStock,
               stockByLocation: stockByLocation,
               lastSaleLocation: sourceLocation,
               lastSaleLocationName: sourceLocationName,
             });
           }
+        } catch (err) {
+          console.error(`Failed to update stock for ${item.name}:`, err);
+          throw err; // Re-throw to abort sale
         }
-      });
+      }
 
       // Check for low stock items and send alert
       try {
         // Check if low stock notifications are enabled
-        const ownerDoc = await getDoc(doc(firestore, 'users', user.uid));
-        const emailPrefs = ownerDoc.data()?.emailPreferences;
+        const { data: ownerDoc2 } = await getSupabase().from('users').select('*').eq('id', user.uid).single();
+        const emailPrefs2 = ownerDoc2?.emailPreferences || ownerDoc2?.email_preferences;
         
-        if (emailPrefs?.lowStock !== false) {
+        if (emailPrefs2?.lowStock !== false) {
           const lowStockItems: Array<{ name: string; stock: number; threshold: number }> = [];
           for (const item of cart) {
-            const productRef = doc(firestore, 'businesses', businessId, 'products', item.id.toString());
-            const productDoc = await getDoc(productRef);
+            const productData = await fetchDoc(`businesses/${businessId}/products`, item.id.toString());
             
-            if (productDoc.exists()) {
-              const data = productDoc.data();
-              const stock = data.stock || 0;
-              const threshold = data.lowStockThreshold || 10;
+            if (productData) {
+              const stock = (productData as any).stock || (productData as any).stock_level || 0;
+              const threshold = (productData as any).lowStockThreshold || 10;
               
               if (stock <= threshold) {
                 lowStockItems.push({
-                  name: data.name || item.name,
+                  name: (productData as any).name || item.name,
                   stock,
                   threshold,
                 });
@@ -955,13 +928,13 @@ export function RecordSalePage() {
 
           // Send low stock alert if any items are below threshold
           if (lowStockItems.length > 0) {
-            const businessName = ownerDoc.data()?.businessName || 'Your Business';
-            const ownerEmail = user.email;
+            const businessName2 = ownerDoc2?.businessName || ownerDoc2?.business_name || 'Your Business';
+            const ownerEmail2 = user.email;
             
-            if (ownerEmail) {
+            if (ownerEmail2) {
               await BrevoService.sendLowStockAlertEmail(
-                ownerEmail,
-                businessName,
+                ownerEmail2,
+                businessName2,
                 lowStockItems
               );
               console.log('Low stock alert email sent');
@@ -975,18 +948,21 @@ export function RecordSalePage() {
 
       // If recorded by staff, update staff's revenue and transaction counts
       if (userRole === 'Staff' && staffId) {
-        const staffRef = doc(firestore, 'businesses', businessId, 'staff', user.uid);
-        const staffDoc = await getDoc(staffRef);
-        
-        if (staffDoc.exists()) {
-          const currentRevenue = staffDoc.data().revenue || 0;
-          const currentTransactions = staffDoc.data().transactions || 0;
+        try {
+          const staffData = await fetchDoc(`businesses/${businessId}/staff`, user.uid);
           
-          await updateDoc(staffRef, {
-            revenue: currentRevenue + subtotal,
-            transactions: currentTransactions + 1,
-            lastSaleAt: new Date(),
-          });
+          if (staffData) {
+            const currentRevenue = (staffData as any).revenue || 0;
+            const currentTransactions = (staffData as any).transactions || 0;
+            
+            await sbUpdateDoc(`businesses/${businessId}/staff`, user.uid, {
+              revenue: currentRevenue + subtotal,
+              transactions: currentTransactions + 1,
+              lastSaleAt: new Date().toISOString(),
+            });
+          }
+        } catch (err) {
+          console.error('Error updating staff stats:', err);
         }
       }
 
@@ -1008,12 +984,11 @@ export function RecordSalePage() {
       let businessPhone = '';
       
       try {
-        const businessDoc = await getDoc(doc(firestore, 'businesses', businessId));
-        if (businessDoc.exists()) {
-          const bizData = businessDoc.data();
-          businessName = bizData.businessName || 'Business';
-          businessAddress = bizData.address || '';
-          businessPhone = bizData.phone || '';
+        const { data: bizDoc } = await getSupabase().from('businesses').select('*').eq('id', businessId).single();
+        if (bizDoc) {
+          businessName = bizDoc.businessName || bizDoc.business_name || 'Business';
+          businessAddress = bizDoc.address || '';
+          businessPhone = bizDoc.phone || '';
         }
       } catch (error) {
         console.error('Error fetching business data:', error);

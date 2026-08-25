@@ -4,10 +4,8 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
-import { collection, addDoc, Timestamp, doc, getDoc, getDocs, getFirestore, query, where } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
+import { fetchDocs, addDoc } from '@/lib/supabase-client-data';
 import { getSupabase } from '@/lib/supabase';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import styles from './Addproductpage.module.css';
 import { isRestaurantBusiness, ProductType, DishCategory, IngredientUnit, getDishCategories, getIngredientUnits } from './utils/restaurantHelpers';
 import { subscribeToActionEvents } from '@/utils/dataRefresh';
@@ -98,7 +96,6 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
   const { showToast, user } = useApp();
   const { t } = useTranslation();
   const { formatMoney, currency } = useCurrency();
-  const { firestore } = initializeFirebase();
   const [isLoading, setIsLoading] = useState(false);
   const [showComingSoon, setShowComingSoon] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
@@ -114,19 +111,21 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
   useEffect(() => {
     async function fetchBusinessId() {
       try {
-        const { firestore: freshFirestore } = initializeFirebase();
         const supabaseUser = getSupabase();
         
         const { data: { session } } = await supabaseUser.auth.getSession();
         const userId = session?.user?.id;
-        if (!userId || !freshFirestore) return;
+        if (!userId) return;
 
         const firestoreUid = session.user.user_metadata?.firebase_uid || userId;
-        const userDoc = await getDoc(doc(freshFirestore, 'users', firestoreUid));
+        const { data: userData } = await getSupabase()
+          .from('users')
+          .select('*')
+          .eq('id', firestoreUid)
+          .single();
         let bid: string | null = null;
         
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
+        if (userData) {
           bid = userData.businessId || firestoreUid;
         } else {
           bid = session.user.user_metadata?.businessId || firestoreUid;
@@ -135,9 +134,13 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
         setBusinessId(bid);
 
         if (bid) {
-          const businessDoc = await getDoc(doc(freshFirestore, 'businesses', bid));
-          if (businessDoc.exists()) {
-            const category = businessDoc.data()?.category || '';
+          const { data: businessData } = await getSupabase()
+            .from('businesses')
+            .select('*')
+            .eq('id', bid)
+            .single();
+          if (businessData) {
+            const category = businessData.category || '';
             setBusinessCategory(category.toLowerCase());
           }
 
@@ -145,17 +148,15 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
           setIsRestaurant(restaurantCheck);
 
           if (restaurantCheck) {
-            const ingredientsQuery = collection(freshFirestore, 'businesses', bid, 'products');
-            const ingredientsSnapshot = await getDocs(ingredientsQuery);
+            const productsData = await fetchDocs(`businesses/${bid}/products`);
             const ingredientsList: any[] = [];
-            ingredientsSnapshot.forEach(doc => {
-              const data = doc.data();
-              if (data.productType === 'ingredient') {
+            (productsData || []).forEach((item: any) => {
+              if (item.productType === 'ingredient') {
                 ingredientsList.push({
-                  id: doc.id,
-                  name: data.name,
-                  unit: data.ingredientUnit || data.unit,
-                  currentQuantity: data.stock || 0,
+                  id: item.id,
+                  name: item.name,
+                  unit: item.ingredientUnit || item.unit,
+                  currentQuantity: item.stock || 0,
                 });
               }
             });
@@ -163,15 +164,13 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
           }
 
           try {
-            const locationsQuery = collection(freshFirestore, 'businesses', bid, 'stockLocations');
-            const locationsSnapshot = await getDocs(locationsQuery);
+            const locationsData = await fetchDocs(`businesses/${bid}/stockLocations`);
             const loadedLocations: Array<{ id: string; name: string; type: string }> = [];
-            locationsSnapshot.forEach(doc => {
-              const data = doc.data();
+            (locationsData || []).forEach((item: any) => {
               loadedLocations.push({
-                id: doc.id,
-                name: data.name,
-                type: data.type,
+                id: item.id,
+                name: item.name,
+                type: item.type,
               });
             });
             setStockLocations(loadedLocations);
@@ -181,15 +180,13 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
           }
 
           try {
-            const suppliersQuery = collection(freshFirestore, 'businesses', bid, 'suppliers');
-            const suppliersSnapshot = await getDocs(suppliersQuery);
+            const suppliersData = await fetchDocs(`businesses/${bid}/suppliers`);
             const loadedSuppliers: Array<{ id: string; name: string }> = [];
-            suppliersSnapshot.forEach(doc => {
-              const data = doc.data();
-              if (data.status === 'active') {
+            (suppliersData || []).forEach((item: any) => {
+              if (item.status === 'active') {
                 loadedSuppliers.push({
-                  id: doc.id,
-                  name: data.supplierName || data.businessName || 'Unknown Supplier',
+                  id: item.id,
+                  name: item.supplierName || item.businessName || 'Unknown Supplier',
                 });
               }
             });
@@ -235,24 +232,16 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
     if (!businessId || !isRestaurant) return;
     
     try {
-      const { firestore: freshFirestore } = initializeFirebase();
-      if (!freshFirestore) {
-        console.error('Firestore not initialized');
-        return;
-      }
-      
-      const ingredientsQuery = collection(freshFirestore, 'businesses', businessId, 'products');
-      const ingredientsSnapshot = await getDocs(ingredientsQuery);
+      const productsData = await fetchDocs(`businesses/${businessId}/products`);
       const ingredientsList: any[] = [];
       
-      ingredientsSnapshot.forEach(doc => {
-        const data = doc.data();
-        if (data.productType === 'ingredient') {
+      (productsData || []).forEach((item: any) => {
+        if (item.productType === 'ingredient') {
           ingredientsList.push({
-            id: doc.id,
-            name: data.name,
-            unit: data.ingredientUnit || data.unit,
-            currentQuantity: data.stock || 0,
+            id: item.id,
+            name: item.name,
+            unit: item.ingredientUnit || item.unit,
+            currentQuantity: item.stock || 0,
           });
         }
       });
@@ -385,13 +374,6 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
       return;
     }
 
-    // Get fresh Firestore instance
-    const { firestore: freshFirestore } = initializeFirebase();
-    if (!freshFirestore) {
-      showToast(t('toast.databaseNotConnected'));
-      return;
-    }
-
     if (!businessId) {
       showToast(t('toast.businessIdNotFound'));
       return;
@@ -401,46 +383,37 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
     try {
       let imageUrl = form.imageUrl;
       
-      // Upload image to Firebase Storage if a new image was selected
+      // Upload image to Supabase Storage if a new image was selected
       if (imageFile) {
-        console.log('📤 Uploading image to Firebase Storage...');
+        console.log('📤 Uploading image to Supabase Storage...');
         console.log('📤 Image file:', imageFile.name, imageFile.size, imageFile.type);
         
-        const { storage } = initializeFirebase();
-        if (!storage) {
-          console.error('❌ Firebase Storage not initialized');
-          showToast(t('toast.storageNotAvailable'));
-          return;
-        }
-        
         try {
-          const imageRef = ref(storage, `products/${businessId}/${Date.now()}_${imageFile.name}`);
-          console.log('📤 Image ref:', imageRef.fullPath);
+          const filePath = `products/${businessId}/${Date.now()}_${imageFile.name}`;
+          console.log('📤 Image path:', filePath);
           
-          const uploadResult = await uploadBytes(imageRef, imageFile);
-          console.log('✅ Image uploaded successfully:', uploadResult);
+          const { error: uploadError } = await getSupabase()
+            .storage
+            .from('products')
+            .upload(filePath, imageFile);
           
-          imageUrl = await getDownloadURL(imageRef);
+          if (uploadError) throw uploadError;
+          console.log('✅ Image uploaded successfully');
+          
+          const { data: urlData } = getSupabase()
+            .storage
+            .from('products')
+            .getPublicUrl(filePath);
+          
+          imageUrl = urlData.publicUrl;
           console.log('✅ Image URL obtained:', imageUrl);
         } catch (uploadError) {
           console.error('❌ Image upload failed:', uploadError);
           console.error('Upload error details:', {
-            code: (uploadError as any).code,
             message: (uploadError as any).message,
-            serverResponse: (uploadError as any).serverResponse,
           });
           
-          // Provide user-friendly error messages based on error type
-          const errorCode = (uploadError as any).code;
-          if (errorCode === 'storage/unauthorized') {
-            showToast(t('toast.uploadPermissionDenied'));
-          } else if (errorCode === 'storage/canceled') {
-            showToast(t('toast.uploadCancelled'));
-          } else if (errorCode === 'storage/unknown') {
-            showToast(t('toast.uploadFailed'));
-          } else {
-            showToast(t('toast.uploadImageFailed') + (uploadError as any).message);
-          }
+          showToast(t('toast.uploadImageFailed') + (uploadError as any).message);
           return;
         }
       }
@@ -459,8 +432,8 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
           sku: form.sku.trim() || `SKU-${Date.now()}`,
         },
         imageUrl: imageUrl,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
       // Add stockByLocation for warehouse assignment
@@ -497,16 +470,16 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
         }
       }
 
-      console.log('💾 Saving product to Firestore...');
+      console.log('💾 Saving product to Supabase...');
       console.log('📦 Product data:', productData);
       console.log('📁 Collection path:', `businesses/${businessId}/products`);
       
-      // Use 'businesses' collection to match owner's Firestore structure
-      const docRef = await addDoc(collection(freshFirestore, 'businesses', businessId, 'products'), productData);
-      console.log('✅ Product saved successfully with ID:', docRef.id);
+      const productId = crypto.randomUUID();
+      await addDoc(`businesses/${businessId}/products`, { ...productData, id: productId });
+      console.log('✅ Product saved successfully with ID:', productId);
       
       const newProduct = {
-        id: docRef.id,
+        id: productId,
         ...productData,
         sellingPrice: productData.price, // Map back for UI
         costPrice: productData.cost,

@@ -5,11 +5,9 @@ import { useApp } from './AppContext';
 import { notifyExpense } from '@/lib/deviceNotifications';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
-import { useFirestore } from '@/firebase/provider';
-import { collection, addDoc, Timestamp, doc, getDoc, query, where, getDocs, getDocsFromServer } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
+import { fetchDocs, addDoc } from '@/lib/supabase-client-data';
+import { getSupabase } from '@/lib/supabase';
 import { getAuthCurrentUser, getFirestoreUserId } from '@/lib/supabase-auth';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { subscribeToActionEvents } from '@/utils/dataRefresh';
 import { sendLargeExpenseAlertEmail, sendUnusualSpendingAlertEmail } from '@/services/email/cashflow-emails';
 import styles from './Addexpensepage.module.css';
@@ -69,7 +67,6 @@ export function AddExpensePage() {
   const { showToast, user } = useApp();
   const { t } = useTranslation();
   const { formatMoney, currency } = useCurrency();
-  const firestore = useFirestore();
 
   const [form, setForm] = useState<ExpenseForm>({
     category: '', amount: '', date: today, paymentMethod: 'Cash',
@@ -111,32 +108,42 @@ export function AddExpensePage() {
     setIsUploadingReceipt(true);
 
     try {
-      // Get business ID for storage path
       const userIds = getFirestoreUserId();
       if (!userIds) {
         showToast('⚠️ User not authenticated');
         return;
       }
 
-      const userDoc = await getDoc(doc(firestore, 'users', userIds.firestoreUid));
-      if (!userDoc.exists()) {
+      const { data: userDoc } = await getSupabase()
+        .from('users')
+        .select('*')
+        .eq('id', userIds.firestoreUid)
+        .single();
+      if (!userDoc) {
         showToast('⚠️ User document not found');
         return;
       }
 
-      const businessId = userDoc.data().businessId;
-      if (!businessId) {
+      const bizId = userDoc.businessId || userDoc.business_id;
+      if (!bizId) {
         showToast('⚠️ Business ID not found');
         return;
       }
 
-      const { storage } = initializeFirebase();
-      const storageRef = ref(storage, `merchants/${businessId}/documents/${Date.now()}_${file.name}`);
-      
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
-      
-      setReceipt(downloadURL);
+      const filePath = `merchants/${bizId}/documents/${Date.now()}_${file.name}`;
+      const { error: uploadError } = await getSupabase().storage
+        .from('receipts')
+        .upload(filePath, file, { contentType: file.type });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data: urlData } = getSupabase().storage
+        .from('receipts')
+        .getPublicUrl(filePath);
+
+      setReceipt(urlData.publicUrl);
       showToast('✅ Receipt uploaded successfully');
     } catch (error) {
       console.error('Error uploading receipt:', error);
@@ -154,11 +161,6 @@ export function AddExpensePage() {
     if (!form.category) { showToast('⚠️ Please select a category'); return; }
     if (!form.amount)   { showToast('⚠️ Please enter an amount'); return; }
     if (isSubmitting) return; // Prevent duplicate submissions
-
-    if (!firestore) {
-      showToast('⚠️ Database not connected');
-      return;
-    }
 
     if (!user) {
       showToast('⚠️ User not authenticated');
@@ -183,30 +185,34 @@ export function AddExpensePage() {
         displayName: getAuthCurrentUser()?.displayName ?? null,
       };
 
-      const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
-      if (!userDoc.exists()) {
+      const { data: userDoc } = await getSupabase()
+        .from('users')
+        .select('*')
+        .eq('id', currentUser.uid)
+        .single();
+      if (!userDoc) {
         showToast('⚠️ User document not found');
         return;
       }
 
-      const businessId = userDoc.data().businessId;
+      const businessId = userDoc.businessId || userDoc.business_id;
       if (!businessId) {
         showToast('⚠️ Business ID not found');
         return;
       }
 
       // Check for potential duplicates (same category and amount within last 5 seconds)
-      const recentExpensesQuery = query(
-        collection(firestore, 'businesses', businessId, 'expenses'),
-        where('category', '==', form.category),
-        where('amount', '==', parseFloat(form.amount))
-      );
-      const recentExpenses = await getDocs(recentExpensesQuery);
+      const recentExpenses = await fetchDocs(`businesses/${businessId}/expenses`, {
+        filters: [
+          { field: 'category', op: '=', value: form.category },
+          { field: 'amount', op: '=', value: parseFloat(form.amount) },
+        ],
+      });
       
       // Check if any of the recent expenses were created in the last 5 seconds
       const fiveSecondsAgo = Date.now() - 5000;
-      const hasRecentDuplicate = recentExpenses.docs.some(doc => {
-        const createdAt = doc.data().createdAt?.toMillis?.() || 0;
+      const hasRecentDuplicate = recentExpenses.some(doc => {
+        const createdAt = new Date(doc.createdAt || doc.created_at || 0).getTime();
         return createdAt >= fiveSecondsAgo;
       });
       
@@ -220,20 +226,20 @@ export function AddExpensePage() {
       const expenseData = {
         category: form.category,
         amount: parseFloat(form.amount),
-        date: Timestamp.fromDate(new Date(form.date)),
+        date: new Date(form.date).toISOString(),
         paymentMethod: form.paymentMethod,
         description: form.description,
         linkedProduct: form.linkedProduct || null,
         quantityReceived: form.quantityReceived ? parseInt(form.quantityReceived) : null,
         isRecurring: form.isRecurring,
         recurFrequency: form.isRecurring ? form.recurFrequency : null,
-        recurNextDate: form.isRecurring && form.recurNextDate ? Timestamp.fromDate(new Date(form.recurNextDate)) : null,
+        recurNextDate: form.isRecurring && form.recurNextDate ? new Date(form.recurNextDate).toISOString() : null,
         receiptUrl: receipt || null,
-        createdAt: Timestamp.now(),
+        createdAt: new Date().toISOString(),
         createdBy: currentUser.uid,
       };
 
-      const expenseRef = await addDoc(collection(firestore, 'businesses', businessId, 'expenses'), expenseData);
+      const expenseId = await addDoc(`businesses/${businessId}/expenses`, { ...expenseData, id: crypto.randomUUID() });
 
       try {
         const amt = parseFloat(form.amount) || 0;
@@ -245,15 +251,16 @@ export function AddExpensePage() {
 
       // Create cash flow entry for the expense
       try {
-        await addDoc(collection(firestore, 'businesses', businessId, 'cashFlow'), {
-          date: Timestamp.now(),
+        await addDoc(`businesses/${businessId}/cashFlow`, {
+          id: crypto.randomUUID(),
+          date: new Date().toISOString(),
           moneyIn: 0,
           moneyOut: parseFloat(form.amount),
           category: form.category,
           description: `Expense - ${form.category}`,
-          expenseId: expenseRef.id,
+          expenseId: expenseId,
           paymentMethod: form.paymentMethod,
-          createdAt: Timestamp.now(),
+          createdAt: new Date().toISOString(),
         });
         console.log('✅ Cash flow entry created for expense');
       } catch (cashFlowError) {
@@ -263,22 +270,26 @@ export function AddExpensePage() {
 
       // Record audit trail for expense creation
       try {
-        const userDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
-        const userData = userDoc.data();
+        const { data: userData } = await getSupabase()
+          .from('users')
+          .select('*')
+          .eq('id', currentUser.uid)
+          .single();
         
-        await addDoc(collection(firestore, 'businesses', businessId, 'auditTrail'), {
+        await addDoc(`businesses/${businessId}/auditTrail`, {
+          id: crypto.randomUUID(),
           userId: currentUser.uid,
           userName: userData?.displayName || userData?.name || currentUser.displayName || 'Unknown',
           userEmail: currentUser.email || userData?.email || '',
           action: 'create',
           entityType: 'expense',
-          entityId: expenseRef.id,
+          entityId: expenseId,
           entityName: `Expense - ${form.category}`,
           previousValues: null,
           newValues: {
             category: form.category,
             amount: parseFloat(form.amount),
-            date: Timestamp.fromDate(new Date(form.date)),
+            date: new Date(form.date).toISOString(),
             paymentMethod: form.paymentMethod,
             description: form.description,
             linkedProduct: form.linkedProduct || null,
@@ -287,7 +298,7 @@ export function AddExpensePage() {
             recurFrequency: form.isRecurring ? form.recurFrequency : null,
             receiptUrl: receipt || null,
           },
-          timestamp: Timestamp.now(),
+          timestamp: new Date().toISOString(),
           ipAddress: null,
           userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
         });
@@ -299,11 +310,15 @@ export function AddExpensePage() {
 
       // Check for large expense or unusual spending and send alerts
       try {
-        const ownerDoc = await getDoc(doc(firestore, 'users', currentUser.uid));
-        const businessName = ownerDoc.data()?.businessName || 'Your Business';
-        const ownerEmail = ownerDoc.data()?.email;
-        const ownerName = ownerDoc.data()?.fullName || ownerDoc.data()?.displayName || 'Business Owner';
-        const emailPrefs = ownerDoc.data()?.emailPreferences;
+        const { data: ownerDoc } = await getSupabase()
+          .from('users')
+          .select('*')
+          .eq('id', currentUser.uid)
+          .single();
+        const businessName = ownerDoc?.businessName || ownerDoc?.business_name || 'Your Business';
+        const ownerEmail = ownerDoc?.email;
+        const ownerName = ownerDoc?.fullName || ownerDoc?.full_name || ownerDoc?.displayName || ownerDoc?.display_name || 'Business Owner';
+        const emailPrefs = ownerDoc?.emailPreferences || ownerDoc?.email_preferences;
         const expenseAmount = parseFloat(form.amount);
 
         if (emailPrefs?.largeExpense !== false && ownerEmail) {
@@ -326,18 +341,19 @@ export function AddExpensePage() {
 
         if (emailPrefs?.unusualSpending !== false && ownerEmail) {
           // Check for unusual spending by comparing with average expenses
-          const expensesQuery = query(
-            collection(firestore, 'businesses', businessId, 'expenses'),
-            where('date', '>=', Timestamp.fromDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)))
-          );
-          const expensesSnapshot = await getDocs(expensesQuery);
+          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+          const expensesSnapshot = await fetchDocs(`businesses/${businessId}/expenses`, {
+            filters: [
+              { field: 'date', op: '>=', value: thirtyDaysAgo },
+            ],
+          });
           
-          if (expensesSnapshot.size > 0) {
+          if (expensesSnapshot.length > 0) {
             let totalExpenses = 0;
             expensesSnapshot.forEach(doc => {
-              totalExpenses += doc.data().amount || 0;
+              totalExpenses += (doc as any).amount || 0;
             });
-            const averageExpense = totalExpenses / expensesSnapshot.size;
+            const averageExpense = totalExpenses / expensesSnapshot.length;
             
             // If current expense is 3x the average, flag as unusual
             if (expenseAmount > averageExpense * 3) {
