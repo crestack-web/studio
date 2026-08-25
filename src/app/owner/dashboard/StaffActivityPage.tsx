@@ -4,8 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
-import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { fetchDocs } from '@/lib/supabase-client-data';
 import { Pagination } from '@/components/Pagination';
 import { getUserPlan } from '@/lib/featureRestrictions';
 import styles from './StaffActivityPage.module.css';
@@ -19,7 +18,7 @@ interface StaffActivity {
   action: string;
   actionType: 'sale' | 'inventory' | 'transfer' | 'collection' | 'payment' | 'expense' | 'product_update' | 'other';
   details: string;
-  timestamp: Timestamp;
+  timestamp: string | Date;
   metadata?: {
     saleId?: string;
     productId?: string;
@@ -36,14 +35,13 @@ interface StaffSummary {
   totalActions: number;
   salesCount: number;
   totalRevenue: number;
-  lastActivity: Timestamp;
+  lastActivity: string | Date;
 }
 
 export function StaffActivityPage() {
   const { showToast, user } = useApp();
   const { formatMoney } = useCurrency();
   const { businessId } = useBranch();
-  const { firestore } = initializeFirebase();
   
   const [activities, setActivities] = useState<StaffActivity[]>([]);
   const [staffSummaries, setStaffSummaries] = useState<StaffSummary[]>([]);
@@ -59,7 +57,7 @@ export function StaffActivityPage() {
     checkPlan();
     setCurrentPage(1);
     loadData();
-  }, [businessId, firestore, filterRole, filterAction, filterDate]);
+  }, [businessId, filterRole, filterAction, filterDate]);
 
   const checkPlan = async () => {
     if (!user?.id) return;
@@ -79,7 +77,7 @@ export function StaffActivityPage() {
   };
 
   const loadData = async () => {
-    if (!businessId || !firestore) {
+    if (!businessId) {
       setIsLoading(false);
       return;
     }
@@ -99,30 +97,10 @@ export function StaffActivityPage() {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
       }
       
-      const activitiesQuery = query(
-        collection(firestore, 'businesses', businessId, 'staffActivity'),
-        where('timestamp', '>=', Timestamp.fromDate(startDate)),
-        orderBy('timestamp', 'desc'),
-        limit(100)
-      );
-      
-      const activitiesSnapshot = await getDocs(activitiesQuery);
-      const activitiesList: StaffActivity[] = [];
-      
-      activitiesSnapshot.forEach(doc => {
-        const data = doc.data();
-        activitiesList.push({
-          id: doc.id,
-          userId: data.userId,
-          userName: data.userName,
-          userEmail: data.userEmail,
-          role: data.role,
-          action: data.action,
-          actionType: data.actionType,
-          details: data.details,
-          timestamp: data.timestamp,
-          metadata: data.metadata,
-        });
+      const activitiesList = await fetchDocs(`businesses/${businessId}/staffActivity`, {
+        filters: [{ field: 'timestamp', op: '>=', value: startDate.toISOString() }],
+        orderBy: { field: 'timestamp', ascending: false },
+        limit: 100,
       });
       
       // Apply filters
@@ -199,9 +177,9 @@ export function StaffActivityPage() {
     }
   };
 
-  const formatTimestamp = (timestamp: Timestamp) => {
+  const formatTimestamp = (timestamp: string | Date) => {
     if (!timestamp) return 'N/A';
-    const date = timestamp.toDate();
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);

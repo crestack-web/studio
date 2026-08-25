@@ -7,8 +7,7 @@ import { useCurrency } from './CurrencyContext';
 import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { StaffAccountability } from './types';
-import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { fetchDocs } from '@/lib/supabase-client-data';
 import styles from './StaffAccountabilityPage.module.css';
 
 export default function StaffAccountabilityPage() {
@@ -29,9 +28,6 @@ export default function StaffAccountabilityPage() {
     
     setLoading(true);
     try {
-      const { firestore } = initializeFirebase();
-      const salesRef = collection(firestore, 'businesses', user.businessId, 'sales');
-      
       let startDate = new Date();
       if (selectedPeriod === 'week') {
         startDate.setDate(startDate.getDate() - 7);
@@ -43,24 +39,16 @@ export default function StaffAccountabilityPage() {
         startDate.setFullYear(startDate.getFullYear() - 1);
       }
       
-      const q = query(
-        salesRef,
-        where('createdAt', '>=', Timestamp.fromDate(startDate)),
-        orderBy('createdAt', 'desc')
-      );
-      
-      const snapshot = await getDocs(q);
-      const sales = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const sales = await fetchDocs(`businesses/${user.businessId}/sales`, {
+        filters: [{ field: 'createdAt', op: '>=', value: startDate.toISOString() }],
+        orderBy: { field: 'createdAt', ascending: false },
+      });
       
       // Load cash reconciliation data
-      const reconciliationsRef = collection(firestore, 'businesses', user.businessId, 'cashReconciliations');
-      const recQ = query(
-        reconciliationsRef,
-        where('date', '>=', Timestamp.fromDate(startDate)),
-        orderBy('date', 'desc')
-      );
-      const recSnapshot = await getDocs(recQ);
-      const reconciliations = recSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const reconciliations = await fetchDocs(`businesses/${user.businessId}/cashReconciliations`, {
+        filters: [{ field: 'date', op: '>=', value: startDate.toISOString() }],
+        orderBy: { field: 'date', ascending: false },
+      });
       
       // Create a map of saleId to actual cash submitted from reconciliations
       const saleToCashMap = new Map<string, number>();

@@ -4,8 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
-import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, orderBy, limit, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { fetchDocs, fetchDoc, updateDoc, toDate } from '@/lib/supabase-client-data';
 import styles from './OperationsDashboard.module.css';
 import { DashboardTour } from './components/DashboardTour';
 
@@ -39,8 +38,6 @@ export function OperationsDashboard() {
   const { showToast, user } = useApp();
   const { formatMoney, currency } = useCurrency();
   const { businessId } = useBranch();
-  const { firestore } = initializeFirebase();
-  
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
@@ -51,15 +48,14 @@ export function OperationsDashboard() {
   useEffect(() => {
     loadData();
     checkTourStatus();
-  }, [businessId, firestore]);
+  }, [businessId]);
 
   const checkTourStatus = async () => {
     if (!user?.id) return;
     
     try {
-      const userDoc = await getDoc(doc(firestore!, 'users', user.id));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
+      const userData = await fetchDoc('users', user.id);
+      if (userData) {
         const hasCompletedTour = userData.dashboardTourCompleted === true;
         const isNewUser = !userData.hasUsedDashboard;
         
@@ -82,7 +78,7 @@ export function OperationsDashboard() {
     
     if (user?.id) {
       try {
-        await updateDoc(doc(firestore!, 'users', user.id), {
+        await updateDoc('users', user.id, {
           dashboardTourCompleted: true,
           hasUsedDashboard: true,
         });
@@ -97,7 +93,7 @@ export function OperationsDashboard() {
     
     if (user?.id) {
       try {
-        await updateDoc(doc(firestore!, 'users', user.id), {
+        await updateDoc('users', user.id, {
           hasUsedDashboard: true,
         });
       } catch (error) {
@@ -107,7 +103,7 @@ export function OperationsDashboard() {
   };
 
   const loadData = async () => {
-    if (!businessId || !firestore) {
+    if (!businessId) {
       setIsLoading(false);
       return;
     }
@@ -116,72 +112,51 @@ export function OperationsDashboard() {
       setIsLoading(true);
       
       // Load products
-      const productsQuery = query(
-        collection(firestore, 'businesses', businessId, 'products'),
-        where('active', '==', true)
-      );
-      
-      const productsSnapshot = await getDocs(productsQuery);
-      const productsList: Product[] = [];
-      
-      productsSnapshot.forEach(doc => {
-        const data = doc.data();
-        productsList.push({
-          id: doc.id,
-          name: data.name || '',
-          stock: data.stock || 0,
-          lowStockThreshold: data.lowStockThreshold || 10,
-          costPrice: data.cost || 0,
-          sellingPrice: data.price || 0,
-          unitsSold30d: data.unitsSold30d || 0,
-          lastSaleDate: data.lastSaleDate,
-          imageUrl: data.imageUrl || '',
-        });
+      const productsData = await fetchDocs(`businesses/${businessId}/products`, {
+        filters: [{ field: 'active', op: '=', value: true }],
       });
+      
+      const productsList: Product[] = productsData.map((data) => ({
+        id: data.id,
+        name: data.name || '',
+        stock: data.stock || 0,
+        lowStockThreshold: data.lowStockThreshold || 10,
+        costPrice: data.costPrice || data.cost || 0,
+        sellingPrice: data.sellingPrice || data.price || 0,
+        unitsSold30d: data.unitsSold30d || 0,
+        lastSaleDate: data.lastSaleDate,
+        imageUrl: data.imageUrl || '',
+      }));
       
       setProducts(productsList);
       
       // Load suppliers
-      const suppliersQuery = query(
-        collection(firestore, 'businesses', businessId, 'suppliers'),
-        where('active', '==', true),
-        orderBy('totalAmountSpent', 'desc')
-      );
-      
-      const suppliersSnapshot = await getDocs(suppliersQuery);
-      const suppliersList: Supplier[] = [];
-      
-      suppliersSnapshot.forEach(doc => {
-        const data = doc.data();
-        suppliersList.push({
-          id: doc.id,
-          name: data.name || '',
-          totalAmountSpent: data.totalAmountSpent || 0,
-          supplyCount: data.supplyCount || 0,
-          lastSupplyDate: data.lastSupplyDate,
-        });
+      const suppliersData = await fetchDocs(`businesses/${businessId}/suppliers`, {
+        filters: [{ field: 'active', op: '=', value: true }],
+        orderBy: { field: 'totalAmountSpent', ascending: false },
       });
+      
+      const suppliersList: Supplier[] = suppliersData.map((data) => ({
+        id: data.id,
+        name: data.name || '',
+        totalAmountSpent: data.totalAmountSpent || 0,
+        supplyCount: data.supplyCount || 0,
+        lastSupplyDate: data.lastSupplyDate,
+      }));
       
       setSuppliers(suppliersList);
       
       // Load recent sales
-      const salesQuery = query(
-        collection(firestore, 'businesses', businessId, 'sales'),
-        orderBy('createdAt', 'desc'),
-        limit(100)
-      );
-      
-      const salesSnapshot = await getDocs(salesQuery);
-      const salesList: Sale[] = [];
-      
-      salesSnapshot.forEach(doc => {
-        const data = doc.data();
-        salesList.push({
-          id: doc.id,
-          total: data.total || 0,
-          createdAt: data.createdAt,
-        });
+      const salesData = await fetchDocs(`businesses/${businessId}/sales`, {
+        orderBy: { field: 'createdAt', ascending: false },
+        limit: 100,
       });
+      
+      const salesList: Sale[] = salesData.map((data) => ({
+        id: data.id,
+        total: data.total || 0,
+        createdAt: data.createdAt,
+      }));
       
       setSales(salesList);
     } catch (error) {
@@ -207,11 +182,17 @@ export function OperationsDashboard() {
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
   
   const dailySales = sales
-    .filter(s => s.createdAt?.toDate?.() >= todayStart)
+    .filter(s => {
+      const d = toDate(s.createdAt);
+      return d && d >= todayStart;
+    })
     .reduce((sum, s) => sum + s.total, 0);
     
   const monthlySales = sales
-    .filter(s => s.createdAt?.toDate?.() >= monthStart)
+    .filter(s => {
+      const d = toDate(s.createdAt);
+      return d && d >= monthStart;
+    })
     .reduce((sum, s) => sum + s.total, 0);
   
   // AI Insights
@@ -222,7 +203,7 @@ export function OperationsDashboard() {
   
   const deadStock = products
     .filter(p => {
-      const lastSale = p.lastSaleDate?.toDate?.();
+      const lastSale = toDate(p.lastSaleDate);
       if (!lastSale) return false;
       const daysSinceSale = (today.getTime() - lastSale.getTime()) / (1000 * 60 * 60 * 24);
       return daysSinceSale > 30 && p.stock > 0;

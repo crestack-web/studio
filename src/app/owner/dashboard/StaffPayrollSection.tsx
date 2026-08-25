@@ -2,19 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from './Button';
-import { initializeFirebase } from '@/firebase';
-import {
-  collection,
-  getDocs,
-  doc,
-  getDoc,
-  addDoc,
-  updateDoc,
-  setDoc,
-  increment,
-  serverTimestamp,
-  writeBatch,
-} from 'firebase/firestore';
+import { fetchDocs, fetchDoc, addDoc, updateDoc, runBatch } from '@/lib/supabase-client-data';
 
 export interface PayrollStaff {
   id: string;
@@ -64,21 +52,16 @@ export function StaffPayrollSection({
   const loadWallet = useCallback(async () => {
     if (!businessId) return;
     try {
-      const { firestore } = initializeFirebase();
-      const walletRef = doc(firestore, 'businesses', businessId, 'settings', 'payrollWallet');
-      const snap = await getDoc(walletRef);
-      setWalletBalance(Number(snap.data()?.balance) || 0);
-      const txSnap = await getDocs(collection(firestore, 'businesses', businessId, 'walletTransactions'));
-      const rows = txSnap.docs.map((d) => {
-        const data = d.data();
-        return {
-          id: d.id,
-          type: data.type || 'deposit',
-          amount: Number(data.amount) || 0,
-          note: data.note || '',
-          balanceAfter: Number(data.balanceAfter) || 0,
-        };
-      });
+      const walletSnap = await fetchDoc(`businesses/${businessId}/settings`, 'payrollWallet');
+      setWalletBalance(Number((walletSnap as any)?.balance) || 0);
+      const txList = await fetchDocs(`businesses/${businessId}/walletTransactions`);
+      const rows = (txList as any[]).map((data: any) => ({
+        id: data.id,
+        type: data.type || 'deposit',
+        amount: Number(data.amount) || 0,
+        note: data.note || '',
+        balanceAfter: Number(data.balanceAfter) || 0,
+      }));
       setTx(rows.slice(0, 12));
     } catch (e) {
       console.error(e);
@@ -102,17 +85,20 @@ export function StaffPayrollSection({
     }
     setBusy(true);
     try {
-      const { firestore } = initializeFirebase();
-      const walletRef = doc(firestore, 'businesses', businessId, 'settings', 'payrollWallet');
-      await setDoc(walletRef, { balance: increment(amount), updatedAt: serverTimestamp() }, { merge: true });
-      const snap = await getDoc(walletRef);
-      const newBalance = Number(snap.data()?.balance) || amount;
-      await addDoc(collection(firestore, 'businesses', businessId, 'walletTransactions'), {
+      const walletSnap = await fetchDoc(`businesses/${businessId}/settings`, 'payrollWallet');
+      const currentBalance = Number((walletSnap as any)?.balance) || 0;
+      const newBalance = currentBalance + amount;
+      await updateDoc(`businesses/${businessId}/settings`, 'payrollWallet', {
+        balance: newBalance,
+        updatedAt: new Date().toISOString(),
+      });
+      await addDoc(`businesses/${businessId}/walletTransactions`, {
+        id: crypto.randomUUID(),
         type: 'deposit',
         amount,
         note: fundNote.trim() || 'Wallet top-up',
         balanceAfter: newBalance,
-        createdAt: serverTimestamp(),
+        createdAt: new Date().toISOString(),
         createdBy: userId || null,
       });
       setWalletBalance(newBalance);

@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
-import { initializeFirebase } from '@/firebase';
 import { getAuthCurrentUser } from '@/lib/supabase-auth';
-import { doc, getDoc, getFirestore, collection, getDocs, query } from 'firebase/firestore';
+import { fetchDocs } from '@/lib/supabase-client-data';
+import { getSupabase } from '@/lib/supabase';
 
 interface StaffMember {
   id: string;
@@ -42,22 +42,14 @@ const AttendanceTab: React.FC<AttendanceTabProps> = ({ staffMembers, showToast }
 
   const loadAttendanceData = async () => {
     try {
-      const { auth, firestore } = initializeFirebase();
       const currentUserId = getAuthCurrentUser()?.uid || '';
       if (!currentUserId) return;
       
-      const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
-      const businessId = ownerDoc.data()?.businessId || 'default';
+      const { data: ownerDoc } = await getSupabase().from('users').select('business_id').eq('id', currentUserId).single();
+      const businessId = ownerDoc?.business_id || 'default';
       
-      const attendanceQuery = query(
-        collection(firestore, 'businesses', businessId, 'attendance')
-      );
-      const snapshot = await getDocs(attendanceQuery);
-      const records: AttendanceRecord[] = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as AttendanceRecord[];
-      setAttendanceRecords(records);
+      const records = await fetchDocs(`businesses/${businessId}/attendance`);
+      setAttendanceRecords(records as AttendanceRecord[]);
     } catch (error) {
       console.error('Error loading attendance:', error);
     } finally {

@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { formatCurrency } from '@/lib/currency';
-import { initializeFirebase } from '@/firebase';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { fetchDocs, fetchDoc } from '@/lib/supabase-client-data';
 import styles from './CapitalPage.module.css';
 import { Button } from './Button';
 import { MOLoadingSpinner } from '@/components/MOLoadingSpinner';
@@ -35,7 +34,6 @@ interface ChecklistItem {
 
 export default function CapitalPage() {
   const { navigateTo, showToast, user } = useApp();
-  const { firestore } = initializeFirebase();
   
   const [loading, setLoading] = useState(true);
   const [fundabilityScore, setFundabilityScore] = useState(0);
@@ -64,35 +62,30 @@ export default function CapitalPage() {
           return;
         }
 
-        const userDoc = await getDoc(doc(firestore, 'users', user.id));
-        if (!userDoc.exists()) {
+        const userData = await fetchDoc('users', user.id);
+        if (!userData) {
           showToast('User profile not found');
           return;
         }
 
-        const userData = userDoc.data();
         const businessId = userData.businessId || user.id;
 
-        const businessConfigDoc = await getDoc(doc(firestore, 'businesses', businessId, 'store', 'config'));
-        if (businessConfigDoc.exists()) {
-          const businessConfig = businessConfigDoc.data();
+        const businessConfig = await fetchDoc(`businesses/${businessId}/store`, 'config');
+        if (businessConfig) {
           setCurrency(businessConfig.currency || 'NGN');
         }
 
-        const [salesSnapshot, expensesSnapshot] = await Promise.all([
-          getDocs(collection(firestore, 'businesses', businessId, 'sales')),
-          getDocs(collection(firestore, 'businesses', businessId, 'expenses')),
-        ]);
-
-        const sales = salesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
-        const expenses = expensesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+        const [sales, expenses] = await Promise.all([
+          fetchDocs(`businesses/${businessId}/sales`),
+          fetchDocs(`businesses/${businessId}/expenses`),
+        ]) as any[][];
 
         let dataHistory = 0;
         if (sales.length > 0) {
-          const firstSale = sales.reduce((min, s) => 
-            s.createdAt?.toDate() < min ? s.createdAt?.toDate() : min, 
-            new Date()
-          );
+          const firstSale = sales.reduce((min, s) => {
+            const d = new Date(s.createdAt);
+            return d < min ? d : min;
+          }, new Date());
           dataHistory = Math.floor((new Date().getTime() - firstSale.getTime()) / (1000 * 60 * 60 * 24));
         }
 
@@ -116,8 +109,8 @@ export default function CapitalPage() {
         const cashBalance = totalProfit - totalExpenses;
 
         const activityDays = new Set([
-          ...sales.map((s: any) => s.createdAt?.toDate()?.toDateString()),
-          ...expenses.map((e: any) => e.date?.toDate?.() ? e.date.toDate().toDateString() : null)
+          ...sales.map((s: any) => new Date(s.createdAt).toDateString()),
+          ...expenses.map((e: any) => e.date ? new Date(e.date).toDateString() : null)
         ].filter(Boolean));
         const activeDays = activityDays.size;
 

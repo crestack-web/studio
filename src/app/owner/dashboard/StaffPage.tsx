@@ -9,8 +9,8 @@ import { Pill } from './Badge';
 import { NavIcons } from './NavIcons';
 import styles from './StaffPage.module.css';
 import { ChatPanel } from './ChatPanel';
-import { initializeFirebase } from '@/firebase';
-import { doc, setDoc, getDoc, getFirestore, collection, getDocs, query, where } from 'firebase/firestore';
+import { fetchDocs, fetchDoc, addDoc, updateDoc } from '@/lib/supabase-client-data';
+import { getSupabase } from '@/lib/supabase';
 import { BrevoService } from '@/services/email/brevo-service';
 import { sendStaffRoleUpdatedEmail, sendStaffRemovedEmail } from '@/services/email/team-management-emails';
 import { isRestaurantBusiness, getBusinessCategory } from './utils/restaurantHelpers';
@@ -131,26 +131,22 @@ export default function StaffPage() {
 
   const { navigateTo, showToast, user } = useApp();
 
-  /** Resolve owner business from Supabase-backed AppContext (never Firebase Auth). */
+  /** Resolve owner business from Supabase-backed AppContext. */
   const resolveOwnerScope = async () => {
-    const { firestore } = initializeFirebase();
-    if (!firestore) throw new Error('Data service unavailable');
-
     let ownerUserId = user?.id || '';
     let businessId = user?.businessId || '';
 
     // Wait briefly if AppContext still hydrating
     if (!ownerUserId || !businessId) {
       try {
-        const { getSupabase } = await import('@/lib/supabase');
         const supabase = getSupabase();
         const { data } = await supabase.auth.getSession();
         const sUser = data.session?.user;
         if (sUser) {
           ownerUserId = sUser.id;
-          const ownerDoc = await getDoc(doc(firestore, 'users', sUser.id));
-          if (ownerDoc.exists()) {
-            const d = ownerDoc.data() || {};
+          const { data: ownerRow } = await supabase.from('users').select('*').eq('id', sUser.id).single();
+          if (ownerRow) {
+            const d = ownerRow as any;
             businessId = d.businessId ? String(d.businessId) : businessId;
           }
           if (!businessId && sUser.user_metadata?.businessId) {
@@ -169,24 +165,24 @@ export default function StaffPage() {
     let ownerName = user?.name || 'Business Owner';
     let ownerEmail = user?.email || '';
     try {
-      const ownerDoc = await getDoc(doc(firestore, 'users', ownerUserId));
-      if (ownerDoc.exists()) {
-        const d = ownerDoc.data() || {};
+      const { data: ownerRow } = await getSupabase().from('users').select('*').eq('id', ownerUserId).single();
+      if (ownerRow) {
+        const d = ownerRow as any;
         businessName =
           d.businessName || d.name || d.displayName || businessName;
         ownerName = d.fullName || d.displayName || d.name || ownerName;
         ownerEmail = d.email || ownerEmail;
       }
-      const bizDoc = await getDoc(doc(firestore, 'businesses', businessId));
-      if (bizDoc.exists()) {
-        const b = bizDoc.data() || {};
+      const bizDoc = await fetchDoc(`businesses/${businessId}`, businessId);
+      if (bizDoc) {
+        const b = bizDoc as any;
         businessName = b.businessName || b.name || businessName;
       }
     } catch {
       /* non-fatal */
     }
 
-    return { firestore, ownerUserId, businessId, businessName, ownerName, ownerEmail };
+    return { ownerUserId, businessId, businessName, ownerName, ownerEmail };
   };
 
   const { t } = useTranslation();
@@ -240,64 +236,57 @@ export default function StaffPage() {
   const [conversations, setConversations] = useState<{ [key: string]: { id: string; messages: ChatMessage[] } }>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load staff from Firestore when owner business is known (Supabase session)
+  // Load staff from Supabase when owner business is known
   useEffect(() => {
     let cancelled = false;
 
-    const loadStaffFromFirestore = async () => {
+    const loadStaffFromSupabase = async () => {
       try {
         // Wait until AppContext has hydrated the owner user
         if (!user?.id && !user?.businessId) {
           return;
         }
 
-        const { firestore, businessId } = await resolveOwnerScope();
+        const { businessId } = await resolveOwnerScope();
         if (cancelled) return;
 
         const restaurant = await isRestaurantBusiness(businessId);
         if (!cancelled) setIsRestaurant(restaurant);
 
-        const staffCollection = collection(
-          firestore,
-          'businesses',
-          businessId,
-          'staff'
-        );
-        const staffSnapshot = await getDocs(staffCollection);
+        const staffList = await fetchDocs(`businesses/${businessId}/staff`);
         if (cancelled) return;
 
-        const staffList: StaffMember[] = [];
-        staffSnapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          const status = String(data.status || 'active').toLowerCase();
-          if (status === 'removed') return;
-
-          const seed = data.staffId || docSnap.id || data.name || '';
-          const { bg: avatarBg, color: avatarColor } = getAvatarColors(seed);
-
-          staffList.push({
-            id: docSnap.id,
-            staffId: data.staffId || '',
-            name: data.name || '',
-            role: data.role || '',
-            email: data.email || '',
-            avatarBg,
-            avatarColor,
-            initials: getInitials(data.name || ''),
-            revenue: data.revenue || 0,
-            transactions: data.transactions || 0,
-            online: data.online || false,
-            permissions: data.permissions || {},
+        const mapped: StaffMember[] = (staffList as any[])
+          .filter((data: any) => {
+            const status = String(data.status || 'active').toLowerCase();
+            return status !== 'removed';
+          })
+          .map((data: any) => {
+            const seed = data.staffId || data.id || data.name || '';
+            const { bg: avatarBg, color: avatarColor } = getAvatarColors(seed);
+            return {
+              id: data.id,
+              staffId: data.staffId || '',
+              name: data.name || '',
+              role: data.role || '',
+              email: data.email || '',
+              avatarBg,
+              avatarColor,
+              initials: getInitials(data.name || ''),
+              revenue: data.revenue || 0,
+              transactions: data.transactions || 0,
+              online: data.online || false,
+              permissions: data.permissions || {},
+            };
           });
-        });
 
-        setStaffMembers(staffList);
+        setStaffMembers(mapped);
         localStorage.setItem(
           `staff-members:${businessId}`,
-          JSON.stringify(staffList)
+          JSON.stringify(mapped)
         );
       } catch (error) {
-        console.error('Error loading staff from Firestore:', error);
+        console.error('Error loading staff:', error);
         // Scoped localStorage fallback only (never a shared global list)
         try {
           const bid = user?.businessId;
@@ -321,7 +310,7 @@ export default function StaffPage() {
       }
     };
 
-    loadStaffFromFirestore();
+    loadStaffFromSupabase();
 
     const savedConvos = localStorage.getItem('staff-chat-conversations');
     if (savedConvos) {
@@ -434,13 +423,7 @@ export default function StaffPage() {
     ];
 
     try {
-      const { firestore, businessId: scopedBusinessId, businessName: scopedBusinessName, ownerName: scopedOwnerName, ownerEmail: scopedOwnerEmail, ownerUserId } = await resolveOwnerScope();
-      const currentUserId = ownerUserId;
-
-      // Get current owner's business ID
-      const businessId = scopedBusinessId;
-      const businessName = scopedBusinessName;
-
+      const { businessId: scopedBusinessId, businessName: scopedBusinessName, ownerName: scopedOwnerName, ownerEmail: scopedOwnerEmail, ownerUserId } = await resolveOwnerScope();
       let firebaseUser: any;
       let isNewUser = true;
       let inviteEmailSent = false;
@@ -458,9 +441,9 @@ export default function StaffPage() {
             name: newStaffName.trim(),
             role: newStaffRole.trim() || 'Staff',
             staffId: staffId,
-            businessId: businessId,
+            businessId: scopedBusinessId,
             permissions: newStaffPermissions,
-            businessName,
+            businessName: scopedBusinessName,
             sendInvite: true,
           }),
         });
@@ -559,7 +542,7 @@ export default function StaffPage() {
     setIsRemovingStaff(true);
 
     try {
-      const { firestore, businessId: scopedBusinessId, businessName: scopedBusinessName, ownerName: scopedOwnerName, ownerEmail: scopedOwnerEmail, ownerUserId } = await resolveOwnerScope();
+      const { businessId: scopedBusinessId, businessName: scopedBusinessName, ownerName: scopedOwnerName, ownerEmail: scopedOwnerEmail, ownerUserId } = await resolveOwnerScope();
       const currentUserId = ownerUserId;
       const businessId = scopedBusinessId;
       const businessName = scopedBusinessName;
@@ -567,16 +550,13 @@ export default function StaffPage() {
       const ownerEmail = scopedOwnerEmail;
 
       // Remove from businesses/staff collection
-      await setDoc(doc(firestore, 'businesses', businessId, 'staff', staffToRemove.id), {
+      await updateDoc(`businesses/${businessId}/staff`, staffToRemove.id, {
         status: 'removed',
-        removedAt: new Date(),
-      }, { merge: true });
+        removedAt: new Date().toISOString(),
+      });
 
       // Update user role in users collection
-      await setDoc(doc(firestore, 'users', staffToRemove.id), {
-        role: 'Removed',
-        businessId: null,
-      }, { merge: true });
+      await getSupabase().from('users').update({ role: 'Removed', business_id: null }).eq('id', staffToRemove.id);
 
       // Send staff removal email notification
       if (staffToRemove.email && ownerEmail) {
@@ -616,20 +596,18 @@ export default function StaffPage() {
     if (confirm(`Are you sure you want to ban ${staffName}? They will not be able to access the dashboard.`)) {
       setIsBanningStaff(true);
       try {
-        const { firestore, businessId: scopedBusinessId, businessName: scopedBusinessName, ownerName: scopedOwnerName, ownerEmail: scopedOwnerEmail, ownerUserId } = await resolveOwnerScope();
+        const { businessId: scopedBusinessId, businessName: scopedBusinessName, ownerName: scopedOwnerName, ownerEmail: scopedOwnerEmail, ownerUserId } = await resolveOwnerScope();
         const currentUserId = ownerUserId;
         const businessId = scopedBusinessId;
 
         // Update status in businesses/staff collection
-        await setDoc(doc(firestore, 'businesses', businessId, 'staff', staffId), {
+        await updateDoc(`businesses/${businessId}/staff`, staffId, {
           status: 'banned',
-          bannedAt: new Date(),
-        }, { merge: true });
+          bannedAt: new Date().toISOString(),
+        });
 
         // Update user in users collection
-        await setDoc(doc(firestore, 'users', staffId), {
-          status: 'banned',
-        }, { merge: true });
+        await getSupabase().from('users').update({ status: 'banned' }).eq('id', staffId);
 
         // Update local state
         setStaffMembers((prev) =>
@@ -679,18 +657,18 @@ export default function StaffPage() {
     setIsSavingTargets(true);
 
     try {
-      const { firestore, businessId: scopedBusinessId, businessName: scopedBusinessName, ownerName: scopedOwnerName, ownerEmail: scopedOwnerEmail, ownerUserId } = await resolveOwnerScope();
+      const { businessId: scopedBusinessId, businessName: scopedBusinessName, ownerName: scopedOwnerName, ownerEmail: scopedOwnerEmail, ownerUserId } = await resolveOwnerScope();
       const currentUserId = ownerUserId;
       const businessId = scopedBusinessId;
 
-      // Update targets in Firestore
-      await setDoc(doc(firestore, 'businesses', businessId, 'staff', targetStaff.id), {
+      // Update targets
+      await updateDoc(`businesses/${businessId}/staff`, targetStaff.id, {
         targets: {
           revenue: targetRevenue,
           transactions: targetTransactions,
           period: targetPeriod,
         },
-      }, { merge: true });
+      });
 
       // Update local state
       setStaffMembers((prev) =>
@@ -716,22 +694,20 @@ export default function StaffPage() {
     setIsSavingPermissions(true);
 
     try {
-      const { firestore, businessId: scopedBusinessId, businessName: scopedBusinessName, ownerName: scopedOwnerName, ownerEmail: scopedOwnerEmail, ownerUserId } = await resolveOwnerScope();
+      const { businessId: scopedBusinessId, businessName: scopedBusinessName, ownerName: scopedOwnerName, ownerEmail: scopedOwnerEmail, ownerUserId } = await resolveOwnerScope();
       const currentUserId = ownerUserId;
       const businessId = scopedBusinessId;
       const businessName = scopedBusinessName;
       const ownerName = scopedOwnerName;
       const ownerEmail = scopedOwnerEmail;
 
-      // Update permissions in Firestore
-      await setDoc(doc(firestore, 'businesses', businessId, 'staff', editingStaff.id), {
+      // Update permissions in staff collection
+      await updateDoc(`businesses/${businessId}/staff`, editingStaff.id, {
         permissions: newStaffPermissions,
-      }, { merge: true });
+      });
 
       // Update permissions in users collection
-      await setDoc(doc(firestore, 'users', editingStaff.id), {
-        permissions: newStaffPermissions,
-      }, { merge: true });
+      await getSupabase().from('users').update({ permissions: newStaffPermissions }).eq('id', editingStaff.id);
 
       // Send staff role update email notification
       if (editingStaff.email && ownerEmail) {
@@ -1535,14 +1511,14 @@ export default function StaffPage() {
                       color: 'var(--text-2)',
                       marginBottom: '4px',
                     }}>
-                      Firebase Auth Account Created
+                      Staff Account Created
                     </div>
                     <div style={{
                       fontSize: '0.75rem',
                       color: 'var(--text-3)',
                       lineHeight: 1.5,
                     }}>
-                      A Firebase Auth account has been created with the provided email. Share the credentials below with the staff member.
+                      A staff account has been created with the provided email. Share the credentials below with the staff member.
                     </div>
                   </div>
                 </div>
