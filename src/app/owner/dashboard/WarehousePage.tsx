@@ -821,7 +821,7 @@ export function WarehousePage() {
         <div className={styles.statCard}>
           <div className={styles.statLabel}>{t('warehouse.totalUnits')}</div>
           <div className={styles.statValue}>{totalUnits.toLocaleString()}</div>
-          <div className={styles.statHint}{products.length} {t('warehouse.productsCount')}</div>
+          <div className={styles.statHint}>{products.length} {t('warehouse.productsCount')}</div>
         </div>
         <div className={styles.statCard}>
           <div className={styles.statLabel}>{t('warehouse.stockValue')}</div>
