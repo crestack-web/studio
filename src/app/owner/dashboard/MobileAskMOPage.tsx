@@ -127,6 +127,7 @@ export function MobileAskMOPage() {
   ]);
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
   const [showHistory, setShowHistory] = useState(false);
+  const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [showCreditPurchase, setShowCreditPurchase] = useState(false);
   const [loadingText, setLoadingText] = useState<string>('');
   const [isSending, setIsSending] = useState(false); // Prevent duplicate requests
@@ -959,11 +960,26 @@ export function MobileAskMOPage() {
     return null;
   }
 
+  const filteredConversations = conversations.filter((conv) =>
+    (conv.title || '').toLowerCase().includes(historySearchQuery.toLowerCase())
+  );
+
+  const formatHistoryDate = (value: any) => {
+    try {
+      if (!value) return '';
+      const d = value instanceof Date ? value : new Date(value);
+      if (Number.isNaN(d.getTime())) return '';
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch {
+      return '';
+    }
+  };
+
   return (
     <div className={styles.container} data-theme={theme}>
       {/* Header */}
       <div className={styles.header}>
-        <button className={styles.backBtn} onClick={() => navigateTo('home')} title="Back">
+        <button className={styles.backBtn} onClick={() => navigateTo('home')} title="Back" type="button">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 20, height: 20 }}>
             <path d="M19 12H5M12 19l-7-7 7-7"/>
           </svg>
@@ -972,23 +988,48 @@ export function MobileAskMOPage() {
           <MoIcon size={18} />
         </div>
         <h3 className={styles.headerTitle}>Ask MO</h3>
-        <div 
-          className={styles.tokenCounter}
-          onClick={() => setShowCreditPurchase(true)}
-          style={{ cursor: creditsRemaining !== -1 ? 'pointer' : 'default' }}
-          title={creditsRemaining !== -1 ? 'Click to purchase more credits' : 'Unlimited credits'}
-        >
-          <img
-            src="https://res.cloudinary.com/dzjoqbg2u/image/upload/q_auto/f_auto/v1781081246/Untitled_design_1_aphwas.png"
-            alt="Token"
-            width={14}
-            height={14}
-            style={{ borderRadius: '50%' }}
-          />
-          <span>{creditsRemaining === -1 ? 'Unlimited' : creditsRemaining.toLocaleString()} Credits</span>
-          {creditsRemaining !== -1 && (
-            <span style={{ marginLeft: '4px', fontSize: '12px', color: 'var(--primary)' }}>+</span>
-          )}
+        <div className={styles.headerActions}>
+          <div
+            className={styles.tokenCounter}
+            onClick={() => setShowCreditPurchase(true)}
+            style={{ cursor: creditsRemaining !== -1 ? 'pointer' : 'default' }}
+            title={creditsRemaining !== -1 ? 'Click to purchase more credits' : 'Unlimited credits'}
+          >
+            <img
+              src="https://res.cloudinary.com/dzjoqbg2u/image/upload/q_auto/f_auto/v1781081246/Untitled_design_1_aphwas.png"
+              alt="Token"
+              width={14}
+              height={14}
+              style={{ borderRadius: '50%' }}
+            />
+            <span>{creditsRemaining === -1 ? 'Unlimited' : creditsRemaining.toLocaleString()}</span>
+            {creditsRemaining !== -1 && (
+              <span style={{ marginLeft: '2px', fontSize: '12px', color: 'var(--primary)' }}>+</span>
+            )}
+          </div>
+          <button
+            type="button"
+            className={styles.historyBtn}
+            onClick={() => setShowHistory(true)}
+            title="Conversation history"
+            aria-label="Conversation history"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 18, height: 18 }}>
+              <path d="M12 8v4l3 3" />
+              <circle cx="12" cy="12" r="9" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className={styles.newChatBtn}
+            onClick={handleNewChat}
+            title="New chat"
+            aria-label="New chat"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ width: 16, height: 16 }}>
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -1382,6 +1423,111 @@ export function MobileAskMOPage() {
           </button>
         </div>
       </div>
+
+      {/* Conversation history drawer */}
+      {showHistory && (
+        <>
+          <div className={styles.historyBackdrop} onClick={() => setShowHistory(false)} />
+          <div className={styles.historyPanel} role="dialog" aria-label="Conversation history">
+            <div className={styles.historyHeader}>
+              <h3 className={styles.historyTitle}>Conversation History</h3>
+              <div className={styles.historyHeaderActions}>
+                <button
+                  type="button"
+                  className={styles.historyNewChatBtn}
+                  onClick={() => {
+                    handleNewChat();
+                    setShowHistory(false);
+                  }}
+                >
+                  New chat
+                </button>
+                <button
+                  type="button"
+                  className={styles.closeHistoryBtn}
+                  onClick={() => setShowHistory(false)}
+                  aria-label="Close history"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div className={styles.historySearch}>
+              <input
+                className={styles.historySearchInput}
+                placeholder="Search conversations..."
+                value={historySearchQuery}
+                onChange={(e) => setHistorySearchQuery(e.target.value)}
+              />
+            </div>
+            <div className={styles.historyList}>
+              {filteredConversations.length === 0 && (
+                <div className={styles.historyEmpty}>
+                  {conversations.length === 0
+                    ? 'No conversations yet'
+                    : 'No matches for your search'}
+                </div>
+              )}
+              {filteredConversations.map((conv) => (
+                <div
+                  key={conv.id}
+                  className={`${styles.historyItem}${
+                    conv.id === currentConversationId ? ` ${styles.historyItemActive}` : ''
+                  }`}
+                  onClick={() => handleLoadConversation(conv.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleLoadConversation(conv.id);
+                    }
+                  }}
+                >
+                  <div className={styles.historyItemHeader}>
+                    <span className={styles.historyItemTitle}>
+                      {conv.title || 'Untitled conversation'}
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.historyItemAction}
+                      title="Delete conversation"
+                      aria-label="Delete conversation"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          await deleteConversation(conv.id);
+                          if (conv.id === currentConversationId) {
+                            handleNewChat();
+                          }
+                          showToast('Conversation deleted');
+                        } catch (err) {
+                          console.error(err);
+                          showToast('Failed to delete conversation');
+                        }
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={14} height={14}>
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                        <path d="M10 11v6M14 11v6" />
+                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className={styles.historyItemMeta}>
+                    <span>{formatHistoryDate(conv.updatedAt || conv.createdAt)}</span>
+                    {conv.id === currentConversationId && (
+                      <span className={styles.historyItemCurrent}>Current</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
     </div>
   );
 }
