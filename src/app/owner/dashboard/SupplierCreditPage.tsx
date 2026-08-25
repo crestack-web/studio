@@ -4,8 +4,17 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
-import { fetchDocs, fetchDoc, addDoc as sbAddDoc, updateDoc as sbUpdateDoc, runBatch } from '@/lib/supabase-client-data';
-import { getSupabase } from '@/lib/supabase';
+import { initializeFirebase } from '@/firebase';
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  runTransaction,
+  Timestamp,
+  orderBy,
+} from 'firebase/firestore';
 import { isCreditLayerEligible, getBusinessType } from '@/lib/featureRestrictions';
 import { Supplier, SupplierLedgerTransaction } from './types';
 import styles from './SupplierCreditPage.module.css';
@@ -24,6 +33,7 @@ export function SupplierCreditPage() {
   const { showToast, user } = useApp();
   const { formatMoney, currency } = useCurrency();
   const { businessId } = useBranch();
+  const { firestore } = initializeFirebase();
   
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [supplierLedger, setSupplierLedger] = useState<SupplierLedgerTransaction[]>([]);
