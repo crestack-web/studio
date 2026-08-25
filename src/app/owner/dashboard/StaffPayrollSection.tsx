@@ -2,7 +2,18 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from './Button';
-import { fetchDocs, fetchDoc, addDoc, updateDoc, runBatch } from '@/lib/supabase-client-data';
+import { fetchDocs, fetchDoc, addDoc, updateDoc } from '@/lib/supabase-client-data';
+import { initializeFirebase } from '@/firebase';
+import {
+  doc,
+  collection,
+  getDoc,
+  addDoc as fbAddDoc,
+  updateDoc as fbUpdateDoc,
+  writeBatch,
+  increment,
+  serverTimestamp,
+} from 'firebase/firestore';
 
 export interface PayrollStaff {
   id: string;
@@ -161,7 +172,7 @@ export function StaffPayrollSection({
       await batch.commit();
       const snap = await getDoc(walletRef);
       const newBalance = Number(snap.data()?.balance) || 0;
-      await addDoc(collection(firestore, 'businesses', businessId, 'walletTransactions'), {
+      await fbAddDoc(collection(firestore, 'businesses', businessId, 'walletTransactions'), {
         type: 'payout',
         amount: selectedTotal,
         note: `Bulk salary payout (${selectedStaff.length} staff)`,
@@ -194,7 +205,7 @@ export function StaffPayrollSection({
     setBusy(true);
     try {
       const { firestore } = initializeFirebase();
-      await updateDoc(doc(firestore, 'businesses', businessId, 'staff', configStaffId), {
+      await fbUpdateDoc(doc(firestore, 'businesses', businessId, 'staff', configStaffId), {
         salary,
         baseSalary: salary,
         paymentFrequency: configFreq,
