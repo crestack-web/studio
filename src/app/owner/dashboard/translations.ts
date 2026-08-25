@@ -40,7 +40,7 @@ export const LANGUAGES: LangMeta[] = [
 // ── Full type of every translation key ────────────────────────────
 export type TranslationDict = {
   // Navigation
-  'nav.home':string; 'nav.recordSale':string; 'nav.addProduct':string;
+  'nav.home':string; 'nav.sale':string; 'nav.mobileAria':string; 'nav.recordSale':string; 'nav.addProduct':string;
   'nav.addExpense':string; 'nav.cashflow':string; 'nav.statement':string;
   'nav.reports':string; 'nav.bankReconciliation':string; 'nav.moneyControl':string;
   'nav.salesHistory':string; 'nav.inventory':string; 'nav.expenses':string;
@@ -561,7 +561,7 @@ export type TranslationDict = {
 // ════════════════════════════════════════════════════════
 
 const en: TranslationDict = {
-  'nav.home':'Home',
+  'nav.home':'Home','nav.sale':'Sale','nav.mobileAria':'Mobile navigation',
   'nav.recordSale':'Record Sale',
   'nav.addProduct':'Add Product',
   'nav.addExpense':'Add Expense',
@@ -1298,7 +1298,7 @@ const en: TranslationDict = {
 };
 
 const fr: TranslationDict = {
-  'nav.home':'Accueil','nav.recordSale':'Enregistrer Vente','nav.addProduct':'Ajouter Produit',
+  'nav.home':'Accueil','nav.sale':'Vente','nav.mobileAria':'Navigation mobile','nav.recordSale':'Enregistrer Vente','nav.addProduct':'Ajouter Produit',
   'nav.addExpense':'Ajouter Dépense','nav.cashflow':'Trésorerie','nav.statement':'Relevé',
   'nav.reports':'Rapports','nav.bankReconciliation':'Rapprochement Bancaire','nav.moneyControl':'Contrôle d\\\\\\\'Argent',
   'nav.salesHistory':'Historique des Ventes','nav.inventory':'Inventaire','nav.expenses':'Dépenses',
@@ -1623,7 +1623,7 @@ const fr: TranslationDict = {
 };
 
 const ha: TranslationDict = {
-  'nav.home':'Gida','nav.recordSale':'Rubuta Siyarwa','nav.addProduct':'Ƙara Kaya',
+  'nav.home':'Gida','nav.sale':'Siyarwa','nav.mobileAria':'Kewayawa ta wayar hannu','nav.recordSale':'Rubuta Siyarwa','nav.addProduct':'Ƙara Kaya',
   'nav.addExpense':'Ƙara Kashe-kashe','nav.cashflow':'Kuɗin Shiga da Fita','nav.statement':'Rahoton Kuɗi',
   'nav.reports':'Rahoto','nav.bankReconciliation':'Daidaita Banki','nav.moneyControl':'Sarrafa Kuɗi',
   'nav.salesHistory':'Tarihin Siyarwa','nav.inventory':'Kayan Ajiya','nav.expenses':'Kashe-kashe',
@@ -1948,7 +1948,7 @@ const ha: TranslationDict = {
 };
 
 const sw: TranslationDict = {
-  'nav.home':'Nyumbani','nav.recordSale':'Rekodi Mauzo','nav.addProduct':'Ongeza Bidhaa',
+  'nav.home':'Nyumbani','nav.sale':'Mauzo','nav.mobileAria':'Urambazaji wa simu','nav.recordSale':'Rekodi Mauzo','nav.addProduct':'Ongeza Bidhaa',
   'nav.addExpense':'Ongeza Gharama','nav.cashflow':'Mtiririko wa Fedha','nav.statement':'Taarifa ya Fedha',
   'nav.reports':'Ripoti','nav.bankReconciliation':'Urejeshaji wa Benki','nav.moneyControl':'Udhibiti wa Fedha',
   'nav.salesHistory':'Historia ya Mauzo','nav.inventory':'Hesabu ya Bidhaa','nav.expenses':'Gharama',
@@ -2273,7 +2273,7 @@ const sw: TranslationDict = {
 };
 
 const yo: TranslationDict = {
-  'nav.home':'Ile','nav.recordSale':'Gbasilẹ Tita','nav.addProduct':'Fi Ọja Kun',
+  'nav.home':'Ile','nav.sale':'Tita','nav.mobileAria':'Lilọ kiri foonu','nav.recordSale':'Gbasilẹ Tita','nav.addProduct':'Fi Ọja Kun',
   'nav.addExpense':'Fi Inawo Kun','nav.cashflow':'Ṣiṣan Owo','nav.statement':'Ìdánimọ Owo',
   'nav.reports':'Riportì','nav.bankReconciliation':'Ìṣòwò Báǹkì','nav.moneyControl':'Ìṣàkóso Owó',
   'nav.salesHistory':'Itan Tita','nav.inventory':'Akojọ Ọja','nav.expenses':'Inawo',
@@ -2598,7 +2598,7 @@ const yo: TranslationDict = {
 };
 
 const ig: TranslationDict = {
-  'nav.home':'Ulo','nav.recordSale':'Dee Ire Ahia','nav.addProduct':'Tinye Ngwongwo',
+  'nav.home':'Ulo','nav.sale':'Ahịa','nav.mobileAria':'Nchọgharị ekwentị','nav.recordSale':'Dee Ire Ahia','nav.addProduct':'Tinye Ngwongwo',
   'nav.addExpense':'Tinye Mmefu','nav.cashflow':'Ọghọ Ego','nav.statement':'Ọnọdụ Ego',
   'nav.reports':'Akụkọ','nav.bankReconciliation':'Njikọta Bank','nav.moneyControl':'Nchịkwa Ego',
   'nav.salesHistory':'Akụkọ Ire Ahia','nav.inventory':'Ọnụọgụ Ngwongwo','nav.expenses':'Mmefu',
@@ -2923,7 +2923,7 @@ const ig: TranslationDict = {
 };
 
 const am: TranslationDict = {
-  'nav.home':'መነሻ','nav.recordSale':'ሽያጭ ማስመዝገቢያ','nav.addProduct':'ምርት ጨምር',
+  'nav.home':'መነሻ','nav.sale':'ሽያጭ','nav.mobileAria':'የሞባይል ዳሰሳ','nav.recordSale':'ሽያጭ ማስመዝገቢያ','nav.addProduct':'ምርት ጨምር',
   'nav.addExpense':'ወጪ ጨምር','nav.cashflow':'የገንዘብ አሰሳ','nav.statement':'የፋይናንስ መግለጫ',
   'nav.reports':'ሪፖርቶች','nav.bankReconciliation':'የባንክ ማስማማት','nav.moneyControl':'የገንዘብ ቁጠባ',
   'nav.salesHistory':'የሽያጭ ታሪክ','nav.inventory':'ዕቃ ክምችት','nav.expenses':'ወጪዎች',
@@ -3248,7 +3248,7 @@ const am: TranslationDict = {
 };
 
 const ar: TranslationDict = {
-  'nav.home':'الرئيسية','nav.recordSale':'تسجيل بيع','nav.addProduct':'إضافة منتج',
+  'nav.home':'الرئيسية','nav.sale':'بيع','nav.mobileAria':'التنقل على الجوال','nav.recordSale':'تسجيل بيع','nav.addProduct':'إضافة منتج',
   'nav.addExpense':'إضافة مصروف','nav.cashflow':'التدفق النقدي','nav.statement':'كشف الحساب',
   'nav.reports':'التقارير','nav.bankReconciliation':'مطابقة البنك','nav.moneyControl':'التحكم في المال',
   'nav.salesHistory':'سجل المبيعات','nav.inventory':'المخزون','nav.expenses':'المصروفات',
@@ -3573,7 +3573,7 @@ const ar: TranslationDict = {
 };
 
 const zu: TranslationDict = {
-  'nav.home':'Ikhaya','nav.recordSale':'Bhala Ukuthengisa','nav.addProduct':'Engeza Umkhiqizo',
+  'nav.home':'Ikhaya','nav.sale':'Thengisa','nav.mobileAria':'Ukuzulazula kweselula','nav.recordSale':'Bhala Ukuthengisa','nav.addProduct':'Engeza Umkhiqizo',
   'nav.addExpense':'Engeza Izindleko','nav.cashflow':'Ukugeleza Kwemali','nav.statement':'Izitatimende',
   'nav.reports':'Izibalo','nav.bankReconciliation':'Ukulinganisa Kwabenki','nav.moneyControl':'Lawula Imali',
   'nav.salesHistory':'Umlando Wokuthengisa','nav.inventory':'Ukubalwa Kwempahla','nav.expenses':'Izindleko',
@@ -3898,7 +3898,7 @@ const zu: TranslationDict = {
 };
 
 const af: TranslationDict = {
-  'nav.home':'Tuis','nav.recordSale':'Teken Verkoop','nav.addProduct':'Voeg Produk By',
+  'nav.home':'Tuis','nav.sale':'Verkoop','nav.mobileAria':'Mobiele navigasie','nav.recordSale':'Teken Verkoop','nav.addProduct':'Voeg Produk By',
   'nav.addExpense':'Voeg Uitgawe By','nav.cashflow':'Kontantvloei','nav.statement':'Finansiële Staat',
   'nav.reports':'Verslae','nav.bankReconciliation':'Bank Versoening','nav.moneyControl':'Geld Beheer',
   'nav.salesHistory':'Verkoopgeskiedenis','nav.inventory':'Voorraad','nav.expenses':'Uitgawes',
