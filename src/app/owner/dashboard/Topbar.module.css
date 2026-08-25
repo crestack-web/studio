@@ -10,9 +10,9 @@
   transition: background var(--transition);
 }
 
-/* ── Brand (logo + name, matches welcome nav) ── */
+/* ── Brand (logo + name) — mobile only; desktop uses sidebar logo ── */
 .brand {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
@@ -67,6 +67,7 @@
 
 @media (max-width: 768px) {
   .hamburger { display: flex; }
+  .brand { display: flex; }
 }
 
 /* ── Spacer ── */
