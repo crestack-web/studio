@@ -648,8 +648,8 @@ export function HomePage() {
               </svg>
             </CardIcon>
             <div className={styles.dailyCheckHeader}>
-              <span>Daily Check</span>
-              <span className={styles.dailyCheckBadge}>Today only</span>
+              <span>{t('home.dailyCheck.title')}</span>
+              <span className={styles.dailyCheckBadge}>{t('home.dailyCheck.todayOnly')}</span>
             </div>
           </CardHeader>
           {dailyLoading ? (
@@ -681,7 +681,7 @@ export function HomePage() {
                         </svg>
                       </div>
                       <div className={styles.dailyHeroMain}>
-                        <div className={styles.dailyHeroLabel}>Revenue today</div>
+                        <div className={styles.dailyHeroLabel}>{t('home.dailyCheck.revenueToday')}</div>
                         <div className={styles.dailyHeroValue}>{formatMoney(dailyCheck.sales)}</div>
                         {yesterdaySales > 0 && (
                           <div className={styles.dailyProgressTrack} aria-hidden>
@@ -703,7 +703,7 @@ export function HomePage() {
                         >
                           {vsPct === null ? '—' : `${beating ? '↑' : '↓'} ${Math.abs(vsPct)}%`}
                         </div>
-                        <div className={styles.dailyCompareLabel}>vs yesterday</div>
+                        <div className={styles.dailyCompareLabel}>{t('home.dailyCheck.vsYesterday')}</div>
                         {yesterdaySales > 0 && (
                           <div className={styles.dailyCompareYest}>{formatMoney(yesterdaySales)}</div>
                         )}
@@ -712,7 +712,7 @@ export function HomePage() {
 
                     <div className={styles.dailyCheckGrid}>
                       <div className={styles.dailyStat}>
-                        <div className={styles.dailyStatLabel}>Profit</div>
+                        <div className={styles.dailyStatLabel}>{t('home.dailyCheck.profit')}</div>
                         <div
                           className={styles.dailyStatValue}
                           style={{ color: dailyCheck.profit >= 0 ? 'var(--green)' : 'var(--red)' }}
@@ -721,11 +721,11 @@ export function HomePage() {
                         </div>
                       </div>
                       <div className={styles.dailyStat}>
-                        <div className={styles.dailyStatLabel}>Cash</div>
+                        <div className={styles.dailyStatLabel}>{t('home.dailyCheck.cash')}</div>
                         <div className={styles.dailyStatValue}>{formatMoney(metrics.cashBalance)}</div>
                       </div>
                       <div className={styles.dailyStat}>
-                        <div className={styles.dailyStatLabel}>Sales</div>
+                        <div className={styles.dailyStatLabel}>{t('home.dailyCheck.sales')}</div>
                         <div className={styles.dailyStatValue}>{dailyCheck.transactions}</div>
                       </div>
                       <div
@@ -739,9 +739,9 @@ export function HomePage() {
                           if (alertCount > 0 && (e.key === 'Enter' || e.key === ' ')) navigateTo('inventory');
                         }}
                       >
-                        <div className={styles.dailyStatLabel}>Alerts</div>
+                        <div className={styles.dailyStatLabel}>{t('home.dailyCheck.alerts')}</div>
                         <div className={styles.dailyStatValue}>
-                          {alertCount > 0 ? `${alertCount} open` : 'All clear'}
+                          {alertCount > 0 ? t('home.dailyCheck.alertsOpen', { count: alertCount }) : t('home.dailyCheck.allClear')}
                         </div>
                       </div>
                     </div>
@@ -750,12 +750,12 @@ export function HomePage() {
                       <MoIcon size={12} />
                       <span>
                         {dailyCheck.transactions === 0
-                          ? 'No sales yet today — ask MO for tips to boost traffic.'
+                          ? t('home.dailyCheck.tipNoSales')
                           : dailyCheck.sales > yesterdaySales && yesterdaySales > 0
-                            ? `Beating yesterday by ${formatMoney(dailyCheck.sales - yesterdaySales)}. Keep it up.`
+                            ? t('home.dailyCheck.tipBeating', { amount: formatMoney(dailyCheck.sales - yesterdaySales) })
                             : dailyCheck.sales > 0
-                              ? `${formatMoney(dailyCheck.sales)} today — ask MO about your top products.`
-                              : 'Ask MO anything about today’s performance.'}
+                              ? t('home.dailyCheck.tipSales', { amount: formatMoney(dailyCheck.sales) })
+                              : t('home.dailyCheck.tipDefault')}
                       </span>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" aria-hidden>
                         <polyline points="9 18 15 12 9 6" />
@@ -776,7 +776,7 @@ export function HomePage() {
                 <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
               </svg>
             </CardIcon>
-            Smart Insights
+            {t('home.insights.title')}
           </CardHeader>
           <div className={styles.insightsBody}>
             {loading ? (
@@ -804,50 +804,58 @@ export function HomePage() {
                   insights.push({
                     id: 'runway-zero',
                     severity: 'critical',
-                    title: 'Cash pressure',
-                    body: 'Runway is effectively 0 days. Review expenses and pending collections.',
-                    actionLabel: 'Open cashflow',
+                    title: t('home.insights.runwayZero.title'),
+                    body: t('home.insights.runwayZero.body'),
+                    actionLabel: t('home.insights.runwayZero.action'),
                     onAction: () => navigateTo('cashflow'),
                   });
                 } else if (cashRunway < 14) {
                   insights.push({
                     id: 'runway-low',
                     severity: 'critical',
-                    title: 'Low cash runway',
-                    body: `About ${cashRunway} days of cash left at current burn. Prioritise collections and cut non-essential spend.`,
-                    actionLabel: 'View cashflow',
+                    title: t('home.insights.runwayLow.title'),
+                    body: t('home.insights.runwayLow.body', { days: cashRunway }),
+                    actionLabel: t('home.insights.runwayLow.action'),
                     onAction: () => navigateTo('cashflow'),
                   });
                 } else if (cashRunway < 30) {
                   insights.push({
                     id: 'runway-mid',
                     severity: 'warning',
-                    title: 'Watch your runway',
-                    body: `${cashRunway} days of cash coverage. Aim for 30+ days as a buffer.`,
-                    actionLabel: 'Cashflow',
+                    title: t('home.insights.runwayMid.title'),
+                    body: t('home.insights.runwayMid.body', { days: cashRunway }),
+                    actionLabel: t('home.insights.runwayMid.action'),
                     onAction: () => navigateTo('cashflow'),
                   });
                 } else {
                   insights.push({
                     id: 'runway-ok',
                     severity: 'positive',
-                    title: cashRunway >= 999 ? 'Healthy cash position' : 'Solid runway',
+                    title: cashRunway >= 999
+                      ? t('home.insights.runwayOkHealthy.title')
+                      : t('home.insights.runwayOkSolid.title'),
                     body: cashRunway >= 999
-                      ? 'Inflows are covering outflows. Keep tracking weekly.'
-                      : `${cashRunway} days of cash runway — you’re in a stable range.`,
+                      ? t('home.insights.runwayOkHealthy.body')
+                      : t('home.insights.runwayOkSolid.body', { days: cashRunway }),
                   });
                 }
 
                 // Low stock
                 if (lowStockProducts.length > 0) {
                   const names = lowStockProducts.slice(0, 3).map((p: any) => p.name).join(', ');
-                  const extra = lowStockProducts.length > 3 ? ` +${lowStockProducts.length - 3} more` : '';
+                  const extra =
+                    lowStockProducts.length > 3
+                      ? t('home.insights.stock.more', { count: lowStockProducts.length - 3 })
+                      : '';
                   insights.push({
                     id: 'stock',
                     severity: lowStockProducts.length >= 3 ? 'critical' : 'warning',
-                    title: lowStockProducts.length === 1 ? '1 item needs restock' : `${lowStockProducts.length} items need restock`,
-                    body: `${names}${extra}. Restock before you lose sales.`,
-                    actionLabel: 'Open inventory',
+                    title:
+                      lowStockProducts.length === 1
+                        ? t('home.insights.stockOne.title')
+                        : t('home.insights.stockMany.title', { count: lowStockProducts.length }),
+                    body: t('home.insights.stock.body', { names: `${names}${extra}` }),
+                    actionLabel: t('home.insights.stock.action'),
                     onAction: () => navigateTo('inventory'),
                   });
                 }
@@ -857,9 +865,9 @@ export function HomePage() {
                   insights.push({
                     id: 'credit',
                     severity: 'warning',
-                    title: 'Outstanding credit',
-                    body: `${formatMoney(pendingCollections)} still to collect from customers.`,
-                    actionLabel: 'Track credit',
+                    title: t('home.insights.credit.title'),
+                    body: t('home.insights.credit.body', { amount: formatMoney(pendingCollections) }),
+                    actionLabel: t('home.insights.credit.action'),
                     onAction: () => navigateTo('credit-tracking'),
                   });
                 }
@@ -869,9 +877,13 @@ export function HomePage() {
                   insights.push({
                     id: 'top',
                     severity: 'positive',
-                    title: 'Top seller this period',
-                    body: `${topProduct.name} leads with ${topProduct.quantity || 0} sold (${formatMoney(topProduct.revenue || 0)}).`,
-                    actionLabel: 'Sales history',
+                    title: t('home.insights.topSeller.title'),
+                    body: t('home.insights.topSeller.body', {
+                      name: topProduct.name,
+                      qty: topProduct.quantity || 0,
+                      amount: formatMoney(topProduct.revenue || 0),
+                    }),
+                    actionLabel: t('home.insights.topSeller.action'),
                     onAction: () => navigateTo('statement'),
                   });
                 }
@@ -882,9 +894,9 @@ export function HomePage() {
                   insights.push({
                     id: 'proj',
                     severity: 'info',
-                    title: 'Next 7 days (estimate)',
-                    body: `At this period’s pace, revenue could reach about ${revForecast.value}.`,
-                    actionLabel: 'Ask MO',
+                    title: t('home.insights.proj.title'),
+                    body: t('home.insights.proj.body', { amount: revForecast.value }),
+                    actionLabel: t('home.insights.proj.action'),
                     onAction: () => toggleAIPanel(),
                   });
                 }
@@ -894,9 +906,9 @@ export function HomePage() {
                   insights.push({
                     id: 'quiet',
                     severity: 'info',
-                    title: 'No sales recorded today yet',
-                    body: 'Log sales as they happen so Daily Check and insights stay accurate.',
-                    actionLabel: 'Record sale',
+                    title: t('home.insights.quiet.title'),
+                    body: t('home.insights.quiet.body'),
+                    actionLabel: t('home.insights.quiet.action'),
                     onAction: () => navigateTo('sale'),
                   });
                 }
@@ -907,8 +919,8 @@ export function HomePage() {
                 if (shown.length === 0) {
                   return (
                     <div className={styles.insightsEmpty}>
-                      <p>No urgent signals right now.</p>
-                      <p className={styles.insightsEmptyHint}>Keep recording sales and stock moves — insights appear as patterns form.</p>
+                      <p>{t('home.insights.empty')}</p>
+                      <p className={styles.insightsEmptyHint}>{t('home.insights.emptyHint')}</p>
                     </div>
                   );
                 }
@@ -923,12 +935,12 @@ export function HomePage() {
                             <span className={styles.insightTitle}>{item.title}</span>
                             <span className={`${styles.insightTag} ${styles[`tag_${item.severity}`]}`}>
                               {item.severity === 'critical'
-                                ? 'Act now'
-                                : item.severity === 'warning'
-                                  ? 'Watch'
-                                  : item.severity === 'positive'
-                                    ? 'Good'
-                                    : 'Tip'}
+                              ? t('home.insights.severity.critical')
+                              : item.severity === 'warning'
+                                ? t('home.insights.severity.warning')
+                                : item.severity === 'positive'
+                                  ? t('home.insights.severity.positive')
+                                  : t('home.insights.severity.info')}
                             </span>
                           </div>
                           <p className={styles.insightBody}>{item.body}</p>
