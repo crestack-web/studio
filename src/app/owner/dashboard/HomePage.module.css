@@ -1008,3 +1008,11 @@
   font-size: 0.8rem;
   line-height: 1.4;
 }
+
+
+/* Welcome lives in the topbar on desktop; keep in-page banner for mobile only */
+@media (min-width: 769px) {
+  .welcomeBanner {
+    display: none;
+  }
+}

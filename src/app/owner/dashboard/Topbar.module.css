@@ -78,8 +78,9 @@
 
 /* ── Home welcome title ── */
 .titleBlock {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
+  max-width: min(420px, 42vw);
 }
 
 .title {
@@ -259,4 +260,12 @@
 @media (max-width: 480px) {
   .userName, .userRole { display: none; }
   .aiBtn { display: none; }
+}
+
+
+/* Home welcome in header is desktop-only; mobile keeps the homepage banner */
+@media (max-width: 768px) {
+  .titleBlock {
+    display: none;
+  }
 }
