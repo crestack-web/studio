@@ -37,6 +37,7 @@ import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
 import { ensureFirebaseAuth } from '@/lib/ensure-firebase-auth';
 import { getAuthCurrentUser } from '@/lib/supabase-auth';
+import { useTranslation } from './LangContext';
 import styles from './WarehousePage.module.css';
 
 interface Product {
@@ -88,14 +89,14 @@ type TabId =
   | 'requests'
   | 'returns';
 
-const TABS: { id: TabId; label: string; Icon: React.ComponentType<{ size?: number }> }[] = [
-  { id: 'overview', label: 'Stock', Icon: Package },
-  { id: 'pending', label: 'To release', Icon: ClipboardList },
-  { id: 'released', label: 'Released', Icon: CheckCircle2 },
-  { id: 'locations', label: 'Locations', Icon: MapPin },
-  { id: 'transfers', label: 'Transfers', Icon: ArrowLeftRight },
-  { id: 'requests', label: 'Requests', Icon: AlertTriangle },
-  { id: 'returns', label: 'Returns', Icon: RotateCcw },
+const TABS: { id: TabId; labelKey: string; Icon: React.ComponentType<{ size?: number }> }[] = [
+  { id: 'overview', labelKey: 'warehouse.tab.stock', Icon: Package },
+  { id: 'pending', labelKey: 'warehouse.tab.toRelease', Icon: ClipboardList },
+  { id: 'released', labelKey: 'warehouse.tab.released', Icon: CheckCircle2 },
+  { id: 'locations', labelKey: 'warehouse.tab.locations', Icon: MapPin },
+  { id: 'transfers', labelKey: 'warehouse.tab.transfers', Icon: ArrowLeftRight },
+  { id: 'requests', labelKey: 'warehouse.tab.requests', Icon: AlertTriangle },
+  { id: 'returns', labelKey: 'warehouse.tab.returns', Icon: RotateCcw },
 ];
 
 function locLabel(id: string, locations: StockLocation[]) {
@@ -103,6 +104,7 @@ function locLabel(id: string, locations: StockLocation[]) {
 }
 
 export function WarehousePage() {
+  const { t } = useTranslation();
   const { showToast, user, navigateTo } = useApp();
   const { formatMoney } = useCurrency();
   const { businessId: branchBusinessId } = useBranch();
@@ -347,7 +349,7 @@ export function WarehousePage() {
       await ensureFirebaseAuth();
       const bid = await resolveBusinessId();
       if (!bid) {
-        showToast('No business linked. Please refresh and try again.');
+        showToast(t('common.noBusinessLinked'));
         return;
       }
       setBusinessId(bid);
@@ -361,7 +363,7 @@ export function WarehousePage() {
       ]);
     } catch (e) {
       console.error('[Warehouse] refresh failed', e);
-      showToast('Could not load warehouse data');
+      showToast(t('warehouse.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -480,12 +482,12 @@ export function WarehousePage() {
         },
         { merge: true }
       );
-      showToast(`Location “${name}” created`);
+      showToast(t('warehouse.locationCreated'));
       setShowAddLocation(false);
       setNewLocationName('');
       await loadLocations(businessId);
     } catch (e: any) {
-      showToast(e?.message || 'Failed to create location');
+      showToast(e?.message || t('warehouse.locationCreateFailed'));
     } finally {
       setCreatingLocation(false);
     }
@@ -493,7 +495,7 @@ export function WarehousePage() {
 
   const deleteLocation = async (loc: StockLocation) => {
     if (!businessId || loc.id === 'main_store') {
-      showToast('Main Store cannot be deleted');
+      showToast(t('warehouse.mainStoreProtected'));
       return;
     }
     if (!confirm(`Delete location “${loc.name}”? Stock maps are not auto-moved.`))
@@ -504,10 +506,10 @@ export function WarehousePage() {
       await deleteDoc(
         doc(firestore, 'businesses', businessId, 'stockLocations', loc.id)
       );
-      showToast('Location removed');
+      showToast(t('warehouse.locationRemoved'));
       await loadLocations(businessId);
     } catch (e: any) {
-      showToast(e?.message || 'Delete failed');
+      showToast(e?.message || t('warehouse.deleteFailed'));
     }
   };
 
@@ -527,14 +529,14 @@ export function WarehousePage() {
   const submitTransfer = async () => {
     if (!businessId || !transferProduct || !transferFrom || !transferTo) return;
     if (transferFrom === transferTo) {
-      showToast('Choose different source and destination');
+      showToast(t('warehouse.chooseDifferent'));
       return;
     }
     const available =
       transferProduct.stockByLocation?.[transferFrom] ??
       (transferFrom === 'main_store' ? transferProduct.stock : 0);
     if (transferQty <= 0 || transferQty > available) {
-      showToast(`Only ${available} units available at source`);
+      showToast(t('warehouse.insufficientStock', { available }));
       return;
     }
     setTransferring(true);
@@ -584,12 +586,12 @@ export function WarehousePage() {
           transferredAt: Timestamp.now(),
         });
       });
-      showToast('Stock transferred');
+      showToast(t('warehouse.transferred'));
       setShowTransfer(false);
       await loadProducts(businessId);
       await loadTransfers(businessId);
     } catch (e: any) {
-      showToast(e?.message || 'Transfer failed');
+      showToast(e?.message || t('warehouse.transferFailed'));
     } finally {
       setTransferring(false);
     }
@@ -606,7 +608,7 @@ export function WarehousePage() {
   const submitAdjust = async () => {
     if (!businessId || !adjustProduct) return;
     if (adjustQty <= 0) {
-      showToast('Enter a valid quantity');
+      showToast(t('warehouse.invalidQty'));
       return;
     }
     setAdjusting(true);
@@ -660,12 +662,12 @@ export function WarehousePage() {
         });
       });
       showToast(
-        adjustReason === 'recount' ? 'Stock recounted' : 'Stock adjusted'
+        adjustReason === 'recount' ? t('warehouse.recounted') : t('warehouse.adjusted')
       );
       setShowAdjust(false);
       await loadProducts(businessId);
     } catch (e: any) {
-      showToast(e?.message || 'Adjustment failed');
+      showToast(e?.message || t('warehouse.adjustFailed'));
     } finally {
       setAdjusting(false);
     }
@@ -710,13 +712,13 @@ export function WarehousePage() {
           notes: releaseNotes,
         }
       );
-      showToast(partial ? 'Partially released' : 'Invoice released');
+      showToast(partial ? t('warehouse.partiallyReleased') : t('warehouse.released'));
       setSelectedInvoice(null);
       setReleaseNotes('');
       await loadInvoices(businessId);
       await loadProducts(businessId);
     } catch (e: any) {
-      showToast(e?.message || 'Release failed');
+      showToast(e?.message || t('warehouse.releaseFailed'));
     } finally {
       setReleasing(false);
     }
@@ -735,10 +737,10 @@ export function WarehousePage() {
           reviewedBy: user?.id || null,
         }
       );
-      showToast(approved ? 'Request approved' : 'Request rejected');
+      showToast(t('warehouse.requestUpdated'));
       await loadRequests(businessId);
     } catch {
-      showToast('Could not update request');
+      showToast(t('warehouse.requestFailed'));
     }
   };
 
@@ -755,10 +757,10 @@ export function WarehousePage() {
           reviewedBy: user?.id || null,
         }
       );
-      showToast(approved ? 'Return approved' : 'Return rejected');
+      showToast(t('warehouse.returnUpdated'));
       await loadReturns(businessId);
     } catch {
-      showToast('Could not update return');
+      showToast(t('warehouse.returnFailed'));
     }
   };
 
@@ -769,7 +771,7 @@ export function WarehousePage() {
       <div className={styles.page}>
         <div className={styles.loading}>
           <div className={styles.spinner} />
-          Loading warehouse…
+          {t('warehouse.loading')}
         </div>
       </div>
     );
@@ -781,11 +783,10 @@ export function WarehousePage() {
         <div>
           <h1 className={styles.heroTitle}>
             <Warehouse size={22} strokeWidth={2.2} aria-hidden />
-            Warehouse
+            {t('warehouse.title')}
           </h1>
           <p className={styles.heroSub}>
-            Track stock by location, move inventory, and release wholesale
-            invoices — all in one place.
+            {t('warehouse.subtitle')}
           </p>
         </div>
         <div className={styles.heroActions}>
@@ -795,7 +796,7 @@ export function WarehousePage() {
             onClick={() => navigateTo('receive-stock' as any)}
           >
             <Package size={16} />
-            Receive stock
+            {t('warehouse.receiveStock')}
           </button>
           <button
             type="button"
@@ -811,26 +812,26 @@ export function WarehousePage() {
             onClick={() => refreshAll()}
           >
             <RefreshCw size={16} />
-            Refresh
+            {t('warehouse.refresh')}
           </button>
         </div>
       </header>
 
       <div className={styles.stats}>
         <div className={styles.statCard}>
-          <div className={styles.statLabel}>Total units</div>
+          <div className={styles.statLabel}>{t('warehouse.totalUnits')}</div>
           <div className={styles.statValue}>{totalUnits.toLocaleString()}</div>
-          <div className={styles.statHint}>{products.length} products</div>
+          <div className={styles.statHint}{products.length} {t('warehouse.productsCount')}</div>
         </div>
         <div className={styles.statCard}>
-          <div className={styles.statLabel}>Stock value (cost)</div>
+          <div className={styles.statLabel}>{t('warehouse.stockValue')}</div>
           <div className={`${styles.statValue} ${styles.statValueOk}`}>
             {formatMoney(totalValue)}
           </div>
-          <div className={styles.statHint}>Across all locations</div>
+          <div className={styles.statHint}>{t('warehouse.acrossLocations')}</div>
         </div>
         <div className={styles.statCard}>
-          <div className={styles.statLabel}>Low stock</div>
+          <div className={styles.statLabel}>{t('warehouse.lowStock')}</div>
           <div
             className={`${styles.statValue} ${
               lowStockCount ? styles.statValueWarn : ''
@@ -838,10 +839,10 @@ export function WarehousePage() {
           >
             {lowStockCount}
           </div>
-          <div className={styles.statHint}>{outOfStock} out of stock</div>
+          <div className={styles.statHint}>{outOfStock} {t('warehouse.outOfStock')}</div>
         </div>
         <div className={styles.statCard}>
-          <div className={styles.statLabel}>Awaiting release</div>
+          <div className={styles.statLabel}>{t('warehouse.awaitingRelease')}</div>
           <div
             className={`${styles.statValue} ${
               pendingInvoices.length ? styles.statValueDanger : ''
@@ -850,12 +851,12 @@ export function WarehousePage() {
             {pendingInvoices.length}
           </div>
           <div className={styles.statHint}>
-            {stockLocations.length} locations
+            {stockLocations.length} {t('warehouse.locationsCount')}
           </div>
         </div>
       </div>
 
-      <nav className={styles.tabs} aria-label="Warehouse sections">
+      <nav className={styles.tabs} aria-label={t('warehouse.sectionsAria')}>
         {TABS.map((tab) => {
           let count = 0;
           if (tab.id === 'pending') count = pendingInvoices.length;
@@ -872,7 +873,7 @@ export function WarehousePage() {
               onClick={() => setActiveTab(tab.id)}
             >
               <Icon size={15} />
-              {tab.label}
+              {t(tab.labelKey as any)}
               {count > 0 ? <span className={styles.badge}>{count}</span> : null}
             </button>
           );
@@ -888,7 +889,7 @@ export function WarehousePage() {
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search products…"
+                placeholder={t('warehouse.searchProducts')}
               />
             </div>
             <select
@@ -896,7 +897,7 @@ export function WarehousePage() {
               value={selectedLocation}
               onChange={(e) => setSelectedLocation(e.target.value)}
             >
-              <option value="all">All locations</option>
+              <option value="all">{t('warehouse.allLocations')}</option>
               {stockLocations.map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.name}
@@ -950,14 +951,14 @@ export function WarehousePage() {
             </div>
             {filteredProducts.length === 0 ? (
               <div className={styles.empty}>
-                <h3>No products found</h3>
-                <p>Add products or clear filters to see stock here.</p>
+                <h3>{t('warehouse.noProducts')}</h3>
+                <p>{t('warehouse.noProductsHint')}</p>
                 <button
                   type="button"
                   className={styles.btnPrimary}
                   onClick={() => navigateTo('add-product' as any)}
                 >
-                  Add product
+                  {t('warehouse.addProduct')}
                 </button>
               </div>
             ) : (
@@ -965,11 +966,11 @@ export function WarehousePage() {
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th>Product</th>
-                      <th>Stock</th>
-                      <th>Value</th>
-                      <th>Status</th>
-                      <th>Actions</th>
+                      <th>{t('common.product')}</th>
+                      <th>{t('warehouse.tab.stock')}</th>
+                      <th>{t('common.value')}</th>
+                      <th>{t('common.status')}</th>
+                      <th>{t('common.actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -994,15 +995,15 @@ export function WarehousePage() {
                           <td>
                             {oos ? (
                               <span className={`${styles.pill} ${styles.pillDanger}`}>
-                                Out
+                                {t('warehouse.stockOut')}
                               </span>
                             ) : low ? (
                               <span className={`${styles.pill} ${styles.pillWarn}`}>
-                                Low
+                                {t('warehouse.stockLow')}
                               </span>
                             ) : (
                               <span className={`${styles.pill} ${styles.pillOk}`}>
-                                OK
+                                {t('warehouse.stockOk')}
                               </span>
                             )}
                           </td>
@@ -1013,14 +1014,14 @@ export function WarehousePage() {
                                 className={styles.iconBtn}
                                 onClick={() => openTransfer(p)}
                               >
-                                Transfer
+                                {t('warehouse.transfer')}
                               </button>
                               <button
                                 type="button"
                                 className={styles.iconBtn}
                                 onClick={() => openAdjust(p)}
                               >
-                                Adjust
+                                {t('warehouse.adjust')}
                               </button>
                             </div>
                           </td>
@@ -1039,12 +1040,12 @@ export function WarehousePage() {
       {activeTab === 'pending' && (
         <div className={styles.panel}>
           <div className={styles.panelHead}>
-            <h2 className={styles.panelTitle}>Invoices to release</h2>
+            <h2 className={styles.panelTitle}>{t('warehouse.pendingTitle')}</h2>
           </div>
           {pendingInvoices.length === 0 ? (
             <div className={styles.empty}>
-              <h3>Nothing pending</h3>
-              <p>Wholesale invoices waiting for warehouse release appear here.</p>
+              <h3>{t('warehouse.nothingPending')}</h3>
+              <p>{t('warehouse.nothingPendingHint')}</p>
             </div>
           ) : (
             pendingInvoices.map((inv) => (
@@ -1066,7 +1067,7 @@ export function WarehousePage() {
                     setReleaseNotes('');
                   }}
                 >
-                  Review
+                  {t('common.review')}
                 </button>
               </div>
             ))
@@ -1078,12 +1079,12 @@ export function WarehousePage() {
       {activeTab === 'released' && (
         <div className={styles.panel}>
           <div className={styles.panelHead}>
-            <h2 className={styles.panelTitle}>Released invoices</h2>
+            <h2 className={styles.panelTitle}>{t('warehouse.releasedTitle')}</h2>
           </div>
           {releasedInvoices.length === 0 ? (
             <div className={styles.empty}>
-              <h3>No releases yet</h3>
-              <p>Completed warehouse releases will list here.</p>
+              <h3>{t('warehouse.noReleases')}</h3>
+              <p>{t('warehouse.noReleasesHint')}</p>
             </div>
           ) : (
             releasedInvoices.slice(0, 40).map((inv) => (
@@ -1093,11 +1094,11 @@ export function WarehousePage() {
                     #{inv.invoiceNumber} · {inv.customerName}
                   </div>
                   <div className={styles.listMeta}>
-                    {formatMoney(inv.totalAmount)} · Released by{' '}
+                    {formatMoney(inv.totalAmount)} · {t('warehouse.releasedBy')}{' '}
                     {inv.releasedBy || '—'}
                   </div>
                 </div>
-                <span className={`${styles.pill} ${styles.pillOk}`}>Released</span>
+                <span className={`${styles.pill} ${styles.pillOk}`}>{t('warehouse.tab.released')}</span>
               </div>
             ))
           )}
@@ -1108,7 +1109,7 @@ export function WarehousePage() {
       {activeTab === 'locations' && (
         <div className={styles.panel}>
           <div className={styles.panelHead}>
-            <h2 className={styles.panelTitle}>Stock locations</h2>
+            <h2 className={styles.panelTitle}>{t('warehouse.locationsTitle')}</h2>
             <button
               type="button"
               className={styles.btnPrimary}
@@ -1135,7 +1136,7 @@ export function WarehousePage() {
                     style={{ marginTop: 10, width: '100%' }}
                     onClick={() => deleteLocation(loc)}
                   >
-                    Delete
+                    {t('common.delete')}
                   </button>
                 )}
               </div>
@@ -1148,12 +1149,12 @@ export function WarehousePage() {
       {activeTab === 'transfers' && (
         <div className={styles.panel}>
           <div className={styles.panelHead}>
-            <h2 className={styles.panelTitle}>Transfer history</h2>
+            <h2 className={styles.panelTitle}>{t('warehouse.transferHistory')}</h2>
           </div>
           {transferHistory.length === 0 ? (
             <div className={styles.empty}>
-              <h3>No transfers logged</h3>
-              <p>Move stock between locations from the Stock tab.</p>
+              <h3>{t('warehouse.noTransfers')}</h3>
+              <p>{t('warehouse.noTransfersHint')}</p>
             </div>
           ) : (
             <div className={styles.timeline}>
@@ -1183,12 +1184,12 @@ export function WarehousePage() {
       {activeTab === 'requests' && (
         <div className={styles.panel}>
           <div className={styles.panelHead}>
-            <h2 className={styles.panelTitle}>Stock requests</h2>
+            <h2 className={styles.panelTitle}>{t('warehouse.requestsTitle')}</h2>
           </div>
           {stockRequests.length === 0 ? (
             <div className={styles.empty}>
-              <h3>No requests</h3>
-              <p>Branch or staff restock requests show up here.</p>
+              <h3>{t('warehouse.noRequests')}</h3>
+              <p>{t('warehouse.noRequestsHint')}</p>
             </div>
           ) : (
             stockRequests.map((r) => (
@@ -1208,14 +1209,14 @@ export function WarehousePage() {
                       className={styles.btnPrimary}
                       onClick={() => handleRequest(r.id, true)}
                     >
-                      Approve
+                      {t('common.approve')}
                     </button>
                     <button
                       type="button"
                       className={styles.btnGhost}
                       onClick={() => handleRequest(r.id, false)}
                     >
-                      Reject
+                      {t('common.reject')}
                     </button>
                   </div>
                 )}
@@ -1229,12 +1230,12 @@ export function WarehousePage() {
       {activeTab === 'returns' && (
         <div className={styles.panel}>
           <div className={styles.panelHead}>
-            <h2 className={styles.panelTitle}>Returns</h2>
+            <h2 className={styles.panelTitle}>{t('warehouse.returnsTitle')}</h2>
           </div>
           {returns.length === 0 ? (
             <div className={styles.empty}>
-              <h3>No returns</h3>
-              <p>Customer or branch returns awaiting review appear here.</p>
+              <h3>{t('warehouse.noReturns')}</h3>
+              <p>{t('warehouse.noReturnsHint')}</p>
             </div>
           ) : (
             returns.map((r) => (
@@ -1254,14 +1255,14 @@ export function WarehousePage() {
                       className={styles.btnPrimary}
                       onClick={() => handleReturn(r.id, true)}
                     >
-                      Accept
+                      {t('common.accept')}
                     </button>
                     <button
                       type="button"
                       className={styles.btnGhost}
                       onClick={() => handleReturn(r.id, false)}
                     >
-                      Reject
+                      {t('common.reject')}
                     </button>
                   </div>
                 )}
@@ -1281,7 +1282,7 @@ export function WarehousePage() {
             aria-modal
           >
             <div className={styles.modalHead}>
-              <h2>New location</h2>
+              <h2>{t('warehouse.newLocation')}</h2>
               <button
                 type="button"
                 className={styles.modalClose}
@@ -1293,12 +1294,12 @@ export function WarehousePage() {
             </div>
             <div className={styles.modalBody}>
               <div className={styles.field}>
-                <label htmlFor="loc-name">Location name</label>
+                <label htmlFor="loc-name">{t('warehouse.locationName')}</label>
                 <input
                   id="loc-name"
                   value={newLocationName}
                   onChange={(e) => setNewLocationName(e.target.value)}
-                  placeholder="e.g. Back store, Cold room"
+                  placeholder={t('warehouse.locationPlaceholder')}
                   autoFocus
                 />
               </div>
@@ -1309,7 +1310,7 @@ export function WarehousePage() {
                 className={styles.btnGhost}
                 onClick={() => setShowAddLocation(false)}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -1317,7 +1318,7 @@ export function WarehousePage() {
                 disabled={!newLocationName.trim() || creatingLocation}
                 onClick={createLocation}
               >
-                {creatingLocation ? 'Creating…' : 'Create location'}
+                {creatingLocation ? t('warehouse.creating') : t('warehouse.createLocation')}
               </button>
             </div>
           </div>
@@ -1334,7 +1335,7 @@ export function WarehousePage() {
             aria-modal
           >
             <div className={styles.modalHead}>
-              <h2>Transfer stock</h2>
+              <h2>{t('warehouse.transferStock')}</h2>
               <button
                 type="button"
                 className={styles.modalClose}
@@ -1347,7 +1348,7 @@ export function WarehousePage() {
             <div className={styles.modalBody}>
               <p style={{ margin: 0, fontWeight: 650 }}>{transferProduct.name}</p>
               <div className={styles.field}>
-                <label>From</label>
+                <label>{t('warehouse.from')}</label>
                 <select
                   value={transferFrom}
                   onChange={(e) => setTransferFrom(e.target.value)}
@@ -1361,12 +1362,12 @@ export function WarehousePage() {
                 </select>
               </div>
               <div className={styles.field}>
-                <label>To</label>
+                <label>{t('warehouse.to')}</label>
                 <select
                   value={transferTo}
                   onChange={(e) => setTransferTo(e.target.value)}
                 >
-                  <option value="">Select destination</option>
+                  <option value="">{t('warehouse.selectDestination')}</option>
                   {stockLocations
                     .filter((l) => l.id !== transferFrom)
                     .map((l) => (
@@ -1377,7 +1378,7 @@ export function WarehousePage() {
                 </select>
               </div>
               <div className={styles.field}>
-                <label>Quantity</label>
+                <label>{t('common.quantity')}</label>
                 <input
                   type="number"
                   min={1}
@@ -1394,7 +1395,7 @@ export function WarehousePage() {
                 className={styles.btnGhost}
                 onClick={() => setShowTransfer(false)}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -1402,7 +1403,7 @@ export function WarehousePage() {
                 disabled={transferring || !transferTo}
                 onClick={submitTransfer}
               >
-                {transferring ? 'Moving…' : 'Transfer'}
+                {transferring ? t('warehouse.moving') : t('warehouse.transfer')}
               </button>
             </div>
           </div>
@@ -1419,7 +1420,7 @@ export function WarehousePage() {
             aria-modal
           >
             <div className={styles.modalHead}>
-              <h2>Adjust stock</h2>
+              <h2>{t('warehouse.adjustStock')}</h2>
               <button
                 type="button"
                 className={styles.modalClose}
@@ -1432,22 +1433,22 @@ export function WarehousePage() {
             <div className={styles.modalBody}>
               <p style={{ margin: 0, fontWeight: 650 }}>{adjustProduct.name}</p>
               <div className={styles.field}>
-                <label>Reason</label>
+                <label>{t('warehouse.reason')}</label>
                 <select
                   value={adjustReason}
                   onChange={(e) => setAdjustReason(e.target.value as any)}
                 >
-                  <option value="damaged">Damaged</option>
-                  <option value="lost">Lost / theft</option>
-                  <option value="expired">Expired</option>
-                  <option value="recount">Recount (set absolute qty)</option>
+                  <option value="damaged">{t('warehouse.reasonDamaged')}</option>
+                  <option value="lost">{t('warehouse.reasonLost')}</option>
+                  <option value="expired">{t('warehouse.reasonExpired')}</option>
+                  <option value="recount">{t('warehouse.reasonRecount')}</option>
                 </select>
               </div>
               <div className={styles.field}>
                 <label>
                   {adjustReason === 'recount'
-                    ? 'New quantity'
-                    : 'Quantity to remove'}
+                    ? t('warehouse.qtyNew')
+                    : t('warehouse.qtyRemove')}
                 </label>
                 <input
                   type="number"
@@ -1459,11 +1460,11 @@ export function WarehousePage() {
                 />
               </div>
               <div className={styles.field}>
-                <label>Notes</label>
+                <label>{t('common.notes')}</label>
                 <textarea
                   value={adjustNotes}
                   onChange={(e) => setAdjustNotes(e.target.value)}
-                  placeholder="Optional details…"
+                  placeholder={t('warehouse.notesPlaceholder')}
                 />
               </div>
             </div>
@@ -1473,7 +1474,7 @@ export function WarehousePage() {
                 className={styles.btnGhost}
                 onClick={() => setShowAdjust(false)}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -1481,7 +1482,7 @@ export function WarehousePage() {
                 disabled={adjusting}
                 onClick={submitAdjust}
               >
-                {adjusting ? 'Saving…' : 'Save adjustment'}
+                {adjusting ? t('warehouse.saving') : t('warehouse.saveAdjustment')}
               </button>
             </div>
           </div>
@@ -1511,19 +1512,19 @@ export function WarehousePage() {
             <div className={styles.modalBody}>
               <div className={styles.detailGrid}>
                 <div>
-                  <span>Customer</span>
+                  <span>{t('common.customer')}</span>
                   <strong>{selectedInvoice.customerName}</strong>
                 </div>
                 <div>
-                  <span>Phone</span>
+                  <span>{t('common.phone')}</span>
                   <strong>{selectedInvoice.customerPhone || '—'}</strong>
                 </div>
                 <div>
-                  <span>Source</span>
+                  <span>{t('warehouse.source')}</span>
                   <strong>{selectedInvoice.sourceLocation}</strong>
                 </div>
                 <div>
-                  <span>Total</span>
+                  <span>{t('common.total')}</span>
                   <strong>{formatMoney(selectedInvoice.totalAmount)}</strong>
                 </div>
               </div>
@@ -1531,9 +1532,9 @@ export function WarehousePage() {
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th>Item</th>
-                      <th>Qty</th>
-                      <th>Total</th>
+                      <th>{t('warehouse.item')}</th>
+                      <th>{t('warehouse.qty')}</th>
+                      <th>{t('common.total')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1548,11 +1549,11 @@ export function WarehousePage() {
                 </table>
               </div>
               <div className={styles.field}>
-                <label>Release notes</label>
+                <label>{t('warehouse.releaseNotes')}</label>
                 <textarea
                   value={releaseNotes}
                   onChange={(e) => setReleaseNotes(e.target.value)}
-                  placeholder="Optional notes for this release…"
+                  placeholder={t('warehouse.releaseNotesPh')}
                 />
               </div>
             </div>
@@ -1562,7 +1563,7 @@ export function WarehousePage() {
                 className={styles.btnGhost}
                 onClick={() => setSelectedInvoice(null)}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -1570,7 +1571,7 @@ export function WarehousePage() {
                 disabled={releasing}
                 onClick={() => releaseInvoice(true)}
               >
-                Partial release
+                {t('warehouse.partialRelease')}
               </button>
               <button
                 type="button"
@@ -1578,7 +1579,7 @@ export function WarehousePage() {
                 disabled={releasing}
                 onClick={() => releaseInvoice(false)}
               >
-                {releasing ? 'Releasing…' : 'Release full'}
+                {releasing ? t('warehouse.releasing') : t('warehouse.releaseFull')}
               </button>
             </div>
           </div>

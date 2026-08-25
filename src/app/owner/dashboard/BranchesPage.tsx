@@ -39,6 +39,7 @@ import { useBranch } from '@/context/BranchContext';
 import { initializeFirebase } from '@/firebase';
 import { ensureFirebaseAuth } from '@/lib/ensure-firebase-auth';
 import { getAuthCurrentUser } from '@/lib/supabase-auth';
+import { useTranslation } from './LangContext';
 import styles from './BranchesPage.module.css';
 
 interface Branch {
@@ -61,6 +62,7 @@ interface StaffMember {
 }
 
 export function BranchesPage() {
+  const { t } = useTranslation();
   const { showToast, user, navigateTo } = useApp();
   const { businessId: branchBusinessId } = useBranch();
 
@@ -114,7 +116,7 @@ export function BranchesPage() {
       await ensureFirebaseAuth();
       const bid = await resolveBusinessId();
       if (!bid) {
-        showToast('No business linked. Please refresh and try again.');
+        showToast(t('common.noBusinessLinked'));
         return;
       }
       setBusinessId(bid);
@@ -168,7 +170,7 @@ export function BranchesPage() {
       setBranches(branchList);
     } catch (e) {
       console.error('[Branches] load failed', e);
-      showToast('Failed to load branches');
+      showToast(t('branch.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -212,7 +214,7 @@ export function BranchesPage() {
   const handleCreateBranch = async () => {
     const name = formName.trim();
     if (!name || !businessId) {
-      showToast('Branch name is required');
+      showToast(t('branch.nameRequired'));
       return;
     }
     setIsCreating(true);
@@ -230,7 +232,7 @@ export function BranchesPage() {
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       });
-      showToast(`Branch “${name}” created`);
+      showToast(t('branch.created'));
       setShowCreateModal(false);
       setFormName('');
       setFormAddress('');
@@ -238,7 +240,7 @@ export function BranchesPage() {
       setFormManager('');
       await loadData();
     } catch (e: any) {
-      showToast(e?.message || 'Failed to create branch');
+      showToast(e?.message || t('branch.createFailed'));
     } finally {
       setIsCreating(false);
     }
@@ -264,14 +266,14 @@ export function BranchesPage() {
         doc(firestore, 'businesses', businessId, 'staff', assignStaffId),
         payload
       );
-      showToast('Staff assigned');
+      showToast(t('branch.staffAssigned'));
       setShowAssignModal(false);
       setAssignStaffId('');
       setAssignBranchId('');
       setSelectedBranch(null);
       await loadData();
     } catch (e: any) {
-      showToast(e?.message || 'Failed to assign staff');
+      showToast(e?.message || t('branch.assignFailed'));
     } finally {
       setIsAssigning(false);
     }
@@ -304,10 +306,10 @@ export function BranchesPage() {
       await deleteDoc(
         doc(firestore, 'businesses', businessId, 'branches', branch.id)
       );
-      showToast('Branch deleted');
+      showToast(t('branch.deleted'));
       await loadData();
     } catch (e: any) {
-      showToast(e?.message || 'Delete failed');
+      showToast(e?.message || t('branch.deleteFailed'));
     } finally {
       setDeletingId(null);
     }
@@ -323,10 +325,10 @@ export function BranchesPage() {
         doc(firestore, 'businesses', businessId, 'branches', branch.id),
         { status: next, updatedAt: Timestamp.now() }
       );
-      showToast(next === 'active' ? 'Branch activated' : 'Branch deactivated');
+      showToast(next === 'active' ? t('branch.activated') : t('branch.deactivated'));
       await loadData();
     } catch {
-      showToast('Could not update status');
+      showToast(t('branch.statusFailed'));
     }
   };
 
@@ -342,10 +344,9 @@ export function BranchesPage() {
       <div className={styles.page}>
         <div className={styles.upgradeCard}>
           <Building2 size={40} className={styles.upgradeIcon} />
-          <h2>Branch management is a Pro feature</h2>
+          <h2>{t('branch.proTitle')}</h2>
           <p>
-            Manage multiple locations, assign staff per branch, and track each
-            site separately. Upgrade to Pro to unlock branches.
+            {t('branch.proDesc')}
           </p>
           <button
             type="button"
@@ -356,14 +357,14 @@ export function BranchesPage() {
               }
             }}
           >
-            Upgrade to Pro
+            {t('branch.upgrade')}
           </button>
           <button
             type="button"
             className={styles.btnGhost}
             onClick={() => navigateTo('home' as any)}
           >
-            Back to home
+            {t('branch.backHome')}
           </button>
         </div>
       </div>
@@ -375,7 +376,7 @@ export function BranchesPage() {
       <div className={styles.page}>
         <div className={styles.loading}>
           <div className={styles.spinner} />
-          Loading branches…
+          {t('branch.loading')}
         </div>
       </div>
     );
@@ -387,11 +388,10 @@ export function BranchesPage() {
         <div>
           <h1 className={styles.heroTitle}>
             <Building2 size={22} />
-            Branches
+            {t('branch.title')}
           </h1>
           <p className={styles.heroSub}>
-            Run multiple locations under one business — assign staff and keep
-            each branch organized.
+            {t('branch.subtitle')}
           </p>
         </div>
         <div className={styles.heroActions}>
@@ -401,7 +401,7 @@ export function BranchesPage() {
             onClick={() => loadData()}
           >
             <RefreshCw size={16} />
-            Refresh
+            {t('branch.refresh')}
           </button>
           <button
             type="button"
@@ -409,7 +409,7 @@ export function BranchesPage() {
             onClick={() => openAssign(null)}
           >
             <UserPlus size={16} />
-            Assign staff
+            {t('branch.assignStaff')}
           </button>
           <button
             type="button"
@@ -417,24 +417,24 @@ export function BranchesPage() {
             onClick={() => setShowCreateModal(true)}
           >
             <Plus size={16} />
-            New branch
+            {t('branch.newBranch')}
           </button>
         </div>
       </header>
 
       <div className={styles.stats}>
         <div className={styles.statCard}>
-          <div className={styles.statLabel}>Branches</div>
+          <div className={styles.statLabel}>{t('branch.title')}</div>
           <div className={styles.statValue}>{branches.length}</div>
-          <div className={styles.statHint}>{activeCount} active</div>
+          <div className={styles.statHint}>{activeCount} {t('branch.activeCount')}</div>
         </div>
         <div className={styles.statCard}>
-          <div className={styles.statLabel}>Total staff</div>
+          <div className={styles.statLabel}>{t('branch.statStaff')}</div>
           <div className={styles.statValue}>{staffMembers.length}</div>
-          <div className={styles.statHint}>{mainStaffCount} at main</div>
+          <div className={styles.statHint}>{mainStaffCount} {t('branch.atMain')}</div>
         </div>
         <div className={styles.statCard}>
-          <div className={styles.statLabel}>Unassigned</div>
+          <div className={styles.statLabel}>{t('branch.statUnassigned')}</div>
           <div
             className={`${styles.statValue} ${
               unassignedStaff.length ? styles.statValueWarn : ''
@@ -442,12 +442,12 @@ export function BranchesPage() {
           >
             {unassignedStaff.length}
           </div>
-          <div className={styles.statHint}>Need a branch</div>
+          <div className={styles.statHint}>{t('branch.needBranch')}</div>
         </div>
         <div className={styles.statCard}>
-          <div className={styles.statLabel}>Locations</div>
+          <div className={styles.statLabel}>{t('branch.statLocations')}</div>
           <div className={styles.statValue}>{branches.length + 1}</div>
-          <div className={styles.statHint}>Including main</div>
+          <div className={styles.statHint}>{t('branch.includingMain')}</div>
         </div>
       </div>
 
@@ -457,7 +457,7 @@ export function BranchesPage() {
           <input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search branches…"
+            placeholder={t('branch.search')}
           />
         </div>
       </div>
@@ -470,15 +470,15 @@ export function BranchesPage() {
               <Home size={20} />
             </div>
             <div className={styles.cardTitles}>
-              <h3 className={styles.cardName}>Main branch</h3>
-              <p className={styles.cardSub}>Headquarters · always active</p>
+              <h3 className={styles.cardName}>{t('branch.mainBranch')}</h3>
+              <p className={styles.cardSub}>{t('branch.mainSub')}</p>
             </div>
-            <span className={`${styles.pill} ${styles.pillOk}`}>Active</span>
+            <span className={`${styles.pill} ${styles.pillOk}`}>{t('common.active')}</span>
           </div>
           <div className={styles.cardMeta}>
             <div className={styles.metaItem}>
               <Users size={14} />
-              <span>{mainStaffCount} staff</span>
+              <span>{mainStaffCount} {t('branch.staffCount')}</span>
             </div>
           </div>
           <div className={styles.cardActions}>
@@ -488,7 +488,7 @@ export function BranchesPage() {
               onClick={() => openAssign(null)}
             >
               <UserPlus size={14} />
-              Assign staff
+              {t('branch.assignStaff')}
             </button>
           </div>
         </div>
@@ -502,7 +502,7 @@ export function BranchesPage() {
               <div className={styles.cardTitles}>
                 <h3 className={styles.cardName}>{branch.name}</h3>
                 <p className={styles.cardSub}>
-                  {branch.address || 'No address set'}
+                  {branch.address || t('branch.noAddress')}
                 </p>
               </div>
               <button
@@ -511,7 +511,7 @@ export function BranchesPage() {
                   branch.status === 'active' ? styles.pillOk : styles.pillMuted
                 }`}
                 onClick={() => toggleStatus(branch)}
-                title="Toggle status"
+                title={t('branch.toggleStatus')}
               >
                 {branch.status}
               </button>
@@ -519,7 +519,7 @@ export function BranchesPage() {
             <div className={styles.cardMeta}>
               <div className={styles.metaItem}>
                 <Users size={14} />
-                <span>{branch.staffCount} staff</span>
+                <span>{branch.staffCount} {t('branch.staffCount')}</span>
               </div>
               {branch.manager ? (
                 <div className={styles.metaItem}>
@@ -547,7 +547,7 @@ export function BranchesPage() {
                 onClick={() => openAssign(branch)}
               >
                 <UserPlus size={14} />
-                Assign
+                {t('branch.assign')}
               </button>
               <button
                 type="button"
@@ -556,7 +556,7 @@ export function BranchesPage() {
                 onClick={() => handleDeleteBranch(branch)}
               >
                 <Trash2 size={14} />
-                {deletingId === branch.id ? 'Deleting…' : 'Delete'}
+                {deletingId === branch.id ? t('branch.deleting') : t('branch.delete')}
               </button>
             </div>
           </div>
@@ -566,15 +566,15 @@ export function BranchesPage() {
       {branches.length === 0 && (
         <div className={styles.empty}>
           <Building2 size={40} />
-          <h3>No branches yet</h3>
-          <p>Create your first branch to manage multiple locations.</p>
+          <h3>{t('branch.noBranches')}</h3>
+          <p>{t('branch.noBranchesHint')}</p>
           <button
             type="button"
             className={styles.btnPrimary}
             onClick={() => setShowCreateModal(true)}
           >
             <Plus size={16} />
-            Create branch
+            {t('branch.createBranch')}
           </button>
         </div>
       )}
@@ -582,8 +582,8 @@ export function BranchesPage() {
       {branches.length > 0 && filteredBranches.length === 0 && (
         <div className={styles.empty}>
           <Search size={32} />
-          <h3>No matches</h3>
-          <p>Try a different search term.</p>
+          <h3>{t('branch.noMatches')}</h3>
+          <p>{t('branch.noMatchesHint')}</p>
         </div>
       )}
 
@@ -600,7 +600,7 @@ export function BranchesPage() {
             aria-modal
           >
             <div className={styles.modalHead}>
-              <h2>New branch</h2>
+              <h2>{t('branch.newBranch')}</h2>
               <button
                 type="button"
                 className={styles.modalClose}
@@ -612,40 +612,40 @@ export function BranchesPage() {
             </div>
             <div className={styles.modalBody}>
               <div className={styles.field}>
-                <label htmlFor="br-name">Name *</label>
+                <label htmlFor="br-name">{t('branch.nameLabel')}</label>
                 <input
                   id="br-name"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  placeholder="e.g. Ikeja store"
+                  placeholder={t('branch.namePh')}
                   autoFocus
                 />
               </div>
               <div className={styles.field}>
-                <label htmlFor="br-addr">Address</label>
+                <label htmlFor="br-addr">{t('branch.addressLabel')}</label>
                 <input
                   id="br-addr"
                   value={formAddress}
                   onChange={(e) => setFormAddress(e.target.value)}
-                  placeholder="Street, city"
+                  placeholder={t('branch.addressPh')}
                 />
               </div>
               <div className={styles.field}>
-                <label htmlFor="br-phone">Phone</label>
+                <label htmlFor="br-phone">{t('branch.phoneLabel')}</label>
                 <input
                   id="br-phone"
                   value={formPhone}
                   onChange={(e) => setFormPhone(e.target.value)}
-                  placeholder="Contact number"
+                  placeholder={t('branch.phonePh')}
                 />
               </div>
               <div className={styles.field}>
-                <label htmlFor="br-mgr">Manager name</label>
+                <label htmlFor="br-mgr">{t('branch.managerLabel')}</label>
                 <input
                   id="br-mgr"
                   value={formManager}
                   onChange={(e) => setFormManager(e.target.value)}
-                  placeholder="Optional"
+                  placeholder={t('branch.managerPh')}
                 />
               </div>
             </div>
@@ -655,7 +655,7 @@ export function BranchesPage() {
                 className={styles.btnGhost}
                 onClick={() => setShowCreateModal(false)}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -663,7 +663,7 @@ export function BranchesPage() {
                 disabled={!formName.trim() || isCreating}
                 onClick={handleCreateBranch}
               >
-                {isCreating ? 'Creating…' : 'Create branch'}
+                {isCreating ? t('branch.creating') : t('branch.createBranch')}
               </button>
             </div>
           </div>
@@ -683,7 +683,7 @@ export function BranchesPage() {
             aria-modal
           >
             <div className={styles.modalHead}>
-              <h2>Assign staff</h2>
+              <h2>{t('branch.assignStaff')}</h2>
               <button
                 type="button"
                 className={styles.modalClose}
@@ -697,17 +697,17 @@ export function BranchesPage() {
               {unassignedStaff.length === 0 ? (
                 <div className={styles.emptyInline}>
                   <CheckCircle2 size={28} />
-                  <p>All staff are already assigned to a branch.</p>
+                  <p>{t('branch.allAssigned')}</p>
                 </div>
               ) : (
                 <>
                   <div className={styles.field}>
-                    <label>Staff member</label>
+                    <label>{t('branch.staffMember')}</label>
                     <select
                       value={assignStaffId}
                       onChange={(e) => setAssignStaffId(e.target.value)}
                     >
-                      <option value="">Select staff…</option>
+                      <option value="">{t('branch.selectStaff')}</option>
                       {unassignedStaff.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.fullName} ({s.role})
@@ -716,12 +716,12 @@ export function BranchesPage() {
                     </select>
                   </div>
                   <div className={styles.field}>
-                    <label>Branch</label>
+                    <label>{t('branch.branchLabel')}</label>
                     <select
                       value={assignBranchId}
                       onChange={(e) => setAssignBranchId(e.target.value)}
                     >
-                      <option value="">Main branch</option>
+                      <option value="">{t('branch.mainBranch')}</option>
                       {branches.map((b) => (
                         <option key={b.id} value={b.id}>
                           {b.name}
@@ -738,7 +738,7 @@ export function BranchesPage() {
                 className={styles.btnGhost}
                 onClick={() => setShowAssignModal(false)}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               {unassignedStaff.length > 0 && (
                 <button
@@ -747,7 +747,7 @@ export function BranchesPage() {
                   disabled={!assignStaffId || isAssigning}
                   onClick={handleAssignStaff}
                 >
-                  {isAssigning ? 'Saving…' : 'Assign'}
+                  {isAssigning ? t('warehouse.saving') : t('branch.assign')}
                 </button>
               )}
             </div>

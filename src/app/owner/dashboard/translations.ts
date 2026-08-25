@@ -317,6 +317,190 @@ export type TranslationDict = {
   'toast.creditSaleRecorded':string; 'toast.saleSaveFailed':string;
   'toast.staffRemoved':string; 'toast.receiptThemeSaved':string;
   'toast.receiptThemeFailed':string; 'toast.proFeatureRequired':string;
+  // Warehouse & Branches
+  'common.noBusinessLinked':string;
+  'common.notes':string;
+  'common.quantity':string;
+  'common.status':string;
+  'common.actions':string;
+  'common.product':string;
+  'common.value':string;
+  'common.phone':string;
+  'common.customer':string;
+  'common.active':string;
+  'common.inactive':string;
+  'common.address':string;
+  'common.name':string;
+  'common.refresh':string;
+  'common.create':string;
+  'common.approve':string;
+  'common.reject':string;
+  'common.accept':string;
+  'common.review':string;
+  'warehouse.title':string;
+  'warehouse.subtitle':string;
+  'warehouse.receiveStock':string;
+  'warehouse.addLocation':string;
+  'warehouse.refresh':string;
+  'warehouse.totalUnits':string;
+  'warehouse.stockValue':string;
+  'warehouse.acrossLocations':string;
+  'warehouse.lowStock':string;
+  'warehouse.outOfStock':string;
+  'warehouse.awaitingRelease':string;
+  'warehouse.locationsCount':string;
+  'warehouse.productsCount':string;
+  'warehouse.tab.stock':string;
+  'warehouse.tab.toRelease':string;
+  'warehouse.tab.released':string;
+  'warehouse.tab.locations':string;
+  'warehouse.tab.transfers':string;
+  'warehouse.tab.requests':string;
+  'warehouse.tab.returns':string;
+  'warehouse.searchProducts':string;
+  'warehouse.allLocations':string;
+  'warehouse.inventory':string;
+  'warehouse.noProducts':string;
+  'warehouse.noProductsHint':string;
+  'warehouse.addProduct':string;
+  'warehouse.transfer':string;
+  'warehouse.adjust':string;
+  'warehouse.stockOk':string;
+  'warehouse.stockLow':string;
+  'warehouse.stockOut':string;
+  'warehouse.pendingTitle':string;
+  'warehouse.nothingPending':string;
+  'warehouse.nothingPendingHint':string;
+  'warehouse.releasedTitle':string;
+  'warehouse.noReleases':string;
+  'warehouse.noReleasesHint':string;
+  'warehouse.releasedBy':string;
+  'warehouse.locationsTitle':string;
+  'warehouse.add':string;
+  'warehouse.transferHistory':string;
+  'warehouse.noTransfers':string;
+  'warehouse.noTransfersHint':string;
+  'warehouse.requestsTitle':string;
+  'warehouse.noRequests':string;
+  'warehouse.noRequestsHint':string;
+  'warehouse.returnsTitle':string;
+  'warehouse.noReturns':string;
+  'warehouse.noReturnsHint':string;
+  'warehouse.newLocation':string;
+  'warehouse.locationName':string;
+  'warehouse.locationPlaceholder':string;
+  'warehouse.createLocation':string;
+  'warehouse.creating':string;
+  'warehouse.transferStock':string;
+  'warehouse.from':string;
+  'warehouse.to':string;
+  'warehouse.selectDestination':string;
+  'warehouse.available':string;
+  'warehouse.moving':string;
+  'warehouse.adjustStock':string;
+  'warehouse.reason':string;
+  'warehouse.reasonDamaged':string;
+  'warehouse.reasonLost':string;
+  'warehouse.reasonExpired':string;
+  'warehouse.reasonRecount':string;
+  'warehouse.qtyRemove':string;
+  'warehouse.qtyNew':string;
+  'warehouse.notesPlaceholder':string;
+  'warehouse.saveAdjustment':string;
+  'warehouse.saving':string;
+  'warehouse.releaseTitle':string;
+  'warehouse.source':string;
+  'warehouse.item':string;
+  'warehouse.qty':string;
+  'warehouse.releaseNotes':string;
+  'warehouse.releaseNotesPh':string;
+  'warehouse.partialRelease':string;
+  'warehouse.releaseFull':string;
+  'warehouse.releasing':string;
+  'warehouse.loading':string;
+  'warehouse.loadFailed':string;
+  'warehouse.locationCreated':string;
+  'warehouse.locationCreateFailed':string;
+  'warehouse.mainStoreProtected':string;
+  'warehouse.locationRemoved':string;
+  'warehouse.deleteFailed':string;
+  'warehouse.chooseDifferent':string;
+  'warehouse.insufficientStock':string;
+  'warehouse.transferred':string;
+  'warehouse.transferFailed':string;
+  'warehouse.invalidQty':string;
+  'warehouse.adjusted':string;
+  'warehouse.recounted':string;
+  'warehouse.adjustFailed':string;
+  'warehouse.released':string;
+  'warehouse.partiallyReleased':string;
+  'warehouse.releaseFailed':string;
+  'warehouse.requestUpdated':string;
+  'warehouse.requestFailed':string;
+  'warehouse.returnUpdated':string;
+  'warehouse.returnFailed':string;
+  'warehouse.units':string;
+  'warehouse.skus':string;
+  'warehouse.lines':string;
+  'warehouse.sectionsAria':string;
+  'branch.title':string;
+  'branch.subtitle':string;
+  'branch.proTitle':string;
+  'branch.proDesc':string;
+  'branch.upgrade':string;
+  'branch.backHome':string;
+  'branch.refresh':string;
+  'branch.assignStaff':string;
+  'branch.newBranch':string;
+  'branch.statBranches':string;
+  'branch.statStaff':string;
+  'branch.statUnassigned':string;
+  'branch.needBranch':string;
+  'branch.statLocations':string;
+  'branch.includingMain':string;
+  'branch.activeCount':string;
+  'branch.atMain':string;
+  'branch.search':string;
+  'branch.mainBranch':string;
+  'branch.mainSub':string;
+  'branch.staffCount':string;
+  'branch.noAddress':string;
+  'branch.assign':string;
+  'branch.deleting':string;
+  'branch.delete':string;
+  'branch.noBranches':string;
+  'branch.noBranchesHint':string;
+  'branch.createBranch':string;
+  'branch.noMatches':string;
+  'branch.noMatchesHint':string;
+  'branch.nameLabel':string;
+  'branch.namePh':string;
+  'branch.addressLabel':string;
+  'branch.addressPh':string;
+  'branch.phoneLabel':string;
+  'branch.phonePh':string;
+  'branch.managerLabel':string;
+  'branch.managerPh':string;
+  'branch.creating':string;
+  'branch.assignTitle':string;
+  'branch.allAssigned':string;
+  'branch.staffMember':string;
+  'branch.selectStaff':string;
+  'branch.branchLabel':string;
+  'branch.nameRequired':string;
+  'branch.created':string;
+  'branch.createFailed':string;
+  'branch.staffAssigned':string;
+  'branch.assignFailed':string;
+  'branch.deleted':string;
+  'branch.deleteFailed':string;
+  'branch.activated':string;
+  'branch.deactivated':string;
+  'branch.statusFailed':string;
+  'branch.loadFailed':string;
+  'branch.loading':string;
+  'branch.toggleStatus':string;
+
 };
 
 // ════════════════════════════════════════════════════════
@@ -943,6 +1127,69 @@ const en: TranslationDict = {
   'toast.receiptThemeSaved':'Receipt theme saved successfully',
   'toast.receiptThemeFailed':'Failed to save theme',
   'toast.proFeatureRequired':'This feature requires a Pro plan or higher',
+
+  // Warehouse & Branches
+  'common.noBusinessLinked':'No business linked. Please refresh and try again.','common.notes':'Notes','common.quantity':'Quantity',
+  'common.status':'Status','common.actions':'Actions','common.product':'Product',
+  'common.value':'Value','common.phone':'Phone','common.customer':'Customer',
+  'common.active':'Active','common.inactive':'Inactive','common.address':'Address',
+  'common.name':'Name','common.refresh':'Refresh','common.create':'Create',
+  'common.approve':'Approve','common.reject':'Reject','common.accept':'Accept',
+  'common.review':'Review','warehouse.title':'Warehouse','warehouse.subtitle':'Track stock by location, move inventory, and release wholesale invoices — all in one place.',
+  'warehouse.receiveStock':'Receive stock','warehouse.addLocation':'Location','warehouse.refresh':'Refresh',
+  'warehouse.totalUnits':'Total units','warehouse.stockValue':'Stock value (cost)','warehouse.acrossLocations':'Across all locations',
+  'warehouse.lowStock':'Low stock','warehouse.outOfStock':'out of stock','warehouse.awaitingRelease':'Awaiting release',
+  'warehouse.locationsCount':'locations','warehouse.productsCount':'products','warehouse.tab.stock':'Stock',
+  'warehouse.tab.toRelease':'To release','warehouse.tab.released':'Released','warehouse.tab.locations':'Locations',
+  'warehouse.tab.transfers':'Transfers','warehouse.tab.requests':'Requests','warehouse.tab.returns':'Returns',
+  'warehouse.searchProducts':'Search products…','warehouse.allLocations':'All locations','warehouse.inventory':'Inventory',
+  'warehouse.noProducts':'No products found','warehouse.noProductsHint':'Add products or clear filters to see stock here.','warehouse.addProduct':'Add product',
+  'warehouse.transfer':'Transfer','warehouse.adjust':'Adjust','warehouse.stockOk':'OK',
+  'warehouse.stockLow':'Low','warehouse.stockOut':'Out','warehouse.pendingTitle':'Invoices to release',
+  'warehouse.nothingPending':'Nothing pending','warehouse.nothingPendingHint':'Wholesale invoices waiting for warehouse release appear here.','warehouse.releasedTitle':'Released invoices',
+  'warehouse.noReleases':'No releases yet','warehouse.noReleasesHint':'Completed warehouse releases will list here.','warehouse.releasedBy':'Released by',
+  'warehouse.locationsTitle':'Stock locations','warehouse.add':'Add','warehouse.transferHistory':'Transfer history',
+  'warehouse.noTransfers':'No transfers logged','warehouse.noTransfersHint':'Move stock between locations from the Stock tab.','warehouse.requestsTitle':'Stock requests',
+  'warehouse.noRequests':'No requests','warehouse.noRequestsHint':'Branch or staff restock requests show up here.','warehouse.returnsTitle':'Returns',
+  'warehouse.noReturns':'No returns','warehouse.noReturnsHint':'Customer or branch returns awaiting review appear here.','warehouse.newLocation':'New location',
+  'warehouse.locationName':'Location name','warehouse.locationPlaceholder':'e.g. Back store, Cold room','warehouse.createLocation':'Create location',
+  'warehouse.creating':'Creating…','warehouse.transferStock':'Transfer stock','warehouse.from':'From',
+  'warehouse.to':'To','warehouse.selectDestination':'Select destination','warehouse.available':'available',
+  'warehouse.moving':'Moving…','warehouse.adjustStock':'Adjust stock','warehouse.reason':'Reason',
+  'warehouse.reasonDamaged':'Damaged','warehouse.reasonLost':'Lost / theft','warehouse.reasonExpired':'Expired',
+  'warehouse.reasonRecount':'Recount (set absolute qty)','warehouse.qtyRemove':'Quantity to remove','warehouse.qtyNew':'New quantity',
+  'warehouse.notesPlaceholder':'Optional details…','warehouse.saveAdjustment':'Save adjustment','warehouse.saving':'Saving…',
+  'warehouse.releaseTitle':'Release','warehouse.source':'Source','warehouse.item':'Item',
+  'warehouse.qty':'Qty','warehouse.releaseNotes':'Release notes','warehouse.releaseNotesPh':'Optional notes for this release…',
+  'warehouse.partialRelease':'Partial release','warehouse.releaseFull':'Release full','warehouse.releasing':'Releasing…',
+  'warehouse.loading':'Loading warehouse…','warehouse.loadFailed':'Could not load warehouse data','warehouse.locationCreated':'Location created',
+  'warehouse.locationCreateFailed':'Failed to create location','warehouse.mainStoreProtected':'Main Store cannot be deleted','warehouse.locationRemoved':'Location removed',
+  'warehouse.deleteFailed':'Delete failed','warehouse.chooseDifferent':'Choose different source and destination','warehouse.insufficientStock':'Only {available} units available at source',
+  'warehouse.transferred':'Stock transferred','warehouse.transferFailed':'Transfer failed','warehouse.invalidQty':'Enter a valid quantity',
+  'warehouse.adjusted':'Stock adjusted','warehouse.recounted':'Stock recounted','warehouse.adjustFailed':'Adjustment failed',
+  'warehouse.released':'Invoice released','warehouse.partiallyReleased':'Partially released','warehouse.releaseFailed':'Release failed',
+  'warehouse.requestUpdated':'Request updated','warehouse.requestFailed':'Could not update request','warehouse.returnUpdated':'Return updated',
+  'warehouse.returnFailed':'Could not update return','warehouse.units':'units','warehouse.skus':'SKUs',
+  'warehouse.lines':'lines','warehouse.sectionsAria':'Warehouse sections','branch.title':'Branches',
+  'branch.subtitle':'Run multiple locations under one business — assign staff and keep each branch organized.','branch.proTitle':'Branch management is a Pro feature','branch.proDesc':'Manage multiple locations, assign staff per branch, and track each site separately. Upgrade to Pro to unlock branches.',
+  'branch.upgrade':'Upgrade to Pro','branch.backHome':'Back to home','branch.refresh':'Refresh',
+  'branch.assignStaff':'Assign staff','branch.newBranch':'New branch','branch.statBranches':'Branches',
+  'branch.statStaff':'Total staff','branch.statUnassigned':'Unassigned','branch.needBranch':'Need a branch',
+  'branch.statLocations':'Locations','branch.includingMain':'Including main','branch.activeCount':'active',
+  'branch.atMain':'at main','branch.search':'Search branches…','branch.mainBranch':'Main branch',
+  'branch.mainSub':'Headquarters · always active','branch.staffCount':'staff','branch.noAddress':'No address set',
+  'branch.assign':'Assign','branch.deleting':'Deleting…','branch.delete':'Delete',
+  'branch.noBranches':'No branches yet','branch.noBranchesHint':'Create your first branch to manage multiple locations.','branch.createBranch':'Create branch',
+  'branch.noMatches':'No matches','branch.noMatchesHint':'Try a different search term.','branch.nameLabel':'Name *',
+  'branch.namePh':'e.g. Ikeja store','branch.addressLabel':'Address','branch.addressPh':'Street, city',
+  'branch.phoneLabel':'Phone','branch.phonePh':'Contact number','branch.managerLabel':'Manager name',
+  'branch.managerPh':'Optional','branch.creating':'Creating…','branch.assignTitle':'Assign staff',
+  'branch.allAssigned':'All staff are already assigned to a branch.','branch.staffMember':'Staff member','branch.selectStaff':'Select staff…',
+  'branch.branchLabel':'Branch','branch.nameRequired':'Branch name is required','branch.created':'Branch created',
+  'branch.createFailed':'Failed to create branch','branch.staffAssigned':'Staff assigned','branch.assignFailed':'Failed to assign staff',
+  'branch.deleted':'Branch deleted','branch.deleteFailed':'Delete failed','branch.activated':'Branch activated',
+  'branch.deactivated':'Branch deactivated','branch.statusFailed':'Could not update status','branch.loadFailed':'Failed to load branches',
+  'branch.loading':'Loading branches…','branch.toggleStatus':'Toggle status',
 };
 
 const fr: TranslationDict = {
@@ -1153,6 +1400,69 @@ const fr: TranslationDict = {
   'toast.creditDueDateRequired':'Veuillez specify a due date for credit sales','toast.creditSaleRecorded':'Crédit sale recorded successfully','toast.saleSaveFailed':'Échec de save sale. Veuillez réessayez.',
   'toast.staffRemoved':'Personnel member removed successfully!','toast.receiptThemeSaved':'Receipt theme saved successfully','toast.receiptThemeFailed':'Échec de save theme',
   'toast.proFeatureRequired':'This feature requires a Forfait Pro or higher',
+
+  // Warehouse & Branches
+  'common.noBusinessLinked':'Aucune entreprise liée. Actualisez et réessayez.','common.notes':'Notes','common.quantity':'Quantité',
+  'common.status':'Statut','common.actions':'Actions','common.product':'Produit',
+  'common.value':'Valeur','common.phone':'Téléphone','common.customer':'Client',
+  'common.active':'Actif','common.inactive':'Inactif','common.address':'Adresse',
+  'common.name':'Nom','common.refresh':'Actualiser','common.create':'Créer',
+  'common.approve':'Approuver','common.reject':'Rejeter','common.accept':'Accepter',
+  'common.review':'Examiner','warehouse.title':'Entrepôt','warehouse.subtitle':'Suivez le stock par emplacement, déplacez l’inventaire et libérez les factures de gros — au même endroit.',
+  'warehouse.receiveStock':'Réceptionner','warehouse.addLocation':'Emplacement','warehouse.refresh':'Refresh',
+  'warehouse.totalUnits':'Unités totales','warehouse.stockValue':'Valeur du stock (coût)','warehouse.acrossLocations':'Tous les emplacements',
+  'warehouse.lowStock':'Stock bas','warehouse.outOfStock':'en rupture','warehouse.awaitingRelease':'En attente de sortie',
+  'warehouse.locationsCount':'emplacements','warehouse.productsCount':'produits','warehouse.tab.stock':'Stock',
+  'warehouse.tab.toRelease':'À sortir','warehouse.tab.released':'Sorties','warehouse.tab.locations':'Emplacements',
+  'warehouse.tab.transfers':'Transferts','warehouse.tab.requests':'Demandes','warehouse.tab.returns':'Retours',
+  'warehouse.searchProducts':'Rechercher des produits…','warehouse.allLocations':'Tous les emplacements','warehouse.inventory':'Inventaire',
+  'warehouse.noProducts':'Aucun produit','warehouse.noProductsHint':'Ajoutez des produits ou effacez les filtres.','warehouse.addProduct':'Ajouter un produit',
+  'warehouse.transfer':'Transférer','warehouse.adjust':'Ajuster','warehouse.stockOk':'OK',
+  'warehouse.stockLow':'Bas','warehouse.stockOut':'Rupture','warehouse.pendingTitle':'Factures à sortir',
+  'warehouse.nothingPending':'Rien en attente','warehouse.nothingPendingHint':'Les factures de gros en attente de sortie apparaissent ici.','warehouse.releasedTitle':'Factures sorties',
+  'warehouse.noReleases':'Aucune sortie','warehouse.noReleasesHint':'Les sorties terminées s’affichent ici.','warehouse.releasedBy':'Sorti par',
+  'warehouse.locationsTitle':'Emplacements de stock','warehouse.add':'Ajouter','warehouse.transferHistory':'Historique des transferts',
+  'warehouse.noTransfers':'Aucun transfert','warehouse.noTransfersHint':'Déplacez le stock depuis l’onglet Stock.','warehouse.requestsTitle':'Demandes de stock',
+  'warehouse.noRequests':'Aucune demande','warehouse.noRequestsHint':'Les demandes de réapprovisionnement apparaissent ici.','warehouse.returnsTitle':'Retours',
+  'warehouse.noReturns':'Aucun retour','warehouse.noReturnsHint':'Les retours en attente apparaissent ici.','warehouse.newLocation':'Nouvel emplacement',
+  'warehouse.locationName':'Nom de l’emplacement','warehouse.locationPlaceholder':'ex. Réserve, Chambre froide','warehouse.createLocation':'Créer l’emplacement',
+  'warehouse.creating':'Création…','warehouse.transferStock':'Transférer le stock','warehouse.from':'De',
+  'warehouse.to':'Vers','warehouse.selectDestination':'Choisir la destination','warehouse.available':'disponibles',
+  'warehouse.moving':'Transfert…','warehouse.adjustStock':'Ajuster le stock','warehouse.reason':'Raison',
+  'warehouse.reasonDamaged':'Endommagé','warehouse.reasonLost':'Perdu / vol','warehouse.reasonExpired':'Périmé',
+  'warehouse.reasonRecount':'Recount (quantité absolue)','warehouse.qtyRemove':'Quantité à retirer','warehouse.qtyNew':'Nouvelle quantité',
+  'warehouse.notesPlaceholder':'Détails optionnels…','warehouse.saveAdjustment':'Enregistrer l’ajustement','warehouse.saving':'Enregistrement…',
+  'warehouse.releaseTitle':'Sortie','warehouse.source':'Source','warehouse.item':'Article',
+  'warehouse.qty':'Qté','warehouse.releaseNotes':'Notes de sortie','warehouse.releaseNotesPh':'Notes optionnelles…',
+  'warehouse.partialRelease':'Sortie partielle','warehouse.releaseFull':'Sortie complète','warehouse.releasing':'Sortie…',
+  'warehouse.loading':'Chargement de l’entrepôt…','warehouse.loadFailed':'Impossible de charger l’entrepôt','warehouse.locationCreated':'Emplacement créé',
+  'warehouse.locationCreateFailed':'Échec de création','warehouse.mainStoreProtected':'Le magasin principal ne peut pas être supprimé','warehouse.locationRemoved':'Emplacement supprimé',
+  'warehouse.deleteFailed':'Échec de suppression','warehouse.chooseDifferent':'Choisissez une source et une destination différentes','warehouse.insufficientStock':'Seulement {available} unités disponibles à la source',
+  'warehouse.transferred':'Stock transféré','warehouse.transferFailed':'Échec du transfert','warehouse.invalidQty':'Entrez une quantité valide',
+  'warehouse.adjusted':'Stock ajusté','warehouse.recounted':'Stock recompté','warehouse.adjustFailed':'Échec de l’ajustement',
+  'warehouse.released':'Facture sortie','warehouse.partiallyReleased':'Sortie partielle effectuée','warehouse.releaseFailed':'Échec de la sortie',
+  'warehouse.requestUpdated':'Demande mise à jour','warehouse.requestFailed':'Impossible de mettre à jour la demande','warehouse.returnUpdated':'Retour mis à jour',
+  'warehouse.returnFailed':'Impossible de mettre à jour le retour','warehouse.units':'unités','warehouse.skus':'références',
+  'warehouse.lines':'lignes','warehouse.sectionsAria':'Sections entrepôt','branch.title':'Succursales',
+  'branch.subtitle':'Gérez plusieurs emplacements sous une même entreprise — assignez le personnel et organisez chaque site.','branch.proTitle':'La gestion des succursales est une fonctionnalité Pro','branch.proDesc':'Gérez plusieurs sites, assignez le personnel par succursale et suivez chaque emplacement. Passez à Pro pour débloquer.',
+  'branch.upgrade':'Passer à Pro','branch.backHome':'Retour à l’accueil','branch.refresh':'Refresh',
+  'branch.assignStaff':'Assigner le personnel','branch.newBranch':'Nouvelle succursale','branch.statBranches':'Succursales',
+  'branch.statStaff':'Personnel total','branch.statUnassigned':'Non assignés','branch.needBranch':'Besoin d’une succursale',
+  'branch.statLocations':'Emplacements','branch.includingMain':'Y compris le principal','branch.activeCount':'actives',
+  'branch.atMain':'au principal','branch.search':'Rechercher des succursales…','branch.mainBranch':'Succursale principale',
+  'branch.mainSub':'Siège · toujours active','branch.staffCount':'personnel','branch.noAddress':'Aucune adresse',
+  'branch.assign':'Assigner','branch.deleting':'Suppression…','branch.delete':'Delete',
+  'branch.noBranches':'Aucune succursale','branch.noBranchesHint':'Créez votre première succursale pour gérer plusieurs sites.','branch.createBranch':'Créer une succursale',
+  'branch.noMatches':'Aucun résultat','branch.noMatchesHint':'Essayez un autre terme de recherche.','branch.nameLabel':'Nom *',
+  'branch.namePh':'ex. Magasin Ikeja','branch.addressLabel':'Adresse','branch.addressPh':'Rue, ville',
+  'branch.phoneLabel':'Téléphone','branch.phonePh':'Numéro de contact','branch.managerLabel':'Nom du gérant',
+  'branch.managerPh':'Facultatif','branch.creating':'Création…','branch.assignTitle':'Assigner le personnel',
+  'branch.allAssigned':'Tout le personnel est déjà assigné à une succursale.','branch.staffMember':'Membre du personnel','branch.selectStaff':'Sélectionner…',
+  'branch.branchLabel':'Succursale','branch.nameRequired':'Le nom de la succursale est obligatoire','branch.created':'Succursale créée',
+  'branch.createFailed':'Échec de création','branch.staffAssigned':'Personnel assigné','branch.assignFailed':'Échec d’assignation',
+  'branch.deleted':'Succursale supprimée','branch.deleteFailed':'Échec de suppression','branch.activated':'Succursale activée',
+  'branch.deactivated':'Succursale désactivée','branch.statusFailed':'Impossible de mettre à jour le statut','branch.loadFailed':'Échec du chargement des succursales',
+  'branch.loading':'Chargement des succursales…','branch.toggleStatus':'Changer le statut',
 };
 
 const ha: TranslationDict = {
@@ -1363,6 +1673,69 @@ const ha: TranslationDict = {
   'toast.creditDueDateRequired':'Don Allah specify a due date for credit sales','toast.creditSaleRecorded':'Credit sale recorded successfully','toast.saleSaveFailed':'An gaza save sale. Don Allah sake gwadawa.',
   'toast.staffRemoved':'Ma\'aikata member removed successfully!','toast.receiptThemeSaved':'Receipt theme saved successfully','toast.receiptThemeFailed':'An gaza save theme',
   'toast.proFeatureRequired':'This feature requires a Pro plan or higher',
+
+  // Warehouse & Branches
+  'common.noBusinessLinked':'No business linked. Please refresh and try again.','common.notes':'Notes','common.quantity':'Quantity',
+  'common.status':'Status','common.actions':'Actions','common.product':'Product',
+  'common.value':'Value','common.phone':'Phone','common.customer':'Customer',
+  'common.active':'Active','common.inactive':'Inactive','common.address':'Address',
+  'common.name':'Name','common.refresh':'Wartsake','common.create':'Create',
+  'common.approve':'Approve','common.reject':'Reject','common.accept':'Accept',
+  'common.review':'Review','warehouse.title':'Gidauniyar kaya','warehouse.subtitle':'Track stock by location, move inventory, and release wholesale invoices — all in one place.',
+  'warehouse.receiveStock':'Receive stock','warehouse.addLocation':'Location','warehouse.refresh':'Refresh',
+  'warehouse.totalUnits':'Total units','warehouse.stockValue':'Stock value (cost)','warehouse.acrossLocations':'Across all locations',
+  'warehouse.lowStock':'Low stock','warehouse.outOfStock':'out of stock','warehouse.awaitingRelease':'Awaiting release',
+  'warehouse.locationsCount':'locations','warehouse.productsCount':'products','warehouse.tab.stock':'Kaya',
+  'warehouse.tab.toRelease':'To release','warehouse.tab.released':'Released','warehouse.tab.locations':'Locations',
+  'warehouse.tab.transfers':'Transfers','warehouse.tab.requests':'Requests','warehouse.tab.returns':'Returns',
+  'warehouse.searchProducts':'Search products…','warehouse.allLocations':'All locations','warehouse.inventory':'Inventory',
+  'warehouse.noProducts':'No products found','warehouse.noProductsHint':'Add products or clear filters to see stock here.','warehouse.addProduct':'Add product',
+  'warehouse.transfer':'Canja wuri','warehouse.adjust':'Gyara','warehouse.stockOk':'OK',
+  'warehouse.stockLow':'Low','warehouse.stockOut':'Out','warehouse.pendingTitle':'Invoices to release',
+  'warehouse.nothingPending':'Nothing pending','warehouse.nothingPendingHint':'Wholesale invoices waiting for warehouse release appear here.','warehouse.releasedTitle':'Released invoices',
+  'warehouse.noReleases':'No releases yet','warehouse.noReleasesHint':'Completed warehouse releases will list here.','warehouse.releasedBy':'Released by',
+  'warehouse.locationsTitle':'Stock locations','warehouse.add':'Add','warehouse.transferHistory':'Transfer history',
+  'warehouse.noTransfers':'No transfers logged','warehouse.noTransfersHint':'Move stock between locations from the Stock tab.','warehouse.requestsTitle':'Stock requests',
+  'warehouse.noRequests':'No requests','warehouse.noRequestsHint':'Branch or staff restock requests show up here.','warehouse.returnsTitle':'Returns',
+  'warehouse.noReturns':'No returns','warehouse.noReturnsHint':'Customer or branch returns awaiting review appear here.','warehouse.newLocation':'New location',
+  'warehouse.locationName':'Location name','warehouse.locationPlaceholder':'e.g. Back store, Cold room','warehouse.createLocation':'Create location',
+  'warehouse.creating':'Creating…','warehouse.transferStock':'Transfer stock','warehouse.from':'From',
+  'warehouse.to':'To','warehouse.selectDestination':'Select destination','warehouse.available':'available',
+  'warehouse.moving':'Moving…','warehouse.adjustStock':'Adjust stock','warehouse.reason':'Reason',
+  'warehouse.reasonDamaged':'Damaged','warehouse.reasonLost':'Lost / theft','warehouse.reasonExpired':'Expired',
+  'warehouse.reasonRecount':'Recount (set absolute qty)','warehouse.qtyRemove':'Quantity to remove','warehouse.qtyNew':'New quantity',
+  'warehouse.notesPlaceholder':'Optional details…','warehouse.saveAdjustment':'Save adjustment','warehouse.saving':'Saving…',
+  'warehouse.releaseTitle':'Release','warehouse.source':'Source','warehouse.item':'Item',
+  'warehouse.qty':'Qty','warehouse.releaseNotes':'Release notes','warehouse.releaseNotesPh':'Optional notes for this release…',
+  'warehouse.partialRelease':'Partial release','warehouse.releaseFull':'Release full','warehouse.releasing':'Releasing…',
+  'warehouse.loading':'Loading warehouse…','warehouse.loadFailed':'Could not load warehouse data','warehouse.locationCreated':'Location created',
+  'warehouse.locationCreateFailed':'Failed to create location','warehouse.mainStoreProtected':'Main Store cannot be deleted','warehouse.locationRemoved':'Location removed',
+  'warehouse.deleteFailed':'Delete failed','warehouse.chooseDifferent':'Choose different source and destination','warehouse.insufficientStock':'Only {available} units available at source',
+  'warehouse.transferred':'Stock transferred','warehouse.transferFailed':'Transfer failed','warehouse.invalidQty':'Enter a valid quantity',
+  'warehouse.adjusted':'Stock adjusted','warehouse.recounted':'Stock recounted','warehouse.adjustFailed':'Adjustment failed',
+  'warehouse.released':'Invoice released','warehouse.partiallyReleased':'Partially released','warehouse.releaseFailed':'Release failed',
+  'warehouse.requestUpdated':'Request updated','warehouse.requestFailed':'Could not update request','warehouse.returnUpdated':'Return updated',
+  'warehouse.returnFailed':'Could not update return','warehouse.units':'units','warehouse.skus':'SKUs',
+  'warehouse.lines':'lines','warehouse.sectionsAria':'Warehouse sections','branch.title':'Reshe-reshe',
+  'branch.subtitle':'Run multiple locations under one business — assign staff and keep each branch organized.','branch.proTitle':'Branch management is a Pro feature','branch.proDesc':'Manage multiple locations, assign staff per branch, and track each site separately. Upgrade to Pro to unlock branches.',
+  'branch.upgrade':'Upgrade to Pro','branch.backHome':'Back to home','branch.refresh':'Refresh',
+  'branch.assignStaff':'Assign staff','branch.newBranch':'New branch','branch.statBranches':'Branches',
+  'branch.statStaff':'Total staff','branch.statUnassigned':'Unassigned','branch.needBranch':'Need a branch',
+  'branch.statLocations':'Locations','branch.includingMain':'Including main','branch.activeCount':'active',
+  'branch.atMain':'at main','branch.search':'Search branches…','branch.mainBranch':'Main branch',
+  'branch.mainSub':'Headquarters · always active','branch.staffCount':'staff','branch.noAddress':'No address set',
+  'branch.assign':'Assign','branch.deleting':'Deleting…','branch.delete':'Delete',
+  'branch.noBranches':'No branches yet','branch.noBranchesHint':'Create your first branch to manage multiple locations.','branch.createBranch':'Create branch',
+  'branch.noMatches':'No matches','branch.noMatchesHint':'Try a different search term.','branch.nameLabel':'Name *',
+  'branch.namePh':'e.g. Ikeja store','branch.addressLabel':'Address','branch.addressPh':'Street, city',
+  'branch.phoneLabel':'Phone','branch.phonePh':'Contact number','branch.managerLabel':'Manager name',
+  'branch.managerPh':'Optional','branch.creating':'Creating…','branch.assignTitle':'Assign staff',
+  'branch.allAssigned':'All staff are already assigned to a branch.','branch.staffMember':'Staff member','branch.selectStaff':'Select staff…',
+  'branch.branchLabel':'Branch','branch.nameRequired':'Branch name is required','branch.created':'Branch created',
+  'branch.createFailed':'Failed to create branch','branch.staffAssigned':'Staff assigned','branch.assignFailed':'Failed to assign staff',
+  'branch.deleted':'Branch deleted','branch.deleteFailed':'Delete failed','branch.activated':'Branch activated',
+  'branch.deactivated':'Branch deactivated','branch.statusFailed':'Could not update status','branch.loadFailed':'Failed to load branches',
+  'branch.loading':'Loading branches…','branch.toggleStatus':'Toggle status',
 };
 
 const sw: TranslationDict = {
@@ -1573,6 +1946,69 @@ const sw: TranslationDict = {
   'toast.creditDueDateRequired':'Tafadhali specify a due date for credit sales','toast.creditSaleRecorded':'Credit sale recorded successfully','toast.saleSaveFailed':'Imeshindikana save sale. Tafadhali jaribu tena.',
   'toast.staffRemoved':'Wafanyakazi member removed successfully!','toast.receiptThemeSaved':'Receipt theme saved successfully','toast.receiptThemeFailed':'Imeshindikana save theme',
   'toast.proFeatureRequired':'This feature requires a Pro plan or higher',
+
+  // Warehouse & Branches
+  'common.noBusinessLinked':'No business linked. Please refresh and try again.','common.notes':'Notes','common.quantity':'Quantity',
+  'common.status':'Status','common.actions':'Actions','common.product':'Product',
+  'common.value':'Value','common.phone':'Phone','common.customer':'Customer',
+  'common.active':'Active','common.inactive':'Inactive','common.address':'Address',
+  'common.name':'Name','common.refresh':'Onyesha upya','common.create':'Create',
+  'common.approve':'Approve','common.reject':'Reject','common.accept':'Accept',
+  'common.review':'Review','warehouse.title':'Ghala','warehouse.subtitle':'Track stock by location, move inventory, and release wholesale invoices — all in one place.',
+  'warehouse.receiveStock':'Receive stock','warehouse.addLocation':'Location','warehouse.refresh':'Refresh',
+  'warehouse.totalUnits':'Total units','warehouse.stockValue':'Stock value (cost)','warehouse.acrossLocations':'Across all locations',
+  'warehouse.lowStock':'Low stock','warehouse.outOfStock':'out of stock','warehouse.awaitingRelease':'Awaiting release',
+  'warehouse.locationsCount':'locations','warehouse.productsCount':'products','warehouse.tab.stock':'Hifadhi',
+  'warehouse.tab.toRelease':'To release','warehouse.tab.released':'Released','warehouse.tab.locations':'Locations',
+  'warehouse.tab.transfers':'Transfers','warehouse.tab.requests':'Requests','warehouse.tab.returns':'Returns',
+  'warehouse.searchProducts':'Search products…','warehouse.allLocations':'All locations','warehouse.inventory':'Inventory',
+  'warehouse.noProducts':'No products found','warehouse.noProductsHint':'Add products or clear filters to see stock here.','warehouse.addProduct':'Add product',
+  'warehouse.transfer':'Hamisha','warehouse.adjust':'Rekebisha','warehouse.stockOk':'OK',
+  'warehouse.stockLow':'Low','warehouse.stockOut':'Out','warehouse.pendingTitle':'Invoices to release',
+  'warehouse.nothingPending':'Nothing pending','warehouse.nothingPendingHint':'Wholesale invoices waiting for warehouse release appear here.','warehouse.releasedTitle':'Released invoices',
+  'warehouse.noReleases':'No releases yet','warehouse.noReleasesHint':'Completed warehouse releases will list here.','warehouse.releasedBy':'Released by',
+  'warehouse.locationsTitle':'Stock locations','warehouse.add':'Add','warehouse.transferHistory':'Transfer history',
+  'warehouse.noTransfers':'No transfers logged','warehouse.noTransfersHint':'Move stock between locations from the Stock tab.','warehouse.requestsTitle':'Stock requests',
+  'warehouse.noRequests':'No requests','warehouse.noRequestsHint':'Branch or staff restock requests show up here.','warehouse.returnsTitle':'Returns',
+  'warehouse.noReturns':'No returns','warehouse.noReturnsHint':'Customer or branch returns awaiting review appear here.','warehouse.newLocation':'New location',
+  'warehouse.locationName':'Location name','warehouse.locationPlaceholder':'e.g. Back store, Cold room','warehouse.createLocation':'Create location',
+  'warehouse.creating':'Creating…','warehouse.transferStock':'Transfer stock','warehouse.from':'From',
+  'warehouse.to':'To','warehouse.selectDestination':'Select destination','warehouse.available':'available',
+  'warehouse.moving':'Moving…','warehouse.adjustStock':'Adjust stock','warehouse.reason':'Reason',
+  'warehouse.reasonDamaged':'Damaged','warehouse.reasonLost':'Lost / theft','warehouse.reasonExpired':'Expired',
+  'warehouse.reasonRecount':'Recount (set absolute qty)','warehouse.qtyRemove':'Quantity to remove','warehouse.qtyNew':'New quantity',
+  'warehouse.notesPlaceholder':'Optional details…','warehouse.saveAdjustment':'Save adjustment','warehouse.saving':'Saving…',
+  'warehouse.releaseTitle':'Release','warehouse.source':'Source','warehouse.item':'Item',
+  'warehouse.qty':'Qty','warehouse.releaseNotes':'Release notes','warehouse.releaseNotesPh':'Optional notes for this release…',
+  'warehouse.partialRelease':'Partial release','warehouse.releaseFull':'Release full','warehouse.releasing':'Releasing…',
+  'warehouse.loading':'Loading warehouse…','warehouse.loadFailed':'Could not load warehouse data','warehouse.locationCreated':'Location created',
+  'warehouse.locationCreateFailed':'Failed to create location','warehouse.mainStoreProtected':'Main Store cannot be deleted','warehouse.locationRemoved':'Location removed',
+  'warehouse.deleteFailed':'Delete failed','warehouse.chooseDifferent':'Choose different source and destination','warehouse.insufficientStock':'Only {available} units available at source',
+  'warehouse.transferred':'Stock transferred','warehouse.transferFailed':'Transfer failed','warehouse.invalidQty':'Enter a valid quantity',
+  'warehouse.adjusted':'Stock adjusted','warehouse.recounted':'Stock recounted','warehouse.adjustFailed':'Adjustment failed',
+  'warehouse.released':'Invoice released','warehouse.partiallyReleased':'Partially released','warehouse.releaseFailed':'Release failed',
+  'warehouse.requestUpdated':'Request updated','warehouse.requestFailed':'Could not update request','warehouse.returnUpdated':'Return updated',
+  'warehouse.returnFailed':'Could not update return','warehouse.units':'units','warehouse.skus':'SKUs',
+  'warehouse.lines':'lines','warehouse.sectionsAria':'Warehouse sections','branch.title':'Matawi',
+  'branch.subtitle':'Run multiple locations under one business — assign staff and keep each branch organized.','branch.proTitle':'Branch management is a Pro feature','branch.proDesc':'Manage multiple locations, assign staff per branch, and track each site separately. Upgrade to Pro to unlock branches.',
+  'branch.upgrade':'Upgrade to Pro','branch.backHome':'Back to home','branch.refresh':'Refresh',
+  'branch.assignStaff':'Assign staff','branch.newBranch':'New branch','branch.statBranches':'Branches',
+  'branch.statStaff':'Total staff','branch.statUnassigned':'Unassigned','branch.needBranch':'Need a branch',
+  'branch.statLocations':'Locations','branch.includingMain':'Including main','branch.activeCount':'active',
+  'branch.atMain':'at main','branch.search':'Search branches…','branch.mainBranch':'Main branch',
+  'branch.mainSub':'Headquarters · always active','branch.staffCount':'staff','branch.noAddress':'No address set',
+  'branch.assign':'Assign','branch.deleting':'Deleting…','branch.delete':'Delete',
+  'branch.noBranches':'No branches yet','branch.noBranchesHint':'Create your first branch to manage multiple locations.','branch.createBranch':'Create branch',
+  'branch.noMatches':'No matches','branch.noMatchesHint':'Try a different search term.','branch.nameLabel':'Name *',
+  'branch.namePh':'e.g. Ikeja store','branch.addressLabel':'Address','branch.addressPh':'Street, city',
+  'branch.phoneLabel':'Phone','branch.phonePh':'Contact number','branch.managerLabel':'Manager name',
+  'branch.managerPh':'Optional','branch.creating':'Creating…','branch.assignTitle':'Assign staff',
+  'branch.allAssigned':'All staff are already assigned to a branch.','branch.staffMember':'Staff member','branch.selectStaff':'Select staff…',
+  'branch.branchLabel':'Branch','branch.nameRequired':'Branch name is required','branch.created':'Branch created',
+  'branch.createFailed':'Failed to create branch','branch.staffAssigned':'Staff assigned','branch.assignFailed':'Failed to assign staff',
+  'branch.deleted':'Branch deleted','branch.deleteFailed':'Delete failed','branch.activated':'Branch activated',
+  'branch.deactivated':'Branch deactivated','branch.statusFailed':'Could not update status','branch.loadFailed':'Failed to load branches',
+  'branch.loading':'Loading branches…','branch.toggleStatus':'Toggle status',
 };
 
 const yo: TranslationDict = {
@@ -1783,6 +2219,69 @@ const yo: TranslationDict = {
   'toast.creditDueDateRequired':'Jọ̀wọ́ specify a due date for credit sales','toast.creditSaleRecorded':'Credit sale recorded successfully','toast.saleSaveFailed':'Kò ṣiṣẹ́ save sale. Jọ̀wọ́ gbìyànjú lẹ́ẹ̀kan si.',
   'toast.staffRemoved':'Òṣìṣẹ́ member removed successfully!','toast.receiptThemeSaved':'Receipt theme saved successfully','toast.receiptThemeFailed':'Kò ṣiṣẹ́ save theme',
   'toast.proFeatureRequired':'This feature requires a Pro plan or higher',
+
+  // Warehouse & Branches
+  'common.noBusinessLinked':'No business linked. Please refresh and try again.','common.notes':'Notes','common.quantity':'Quantity',
+  'common.status':'Status','common.actions':'Actions','common.product':'Product',
+  'common.value':'Value','common.phone':'Phone','common.customer':'Customer',
+  'common.active':'Active','common.inactive':'Inactive','common.address':'Address',
+  'common.name':'Name','common.refresh':'Tunṣe','common.create':'Create',
+  'common.approve':'Approve','common.reject':'Reject','common.accept':'Accept',
+  'common.review':'Review','warehouse.title':'Ilé ìṣúra','warehouse.subtitle':'Track stock by location, move inventory, and release wholesale invoices — all in one place.',
+  'warehouse.receiveStock':'Receive stock','warehouse.addLocation':'Location','warehouse.refresh':'Refresh',
+  'warehouse.totalUnits':'Total units','warehouse.stockValue':'Stock value (cost)','warehouse.acrossLocations':'Across all locations',
+  'warehouse.lowStock':'Low stock','warehouse.outOfStock':'out of stock','warehouse.awaitingRelease':'Awaiting release',
+  'warehouse.locationsCount':'locations','warehouse.productsCount':'products','warehouse.tab.stock':'Ọjà',
+  'warehouse.tab.toRelease':'To release','warehouse.tab.released':'Released','warehouse.tab.locations':'Locations',
+  'warehouse.tab.transfers':'Transfers','warehouse.tab.requests':'Requests','warehouse.tab.returns':'Returns',
+  'warehouse.searchProducts':'Search products…','warehouse.allLocations':'All locations','warehouse.inventory':'Inventory',
+  'warehouse.noProducts':'No products found','warehouse.noProductsHint':'Add products or clear filters to see stock here.','warehouse.addProduct':'Add product',
+  'warehouse.transfer':'Gbé lọ','warehouse.adjust':'Ṣàtúnṣe','warehouse.stockOk':'OK',
+  'warehouse.stockLow':'Low','warehouse.stockOut':'Out','warehouse.pendingTitle':'Invoices to release',
+  'warehouse.nothingPending':'Nothing pending','warehouse.nothingPendingHint':'Wholesale invoices waiting for warehouse release appear here.','warehouse.releasedTitle':'Released invoices',
+  'warehouse.noReleases':'No releases yet','warehouse.noReleasesHint':'Completed warehouse releases will list here.','warehouse.releasedBy':'Released by',
+  'warehouse.locationsTitle':'Stock locations','warehouse.add':'Add','warehouse.transferHistory':'Transfer history',
+  'warehouse.noTransfers':'No transfers logged','warehouse.noTransfersHint':'Move stock between locations from the Stock tab.','warehouse.requestsTitle':'Stock requests',
+  'warehouse.noRequests':'No requests','warehouse.noRequestsHint':'Branch or staff restock requests show up here.','warehouse.returnsTitle':'Returns',
+  'warehouse.noReturns':'No returns','warehouse.noReturnsHint':'Customer or branch returns awaiting review appear here.','warehouse.newLocation':'New location',
+  'warehouse.locationName':'Location name','warehouse.locationPlaceholder':'e.g. Back store, Cold room','warehouse.createLocation':'Create location',
+  'warehouse.creating':'Creating…','warehouse.transferStock':'Transfer stock','warehouse.from':'From',
+  'warehouse.to':'To','warehouse.selectDestination':'Select destination','warehouse.available':'available',
+  'warehouse.moving':'Moving…','warehouse.adjustStock':'Adjust stock','warehouse.reason':'Reason',
+  'warehouse.reasonDamaged':'Damaged','warehouse.reasonLost':'Lost / theft','warehouse.reasonExpired':'Expired',
+  'warehouse.reasonRecount':'Recount (set absolute qty)','warehouse.qtyRemove':'Quantity to remove','warehouse.qtyNew':'New quantity',
+  'warehouse.notesPlaceholder':'Optional details…','warehouse.saveAdjustment':'Save adjustment','warehouse.saving':'Saving…',
+  'warehouse.releaseTitle':'Release','warehouse.source':'Source','warehouse.item':'Item',
+  'warehouse.qty':'Qty','warehouse.releaseNotes':'Release notes','warehouse.releaseNotesPh':'Optional notes for this release…',
+  'warehouse.partialRelease':'Partial release','warehouse.releaseFull':'Release full','warehouse.releasing':'Releasing…',
+  'warehouse.loading':'Loading warehouse…','warehouse.loadFailed':'Could not load warehouse data','warehouse.locationCreated':'Location created',
+  'warehouse.locationCreateFailed':'Failed to create location','warehouse.mainStoreProtected':'Main Store cannot be deleted','warehouse.locationRemoved':'Location removed',
+  'warehouse.deleteFailed':'Delete failed','warehouse.chooseDifferent':'Choose different source and destination','warehouse.insufficientStock':'Only {available} units available at source',
+  'warehouse.transferred':'Stock transferred','warehouse.transferFailed':'Transfer failed','warehouse.invalidQty':'Enter a valid quantity',
+  'warehouse.adjusted':'Stock adjusted','warehouse.recounted':'Stock recounted','warehouse.adjustFailed':'Adjustment failed',
+  'warehouse.released':'Invoice released','warehouse.partiallyReleased':'Partially released','warehouse.releaseFailed':'Release failed',
+  'warehouse.requestUpdated':'Request updated','warehouse.requestFailed':'Could not update request','warehouse.returnUpdated':'Return updated',
+  'warehouse.returnFailed':'Could not update return','warehouse.units':'units','warehouse.skus':'SKUs',
+  'warehouse.lines':'lines','warehouse.sectionsAria':'Warehouse sections','branch.title':'Àwọn ẹ̀ka',
+  'branch.subtitle':'Run multiple locations under one business — assign staff and keep each branch organized.','branch.proTitle':'Branch management is a Pro feature','branch.proDesc':'Manage multiple locations, assign staff per branch, and track each site separately. Upgrade to Pro to unlock branches.',
+  'branch.upgrade':'Upgrade to Pro','branch.backHome':'Back to home','branch.refresh':'Refresh',
+  'branch.assignStaff':'Assign staff','branch.newBranch':'New branch','branch.statBranches':'Branches',
+  'branch.statStaff':'Total staff','branch.statUnassigned':'Unassigned','branch.needBranch':'Need a branch',
+  'branch.statLocations':'Locations','branch.includingMain':'Including main','branch.activeCount':'active',
+  'branch.atMain':'at main','branch.search':'Search branches…','branch.mainBranch':'Main branch',
+  'branch.mainSub':'Headquarters · always active','branch.staffCount':'staff','branch.noAddress':'No address set',
+  'branch.assign':'Assign','branch.deleting':'Deleting…','branch.delete':'Delete',
+  'branch.noBranches':'No branches yet','branch.noBranchesHint':'Create your first branch to manage multiple locations.','branch.createBranch':'Create branch',
+  'branch.noMatches':'No matches','branch.noMatchesHint':'Try a different search term.','branch.nameLabel':'Name *',
+  'branch.namePh':'e.g. Ikeja store','branch.addressLabel':'Address','branch.addressPh':'Street, city',
+  'branch.phoneLabel':'Phone','branch.phonePh':'Contact number','branch.managerLabel':'Manager name',
+  'branch.managerPh':'Optional','branch.creating':'Creating…','branch.assignTitle':'Assign staff',
+  'branch.allAssigned':'All staff are already assigned to a branch.','branch.staffMember':'Staff member','branch.selectStaff':'Select staff…',
+  'branch.branchLabel':'Branch','branch.nameRequired':'Branch name is required','branch.created':'Branch created',
+  'branch.createFailed':'Failed to create branch','branch.staffAssigned':'Staff assigned','branch.assignFailed':'Failed to assign staff',
+  'branch.deleted':'Branch deleted','branch.deleteFailed':'Delete failed','branch.activated':'Branch activated',
+  'branch.deactivated':'Branch deactivated','branch.statusFailed':'Could not update status','branch.loadFailed':'Failed to load branches',
+  'branch.loading':'Loading branches…','branch.toggleStatus':'Toggle status',
 };
 
 const ig: TranslationDict = {
@@ -1993,6 +2492,69 @@ const ig: TranslationDict = {
   'toast.creditDueDateRequired':'Biko specify a due date for credit sales','toast.creditSaleRecorded':'Credit sale recorded successfully','toast.saleSaveFailed':'Dara ada save sale. Biko nwaa ọzọ.',
   'toast.staffRemoved':'Ndị ọrụ member removed successfully!','toast.receiptThemeSaved':'Receipt theme saved successfully','toast.receiptThemeFailed':'Dara ada save theme',
   'toast.proFeatureRequired':'This feature requires a Pro plan or higher',
+
+  // Warehouse & Branches
+  'common.noBusinessLinked':'No business linked. Please refresh and try again.','common.notes':'Notes','common.quantity':'Quantity',
+  'common.status':'Status','common.actions':'Actions','common.product':'Product',
+  'common.value':'Value','common.phone':'Phone','common.customer':'Customer',
+  'common.active':'Active','common.inactive':'Inactive','common.address':'Address',
+  'common.name':'Name','common.refresh':'Megharịa','common.create':'Create',
+  'common.approve':'Approve','common.reject':'Reject','common.accept':'Accept',
+  'common.review':'Review','warehouse.title':'Ụlọ nkwakọba','warehouse.subtitle':'Track stock by location, move inventory, and release wholesale invoices — all in one place.',
+  'warehouse.receiveStock':'Receive stock','warehouse.addLocation':'Location','warehouse.refresh':'Refresh',
+  'warehouse.totalUnits':'Total units','warehouse.stockValue':'Stock value (cost)','warehouse.acrossLocations':'Across all locations',
+  'warehouse.lowStock':'Low stock','warehouse.outOfStock':'out of stock','warehouse.awaitingRelease':'Awaiting release',
+  'warehouse.locationsCount':'locations','warehouse.productsCount':'products','warehouse.tab.stock':'Ngwaahịa',
+  'warehouse.tab.toRelease':'To release','warehouse.tab.released':'Released','warehouse.tab.locations':'Locations',
+  'warehouse.tab.transfers':'Transfers','warehouse.tab.requests':'Requests','warehouse.tab.returns':'Returns',
+  'warehouse.searchProducts':'Search products…','warehouse.allLocations':'All locations','warehouse.inventory':'Inventory',
+  'warehouse.noProducts':'No products found','warehouse.noProductsHint':'Add products or clear filters to see stock here.','warehouse.addProduct':'Add product',
+  'warehouse.transfer':'Bufee','warehouse.adjust':'Dezie','warehouse.stockOk':'OK',
+  'warehouse.stockLow':'Low','warehouse.stockOut':'Out','warehouse.pendingTitle':'Invoices to release',
+  'warehouse.nothingPending':'Nothing pending','warehouse.nothingPendingHint':'Wholesale invoices waiting for warehouse release appear here.','warehouse.releasedTitle':'Released invoices',
+  'warehouse.noReleases':'No releases yet','warehouse.noReleasesHint':'Completed warehouse releases will list here.','warehouse.releasedBy':'Released by',
+  'warehouse.locationsTitle':'Stock locations','warehouse.add':'Add','warehouse.transferHistory':'Transfer history',
+  'warehouse.noTransfers':'No transfers logged','warehouse.noTransfersHint':'Move stock between locations from the Stock tab.','warehouse.requestsTitle':'Stock requests',
+  'warehouse.noRequests':'No requests','warehouse.noRequestsHint':'Branch or staff restock requests show up here.','warehouse.returnsTitle':'Returns',
+  'warehouse.noReturns':'No returns','warehouse.noReturnsHint':'Customer or branch returns awaiting review appear here.','warehouse.newLocation':'New location',
+  'warehouse.locationName':'Location name','warehouse.locationPlaceholder':'e.g. Back store, Cold room','warehouse.createLocation':'Create location',
+  'warehouse.creating':'Creating…','warehouse.transferStock':'Transfer stock','warehouse.from':'From',
+  'warehouse.to':'To','warehouse.selectDestination':'Select destination','warehouse.available':'available',
+  'warehouse.moving':'Moving…','warehouse.adjustStock':'Adjust stock','warehouse.reason':'Reason',
+  'warehouse.reasonDamaged':'Damaged','warehouse.reasonLost':'Lost / theft','warehouse.reasonExpired':'Expired',
+  'warehouse.reasonRecount':'Recount (set absolute qty)','warehouse.qtyRemove':'Quantity to remove','warehouse.qtyNew':'New quantity',
+  'warehouse.notesPlaceholder':'Optional details…','warehouse.saveAdjustment':'Save adjustment','warehouse.saving':'Saving…',
+  'warehouse.releaseTitle':'Release','warehouse.source':'Source','warehouse.item':'Item',
+  'warehouse.qty':'Qty','warehouse.releaseNotes':'Release notes','warehouse.releaseNotesPh':'Optional notes for this release…',
+  'warehouse.partialRelease':'Partial release','warehouse.releaseFull':'Release full','warehouse.releasing':'Releasing…',
+  'warehouse.loading':'Loading warehouse…','warehouse.loadFailed':'Could not load warehouse data','warehouse.locationCreated':'Location created',
+  'warehouse.locationCreateFailed':'Failed to create location','warehouse.mainStoreProtected':'Main Store cannot be deleted','warehouse.locationRemoved':'Location removed',
+  'warehouse.deleteFailed':'Delete failed','warehouse.chooseDifferent':'Choose different source and destination','warehouse.insufficientStock':'Only {available} units available at source',
+  'warehouse.transferred':'Stock transferred','warehouse.transferFailed':'Transfer failed','warehouse.invalidQty':'Enter a valid quantity',
+  'warehouse.adjusted':'Stock adjusted','warehouse.recounted':'Stock recounted','warehouse.adjustFailed':'Adjustment failed',
+  'warehouse.released':'Invoice released','warehouse.partiallyReleased':'Partially released','warehouse.releaseFailed':'Release failed',
+  'warehouse.requestUpdated':'Request updated','warehouse.requestFailed':'Could not update request','warehouse.returnUpdated':'Return updated',
+  'warehouse.returnFailed':'Could not update return','warehouse.units':'units','warehouse.skus':'SKUs',
+  'warehouse.lines':'lines','warehouse.sectionsAria':'Warehouse sections','branch.title':'Alaka',
+  'branch.subtitle':'Run multiple locations under one business — assign staff and keep each branch organized.','branch.proTitle':'Branch management is a Pro feature','branch.proDesc':'Manage multiple locations, assign staff per branch, and track each site separately. Upgrade to Pro to unlock branches.',
+  'branch.upgrade':'Upgrade to Pro','branch.backHome':'Back to home','branch.refresh':'Refresh',
+  'branch.assignStaff':'Assign staff','branch.newBranch':'New branch','branch.statBranches':'Branches',
+  'branch.statStaff':'Total staff','branch.statUnassigned':'Unassigned','branch.needBranch':'Need a branch',
+  'branch.statLocations':'Locations','branch.includingMain':'Including main','branch.activeCount':'active',
+  'branch.atMain':'at main','branch.search':'Search branches…','branch.mainBranch':'Main branch',
+  'branch.mainSub':'Headquarters · always active','branch.staffCount':'staff','branch.noAddress':'No address set',
+  'branch.assign':'Assign','branch.deleting':'Deleting…','branch.delete':'Delete',
+  'branch.noBranches':'No branches yet','branch.noBranchesHint':'Create your first branch to manage multiple locations.','branch.createBranch':'Create branch',
+  'branch.noMatches':'No matches','branch.noMatchesHint':'Try a different search term.','branch.nameLabel':'Name *',
+  'branch.namePh':'e.g. Ikeja store','branch.addressLabel':'Address','branch.addressPh':'Street, city',
+  'branch.phoneLabel':'Phone','branch.phonePh':'Contact number','branch.managerLabel':'Manager name',
+  'branch.managerPh':'Optional','branch.creating':'Creating…','branch.assignTitle':'Assign staff',
+  'branch.allAssigned':'All staff are already assigned to a branch.','branch.staffMember':'Staff member','branch.selectStaff':'Select staff…',
+  'branch.branchLabel':'Branch','branch.nameRequired':'Branch name is required','branch.created':'Branch created',
+  'branch.createFailed':'Failed to create branch','branch.staffAssigned':'Staff assigned','branch.assignFailed':'Failed to assign staff',
+  'branch.deleted':'Branch deleted','branch.deleteFailed':'Delete failed','branch.activated':'Branch activated',
+  'branch.deactivated':'Branch deactivated','branch.statusFailed':'Could not update status','branch.loadFailed':'Failed to load branches',
+  'branch.loading':'Loading branches…','branch.toggleStatus':'Toggle status',
 };
 
 const am: TranslationDict = {
@@ -2203,6 +2765,69 @@ const am: TranslationDict = {
   'toast.creditDueDateRequired':'እባክዎ specify a due date for credit sales','toast.creditSaleRecorded':'Credit sale recorded successfully','toast.saleSaveFailed':'አልተሳካም save sale. እባክዎ እንደገና ይሞክሩ.',
   'toast.staffRemoved':'ሰራተኞች member removed successfully!','toast.receiptThemeSaved':'Receipt theme saved successfully','toast.receiptThemeFailed':'አልተሳካም save theme',
   'toast.proFeatureRequired':'This feature requires a Pro plan or higher',
+
+  // Warehouse & Branches
+  'common.noBusinessLinked':'No business linked. Please refresh and try again.','common.notes':'Notes','common.quantity':'Quantity',
+  'common.status':'Status','common.actions':'Actions','common.product':'Product',
+  'common.value':'Value','common.phone':'Phone','common.customer':'Customer',
+  'common.active':'Active','common.inactive':'Inactive','common.address':'Address',
+  'common.name':'Name','common.refresh':'አድስ','common.create':'Create',
+  'common.approve':'Approve','common.reject':'Reject','common.accept':'Accept',
+  'common.review':'Review','warehouse.title':'መጋዘን','warehouse.subtitle':'Track stock by location, move inventory, and release wholesale invoices — all in one place.',
+  'warehouse.receiveStock':'Receive stock','warehouse.addLocation':'Location','warehouse.refresh':'Refresh',
+  'warehouse.totalUnits':'Total units','warehouse.stockValue':'Stock value (cost)','warehouse.acrossLocations':'Across all locations',
+  'warehouse.lowStock':'Low stock','warehouse.outOfStock':'out of stock','warehouse.awaitingRelease':'Awaiting release',
+  'warehouse.locationsCount':'locations','warehouse.productsCount':'products','warehouse.tab.stock':'Stock',
+  'warehouse.tab.toRelease':'To release','warehouse.tab.released':'Released','warehouse.tab.locations':'Locations',
+  'warehouse.tab.transfers':'Transfers','warehouse.tab.requests':'Requests','warehouse.tab.returns':'Returns',
+  'warehouse.searchProducts':'Search products…','warehouse.allLocations':'All locations','warehouse.inventory':'Inventory',
+  'warehouse.noProducts':'No products found','warehouse.noProductsHint':'Add products or clear filters to see stock here.','warehouse.addProduct':'Add product',
+  'warehouse.transfer':'Transfer','warehouse.adjust':'Adjust','warehouse.stockOk':'OK',
+  'warehouse.stockLow':'Low','warehouse.stockOut':'Out','warehouse.pendingTitle':'Invoices to release',
+  'warehouse.nothingPending':'Nothing pending','warehouse.nothingPendingHint':'Wholesale invoices waiting for warehouse release appear here.','warehouse.releasedTitle':'Released invoices',
+  'warehouse.noReleases':'No releases yet','warehouse.noReleasesHint':'Completed warehouse releases will list here.','warehouse.releasedBy':'Released by',
+  'warehouse.locationsTitle':'Stock locations','warehouse.add':'Add','warehouse.transferHistory':'Transfer history',
+  'warehouse.noTransfers':'No transfers logged','warehouse.noTransfersHint':'Move stock between locations from the Stock tab.','warehouse.requestsTitle':'Stock requests',
+  'warehouse.noRequests':'No requests','warehouse.noRequestsHint':'Branch or staff restock requests show up here.','warehouse.returnsTitle':'Returns',
+  'warehouse.noReturns':'No returns','warehouse.noReturnsHint':'Customer or branch returns awaiting review appear here.','warehouse.newLocation':'New location',
+  'warehouse.locationName':'Location name','warehouse.locationPlaceholder':'e.g. Back store, Cold room','warehouse.createLocation':'Create location',
+  'warehouse.creating':'Creating…','warehouse.transferStock':'Transfer stock','warehouse.from':'From',
+  'warehouse.to':'To','warehouse.selectDestination':'Select destination','warehouse.available':'available',
+  'warehouse.moving':'Moving…','warehouse.adjustStock':'Adjust stock','warehouse.reason':'Reason',
+  'warehouse.reasonDamaged':'Damaged','warehouse.reasonLost':'Lost / theft','warehouse.reasonExpired':'Expired',
+  'warehouse.reasonRecount':'Recount (set absolute qty)','warehouse.qtyRemove':'Quantity to remove','warehouse.qtyNew':'New quantity',
+  'warehouse.notesPlaceholder':'Optional details…','warehouse.saveAdjustment':'Save adjustment','warehouse.saving':'Saving…',
+  'warehouse.releaseTitle':'Release','warehouse.source':'Source','warehouse.item':'Item',
+  'warehouse.qty':'Qty','warehouse.releaseNotes':'Release notes','warehouse.releaseNotesPh':'Optional notes for this release…',
+  'warehouse.partialRelease':'Partial release','warehouse.releaseFull':'Release full','warehouse.releasing':'Releasing…',
+  'warehouse.loading':'Loading warehouse…','warehouse.loadFailed':'Could not load warehouse data','warehouse.locationCreated':'Location created',
+  'warehouse.locationCreateFailed':'Failed to create location','warehouse.mainStoreProtected':'Main Store cannot be deleted','warehouse.locationRemoved':'Location removed',
+  'warehouse.deleteFailed':'Delete failed','warehouse.chooseDifferent':'Choose different source and destination','warehouse.insufficientStock':'Only {available} units available at source',
+  'warehouse.transferred':'Stock transferred','warehouse.transferFailed':'Transfer failed','warehouse.invalidQty':'Enter a valid quantity',
+  'warehouse.adjusted':'Stock adjusted','warehouse.recounted':'Stock recounted','warehouse.adjustFailed':'Adjustment failed',
+  'warehouse.released':'Invoice released','warehouse.partiallyReleased':'Partially released','warehouse.releaseFailed':'Release failed',
+  'warehouse.requestUpdated':'Request updated','warehouse.requestFailed':'Could not update request','warehouse.returnUpdated':'Return updated',
+  'warehouse.returnFailed':'Could not update return','warehouse.units':'units','warehouse.skus':'SKUs',
+  'warehouse.lines':'lines','warehouse.sectionsAria':'Warehouse sections','branch.title':'ቅርንጫፎች',
+  'branch.subtitle':'Run multiple locations under one business — assign staff and keep each branch organized.','branch.proTitle':'Branch management is a Pro feature','branch.proDesc':'Manage multiple locations, assign staff per branch, and track each site separately. Upgrade to Pro to unlock branches.',
+  'branch.upgrade':'Upgrade to Pro','branch.backHome':'Back to home','branch.refresh':'Refresh',
+  'branch.assignStaff':'Assign staff','branch.newBranch':'New branch','branch.statBranches':'Branches',
+  'branch.statStaff':'Total staff','branch.statUnassigned':'Unassigned','branch.needBranch':'Need a branch',
+  'branch.statLocations':'Locations','branch.includingMain':'Including main','branch.activeCount':'active',
+  'branch.atMain':'at main','branch.search':'Search branches…','branch.mainBranch':'Main branch',
+  'branch.mainSub':'Headquarters · always active','branch.staffCount':'staff','branch.noAddress':'No address set',
+  'branch.assign':'Assign','branch.deleting':'Deleting…','branch.delete':'Delete',
+  'branch.noBranches':'No branches yet','branch.noBranchesHint':'Create your first branch to manage multiple locations.','branch.createBranch':'Create branch',
+  'branch.noMatches':'No matches','branch.noMatchesHint':'Try a different search term.','branch.nameLabel':'Name *',
+  'branch.namePh':'e.g. Ikeja store','branch.addressLabel':'Address','branch.addressPh':'Street, city',
+  'branch.phoneLabel':'Phone','branch.phonePh':'Contact number','branch.managerLabel':'Manager name',
+  'branch.managerPh':'Optional','branch.creating':'Creating…','branch.assignTitle':'Assign staff',
+  'branch.allAssigned':'All staff are already assigned to a branch.','branch.staffMember':'Staff member','branch.selectStaff':'Select staff…',
+  'branch.branchLabel':'Branch','branch.nameRequired':'Branch name is required','branch.created':'Branch created',
+  'branch.createFailed':'Failed to create branch','branch.staffAssigned':'Staff assigned','branch.assignFailed':'Failed to assign staff',
+  'branch.deleted':'Branch deleted','branch.deleteFailed':'Delete failed','branch.activated':'Branch activated',
+  'branch.deactivated':'Branch deactivated','branch.statusFailed':'Could not update status','branch.loadFailed':'Failed to load branches',
+  'branch.loading':'Loading branches…','branch.toggleStatus':'Toggle status',
 };
 
 const ar: TranslationDict = {
@@ -2413,6 +3038,69 @@ const ar: TranslationDict = {
   'toast.creditDueDateRequired':'يرجى specify a due date for credit sales','toast.creditSaleRecorded':'Credit sale recorded successfully','toast.saleSaveFailed':'فشل في save sale. يرجى حاول مرة أخرى.',
   'toast.staffRemoved':'الموظفون member removed successfully!','toast.receiptThemeSaved':'Receipt theme saved successfully','toast.receiptThemeFailed':'فشل في save theme',
   'toast.proFeatureRequired':'This feature requires a Pro plan or higher',
+
+  // Warehouse & Branches
+  'common.noBusinessLinked':'No business linked. Please refresh and try again.','common.notes':'Notes','common.quantity':'Quantity',
+  'common.status':'Status','common.actions':'Actions','common.product':'Product',
+  'common.value':'Value','common.phone':'Phone','common.customer':'Customer',
+  'common.active':'Active','common.inactive':'Inactive','common.address':'Address',
+  'common.name':'Name','common.refresh':'تحديث','common.create':'Create',
+  'common.approve':'Approve','common.reject':'Reject','common.accept':'Accept',
+  'common.review':'Review','warehouse.title':'المستودع','warehouse.subtitle':'Track stock by location, move inventory, and release wholesale invoices — all in one place.',
+  'warehouse.receiveStock':'Receive stock','warehouse.addLocation':'Location','warehouse.refresh':'Refresh',
+  'warehouse.totalUnits':'Total units','warehouse.stockValue':'Stock value (cost)','warehouse.acrossLocations':'Across all locations',
+  'warehouse.lowStock':'Low stock','warehouse.outOfStock':'out of stock','warehouse.awaitingRelease':'Awaiting release',
+  'warehouse.locationsCount':'locations','warehouse.productsCount':'products','warehouse.tab.stock':'المخزون',
+  'warehouse.tab.toRelease':'To release','warehouse.tab.released':'Released','warehouse.tab.locations':'Locations',
+  'warehouse.tab.transfers':'Transfers','warehouse.tab.requests':'Requests','warehouse.tab.returns':'Returns',
+  'warehouse.searchProducts':'Search products…','warehouse.allLocations':'All locations','warehouse.inventory':'Inventory',
+  'warehouse.noProducts':'No products found','warehouse.noProductsHint':'Add products or clear filters to see stock here.','warehouse.addProduct':'Add product',
+  'warehouse.transfer':'نقل','warehouse.adjust':'تعديل','warehouse.stockOk':'OK',
+  'warehouse.stockLow':'Low','warehouse.stockOut':'Out','warehouse.pendingTitle':'Invoices to release',
+  'warehouse.nothingPending':'Nothing pending','warehouse.nothingPendingHint':'Wholesale invoices waiting for warehouse release appear here.','warehouse.releasedTitle':'Released invoices',
+  'warehouse.noReleases':'No releases yet','warehouse.noReleasesHint':'Completed warehouse releases will list here.','warehouse.releasedBy':'Released by',
+  'warehouse.locationsTitle':'Stock locations','warehouse.add':'Add','warehouse.transferHistory':'Transfer history',
+  'warehouse.noTransfers':'No transfers logged','warehouse.noTransfersHint':'Move stock between locations from the Stock tab.','warehouse.requestsTitle':'Stock requests',
+  'warehouse.noRequests':'No requests','warehouse.noRequestsHint':'Branch or staff restock requests show up here.','warehouse.returnsTitle':'Returns',
+  'warehouse.noReturns':'No returns','warehouse.noReturnsHint':'Customer or branch returns awaiting review appear here.','warehouse.newLocation':'New location',
+  'warehouse.locationName':'Location name','warehouse.locationPlaceholder':'e.g. Back store, Cold room','warehouse.createLocation':'Create location',
+  'warehouse.creating':'Creating…','warehouse.transferStock':'Transfer stock','warehouse.from':'From',
+  'warehouse.to':'To','warehouse.selectDestination':'Select destination','warehouse.available':'available',
+  'warehouse.moving':'Moving…','warehouse.adjustStock':'Adjust stock','warehouse.reason':'Reason',
+  'warehouse.reasonDamaged':'Damaged','warehouse.reasonLost':'Lost / theft','warehouse.reasonExpired':'Expired',
+  'warehouse.reasonRecount':'Recount (set absolute qty)','warehouse.qtyRemove':'Quantity to remove','warehouse.qtyNew':'New quantity',
+  'warehouse.notesPlaceholder':'Optional details…','warehouse.saveAdjustment':'Save adjustment','warehouse.saving':'Saving…',
+  'warehouse.releaseTitle':'Release','warehouse.source':'Source','warehouse.item':'Item',
+  'warehouse.qty':'Qty','warehouse.releaseNotes':'Release notes','warehouse.releaseNotesPh':'Optional notes for this release…',
+  'warehouse.partialRelease':'Partial release','warehouse.releaseFull':'Release full','warehouse.releasing':'Releasing…',
+  'warehouse.loading':'Loading warehouse…','warehouse.loadFailed':'Could not load warehouse data','warehouse.locationCreated':'Location created',
+  'warehouse.locationCreateFailed':'Failed to create location','warehouse.mainStoreProtected':'Main Store cannot be deleted','warehouse.locationRemoved':'Location removed',
+  'warehouse.deleteFailed':'Delete failed','warehouse.chooseDifferent':'Choose different source and destination','warehouse.insufficientStock':'Only {available} units available at source',
+  'warehouse.transferred':'Stock transferred','warehouse.transferFailed':'Transfer failed','warehouse.invalidQty':'Enter a valid quantity',
+  'warehouse.adjusted':'Stock adjusted','warehouse.recounted':'Stock recounted','warehouse.adjustFailed':'Adjustment failed',
+  'warehouse.released':'Invoice released','warehouse.partiallyReleased':'Partially released','warehouse.releaseFailed':'Release failed',
+  'warehouse.requestUpdated':'Request updated','warehouse.requestFailed':'Could not update request','warehouse.returnUpdated':'Return updated',
+  'warehouse.returnFailed':'Could not update return','warehouse.units':'units','warehouse.skus':'SKUs',
+  'warehouse.lines':'lines','warehouse.sectionsAria':'Warehouse sections','branch.title':'الفروع',
+  'branch.subtitle':'Run multiple locations under one business — assign staff and keep each branch organized.','branch.proTitle':'Branch management is a Pro feature','branch.proDesc':'Manage multiple locations, assign staff per branch, and track each site separately. Upgrade to Pro to unlock branches.',
+  'branch.upgrade':'Upgrade to Pro','branch.backHome':'Back to home','branch.refresh':'Refresh',
+  'branch.assignStaff':'Assign staff','branch.newBranch':'New branch','branch.statBranches':'Branches',
+  'branch.statStaff':'Total staff','branch.statUnassigned':'Unassigned','branch.needBranch':'Need a branch',
+  'branch.statLocations':'Locations','branch.includingMain':'Including main','branch.activeCount':'active',
+  'branch.atMain':'at main','branch.search':'Search branches…','branch.mainBranch':'Main branch',
+  'branch.mainSub':'Headquarters · always active','branch.staffCount':'staff','branch.noAddress':'No address set',
+  'branch.assign':'Assign','branch.deleting':'Deleting…','branch.delete':'Delete',
+  'branch.noBranches':'No branches yet','branch.noBranchesHint':'Create your first branch to manage multiple locations.','branch.createBranch':'Create branch',
+  'branch.noMatches':'No matches','branch.noMatchesHint':'Try a different search term.','branch.nameLabel':'Name *',
+  'branch.namePh':'e.g. Ikeja store','branch.addressLabel':'Address','branch.addressPh':'Street, city',
+  'branch.phoneLabel':'Phone','branch.phonePh':'Contact number','branch.managerLabel':'Manager name',
+  'branch.managerPh':'Optional','branch.creating':'Creating…','branch.assignTitle':'Assign staff',
+  'branch.allAssigned':'All staff are already assigned to a branch.','branch.staffMember':'Staff member','branch.selectStaff':'Select staff…',
+  'branch.branchLabel':'Branch','branch.nameRequired':'Branch name is required','branch.created':'Branch created',
+  'branch.createFailed':'Failed to create branch','branch.staffAssigned':'Staff assigned','branch.assignFailed':'Failed to assign staff',
+  'branch.deleted':'Branch deleted','branch.deleteFailed':'Delete failed','branch.activated':'Branch activated',
+  'branch.deactivated':'Branch deactivated','branch.statusFailed':'Could not update status','branch.loadFailed':'Failed to load branches',
+  'branch.loading':'Loading branches…','branch.toggleStatus':'Toggle status',
 };
 
 const zu: TranslationDict = {
@@ -2623,6 +3311,69 @@ const zu: TranslationDict = {
   'toast.creditDueDateRequired':'Sicela specify a due date for credit sales','toast.creditSaleRecorded':'Credit sale recorded successfully','toast.saleSaveFailed':'Kuhlulekile save sale. Sicela zama futhi.',
   'toast.staffRemoved':'Abasebenzi member removed successfully!','toast.receiptThemeSaved':'Receipt theme saved successfully','toast.receiptThemeFailed':'Kuhlulekile save theme',
   'toast.proFeatureRequired':'This feature requires a Pro plan or higher',
+
+  // Warehouse & Branches
+  'common.noBusinessLinked':'No business linked. Please refresh and try again.','common.notes':'Notes','common.quantity':'Quantity',
+  'common.status':'Status','common.actions':'Actions','common.product':'Product',
+  'common.value':'Value','common.phone':'Phone','common.customer':'Customer',
+  'common.active':'Active','common.inactive':'Inactive','common.address':'Address',
+  'common.name':'Name','common.refresh':'Vuselela','common.create':'Create',
+  'common.approve':'Approve','common.reject':'Reject','common.accept':'Accept',
+  'common.review':'Review','warehouse.title':'Inqolobane','warehouse.subtitle':'Track stock by location, move inventory, and release wholesale invoices — all in one place.',
+  'warehouse.receiveStock':'Receive stock','warehouse.addLocation':'Location','warehouse.refresh':'Refresh',
+  'warehouse.totalUnits':'Total units','warehouse.stockValue':'Stock value (cost)','warehouse.acrossLocations':'Across all locations',
+  'warehouse.lowStock':'Low stock','warehouse.outOfStock':'out of stock','warehouse.awaitingRelease':'Awaiting release',
+  'warehouse.locationsCount':'locations','warehouse.productsCount':'products','warehouse.tab.stock':'Stock',
+  'warehouse.tab.toRelease':'To release','warehouse.tab.released':'Released','warehouse.tab.locations':'Locations',
+  'warehouse.tab.transfers':'Transfers','warehouse.tab.requests':'Requests','warehouse.tab.returns':'Returns',
+  'warehouse.searchProducts':'Search products…','warehouse.allLocations':'All locations','warehouse.inventory':'Inventory',
+  'warehouse.noProducts':'No products found','warehouse.noProductsHint':'Add products or clear filters to see stock here.','warehouse.addProduct':'Add product',
+  'warehouse.transfer':'Transfer','warehouse.adjust':'Adjust','warehouse.stockOk':'OK',
+  'warehouse.stockLow':'Low','warehouse.stockOut':'Out','warehouse.pendingTitle':'Invoices to release',
+  'warehouse.nothingPending':'Nothing pending','warehouse.nothingPendingHint':'Wholesale invoices waiting for warehouse release appear here.','warehouse.releasedTitle':'Released invoices',
+  'warehouse.noReleases':'No releases yet','warehouse.noReleasesHint':'Completed warehouse releases will list here.','warehouse.releasedBy':'Released by',
+  'warehouse.locationsTitle':'Stock locations','warehouse.add':'Add','warehouse.transferHistory':'Transfer history',
+  'warehouse.noTransfers':'No transfers logged','warehouse.noTransfersHint':'Move stock between locations from the Stock tab.','warehouse.requestsTitle':'Stock requests',
+  'warehouse.noRequests':'No requests','warehouse.noRequestsHint':'Branch or staff restock requests show up here.','warehouse.returnsTitle':'Returns',
+  'warehouse.noReturns':'No returns','warehouse.noReturnsHint':'Customer or branch returns awaiting review appear here.','warehouse.newLocation':'New location',
+  'warehouse.locationName':'Location name','warehouse.locationPlaceholder':'e.g. Back store, Cold room','warehouse.createLocation':'Create location',
+  'warehouse.creating':'Creating…','warehouse.transferStock':'Transfer stock','warehouse.from':'From',
+  'warehouse.to':'To','warehouse.selectDestination':'Select destination','warehouse.available':'available',
+  'warehouse.moving':'Moving…','warehouse.adjustStock':'Adjust stock','warehouse.reason':'Reason',
+  'warehouse.reasonDamaged':'Damaged','warehouse.reasonLost':'Lost / theft','warehouse.reasonExpired':'Expired',
+  'warehouse.reasonRecount':'Recount (set absolute qty)','warehouse.qtyRemove':'Quantity to remove','warehouse.qtyNew':'New quantity',
+  'warehouse.notesPlaceholder':'Optional details…','warehouse.saveAdjustment':'Save adjustment','warehouse.saving':'Saving…',
+  'warehouse.releaseTitle':'Release','warehouse.source':'Source','warehouse.item':'Item',
+  'warehouse.qty':'Qty','warehouse.releaseNotes':'Release notes','warehouse.releaseNotesPh':'Optional notes for this release…',
+  'warehouse.partialRelease':'Partial release','warehouse.releaseFull':'Release full','warehouse.releasing':'Releasing…',
+  'warehouse.loading':'Loading warehouse…','warehouse.loadFailed':'Could not load warehouse data','warehouse.locationCreated':'Location created',
+  'warehouse.locationCreateFailed':'Failed to create location','warehouse.mainStoreProtected':'Main Store cannot be deleted','warehouse.locationRemoved':'Location removed',
+  'warehouse.deleteFailed':'Delete failed','warehouse.chooseDifferent':'Choose different source and destination','warehouse.insufficientStock':'Only {available} units available at source',
+  'warehouse.transferred':'Stock transferred','warehouse.transferFailed':'Transfer failed','warehouse.invalidQty':'Enter a valid quantity',
+  'warehouse.adjusted':'Stock adjusted','warehouse.recounted':'Stock recounted','warehouse.adjustFailed':'Adjustment failed',
+  'warehouse.released':'Invoice released','warehouse.partiallyReleased':'Partially released','warehouse.releaseFailed':'Release failed',
+  'warehouse.requestUpdated':'Request updated','warehouse.requestFailed':'Could not update request','warehouse.returnUpdated':'Return updated',
+  'warehouse.returnFailed':'Could not update return','warehouse.units':'units','warehouse.skus':'SKUs',
+  'warehouse.lines':'lines','warehouse.sectionsAria':'Warehouse sections','branch.title':'Amagatsha',
+  'branch.subtitle':'Run multiple locations under one business — assign staff and keep each branch organized.','branch.proTitle':'Branch management is a Pro feature','branch.proDesc':'Manage multiple locations, assign staff per branch, and track each site separately. Upgrade to Pro to unlock branches.',
+  'branch.upgrade':'Upgrade to Pro','branch.backHome':'Back to home','branch.refresh':'Refresh',
+  'branch.assignStaff':'Assign staff','branch.newBranch':'New branch','branch.statBranches':'Branches',
+  'branch.statStaff':'Total staff','branch.statUnassigned':'Unassigned','branch.needBranch':'Need a branch',
+  'branch.statLocations':'Locations','branch.includingMain':'Including main','branch.activeCount':'active',
+  'branch.atMain':'at main','branch.search':'Search branches…','branch.mainBranch':'Main branch',
+  'branch.mainSub':'Headquarters · always active','branch.staffCount':'staff','branch.noAddress':'No address set',
+  'branch.assign':'Assign','branch.deleting':'Deleting…','branch.delete':'Delete',
+  'branch.noBranches':'No branches yet','branch.noBranchesHint':'Create your first branch to manage multiple locations.','branch.createBranch':'Create branch',
+  'branch.noMatches':'No matches','branch.noMatchesHint':'Try a different search term.','branch.nameLabel':'Name *',
+  'branch.namePh':'e.g. Ikeja store','branch.addressLabel':'Address','branch.addressPh':'Street, city',
+  'branch.phoneLabel':'Phone','branch.phonePh':'Contact number','branch.managerLabel':'Manager name',
+  'branch.managerPh':'Optional','branch.creating':'Creating…','branch.assignTitle':'Assign staff',
+  'branch.allAssigned':'All staff are already assigned to a branch.','branch.staffMember':'Staff member','branch.selectStaff':'Select staff…',
+  'branch.branchLabel':'Branch','branch.nameRequired':'Branch name is required','branch.created':'Branch created',
+  'branch.createFailed':'Failed to create branch','branch.staffAssigned':'Staff assigned','branch.assignFailed':'Failed to assign staff',
+  'branch.deleted':'Branch deleted','branch.deleteFailed':'Delete failed','branch.activated':'Branch activated',
+  'branch.deactivated':'Branch deactivated','branch.statusFailed':'Could not update status','branch.loadFailed':'Failed to load branches',
+  'branch.loading':'Loading branches…','branch.toggleStatus':'Toggle status',
 };
 
 const af: TranslationDict = {
@@ -2833,6 +3584,69 @@ const af: TranslationDict = {
   'toast.creditDueDateRequired':'Asseblief specify a due date for credit sales','toast.creditSaleRecorded':'Credit sale recorded successfully','toast.saleSaveFailed':'Kon nie save sale. Asseblief probeer weer.',
   'toast.staffRemoved':'Personeel member removed successfully!','toast.receiptThemeSaved':'Receipt theme saved successfully','toast.receiptThemeFailed':'Kon nie save theme',
   'toast.proFeatureRequired':'This feature requires a Pro plan or higher',
+
+  // Warehouse & Branches
+  'common.noBusinessLinked':'No business linked. Please refresh and try again.','common.notes':'Notes','common.quantity':'Quantity',
+  'common.status':'Status','common.actions':'Actions','common.product':'Product',
+  'common.value':'Value','common.phone':'Phone','common.customer':'Customer',
+  'common.active':'Active','common.inactive':'Inactive','common.address':'Address',
+  'common.name':'Name','common.refresh':'Verfris','common.create':'Create',
+  'common.approve':'Approve','common.reject':'Reject','common.accept':'Accept',
+  'common.review':'Review','warehouse.title':'Pakhuis','warehouse.subtitle':'Track stock by location, move inventory, and release wholesale invoices — all in one place.',
+  'warehouse.receiveStock':'Receive stock','warehouse.addLocation':'Location','warehouse.refresh':'Refresh',
+  'warehouse.totalUnits':'Total units','warehouse.stockValue':'Stock value (cost)','warehouse.acrossLocations':'Across all locations',
+  'warehouse.lowStock':'Low stock','warehouse.outOfStock':'out of stock','warehouse.awaitingRelease':'Awaiting release',
+  'warehouse.locationsCount':'locations','warehouse.productsCount':'products','warehouse.tab.stock':'Voorraad',
+  'warehouse.tab.toRelease':'To release','warehouse.tab.released':'Released','warehouse.tab.locations':'Locations',
+  'warehouse.tab.transfers':'Transfers','warehouse.tab.requests':'Requests','warehouse.tab.returns':'Returns',
+  'warehouse.searchProducts':'Search products…','warehouse.allLocations':'All locations','warehouse.inventory':'Inventory',
+  'warehouse.noProducts':'No products found','warehouse.noProductsHint':'Add products or clear filters to see stock here.','warehouse.addProduct':'Add product',
+  'warehouse.transfer':'Oordra','warehouse.adjust':'Pas aan','warehouse.stockOk':'OK',
+  'warehouse.stockLow':'Low','warehouse.stockOut':'Out','warehouse.pendingTitle':'Invoices to release',
+  'warehouse.nothingPending':'Nothing pending','warehouse.nothingPendingHint':'Wholesale invoices waiting for warehouse release appear here.','warehouse.releasedTitle':'Released invoices',
+  'warehouse.noReleases':'No releases yet','warehouse.noReleasesHint':'Completed warehouse releases will list here.','warehouse.releasedBy':'Released by',
+  'warehouse.locationsTitle':'Stock locations','warehouse.add':'Add','warehouse.transferHistory':'Transfer history',
+  'warehouse.noTransfers':'No transfers logged','warehouse.noTransfersHint':'Move stock between locations from the Stock tab.','warehouse.requestsTitle':'Stock requests',
+  'warehouse.noRequests':'No requests','warehouse.noRequestsHint':'Branch or staff restock requests show up here.','warehouse.returnsTitle':'Returns',
+  'warehouse.noReturns':'No returns','warehouse.noReturnsHint':'Customer or branch returns awaiting review appear here.','warehouse.newLocation':'New location',
+  'warehouse.locationName':'Location name','warehouse.locationPlaceholder':'e.g. Back store, Cold room','warehouse.createLocation':'Create location',
+  'warehouse.creating':'Creating…','warehouse.transferStock':'Transfer stock','warehouse.from':'From',
+  'warehouse.to':'To','warehouse.selectDestination':'Select destination','warehouse.available':'available',
+  'warehouse.moving':'Moving…','warehouse.adjustStock':'Adjust stock','warehouse.reason':'Reason',
+  'warehouse.reasonDamaged':'Damaged','warehouse.reasonLost':'Lost / theft','warehouse.reasonExpired':'Expired',
+  'warehouse.reasonRecount':'Recount (set absolute qty)','warehouse.qtyRemove':'Quantity to remove','warehouse.qtyNew':'New quantity',
+  'warehouse.notesPlaceholder':'Optional details…','warehouse.saveAdjustment':'Save adjustment','warehouse.saving':'Saving…',
+  'warehouse.releaseTitle':'Release','warehouse.source':'Source','warehouse.item':'Item',
+  'warehouse.qty':'Qty','warehouse.releaseNotes':'Release notes','warehouse.releaseNotesPh':'Optional notes for this release…',
+  'warehouse.partialRelease':'Partial release','warehouse.releaseFull':'Release full','warehouse.releasing':'Releasing…',
+  'warehouse.loading':'Loading warehouse…','warehouse.loadFailed':'Could not load warehouse data','warehouse.locationCreated':'Location created',
+  'warehouse.locationCreateFailed':'Failed to create location','warehouse.mainStoreProtected':'Main Store cannot be deleted','warehouse.locationRemoved':'Location removed',
+  'warehouse.deleteFailed':'Delete failed','warehouse.chooseDifferent':'Choose different source and destination','warehouse.insufficientStock':'Only {available} units available at source',
+  'warehouse.transferred':'Stock transferred','warehouse.transferFailed':'Transfer failed','warehouse.invalidQty':'Enter a valid quantity',
+  'warehouse.adjusted':'Stock adjusted','warehouse.recounted':'Stock recounted','warehouse.adjustFailed':'Adjustment failed',
+  'warehouse.released':'Invoice released','warehouse.partiallyReleased':'Partially released','warehouse.releaseFailed':'Release failed',
+  'warehouse.requestUpdated':'Request updated','warehouse.requestFailed':'Could not update request','warehouse.returnUpdated':'Return updated',
+  'warehouse.returnFailed':'Could not update return','warehouse.units':'units','warehouse.skus':'SKUs',
+  'warehouse.lines':'lines','warehouse.sectionsAria':'Warehouse sections','branch.title':'Takke',
+  'branch.subtitle':'Run multiple locations under one business — assign staff and keep each branch organized.','branch.proTitle':'Branch management is a Pro feature','branch.proDesc':'Manage multiple locations, assign staff per branch, and track each site separately. Upgrade to Pro to unlock branches.',
+  'branch.upgrade':'Upgrade to Pro','branch.backHome':'Back to home','branch.refresh':'Refresh',
+  'branch.assignStaff':'Assign staff','branch.newBranch':'New branch','branch.statBranches':'Branches',
+  'branch.statStaff':'Total staff','branch.statUnassigned':'Unassigned','branch.needBranch':'Need a branch',
+  'branch.statLocations':'Locations','branch.includingMain':'Including main','branch.activeCount':'active',
+  'branch.atMain':'at main','branch.search':'Search branches…','branch.mainBranch':'Main branch',
+  'branch.mainSub':'Headquarters · always active','branch.staffCount':'staff','branch.noAddress':'No address set',
+  'branch.assign':'Assign','branch.deleting':'Deleting…','branch.delete':'Delete',
+  'branch.noBranches':'No branches yet','branch.noBranchesHint':'Create your first branch to manage multiple locations.','branch.createBranch':'Create branch',
+  'branch.noMatches':'No matches','branch.noMatchesHint':'Try a different search term.','branch.nameLabel':'Name *',
+  'branch.namePh':'e.g. Ikeja store','branch.addressLabel':'Address','branch.addressPh':'Street, city',
+  'branch.phoneLabel':'Phone','branch.phonePh':'Contact number','branch.managerLabel':'Manager name',
+  'branch.managerPh':'Optional','branch.creating':'Creating…','branch.assignTitle':'Assign staff',
+  'branch.allAssigned':'All staff are already assigned to a branch.','branch.staffMember':'Staff member','branch.selectStaff':'Select staff…',
+  'branch.branchLabel':'Branch','branch.nameRequired':'Branch name is required','branch.created':'Branch created',
+  'branch.createFailed':'Failed to create branch','branch.staffAssigned':'Staff assigned','branch.assignFailed':'Failed to assign staff',
+  'branch.deleted':'Branch deleted','branch.deleteFailed':'Delete failed','branch.activated':'Branch activated',
+  'branch.deactivated':'Branch deactivated','branch.statusFailed':'Could not update status','branch.loadFailed':'Failed to load branches',
+  'branch.loading':'Loading branches…','branch.toggleStatus':'Toggle status',
 };
 
 
