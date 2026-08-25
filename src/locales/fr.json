@@ -1,4 +1,3 @@
-
 {
   "nav": {
     "home": "Accueil",
@@ -24,7 +23,12 @@
   "common": {
     "errorTitle": "Erreur",
     "cancel": "Annuler",
-    "delete": "Supprimer"
+    "delete": "Supprimer",
+    "units": "units",
+    "restock": "Restock",
+    "prev": "Previous",
+    "next": "Next",
+    "daysAgo": "days ago"
   },
   "transactions": {
     "addMoneyTitle": "Ajouter de l’argent",
@@ -264,7 +268,15 @@
       "busmopay": "BusmoPay"
     },
     "backToHome": "Retour à l’accueil",
-    "daysOfWeek": ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"],
+    "daysOfWeek": [
+      "Lundi",
+      "Mardi",
+      "Mercredi",
+      "Jeudi",
+      "Vendredi",
+      "Samedi",
+      "Dimanche"
+    ],
     "imageCompressionFailedTitle": "Échec de la compression de l’image",
     "imageCompressionFailedDesc": "Veuillez réessayer avec une autre image.",
     "settingsSavedTitle": "Paramètres enregistrés",
@@ -420,7 +432,11 @@
     "ai_a3": "L'eau en bouteille est presque épuisée. Il vous en reste 5 unités.",
     "forecast_title": "Prévoyez l'avenir de votre entreprise.<br/><span class='text-muted-foreground'>Arrêtez de réagir. Commencez à planifier.</span>",
     "forecast_subtitle": "Busmo analyse vos tendances de vente pour que vous puissiez planifier à l'avance avec confiance. Vos prévisions clés apparaissent directement dans votre tableau de bord - pas de défilement, pas de recherche, juste des informations.",
-    "forecast_features": ["Tendances des ventes", "Prévisions de bénéfices", "Perspectives d'inventaire"],
+    "forecast_features": [
+      "Tendances des ventes",
+      "Prévisions de bénéfices",
+      "Perspectives d'inventaire"
+    ],
     "forecast_1_title": "Prévision de bénéfice hebdomadaire",
     "forecast_1_desc": "Sur la base des tendances actuelles, vous êtes en bonne voie pour réaliser 42 000 ₦ de bénéfices la semaine prochaine.",
     "forecast_2_title": "Prédiction du jour le plus chargé",
@@ -429,14 +445,22 @@
     "forecast_3_desc": "Vous risquez d'être à court d'eau en bouteille dans 3 jours. Envisagez de passer une nouvelle commande maintenant.",
     "funding_title": "Transformez vos données en capital.",
     "funding_subtitle": "De bonnes données sont votre atout le plus précieux. Busmo vous aide à construire une histoire financière de confiance qui ouvre les portes à des opportunités de financement, sans la paperasse sans fin.",
-    "funding_features": ["Construisez un historique commercial vérifiable.", "Débloquez des offres de prêt auprès des prêteurs.", "Accédez au capital en fonction des performances, pas de la paperasse."],
+    "funding_features": [
+      "Construisez un historique commercial vérifiable.",
+      "Débloquez des offres de prêt auprès des prêteurs.",
+      "Accédez au capital en fonction des performances, pas de la paperasse."
+    ],
     "funding_1_title": "Exemple d'offre de prêt",
     "funding_1_desc": "Sur la base de 3 mois de données cohérentes, une entreprise comme la vôtre pourrait être éligible pour un maximum de <span class='font-bold text-xl'>250 000 ₦</span>.",
     "funding_2_title": "Votre score de santé financière",
     "funding_2_desc": "Votre score est <span class='font-bold'>Fort</span>. Continuez à enregistrer des transactions pour améliorer votre éligibilité à des prêts plus importants.",
     "investor_title": "Un marché pour le capital.<br/><span class='text-muted-foreground'>Investissez dans le moteur de croissance de l'Afrique.</span>",
     "investor_subtitle": "Découvrez et financez la prochaine génération de petites entreprises, soutenues par des données fiables et en temps réel de Busmo. Nous transformons l'activité commerciale en signaux d'investissement vérifiables.",
-    "investor_features": ["Explorez des opportunités vérifiées par les données.", "Réduisez les risques avec des signaux commerciaux transparents.", "Investissez dans des accords de partage des bénéfices ou d'actions."],
+    "investor_features": [
+      "Explorez des opportunités vérifiées par les données.",
+      "Réduisez les risques avec des signaux commerciaux transparents.",
+      "Investissez dans des accords de partage des bénéfices ou d'actions."
+    ],
     "investor_cta": "Explorer les investissements",
     "why_title": "Un outil commercial différent",
     "why_subtitle": "Busmo n'est pas un logiciel de comptabilité. C'est un outil d'aide à la décision conçu pour la réalité de votre entreprise.",
@@ -529,5 +553,66 @@
     "custom_needs": "Besoins personnalisés ?",
     "custom_desc": "Pour des intégrations personnalisées et un support dédié, contactez notre équipe de vente.",
     "contact_sales": "Contacter les ventes"
+  },
+  "inventory": {
+    "title": "Inventory",
+    "subtitle": "Track and manage your products",
+    "exportCsv": "Export CSV",
+    "addProduct": "Add Product",
+    "searchPlaceholder": "Rechercher products...",
+    "noProducts": "No products found",
+    "status": {
+      "all": "All",
+      "inStock": "In Stock",
+      "low": "Low Stock",
+      "outOfStock": "Out of Stock"
+    },
+    "table": {
+      "product": "Product",
+      "sku": "SKU",
+      "category": "Category",
+      "stock": "Stock",
+      "cost": "Cost",
+      "price": "Price",
+      "profit": "Profit",
+      "stockValue": "Stock Value",
+      "status": "Status",
+      "sold30d": "Sold (30d)",
+      "trend": "Trend",
+      "actions": "Actions"
+    },
+    "soldToday": "Sold today",
+    "soldYesterday": "Sold yesterday",
+    "actions": {
+      "edit": "Edit",
+      "restock": "Restock"
+    }
+  },
+  "insights": {
+    "slowestMovers": {
+      "title": "Slowest Movers",
+      "subtitle": "Products that haven't been selling well",
+      "empty": "All products are moving well"
+    },
+    "lastSold": "Last sold",
+    "lowStock": {
+      "title": "Low Stock Alert",
+      "stockoutNow": "Out of stock now"
+    }
+  },
+  "dashboard": {
+    "invOverview": {
+      "totalProducts": "Total Products",
+      "totalProductsSub": "Unique products in inventory",
+      "unitsInStock": "Units in Stock",
+      "unitsInStockSub": "Total inventory units",
+      "lowStock": "Low Stock Items",
+      "outOfStock": "Out of Stock",
+      "outOfStockSub": "Products to restock",
+      "inventoryValue": "Inventory Value",
+      "inventoryValueSub": "Total stock value",
+      "potentialRevenue": "Potential Revenue",
+      "potentialProfit": "Potential profit if all stock sold"
+    }
   }
 }
