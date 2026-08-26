@@ -1,24 +1,36 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { Printer, FileText, X, Share2 } from 'lucide-react';
-import { templateManager } from './documentTemplates/templateManager';
-import { DocumentTemplate, InvoiceData, CATEGORY_DEFAULT_TEMPLATES } from './documentTemplates/types';
-import { getTemplateComponent } from './documentTemplates/templates';
-import { initializeFirebase } from '@/firebase';
-import { doc, getDoc } from 'firebase/firestore';
 import styles from './ReceiptGenerator.module.css';
 
-interface ReceiptItem {
+export interface ReceiptItem {
   name: string;
   quantity: number;
   price: number;
   total: number;
 }
 
-interface ReceiptData {
+export interface ReceiptTheme {
+  id?: string;
+  name?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  textColor?: string;
+  backgroundColor?: string;
+  fontSize?: 'small' | 'medium' | 'large' | string;
+  showLogo?: boolean;
+  showBusinessAddress?: boolean;
+  showCustomerDetails?: boolean;
+  showBarcode?: boolean;
+  customHeader?: string;
+  customFooter?: string;
+  logoUrl?: string;
+}
+
+export interface ReceiptData {
   businessName: string;
   businessAddress?: string;
   businessPhone?: string;
@@ -33,19 +45,7 @@ interface ReceiptData {
   paymentMethod: string;
   sourceLocation?: string;
   logoUrl?: string;
-  theme?: {
-    primaryColor: string;
-    secondaryColor: string;
-    textColor: string;
-    backgroundColor: string;
-    fontSize: 'small' | 'medium' | 'large';
-    showLogo: boolean;
-    showBusinessAddress: boolean;
-    showCustomerDetails: boolean;
-    showBarcode: boolean;
-    customHeader?: string;
-    customFooter?: string;
-  };
+  theme?: ReceiptTheme | null;
 }
 
 interface ReceiptGeneratorProps {
@@ -55,362 +55,351 @@ interface ReceiptGeneratorProps {
   receiptType?: 'supermarket' | 'invoice';
 }
 
-export function ReceiptGenerator({ receiptData, onClose, isWholesale = false, receiptType = 'supermarket' }: ReceiptGeneratorProps) {
+const FONT_SIZE_MAP: Record<string, string> = {
+  small: '11px',
+  medium: '12.5px',
+  large: '14px',
+};
+
+function normalizeTheme(theme?: ReceiptTheme | null): Required<
+  Pick<
+    ReceiptTheme,
+    | 'primaryColor'
+    | 'secondaryColor'
+    | 'textColor'
+    | 'backgroundColor'
+    | 'fontSize'
+    | 'showLogo'
+    | 'showBusinessAddress'
+    | 'showCustomerDetails'
+    | 'showBarcode'
+  >
+> &
+  Pick<ReceiptTheme, 'customHeader' | 'customFooter' | 'logoUrl'> {
+  return {
+    primaryColor: theme?.primaryColor || '#111827',
+    secondaryColor: theme?.secondaryColor || '#6b7280',
+    textColor: theme?.textColor || '#111827',
+    backgroundColor: theme?.backgroundColor || '#ffffff',
+    fontSize: theme?.fontSize || 'medium',
+    showLogo: theme?.showLogo !== false,
+    showBusinessAddress: theme?.showBusinessAddress !== false,
+    showCustomerDetails: theme?.showCustomerDetails !== false,
+    showBarcode: theme?.showBarcode === true,
+    customHeader: theme?.customHeader,
+    customFooter: theme?.customFooter,
+    logoUrl: theme?.logoUrl,
+  };
+}
+
+export function ReceiptGenerator({
+  receiptData,
+  onClose,
+  isWholesale = false,
+  receiptType = 'supermarket',
+}: ReceiptGeneratorProps) {
   const { showToast } = useApp();
-  const { formatMoney, currencyCode } = useCurrency();
+  const { formatMoney } = useCurrency();
   const receiptRef = useRef<HTMLDivElement>(null);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+
+  const theme = normalizeTheme(receiptData.theme);
+  const logoSrc = receiptData.logoUrl || theme.logoUrl || '';
+  const fontPx = FONT_SIZE_MAP[String(theme.fontSize)] || FONT_SIZE_MAP.medium;
+  const initial = (receiptData.businessName || 'B').charAt(0).toUpperCase();
 
   const handlePrint = () => {
     setIsPrinting(true);
     setTimeout(() => {
       window.print();
       setIsPrinting(false);
-    }, 100);
+    }, 120);
   };
 
   const handleDownloadPDF = async () => {
     setIsGeneratingPDF(true);
     try {
-      // Simple PDF generation using browser's print to PDF
-      // In production, you'd use a library like jsPDF or html2pdf
-      const printContent = receiptRef.current;
-      if (printContent) {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(`
-            <html>
-              <head>
-                <title>Receipt - ${receiptData.saleNumber}</title>
-                <style>
-                  body { font-family: monospace; padding: 20px; max-width: 300px; margin: 0 auto; }
-                  .receipt-header { text-align: center; margin-bottom: 20px; }
-                  .receipt-title { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
-                  .receipt-info { font-size: 12px; margin-bottom: 5px; }
-                  .receipt-divider { border-top: 1px dashed #000; margin: 10px 0; }
-                  .receipt-item { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
-                  .receipt-total { display: flex; justify-content: space-between; font-weight: bold; margin-top: 10px; }
-                  .receipt-footer { text-align: center; margin-top: 20px; font-size: 11px; }
-                </style>
-              </head>
-              <body>
-                ${printContent.innerHTML}
-              </body>
-            </html>
-          `);
-          printWindow.document.close();
-          printWindow.print();
-          showToast('✅ PDF download started');
-        }
-      }
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      showToast('❌ Failed to generate PDF');
+      // Browser print-to-PDF is the most reliable path without extra deps
+      window.print();
+      showToast('Use “Save as PDF” in the print dialog');
+    } catch {
+      showToast('Could not open print dialog');
     } finally {
       setIsGeneratingPDF(false);
     }
   };
 
-  const handleCopyToClipboard = () => {
-    let message = '';
-    
-    if (receiptType === 'invoice') {
-      // Invoice-style receipt for wholesale/distributor
-      message = `
-${receiptData.businessName}
-${receiptData.businessAddress ? receiptData.businessAddress + '\n' : ''}
-${receiptData.businessPhone ? 'Tel: ' + receiptData.businessPhone + '\n' : ''}
+  const handleShare = async () => {
+    setIsSharing(true);
+    try {
+      const lines = [
+        receiptData.businessName,
+        `Sale ${receiptData.saleNumber}`,
+        receiptData.date,
+        '',
+        ...receiptData.items.map(
+          (i) => `${i.name} ×${i.quantity} — ${formatMoney(i.total)}`
+        ),
+        '',
+        `Total: ${formatMoney(receiptData.subtotal)}`,
+        `Paid: ${formatMoney(receiptData.amountPaid)} (${receiptData.paymentMethod})`,
+      ];
+      if (receiptData.outstandingBalance > 0) {
+        lines.push(`Outstanding: ${formatMoney(receiptData.outstandingBalance)}`);
+      }
+      const text = lines.join('\n');
 
-INVOICE - ${receiptData.saleNumber}
-Date: ${receiptData.date}
-${receiptData.customerName ? 'Customer: ' + receiptData.customerName + '\n' : ''}
-${receiptData.customerPhone ? 'Phone: ' + receiptData.customerPhone + '\n' : ''}
-
-ITEMS:
-${receiptData.items.map(item => `${item.name}\n  ${item.quantity} x ${formatMoney(item.price)} = ${formatMoney(item.total)}`).join('\n')}
-
-Subtotal: ${formatMoney(receiptData.subtotal)}
-${receiptData.outstandingBalance > 0 ? `Outstanding Balance: ${formatMoney(receiptData.outstandingBalance)}\n` : ''}Total: ${formatMoney(receiptData.subtotal)}
-
-Payment: ${receiptData.paymentMethod}
-${receiptData.sourceLocation ? 'Source: ' + receiptData.sourceLocation + '\n' : ''}
-${receiptData.outstandingBalance > 0 ? 'Payment Due: Please settle outstanding balance\n' : ''}Thank you for your business!
-      `.trim();
-    } else {
-      // Supermarket-style receipt (default)
-      message = `
-${receiptData.businessName}
-${receiptData.businessAddress ? receiptData.businessAddress + '\n' : ''}
-
-RECEIPT - ${receiptData.saleNumber}
-Date: ${receiptData.date}
-${receiptData.customerName ? 'Customer: ' + receiptData.customerName + '\n' : ''}
-
-ITEMS:
-${receiptData.items.map(item => `${item.name} x${item.quantity} = ${formatMoney(item.total)}`).join('\n')}
-
-Subtotal: ${formatMoney(receiptData.subtotal)}
-Paid: ${formatMoney(receiptData.amountPaid)}
-${receiptData.outstandingBalance > 0 ? `Outstanding: ${formatMoney(receiptData.outstandingBalance)}\n` : ''}Payment: ${receiptData.paymentMethod}
-${receiptData.sourceLocation ? `Source: ${receiptData.sourceLocation}\n` : ''}Thank you for your business!
-      `.trim();
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        await navigator.share({
+          title: `Receipt ${receiptData.saleNumber}`,
+          text,
+        });
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        showToast('Receipt copied to clipboard');
+      } else {
+        showToast('Sharing is not supported on this device');
+      }
+    } catch {
+      /* user cancelled share */
+    } finally {
+      setIsSharing(false);
     }
-
-    navigator.clipboard.writeText(message).then(() => {
-      showToast('✅ Receipt copied to clipboard');
-    }).catch(() => {
-      showToast('❌ Failed to copy to clipboard');
-    });
   };
 
+  const paperStyle: React.CSSProperties = {
+    ['--rc-primary' as string]: theme.primaryColor,
+    ['--rc-secondary' as string]: theme.secondaryColor,
+    ['--rc-text' as string]: theme.textColor,
+    ['--rc-bg' as string]: theme.backgroundColor,
+    ['--rc-font' as string]: fontPx,
+    backgroundColor: theme.backgroundColor,
+    color: theme.textColor,
+  };
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.modal} onClick={e => e.stopPropagation()}>
+    <div className={styles.overlay} role="dialog" aria-modal="true" aria-label="Sale receipt">
+      <div className={styles.modal}>
         <div className={styles.modalHeader}>
-          <h3 className={styles.modalTitle}>Receipt</h3>
-          <button className={styles.modalClose} onClick={onClose}>
-            <X size={20} />
+          <h2 className={styles.modalTitle}>
+            {receiptType === 'invoice' ? 'Invoice' : 'Sale receipt'}
+          </h2>
+          <button
+            type="button"
+            className={styles.modalClose}
+            onClick={onClose}
+            aria-label="Close receipt"
+          >
+            <X size={18} />
           </button>
         </div>
 
         <div className={styles.modalBody}>
-          {/* Receipt Preview */}
-          <div 
-            className={styles.receiptPreview} 
-            ref={receiptRef}
-            style={{
-              backgroundColor: receiptData.theme?.backgroundColor || 'white',
-              color: receiptData.theme?.textColor || 'black',
-              fontFamily: receiptType === 'invoice' ? 'Arial, sans-serif' : 'monospace',
-            }}
-          >
-            {receiptData.theme?.showLogo && receiptData.logoUrl && (
-              <div className={styles.receiptLogo}>
-                <img src={receiptData.logoUrl} alt="Logo" className={styles.logoImage} />
-              </div>
-            )}
-            <div className={styles.receiptHeader}>
-              {receiptData.theme?.customHeader && (
-                <div className={styles.receiptCustomHeader}>{receiptData.theme.customHeader}</div>
-              )}
-              <div 
-                className={styles.receiptTitle}
-                style={{ color: receiptData.theme?.primaryColor || 'black' }}
-              >
-                {receiptData.businessName}
-              </div>
-              {receiptData.theme?.showBusinessAddress && receiptData.businessAddress && (
-                <div className={styles.receiptInfo}>{receiptData.businessAddress}</div>
-              )}
-              {receiptData.businessPhone && (
-                <div className={styles.receiptInfo}>{receiptData.businessPhone}</div>
-              )}
-            </div>
-
-            <div 
-              className={styles.receiptDivider}
-              style={{ borderColor: receiptData.theme?.primaryColor || 'black' }}
-            ></div>
-
-            <div className={styles.receiptInfo}>
-              {receiptType === 'invoice' ? (
-                <>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '5px' }}>INVOICE</div>
-                  <div>Invoice #: {receiptData.saleNumber}</div>
-                  <div>Date: {receiptData.date}</div>
-                  {receiptData.customerName && (
-                    <div style={{ marginTop: '8px' }}><strong>Bill To:</strong></div>
-                  )}
-                  {receiptData.customerName && <div>Customer: {receiptData.customerName}</div>}
-                  {receiptData.customerPhone && <div>Phone: {receiptData.customerPhone}</div>}
-                </>
-              ) : (
-                <>
-                  <div>Receipt #: {receiptData.saleNumber}</div>
-                  <div>Date: {receiptData.date}</div>
-                  {receiptData.theme?.showCustomerDetails && receiptData.customerName && (
-                    <div>Customer: {receiptData.customerName}</div>
-                  )}
-                  {receiptData.theme?.showCustomerDetails && receiptData.customerPhone && (
-                    <div>Phone: {receiptData.customerPhone}</div>
-                  )}
-                </>
-              )}
-              {receiptData.sourceLocation && (
-                <div style={{ marginTop: '5px' }}>Source: {receiptData.sourceLocation}</div>
-              )}
-            </div>
-
-            <div 
-              className={styles.receiptDivider}
-              style={{ borderColor: receiptData.theme?.primaryColor || 'black' }}
-            ></div>
-
-            <div className={styles.receiptItems}>
-              <div 
-                className={styles.receiptItemHeader}
-                style={{ 
-                  color: receiptData.theme?.secondaryColor || 'black',
-                  borderBottom: receiptType === 'invoice' ? '2px solid' : '1px dashed',
-                  paddingBottom: '8px',
-                  marginBottom: '8px',
-                  fontSize: receiptType === 'invoice' ? '14px' : '12px'
-                }}
-              >
-                {receiptType === 'invoice' ? 'DESCRIPTION' : 'ITEM'}
-              </div>
-              {receiptData.items.map((item, index) => (
-                <div 
-                  key={index} 
-                  className={styles.receiptItem}
-                  style={{ 
-                    fontSize: receiptData.theme?.fontSize === 'large' ? '14px' : receiptData.theme?.fontSize === 'small' ? '11px' : '12px',
-                    borderBottom: receiptType === 'invoice' ? '1px solid #eee' : '1px dashed #000',
-                    padding: '8px 0'
-                  }}
-                >
-                  {receiptType === 'invoice' ? (
-                    <>
-                      <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{item.name}</div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#666' }}>
-                        <span>{item.quantity} x {formatMoney(item.price)}</span>
-                        <span style={{ fontWeight: 'bold', color: '#000' }}>{formatMoney(item.total)}</span>
+          <div ref={receiptRef} className={styles.receiptPreview} style={paperStyle}>
+            <div className={styles.receiptInner}>
+              <header className={styles.receiptHeader}>
+                {theme.showLogo && (
+                  <div className={styles.receiptLogo}>
+                    {logoSrc ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={logoSrc}
+                        alt={receiptData.businessName}
+                        className={styles.logoImage}
+                      />
+                    ) : (
+                      <div
+                        className={styles.logoFallback}
+                        style={{ background: theme.primaryColor }}
+                      >
+                        {initial}
                       </div>
-                    </>
-                  ) : (
-                    <>
-                      <span className={styles.itemName}>{item.name}</span>
-                      <span>{item.quantity}</span>
-                      <span>{formatMoney(item.price)}</span>
-                      <span>{formatMoney(item.total)}</span>
-                    </>
-                  )}
+                    )}
+                  </div>
+                )}
+
+                {theme.customHeader ? (
+                  <div className={styles.receiptCustomHeader}>{theme.customHeader}</div>
+                ) : null}
+
+                <h3 className={styles.receiptTitle} style={{ color: theme.primaryColor }}>
+                  {receiptData.businessName || 'Business'}
+                </h3>
+
+                {theme.showBusinessAddress && receiptData.businessAddress ? (
+                  <p className={styles.receiptInfo}>{receiptData.businessAddress}</p>
+                ) : null}
+                {theme.showBusinessAddress && receiptData.businessPhone ? (
+                  <p className={styles.receiptInfo}>{receiptData.businessPhone}</p>
+                ) : null}
+              </header>
+
+              <hr
+                className={styles.receiptDivider}
+                style={{ borderColor: theme.primaryColor }}
+              />
+
+              <div className={styles.receiptMeta}>
+                <div className={styles.receiptMetaRow}>
+                  <span className={styles.receiptMetaLabel}>Receipt</span>
+                  <span className={styles.receiptMetaValue}>{receiptData.saleNumber}</span>
                 </div>
-              ))}
-            </div>
+                <div className={styles.receiptMetaRow}>
+                  <span className={styles.receiptMetaLabel}>Date</span>
+                  <span className={styles.receiptMetaValue}>{receiptData.date}</span>
+                </div>
+                {receiptData.sourceLocation ? (
+                  <div className={styles.receiptMetaRow}>
+                    <span className={styles.receiptMetaLabel}>Location</span>
+                    <span className={styles.receiptMetaValue}>{receiptData.sourceLocation}</span>
+                  </div>
+                ) : null}
+                {theme.showCustomerDetails && receiptData.customerName ? (
+                  <div className={styles.receiptMetaRow}>
+                    <span className={styles.receiptMetaLabel}>Customer</span>
+                    <span className={styles.receiptMetaValue}>{receiptData.customerName}</span>
+                  </div>
+                ) : null}
+                {theme.showCustomerDetails && receiptData.customerPhone ? (
+                  <div className={styles.receiptMetaRow}>
+                    <span className={styles.receiptMetaLabel}>Phone</span>
+                    <span className={styles.receiptMetaValue}>{receiptData.customerPhone}</span>
+                  </div>
+                ) : null}
+                {isWholesale || receiptType === 'invoice' ? (
+                  <div className={styles.receiptMetaRow}>
+                    <span className={styles.receiptMetaLabel}>Type</span>
+                    <span className={styles.receiptMetaValue}>
+                      {receiptType === 'invoice' ? 'Invoice' : 'Wholesale'}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
 
-            <div 
-              className={styles.receiptDivider}
-              style={{ borderColor: receiptData.theme?.primaryColor || 'black' }}
-            ></div>
+              <hr
+                className={styles.receiptDivider}
+                style={{ borderColor: theme.primaryColor }}
+              />
 
-            <div className={styles.receiptTotals}>
-              <div 
-                className={styles.receiptTotal}
-                style={{ 
-                  fontSize: receiptData.theme?.fontSize === 'large' ? '16px' : receiptData.theme?.fontSize === 'small' ? '13px' : '14px',
-                  borderTop: receiptType === 'invoice' ? '2px solid #000' : '1px dashed #000',
-                  paddingTop: '10px',
-                  marginTop: '10px'
-                }}
-              >
+              <div className={styles.receiptItems}>
+                <div className={styles.receiptItemHeader}>
+                  <span>Item</span>
+                  <span>Qty</span>
+                  <span>Amount</span>
+                </div>
+                {receiptData.items.map((item, idx) => (
+                  <React.Fragment key={`${item.name}-${idx}`}>
+                    <div className={styles.receiptItem}>
+                      <span className={styles.itemName}>{item.name}</span>
+                      <span className={styles.itemQty}>×{item.quantity}</span>
+                      <span className={styles.itemTotal}>{formatMoney(item.total)}</span>
+                    </div>
+                    <div className={styles.itemUnit}>
+                      {formatMoney(item.price)} each
+                    </div>
+                  </React.Fragment>
+                ))}
+              </div>
+
+              <hr
+                className={styles.receiptDivider}
+                style={{ borderColor: theme.primaryColor }}
+              />
+
+              <div className={styles.receiptTotals}>
+                <div className={styles.receiptTotal}>
+                  <span>Subtotal</span>
+                  <span>{formatMoney(receiptData.subtotal)}</span>
+                </div>
+                <div className={styles.receiptTotal}>
+                  <span>Amount paid</span>
+                  <span>{formatMoney(receiptData.amountPaid)}</span>
+                </div>
+                {receiptData.outstandingBalance > 0 ? (
+                  <div className={styles.receiptTotal} style={{ color: theme.secondaryColor }}>
+                    <span>Outstanding</span>
+                    <span>{formatMoney(receiptData.outstandingBalance)}</span>
+                  </div>
+                ) : null}
+                <div className={styles.receiptTotal}>
+                  <span>Payment</span>
+                  <span style={{ textTransform: 'capitalize' }}>
+                    {receiptData.paymentMethod || 'cash'}
+                  </span>
+                </div>
+              </div>
+
+              <div className={styles.receiptGrand} style={{ borderColor: theme.primaryColor }}>
+                <span>Total</span>
+                <span style={{ color: theme.primaryColor }}>
+                  {formatMoney(receiptData.subtotal)}
+                </span>
+              </div>
+
+              <hr
+                className={styles.receiptDivider}
+                style={{ borderColor: theme.primaryColor }}
+              />
+
+              <footer className={styles.receiptFooter} style={{ color: theme.secondaryColor }}>
                 {receiptType === 'invoice' ? (
                   <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                      <span>Subtotal:</span>
-                      <span>{formatMoney(receiptData.subtotal)}</span>
+                    <div>
+                      <strong style={{ color: theme.textColor }}>Payment terms:</strong> due
+                      within 30 days
                     </div>
-                    {receiptData.outstandingBalance > 0 && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', color: '#ef4444' }}>
-                        <span>Outstanding Balance:</span>
-                        <span>{formatMoney(receiptData.outstandingBalance)}</span>
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 'bold', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #000' }}>
-                      <span>TOTAL DUE:</span>
-                      <span style={{ color: receiptData.theme?.primaryColor || 'black' }}>{formatMoney(receiptData.subtotal)}</span>
-                    </div>
+                    <div style={{ marginTop: 6 }}>Thank you for your business!</div>
                   </>
                 ) : (
-                  <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span>Subtotal:</span>
-                      <span>{formatMoney(receiptData.subtotal)}</span>
-                    </div>
-                    <div className={styles.receiptTotal}>
-                      <span>Amount Paid:</span>
-                      <span>{formatMoney(receiptData.amountPaid)}</span>
-                    </div>
-                    {receiptData.outstandingBalance > 0 && (
-                      <div className={styles.receiptTotal}>
-                        <span>Outstanding:</span>
-                        <span>{formatMoney(receiptData.outstandingBalance)}</span>
-                      </div>
-                    )}
-                    <div className={styles.receiptTotal}>
-                      <span>Payment:</span>
-                      <span>{receiptData.paymentMethod}</span>
-                    </div>
-                  </>
+                  <div>
+                    {theme.customFooter || 'Thank you for your business!'}
+                  </div>
                 )}
-              </div>
-            </div>
-
-            <div 
-              className={styles.receiptDivider}
-              style={{ borderColor: receiptData.theme?.primaryColor || 'black' }}
-            ></div>
-
-            <div className={styles.receiptFooter}>
-              {receiptType === 'invoice' ? (
-                <>
-                  <div style={{ fontSize: '12px', marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #000' }}>
-                    <strong>Payment Terms:</strong> Payment due within 30 days
+                {theme.showBarcode ? (
+                  <div className={styles.barcode} aria-hidden>
+                    ||||| |||| ||||| |||| |||||
                   </div>
-                  <div style={{ fontSize: '11px', marginTop: '8px', color: '#666' }}>
-                    Thank you for your business!
-                  </div>
-                  <div style={{ fontSize: '10px', marginTop: '5px', color: '#999' }}>
-                    Generated: {new Date().toLocaleString()}
-                  </div>
-                </>
-              ) : (
-                <>
-                  {receiptData.theme?.customFooter ? (
-                    <div>{receiptData.theme.customFooter}</div>
-                  ) : (
-                    <div>Thank you for your business!</div>
-                  )}
-                  <div>{new Date().toLocaleDateString()}</div>
-                  {receiptData.theme?.showBarcode && (
-                    <div className={styles.barcode}>||||| ||||| |||||</div>
-                  )}
-                </>
-              )}
+                ) : null}
+                <div className={styles.saleCode}>{receiptData.saleNumber}</div>
+              </footer>
             </div>
           </div>
+        </div>
 
-          {/* Action Buttons */}
-          <div className={styles.actionButtons}>
-            <button
-              className={styles.actionButton}
-              onClick={handlePrint}
-              disabled={isPrinting}
-            >
-              <Printer size={18} />
-              {isPrinting ? 'Printing...' : 'Print'}
-            </button>
-            <button
-              className={styles.actionButton}
-              onClick={handleDownloadPDF}
-              disabled={isGeneratingPDF}
-            >
-              <FileText size={18} />
-              {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
-            </button>
-            <button
-              className={styles.actionButton}
-              onClick={handleCopyToClipboard}
-            >
-              <Share2 size={18} />
-              Share
-            </button>
-          </div>
+        <div className={styles.actionButtons}>
+          <button
+            type="button"
+            className={`${styles.actionButton} ${styles.actionButtonPrimary}`}
+            onClick={handlePrint}
+            disabled={isPrinting}
+          >
+            <Printer size={18} />
+            {isPrinting ? 'Printing…' : 'Print'}
+          </button>
+          <button
+            type="button"
+            className={styles.actionButton}
+            onClick={handleDownloadPDF}
+            disabled={isGeneratingPDF}
+          >
+            <FileText size={18} />
+            PDF
+          </button>
+          <button
+            type="button"
+            className={`${styles.actionButton} ${styles.actionButtonShare}`}
+            onClick={handleShare}
+            disabled={isSharing}
+          >
+            <Share2 size={18} />
+            Share
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
+export default ReceiptGenerator;

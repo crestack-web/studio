@@ -114,9 +114,14 @@ export function SalePage({
             currencyProp ||
             '₦';
           setBusinessCurrency(currency);
-          if (businessData.receiptTheme || businessData.receipt_theme) {
-            setReceiptTheme(businessData.receiptTheme || businessData.receipt_theme);
-          }
+          const meta = (businessData as any).metadata || {};
+          const theme =
+            (businessData as any).receiptTheme ||
+            (businessData as any).receipt_theme ||
+            meta.receiptTheme ||
+            meta.receipt_theme ||
+            null;
+          if (theme) setReceiptTheme(theme);
           if (businessData.logoUrl || businessData.logo_url) {
             setBusinessLogo(businessData.logoUrl || businessData.logo_url);
           }

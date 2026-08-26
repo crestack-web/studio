@@ -157,10 +157,15 @@ export function RecordSalePage() {
             // Load inventory deduction mode
             setInventoryDeductionMode(businessDoc.inventoryDeductionMode || businessDoc.inventory_deduction_mode || 'immediate');
             
-            // Load receipt theme
-            if (businessDoc.receiptTheme || businessDoc.receipt_theme) {
-              setReceiptTheme(businessDoc.receiptTheme || businessDoc.receipt_theme);
-            }
+            // Load receipt theme (column or metadata — settings save path)
+            const meta = businessDoc.metadata || {};
+            const theme =
+              businessDoc.receiptTheme ||
+              businessDoc.receipt_theme ||
+              meta.receiptTheme ||
+              meta.receipt_theme ||
+              null;
+            if (theme) setReceiptTheme(theme);
             
             // Load business logo
             if (businessDoc.logoUrl || businessDoc.logo_url) {

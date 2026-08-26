@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
 import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
-import { initializeFirebase } from '@/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { getSupabase } from '@/lib/supabase';
+import { updateDoc as sbUpdateDoc, fetchDoc } from '@/lib/supabase-client-data';
 import { Palette, Settings, Eye, Save, Upload, X } from 'lucide-react';
 import styles from './ReceiptThemeConfig.module.css';
 
@@ -83,8 +83,7 @@ const DEFAULT_THEMES: ReceiptTheme[] = [
 
 export function ReceiptThemeConfig() {
   const { showToast, user } = useApp();
-  const { firestore } = initializeFirebase();
-  
+
   const [currentTheme, setCurrentTheme] = useState<ReceiptTheme>(DEFAULT_THEMES[0]);
   const [selectedPreset, setSelectedPreset] = useState('classic');
   const [isCustom, setIsCustom] = useState(false);
@@ -94,22 +93,44 @@ export function ReceiptThemeConfig() {
 
   useEffect(() => {
     loadCurrentTheme();
-  }, [firestore, user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.businessId]);
+
+  const resolveBusinessId = async (): Promise<string | null> => {
+    if (user?.businessId) return user.businessId;
+    if (!user?.id) return null;
+    try {
+      const { resolveOwnerScopeBusinessId } = await import('@/lib/resolve-business-scope');
+      return (await resolveOwnerScopeBusinessId(user.id, user.businessId)) || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const extractTheme = (businessDoc: any): ReceiptTheme | null => {
+    if (!businessDoc) return null;
+    const meta = businessDoc.metadata || {};
+    return (
+      businessDoc.receiptTheme ||
+      businessDoc.receipt_theme ||
+      meta.receiptTheme ||
+      meta.receipt_theme ||
+      null
+    );
+  };
 
   const loadCurrentTheme = async () => {
-    if (!firestore || !user) return;
-
+    if (!user?.id) return;
     try {
-      const businessId = user.id;
-      const businessDoc = await getDoc(doc(firestore, 'businesses', businessId));
-      
-      if (businessDoc.exists()) {
-        const savedTheme = businessDoc.data()?.receiptTheme;
-        if (savedTheme) {
-          setCurrentTheme(savedTheme);
-          setIsCustom(!DEFAULT_THEMES.find(t => t.id === savedTheme.id));
-          setSelectedPreset(savedTheme.id || 'classic');
-        }
+      const businessId = await resolveBusinessId();
+      if (!businessId) return;
+      const businessDoc = await fetchDoc('businesses', businessId);
+      const savedTheme = extractTheme(businessDoc);
+      if (savedTheme) {
+        setCurrentTheme({ ...DEFAULT_THEMES[0], ...savedTheme });
+        setIsCustom(!DEFAULT_THEMES.find((th) => th.id === savedTheme.id));
+        setSelectedPreset(savedTheme.id || 'classic');
+        if (savedTheme.logoUrl) setLogoPreview(savedTheme.logoUrl);
       }
     } catch (error) {
       console.error('Error loading theme:', error);
@@ -157,19 +178,21 @@ export function ReceiptThemeConfig() {
   };
 
   const handleSaveTheme = async () => {
-    if (!firestore || !user) return;
+    if (!user?.id) return;
 
     try {
       setIsSaving(true);
-      const businessId = user.businessId;
+      const businessId = await resolveBusinessId();
 
       if (!businessId) {
         showToast('Business ID not found');
         return;
       }
 
-      await updateDoc(doc(firestore, 'businesses', businessId), {
+      // Store on business row; unknown columns land in metadata via supabase-client-data
+      await sbUpdateDoc('businesses', businessId, {
         receiptTheme: currentTheme,
+        receipt_theme: currentTheme,
       });
 
       showToast('Receipt theme saved successfully');
