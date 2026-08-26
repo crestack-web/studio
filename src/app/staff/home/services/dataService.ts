@@ -162,13 +162,24 @@ export async function recordSale(
       return acc + ((p.price - (p.costPrice || 0)) * p.quantity);
     }, 0);
 
+    const total = saleData?.total || 0;
     const id = await addDoc(`businesses/${businessId}/sales`, {
       id: crypto.randomUUID(),
       products: products,
-      total: saleData?.total || 0,
+      items: products,
+      total,
+      totalRevenue: total,
+      total_amount: total,
       profit,
       paymentMethod: saleData?.paymentMethod || 'cash',
       paymentMethods: saleData?.paymentMethods,
+      paymentBreakdown: saleData?.paymentMethods
+        ? Object.entries(saleData.paymentMethods).map(([method, amount]) => ({
+            method,
+            amount,
+            received: true,
+          }))
+        : [{ method: saleData?.paymentMethod || 'cash', amount: total, received: true }],
       notes: saleData?.note || '',
       soldBy: saleData?.soldBy || 'unknown',
       soldByName: saleData?.soldByName || 'Unknown Staff',

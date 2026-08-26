@@ -1,17 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { initializeFirebase } from '@/firebase';
-import {
-  doc,
-  getDoc,
-  collection,
-  addDoc,
-  updateDoc,
-  query,
-  where,
-  getDocs,
-  Timestamp,
-} from 'firebase/firestore';
-import { fetchProducts } from '../services/dataService';
+import { fetchProducts, recordSale, updateProductStock } from '../services/dataService';
+import { fetchDoc } from '@/lib/supabase-client-data';
 import { formatCurrency } from '@/lib/currency';
 import { ReceiptGenerator } from '../../../owner/dashboard/ReceiptGenerator';
 import { offlineManager } from '@/lib/offline/offline-manager';
@@ -98,24 +87,25 @@ export function SalePage({
 
     async function loadData() {
       try {
-        const { firestore } = initializeFirebase();
-        if (!firestore || !offlineManager.isOnline()) {
-          // Offline / no Firestore: load cached products
+        if (!offlineManager.isOnline()) {
           const cached = await offlineManager.getCachedProducts(businessId);
           if (!cancelled && cached.length) setProducts(cached as any);
           return;
         }
 
-        const fetchedProducts = await fetchProducts(firestore, businessId);
+        // Supabase catalog (same source as owner Record Sale)
+        const fetchedProducts = await fetchProducts(undefined, businessId);
         if (cancelled) return;
         setProducts(fetchedProducts);
         if (businessId) void offlineManager.cacheProducts(businessId, fetchedProducts as any);
 
-        const businessDoc = await getDoc(doc(firestore, 'businesses', businessId));
+        const businessData = await fetchDoc<Record<string, any>>(
+          'businesses',
+          businessId
+        );
         if (cancelled) return;
 
-        if (businessDoc.exists()) {
-          const businessData = businessDoc.data();
+        if (businessData) {
           const currency =
             businessData.currency ||
             businessData.businessCurrency ||
@@ -123,10 +113,21 @@ export function SalePage({
             currencyProp ||
             '₦';
           setBusinessCurrency(currency);
-          if (businessData.receiptTheme) setReceiptTheme(businessData.receiptTheme);
-          if (businessData.logoUrl) setBusinessLogo(businessData.logoUrl);
-          if (businessData.receiptType) setReceiptType(businessData.receiptType);
-          setBusinessName(businessData.businessName || businessData.name || '');
+          if (businessData.receiptTheme || businessData.receipt_theme) {
+            setReceiptTheme(businessData.receiptTheme || businessData.receipt_theme);
+          }
+          if (businessData.logoUrl || businessData.logo_url) {
+            setBusinessLogo(businessData.logoUrl || businessData.logo_url);
+          }
+          if (businessData.receiptType || businessData.receipt_type) {
+            setReceiptType(businessData.receiptType || businessData.receipt_type);
+          }
+          setBusinessName(
+            businessData.businessName ||
+              businessData.business_name ||
+              businessData.name ||
+              ''
+          );
           setBusinessAddress(businessData.address || '');
           setBusinessPhone(businessData.phone || '');
           setBusinessCategory(businessData.category || '');
@@ -309,129 +310,56 @@ export function SalePage({
         return;
       }
 
-      const { firestore } = initializeFirebase();
-      if (!firestore) throw new Error('Data service unavailable');
-
+      // Supabase write path (owner dashboard uses the same tables)
       const expectedCash = getCashAmount();
       const expectedBank = getBankAmount();
       const profit = saleProducts.reduce(
         (acc, p) => acc + (p.price - (p.costPrice || 0)) * p.quantity,
         0
       );
+      const primaryMethod =
+        paymentMethods.length === 1 ? paymentMethods[0].method : 'split';
 
-      const saleData = {
+      const saleId = await recordSale(undefined, businessId, {
         products: saleProducts,
-        totalRevenue: total,
-        total: total,
-        totalCost: saleProducts.reduce(
-          (s, p) => s + (p.costPrice || 0) * p.quantity,
-          0
-        ),
-        profit,
-        paymentBreakdown: paymentMethods.map((pm) => ({
-          method: pm.method,
-          amount: pm.amount,
-          received: pm.received !== false,
-        })),
-        paymentMethod:
-          paymentMethods.length === 1 ? paymentMethods[0].method : 'split',
-        expectedCash,
-        expectedBank,
+        total,
+        paymentMethod: primaryMethod,
+        paymentMethods: paymentMethods.reduce((acc: Record<string, number>, pm) => {
+          acc[pm.method] = (acc[pm.method] || 0) + (pm.amount || 0);
+          return acc;
+        }, {}),
         note: '',
-        businessId,
-        sourceLocation: 'main_store',
-        sourceLocationName: 'Main Store',
+        soldBy: staffId,
+        soldByName: staffName,
         recordedBy: {
           uid: staffId,
           displayName: staffName,
           role: staffRole,
-          staffId: staffId,
+          staffId,
         },
-        soldBy: staffId,
-        soldByName: staffName,
-        createdAt: Timestamp.now(),
-        recordedAt: Timestamp.now(),
-      };
+      });
 
-      await addDoc(
-        collection(firestore, 'businesses', businessId, 'sales'),
-        saleData
+      // Decrement stock in Supabase for each line item
+      for (const item of cart) {
+        try {
+          await updateProductStock(undefined, businessId, item.productId, item.quantity);
+        } catch (stockErr) {
+          console.warn('[SalePage] stock update failed for', item.productId, stockErr);
+        }
+      }
+
+      // Optimistic local stock
+      setProducts((prev: any[]) =>
+        prev.map((prod) => {
+          const sold = saleProducts.find((s) => s.productId === prod.id);
+          if (!sold) return prod;
+          return { ...prod, stock: Math.max(0, (prod.stock || 0) - sold.quantity) };
+        })
       );
 
-      if (expectedBank > 0) {
-        try {
-          const bankAccountsQuery = query(
-            collection(firestore, 'businesses', businessId, 'bankAccounts'),
-            where('isActive', '==', true)
-          );
-          const bankAccountsSnapshot = await getDocs(bankAccountsQuery);
-          let posDefaultAccount: string | null = null;
-          bankAccountsSnapshot.forEach((d) => {
-            if (d.data().isPosDefault) posDefaultAccount = d.id;
-          });
-          if (posDefaultAccount) {
-            const bankAccountRef = doc(
-              firestore,
-              'businesses',
-              businessId,
-              'bankAccounts',
-              posDefaultAccount
-            );
-            const bankAccountDoc = await getDoc(bankAccountRef);
-            if (bankAccountDoc.exists()) {
-              const currentBalance = bankAccountDoc.data().currentBalance || 0;
-              await updateDoc(bankAccountRef, {
-                currentBalance: currentBalance + expectedBank,
-              });
-            }
-          }
-        } catch (error) {
-          console.error('[SalePage] bank update failed', error);
-        }
-      }
-
-      for (const item of cart) {
-        const productRef = doc(
-          firestore,
-          'businesses',
-          businessId,
-          'products',
-          item.productId
-        );
-        const productDoc = await getDoc(productRef);
-        if (productDoc.exists()) {
-          const currentStock = productDoc.data().stock || 0;
-          await updateDoc(productRef, {
-            stock: Math.max(0, currentStock - item.quantity),
-            lastSaleDate: new Date(),
-            updatedAt: Timestamp.now(),
-          });
-        }
-      }
-
-      try {
-        const staffRef = doc(
-          firestore,
-          'businesses',
-          businessId,
-          'staff',
-          staffId
-        );
-        const staffDoc = await getDoc(staffRef);
-        if (staffDoc.exists()) {
-          const currentRevenue = staffDoc.data().revenue || 0;
-          const currentTransactions = staffDoc.data().transactions || 0;
-          await updateDoc(staffRef, {
-            revenue: currentRevenue + total,
-            transactions: currentTransactions + 1,
-            lastSaleAt: Timestamp.now(),
-          });
-        }
-      } catch (error) {
-        console.warn('[SalePage] staff revenue update skipped', error);
-      }
-
-      const receiptId = `REC-${Date.now().toString().slice(-6)}`;
+      const receiptId = saleId
+        ? `REC-${String(saleId).slice(-6).toUpperCase()}`
+        : `REC-${Date.now().toString().slice(-6)}`;
       const receiptData: ReceiptData = {
         businessName,
         businessAddress,
@@ -453,8 +381,7 @@ export function SalePage({
         subtotal: total,
         amountPaid: totalPayment,
         outstandingBalance: Math.max(0, total - totalPayment),
-        paymentMethod:
-          paymentMethods.length === 1 ? paymentMethods[0].method : 'split',
+        paymentMethod: primaryMethod,
         logoUrl: businessLogo,
         theme: receiptTheme,
       };
@@ -465,9 +392,13 @@ export function SalePage({
       setSearchQuery('');
       setPaymentMethods([{ method: 'cash', amount: 0, received: true }]);
       onComplete?.(receiptData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('[SalePage] Error recording sale:', error);
-      alert('Failed to record sale. Please try again.');
+      const msg =
+        error?.message ||
+        error?.error_description ||
+        (typeof error === 'string' ? error : 'Failed to record sale. Please try again.');
+      alert(msg);
     } finally {
       setSubmitting(false);
     }
