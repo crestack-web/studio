@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { fetchDocs, addDoc, updateDoc, deleteDoc, toDate } from '@/lib/supabase-client-data';
+import { resolveOwnerScopeBusinessId } from '@/lib/resolve-business-scope';
+import { getSupabase } from '@/lib/supabase';
 import { checkFeatureAccess } from '@/lib/featureRestrictions';
 import { getIngredientUnits } from './utils/restaurantHelpers';
 import {
@@ -83,8 +85,70 @@ export default function IngredientsPage() {
   });
 
   const units = getIngredientUnits();
-  const path = user?.businessId ? `businesses/${user.businessId}/products` : '';
+  const [businessId, setBusinessId] = useState<string | null>(user?.businessId || null);
+
+  useEffect(() => {
+    if (user?.businessId && user.businessId !== businessId) {
+      setBusinessId(user.businessId);
+    }
+  }, [user?.businessId]);
+  const path = businessId ? `businesses/${businessId}/products` : '';
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Resolve businessId reliably (AppContext can lag or miss it)
+  const resolveBusinessId = useCallback(async (): Promise<string | null> => {
+    if (businessId) return businessId;
+    if (user?.businessId) {
+      setBusinessId(user.businessId);
+      return user.businessId;
+    }
+    const uid = user?.id;
+    if (!uid) {
+      try {
+        const { data: { session } } = await getSupabase().auth.getSession();
+        if (!session?.user?.id) return null;
+        const bid = await resolveOwnerScopeBusinessId(session.user.id);
+        if (bid) {
+          setBusinessId(bid);
+          return bid;
+        }
+        // Profile fallback
+        const { data: profile } = await getSupabase()
+          .from('users')
+          .select('business_id, businessId')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        const fromProfile = (profile as any)?.business_id || (profile as any)?.businessId || null;
+        if (fromProfile && fromProfile !== session.user.id) {
+          setBusinessId(String(fromProfile));
+          return String(fromProfile);
+        }
+        return null;
+      } catch {
+        return null;
+      }
+    }
+    try {
+      const bid = await resolveOwnerScopeBusinessId(uid, user?.businessId);
+      if (bid) {
+        setBusinessId(bid);
+        return bid;
+      }
+      const { data: profile } = await getSupabase()
+        .from('users')
+        .select('business_id, businessId')
+        .eq('id', uid)
+        .maybeSingle();
+      const fromProfile = (profile as any)?.business_id || (profile as any)?.businessId || null;
+      if (fromProfile && fromProfile !== uid) {
+        setBusinessId(String(fromProfile));
+        return String(fromProfile);
+      }
+    } catch (e) {
+      console.error('resolveBusinessId failed', e);
+    }
+    return null;
+  }, [businessId, user?.businessId, user?.id]);
 
   // Non-blocking plan check — never block the page on Firebase
   useEffect(() => {
@@ -112,13 +176,13 @@ export default function IngredientsPage() {
   }, [user?.id, showToast]);
 
   const loadAll = useCallback(async () => {
-    if (!user?.businessId) {
-      // Auth still resolving — keep spinner briefly; caller effect will retry
+    const bid = await resolveBusinessId();
+    if (!bid) {
       return false;
     }
     setLoadError(null);
     try {
-      const docs = await fetchDocs(`businesses/${user.businessId}/products`);
+      const docs = await fetchDocs(`businesses/${bid}/products`);
       const map: Record<string, MenuUsage[]> = {};
       const items: Ingredient[] = [];
 
@@ -189,24 +253,27 @@ export default function IngredientsPage() {
       showToast('Failed to load ingredients');
       return true; // stop spinner even on error
     }
-  }, [user?.businessId, showToast]);
+  }, [resolveBusinessId, showToast]);
 
-  // Load when businessId is ready; always clear spinner
+  // Load when user is available; resolve businessId then fetch
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const run = async () => {
-      if (!user?.businessId) {
-        // Wait for auth/business resolution, then stop spinner so page is usable
-        timer = setTimeout(() => {
-          if (!cancelled) setIsLoading(false);
-        }, 4000);
-        return;
-      }
       setIsLoading(true);
-      await loadAll();
-      if (!cancelled) setIsLoading(false);
+      const ok = await loadAll();
+      if (!cancelled) {
+        if (!ok) {
+          // Retry once after short delay (auth/business may still be loading)
+          timer = setTimeout(async () => {
+            await loadAll();
+            if (!cancelled) setIsLoading(false);
+          }, 1500);
+        } else {
+          setIsLoading(false);
+        }
+      }
     };
 
     run();
@@ -214,7 +281,7 @@ export default function IngredientsPage() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [user?.businessId, loadAll]);
+  }, [user?.id, loadAll]);
 
   const loadIngredients = loadAll;
   const loadMenuUsage = loadAll;
@@ -233,7 +300,8 @@ export default function IngredientsPage() {
   };
 
   const handleSave = async () => {
-    if (!user?.businessId) {
+    const bid = await resolveBusinessId();
+    if (!bid) {
       showToast('Business not loaded — refresh and try again');
       return;
     }
@@ -249,7 +317,7 @@ export default function IngredientsPage() {
 
     setSaving(true);
     try {
-      const savePath = `businesses/${user.businessId}/products`;
+      const savePath = `businesses/${bid}/products`;
       const stock = Math.max(0, Math.round(parseFloat(formData.currentStock) || 0));
       const minStock = Math.max(0, Math.round(parseFloat(formData.minimumStock) || 10));
       const ingredientData: Record<string, unknown> = {
@@ -293,8 +361,7 @@ export default function IngredientsPage() {
       setShowAddModal(false);
       setEditingIngredient(null);
       resetForm();
-      await loadIngredients();
-      await loadMenuUsage();
+      await loadAll();
     } catch (error: any) {
       console.error('Failed to save ingredient:', error);
       const msg = error?.message || error?.details || 'Failed to save ingredient';
@@ -305,7 +372,12 @@ export default function IngredientsPage() {
   };
 
   const handleDelete = async (ingredient: Ingredient) => {
-    if (!path) return;
+    const bid = await resolveBusinessId();
+    if (!bid) {
+      showToast('Business not loaded — refresh and try again');
+      return;
+    }
+    const deletePath = `businesses/${bid}/products`;
     const usedIn = usageMap[ingredient.id] || [];
     if (usedIn.length > 0) {
       const names = usedIn.map((u) => u.menuName).join(', ');
@@ -322,10 +394,9 @@ export default function IngredientsPage() {
 
     setDeletingId(ingredient.id);
     try {
-      await deleteDoc(path, ingredient.id);
+      await deleteDoc(deletePath, ingredient.id);
       showToast('Ingredient deleted');
-      await loadIngredients();
-      await loadMenuUsage();
+      await loadAll();
     } catch (error) {
       console.error('Failed to delete ingredient:', error);
       showToast('Failed to delete ingredient');
@@ -342,7 +413,12 @@ export default function IngredientsPage() {
   };
 
   const handleRestock = async () => {
-    if (!restockTarget || !path) return;
+    if (!restockTarget) return;
+    const bid = await resolveBusinessId();
+    if (!bid) {
+      showToast('Business not loaded — refresh and try again');
+      return;
+    }
     const qty = parseFloat(restockQty);
     if (isNaN(qty) || qty <= 0) {
       showToast('Enter a valid quantity');
@@ -351,7 +427,8 @@ export default function IngredientsPage() {
 
     setRestocking(true);
     try {
-      const newStock = restockTarget.currentStock + qty;
+      const restockPath = `businesses/${bid}/products`;
+      const newStock = Math.max(0, Math.round(restockTarget.currentStock + qty));
       const updates: Record<string, unknown> = {
         stock: newStock,
         stockLevel: newStock,
@@ -364,11 +441,11 @@ export default function IngredientsPage() {
         updates.cost = newCost;
         updates.costPrice = newCost;
       }
-      await updateDoc(path, restockTarget.id, updates);
+      await updateDoc(restockPath, restockTarget.id, updates);
       showToast(`Restocked ${qty} ${restockTarget.unit} of ${restockTarget.name}`);
       setShowRestockModal(false);
       setRestockTarget(null);
-      await loadIngredients();
+      await loadAll();
     } catch (error) {
       console.error('Failed to restock:', error);
       showToast('Failed to restock');

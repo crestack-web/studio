@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { fetchDocs, addDoc, updateDoc, deleteDoc, toDate } from '@/lib/supabase-client-data';
+import { resolveOwnerScopeBusinessId } from '@/lib/resolve-business-scope';
+import { getSupabase } from '@/lib/supabase';
 import { checkFeatureAccess } from '@/lib/featureRestrictions';
 import { getDishCategories } from './utils/restaurantHelpers';
 import { Plus, Edit2, Trash2, Search, Clock, X, ChefHat, Loader2 } from 'lucide-react';
@@ -65,36 +67,90 @@ export default function MenuManagementPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const dishCategories = getDishCategories();
+  const [businessId, setBusinessId] = useState<string | null>(user?.businessId || null);
+
+  useEffect(() => {
+    if (user?.businessId && user.businessId !== businessId) {
+      setBusinessId(user.businessId);
+    }
+  }, [user?.businessId]);
+
+  const resolveBusinessId = useCallback(async (): Promise<string | null> => {
+    if (businessId) return businessId;
+    if (user?.businessId) {
+      setBusinessId(user.businessId);
+      return user.businessId;
+    }
+    const uid = user?.id;
+    try {
+      let authId = uid;
+      if (!authId) {
+        const { data: { session } } = await getSupabase().auth.getSession();
+        authId = session?.user?.id;
+      }
+      if (!authId) return null;
+      const bid = await resolveOwnerScopeBusinessId(authId, user?.businessId);
+      if (bid) {
+        setBusinessId(bid);
+        return bid;
+      }
+      const { data: profile } = await getSupabase()
+        .from('users')
+        .select('business_id, businessId')
+        .eq('id', authId)
+        .maybeSingle();
+      const fromProfile = (profile as any)?.business_id || (profile as any)?.businessId || null;
+      if (fromProfile && fromProfile !== authId) {
+        setBusinessId(String(fromProfile));
+        return String(fromProfile);
+      }
+    } catch (e) {
+      console.error('resolveBusinessId failed', e);
+    }
+    return null;
+  }, [businessId, user?.businessId, user?.id]);
 
   useEffect(() => {
     const checkAccess = async () => {
       if (user?.id) {
-        const hasAccess = await checkFeatureAccess(user.id, 'menu-management');
-        if (!hasAccess.eligible) {
-          showToast('This feature requires a Standard plan or higher');
-        }
+        try {
+          const hasAccess = await Promise.race([
+            checkFeatureAccess(user.id, 'menu-management'),
+            new Promise<{ eligible: boolean }>((r) => setTimeout(() => r({ eligible: true }), 2500)),
+          ]);
+          if (!hasAccess.eligible) {
+            showToast('This feature requires a Standard plan or higher');
+          }
+        } catch { /* ignore */ }
       }
     };
     checkAccess();
-  }, [user]);
+  }, [user?.id, showToast]);
 
   useEffect(() => {
-    if (!user?.businessId) {
-      const t = setTimeout(() => setIsLoading(false), 4000);
-      return () => clearTimeout(t);
-    }
-    setIsLoading(true);
-    loadMenuItems();
-    loadIngredients();
-  }, [user?.businessId]);
+    let cancelled = false;
+    const run = async () => {
+      setIsLoading(true);
+      const bid = await resolveBusinessId();
+      if (!bid) {
+        setTimeout(() => { if (!cancelled) setIsLoading(false); }, 2000);
+        return;
+      }
+      await Promise.all([loadMenuItems(bid), loadIngredients(bid)]);
+      if (!cancelled) setIsLoading(false);
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [user?.id, resolveBusinessId]);
 
-  const loadMenuItems = async () => {
+  const loadMenuItems = async (bidArg?: string) => {
     try {
-      if (!user?.businessId) {
+      const bid = bidArg || (await resolveBusinessId());
+      if (!bid) {
         setIsLoading(false);
         return;
       }
-      const docs = await fetchDocs(`businesses/${user.businessId}/products`);
+      const docs = await fetchDocs(`businesses/${bid}/products`);
       const items = docs
         .map((data: any) => {
           const meta = data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
@@ -134,10 +190,11 @@ export default function MenuManagementPage() {
     }
   };
 
-  const loadIngredients = async () => {
+  const loadIngredients = async (bidArg?: string) => {
     try {
-      if (!user?.businessId) return;
-      const docs = await fetchDocs(`businesses/${user.businessId}/products`);
+      const bid = bidArg || (await resolveBusinessId());
+      if (!bid) return;
+      const docs = await fetchDocs(`businesses/${bid}/products`);
       const options = docs
         .map((data: any) => {
           const meta = data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
@@ -204,7 +261,8 @@ export default function MenuManagementPage() {
   };
 
   const handleSave = async () => {
-    if (!user?.businessId) {
+    const bid = await resolveBusinessId();
+    if (!bid) {
       showToast('Business not loaded — refresh and try again');
       return;
     }
@@ -223,7 +281,7 @@ export default function MenuManagementPage() {
     }
     setSaving(true);
     try {
-      const path = `businesses/${user.businessId}/products`;
+      const path = `businesses/${bid}/products`;
       const cost = calculatedCost;
       const itemData: Record<string, unknown> = {
         name: formData.name.trim(),
@@ -261,8 +319,8 @@ export default function MenuManagementPage() {
       setShowAddModal(false);
       setEditingItem(null);
       resetForm();
-      await loadMenuItems();
-      await loadIngredients();
+      await loadMenuItems(bid);
+      await loadIngredients(bid);
     } catch (error: any) {
       console.error('Failed to save menu item:', error);
       const msg = error?.message || error?.details || 'Failed to save menu item';
@@ -274,12 +332,16 @@ export default function MenuManagementPage() {
 
   const handleDelete = async (itemId: string) => {
     if (!confirm('Are you sure you want to delete this menu item?')) return;
-    if (!user?.businessId) return;
+    const bid = await resolveBusinessId();
+    if (!bid) {
+      showToast('Business not loaded — refresh and try again');
+      return;
+    }
     setDeletingId(itemId);
     try {
-      await deleteDoc(`businesses/${user.businessId}/products`, itemId);
+      await deleteDoc(`businesses/${bid}/products`, itemId);
       showToast('Menu item deleted successfully');
-      await loadMenuItems();
+      await loadMenuItems(bid);
     } catch (error) {
       console.error('Failed to delete menu item:', error);
       showToast('Failed to delete menu item');
