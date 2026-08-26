@@ -61,8 +61,15 @@ export function ReportsPage() {
         .select('*')
         .eq('id', userIds.firestoreUid)
         .single();
-      if (userDoc) {
-        setBusinessId(userDoc.businessId || userDoc.business_id || null);
+      if (user?.businessId) {
+        setBusinessId(user.businessId);
+      } else {
+        const { resolveOwnerScopeBusinessId } = await import('@/lib/resolve-business-scope');
+        const bid = await resolveOwnerScopeBusinessId(
+          user?.id || userIds.firestoreUid,
+          userDoc.businessId || userDoc.business_id
+        );
+        setBusinessId(bid);
       }
     }
     resolveBusinessId();

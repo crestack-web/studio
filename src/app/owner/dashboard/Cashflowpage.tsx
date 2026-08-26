@@ -243,12 +243,9 @@ export default function Cashflowpage() {
     let resolvedBusinessId = businessId || user?.businessId || '';
     if (!resolvedBusinessId && user?.id) {
       try {
-        const { data: userData } = await getSupabase()
-          .from('users')
-          .select('*')
-          .eq('id', user.id)
-          .maybeSingle();
-        resolvedBusinessId = userData?.businessId || userData?.business_id || '';
+        const { resolveOwnerScopeBusinessId } = await import('@/lib/resolve-business-scope');
+        resolvedBusinessId =
+          (await resolveOwnerScopeBusinessId(user.id, user.businessId)) || '';
       } catch (e) {
         console.warn('Cashflow businessId lookup failed', e);
       }

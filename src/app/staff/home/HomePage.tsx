@@ -1,7 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { initializeFirebase } from '@/firebase';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
-import { fetchTodaysSales, fetchProducts } from './services/dataService';
+import { fetchTodaysSales, fetchRecentSales, fetchProducts } from './services/dataService';
 import type { Permissions, PageId } from './types';
 import { DAILY_TARGET } from './data';
 import { formatCurrency } from '@/lib/currency';
@@ -137,73 +135,54 @@ export const HomePage: React.FC<HomePageProps> = ({
 
     async function loadData() {
       try {
-        const { firestore: db } = initializeFirebase();
-        if (!db) {
-          console.warn('Firestore not available');
-          return;
-        }
+        if (!businessId) return;
 
-        // ONLY this staff member's assigned business — never query without businessId
-        const todayData = await fetchTodaysSales(db, businessId, staffId);
+        // Supabase-only — same pipeline as owner (no Firestore cross-account reads)
+        const todayData = await fetchTodaysSales(undefined, businessId, staffId);
         if (cancelled) return;
         setSalesTotal(todayData.sales);
         setTransactions(todayData.transactions);
 
-        const products = await fetchProducts(db, businessId);
+        const products = await fetchProducts(undefined, businessId);
         if (cancelled) return;
         const lowStock = products.filter(
           (p) => p.stock <= (p.lowStockThreshold || 10)
         ).length;
         setLowStockCount(lowStock);
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        let salesQuery = query(
-          collection(db, 'businesses', businessId, 'sales'),
-          where('createdAt', '>=', Timestamp.fromDate(today))
-        );
-
-        const salesSnapshot = await getDocs(salesQuery);
+        const recent = await fetchRecentSales(undefined, businessId, 80);
         if (cancelled) return;
+
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const startMs = startOfDay.getTime();
 
         let cashTotal = 0;
         let bankTotal = 0;
         let units = 0;
 
-        salesSnapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          // Prefer this staff member's sales for accountability tiles
-          const recordedUid =
-            data.recordedBy?.uid || data.soldBy || data.recordedBy?.staffId;
-          if (staffId && recordedUid && recordedUid !== staffId) {
-            // still count business-wide low stock above; cash accountability is personal
-            // skip personal cash for other staff
-          } else {
-            if (data.paymentMethods) {
-              if (data.paymentMethods.cash) cashTotal += data.paymentMethods.cash;
-              if (data.paymentMethods.transfer || data.paymentMethods.pos) {
-                bankTotal +=
-                  (data.paymentMethods.transfer || 0) +
-                  (data.paymentMethods.pos || 0);
-              }
-            } else if (data.expectedCash != null || data.expectedBank != null) {
-              cashTotal += data.expectedCash || 0;
-              bankTotal += data.expectedBank || 0;
-            } else if (data.paymentMethod === 'cash') {
-              cashTotal += data.totalRevenue || data.total || 0;
-            } else if (
-              data.paymentMethod === 'transfer' ||
-              data.paymentMethod === 'pos'
-            ) {
-              bankTotal += data.totalRevenue || data.total || 0;
-            }
+        for (const sale of recent) {
+          const created = sale.createdAt ? new Date(sale.createdAt).getTime() : 0;
+          if (created && created < startMs) continue;
 
-            const prods = data.products || [];
-            prods.forEach((p: { quantity?: number }) => {
-              units += p.quantity || 0;
-            });
+          const recordedUid =
+            (sale as any).soldBy ||
+            (sale as any).recordedBy?.uid ||
+            (sale as any).recordedBy?.staffId;
+          if (staffId && recordedUid && recordedUid !== staffId) continue;
+
+          const total = Number(sale.total) || 0;
+          const method = String(sale.paymentMethod || 'cash').toLowerCase();
+          if (method === 'cash') cashTotal += total;
+          else if (method === 'transfer' || method === 'pos' || method === 'card')
+            bankTotal += total;
+          else cashTotal += total;
+
+          const prods = sale.products || [];
+          for (const p of prods) {
+            units += Number((p as any).quantity) || 0;
           }
-        });
+        }
 
         setCashInCounter(cashTotal);
         setBankPayments(bankTotal);

@@ -68,7 +68,14 @@ export default function CapitalPage() {
           return;
         }
 
-        const businessId = userData.businessId || user.id;
+        const { resolveOwnerScopeBusinessId } = await import('@/lib/resolve-business-scope');
+        const businessId =
+          (await resolveOwnerScopeBusinessId(user.id, userData.businessId || userData.business_id)) ||
+          '';
+        if (!businessId) {
+          showToast('No business found for this account');
+          return;
+        }
 
         const businessConfig = await fetchDoc(`businesses/${businessId}/store`, 'config');
         if (businessConfig) {

@@ -106,17 +106,24 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
     let cancelled = false;
     async function loadProducts() {
       try {
-        const db = staffDb();
-        if (!db) return;
-        const fetchedProducts = await fetchProducts(db, businessId);
+        const fetchedProducts = await fetchProducts(undefined, businessId);
         if (cancelled) return;
         setProducts(fetchedProducts);
-        const businessDoc = await getDoc(doc(db, 'businesses', businessId));
-        if (cancelled) return;
-        if (businessDoc.exists()) {
-          const businessData = businessDoc.data();
-          const currency = businessData.currency || businessData.businessCurrency || businessData.defaultCurrency || currencyProp || '₦';
-          setBusinessCurrency(currency);
+        try {
+          const { fetchDoc } = await import('@/lib/supabase-client-data');
+          const businessData = await fetchDoc('businesses', businessId);
+          if (cancelled) return;
+          if (businessData) {
+            const currency =
+              (businessData as any).currency ||
+              (businessData as any).businessCurrency ||
+              (businessData as any).defaultCurrency ||
+              currencyProp ||
+              '₦';
+            setBusinessCurrency(currency);
+          }
+        } catch {
+          /* currency optional */
         }
       } catch (error) {
         console.error('Error loading products:', error);
@@ -287,9 +294,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ hasAccess, sessionSale
     let cancelled = false;
     async function loadSalesHistory() {
       try {
-        const db = staffDb();
-        if (!db) return;
-        const recentSales = await fetchRecentSales(db, businessId, 50);
+        const recentSales = await fetchRecentSales(undefined, businessId, 50);
         if (cancelled) return;
         let filtered = recentSales;
         if (staffId) {

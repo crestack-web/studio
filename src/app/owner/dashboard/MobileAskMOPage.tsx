@@ -171,7 +171,7 @@ export function MobileAskMOPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: pendingAction,
-            businessId: user.businessId || user.id,
+            businessId: user.businessId || undefined,
             userId: user.id,
             userRole: user.role,
           }),
@@ -240,7 +240,7 @@ export function MobileAskMOPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             action: pendingAction,
-            businessId: user.businessId || user.id,
+            businessId: user.businessId || undefined,
             userId: user.id,
             userRole: user.role,
           }),
@@ -622,7 +622,7 @@ export function MobileAskMOPage() {
       const requestBody: any = {
         message: finalMessage,
         image: finalImageUrl,
-        businessId: user.businessId || user.id,
+        businessId: user.businessId || undefined,
         userId: user.id,
         conversationHistory: currentConversationId ? messages.slice(-10).map(m => ({ role: m.role, content: m.content })) : [],
         userPlan: user.plan || planLimit === -1 ? 'pro' : planLimit === 50 ? 'standard' : 'starter',

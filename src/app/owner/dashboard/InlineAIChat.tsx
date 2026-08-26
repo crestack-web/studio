@@ -426,7 +426,7 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
       const requestBody: any = {
         message: finalMessage,
         image: finalImageUrl,
-        businessId: user.businessId || user.id,
+        businessId: user.businessId || undefined,
         userId: user.id,
         conversationHistory: messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
         userPlan: user.plan || 'starter',
@@ -546,7 +546,7 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: pendingAction,
-          businessId: user.businessId || user.id,
+          businessId: user.businessId || undefined,
           userId: user.id,
           userRole: user.role,
         }),

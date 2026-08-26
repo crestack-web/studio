@@ -134,7 +134,11 @@ export function RecordSalePage() {
           return;
         }
 
-        const bId = userDoc.businessId || userDoc.business_id;
+        let bId = userDoc.businessId || userDoc.business_id || '';
+        if (!bId || bId === user?.id) {
+          const { resolveOwnerScopeBusinessId } = await import('@/lib/resolve-business-scope');
+          bId = (await resolveOwnerScopeBusinessId(user?.id, bId || user?.businessId)) || '';
+        }
         if (!bId) {
           console.warn('Business ID not found for user');
           setLoading(false);

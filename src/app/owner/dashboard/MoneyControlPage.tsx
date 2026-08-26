@@ -151,13 +151,9 @@ export default function MoneyControlPage() {
       let resolvedBusinessId = user.businessId || '';
       if (!resolvedBusinessId && user.id) {
         try {
-          const { data: userData } = await getSupabase()
-            .from('users')
-            .select('*')
-            .eq('id', user.id)
-            .maybeSingle();
+          const { resolveOwnerScopeBusinessId } = await import('@/lib/resolve-business-scope');
           resolvedBusinessId =
-            userData?.businessId || userData?.business_id || user.id;
+            (await resolveOwnerScopeBusinessId(user.id, user.businessId)) || '';
         } catch (e) {
           console.warn('Money Control businessId lookup failed', e);
         }

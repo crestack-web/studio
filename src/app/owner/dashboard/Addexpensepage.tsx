@@ -124,7 +124,11 @@ export function AddExpensePage() {
         return;
       }
 
-      const bizId = userDoc.businessId || userDoc.business_id;
+      let bizId = userDoc.businessId || userDoc.business_id || '';
+      if (!bizId) {
+        const { resolveOwnedBusinessId } = await import('@/lib/resolve-business-scope');
+        bizId = (await resolveOwnedBusinessId(userIds?.supabaseUid || userIds?.firestoreUid)) || '';
+      }
       if (!bizId) {
         showToast('⚠️ Business ID not found');
         return;

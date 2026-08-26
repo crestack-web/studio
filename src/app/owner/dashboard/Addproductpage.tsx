@@ -126,9 +126,15 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
         let bid: string | null = null;
         
         if (userData) {
-          bid = userData.businessId || firestoreUid;
+          bid = userData.businessId || userData.business_id || '';
         } else {
-          bid = session.user.user_metadata?.businessId || firestoreUid;
+          bid = session.user.user_metadata?.businessId || '';
+        }
+        // Never use auth uid as businessId (cross-account leak)
+        if (bid === userId || bid === firestoreUid) bid = '';
+        if (!bid) {
+          const { resolveOwnedBusinessId } = await import('@/lib/resolve-business-scope');
+          bid = (await resolveOwnedBusinessId(userId)) || '';
         }
         
         setBusinessId(bid);

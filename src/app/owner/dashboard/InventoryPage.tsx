@@ -622,7 +622,11 @@ const InventoryPage: React.FC = () => {
       // Add imported products to Supabase
       const addImportedProducts = async () => {
         try {
-          const effectiveBusinessId = user?.businessId || businessId || 'demo';
+          const effectiveBusinessId = user?.businessId || businessId || '';
+          if (!effectiveBusinessId) {
+            showToast('No business linked to this account');
+            return;
+          }
           for (const product of importedProducts) {
             await sbAddDoc(`businesses/${effectiveBusinessId}/products`, {
               ...product,
