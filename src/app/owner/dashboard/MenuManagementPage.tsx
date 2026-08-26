@@ -79,13 +79,21 @@ export default function MenuManagementPage() {
   }, [user]);
 
   useEffect(() => {
+    if (!user?.businessId) {
+      const t = setTimeout(() => setIsLoading(false), 4000);
+      return () => clearTimeout(t);
+    }
+    setIsLoading(true);
     loadMenuItems();
     loadIngredients();
   }, [user?.businessId]);
 
   const loadMenuItems = async () => {
     try {
-      if (!user?.businessId) return;
+      if (!user?.businessId) {
+        setIsLoading(false);
+        return;
+      }
       const docs = await fetchDocs(`businesses/${user.businessId}/products`);
       const items = docs
         .map((data: any) => {

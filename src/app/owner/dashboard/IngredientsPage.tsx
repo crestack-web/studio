@@ -84,89 +84,140 @@ export default function IngredientsPage() {
 
   const units = getIngredientUnits();
   const path = user?.businessId ? `businesses/${user.businessId}/products` : '';
+  const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Non-blocking plan check — never block the page on Firebase
   useEffect(() => {
+    let cancelled = false;
     const checkAccess = async () => {
-      if (user?.id) {
-        const hasAccess = await checkFeatureAccess(user.id, 'ingredient-tracking');
-        if (!hasAccess.eligible) {
+      if (!user?.id) return;
+      try {
+        const hasAccess = await Promise.race([
+          checkFeatureAccess(user.id, 'ingredient-tracking'),
+          new Promise<{ eligible: boolean }>((resolve) =>
+            setTimeout(() => resolve({ eligible: true }), 2500)
+          ),
+        ]);
+        if (!cancelled && !hasAccess.eligible) {
           showToast('This feature requires a Standard plan or higher');
         }
+      } catch {
+        // ignore — page still usable
       }
     };
     checkAccess();
-  }, [user]);
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, showToast]);
 
-  const loadIngredients = useCallback(async () => {
-    if (!user?.businessId) return;
-    try {
-      const docs = await fetchDocs(`businesses/${user.businessId}/products`);
-      const items = docs
-        .map((data: any) => {
-          const meta = data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
-          return {
-            id: data.id,
-            name: data.name || '',
-            category: data.category || meta.category || 'other',
-            unit: data.ingredientUnit || meta.ingredientUnit || data.unit || 'Piece',
-            currentStock: Number(data.stock ?? data.stockLevel ?? data.currentStock ?? 0),
-            minimumStock: Number(
-              data.reorderLevel ?? data.lowStockThreshold ?? meta.minimumStock ?? 10
-            ),
-            unitCost: Number(data.cost ?? data.costPrice ?? data.unitCost ?? meta.unitCost ?? 0),
-            supplier: data.supplier || meta.supplier,
-            lastRestocked: toDate(data.lastRestocked || meta.lastRestocked) || toDate(data.createdAt),
-            expiryDate: toDate(data.expiryDate || meta.expiryDate),
-            active: data.active !== false,
-            createdAt: toDate(data.createdAt) || new Date(),
-            productType: data.productType || meta.productType,
-          };
-        })
-        .filter((item: any) => item.productType === 'ingredient') as Ingredient[];
-      setIngredients(items);
-    } catch (error) {
-      console.error('Failed to load ingredients:', error);
-      showToast('Failed to load ingredients');
-    } finally {
-      setIsLoading(false);
+  const loadAll = useCallback(async () => {
+    if (!user?.businessId) {
+      // Auth still resolving — keep spinner briefly; caller effect will retry
+      return false;
     }
-  }, [user?.businessId, showToast]);
-
-  const loadMenuUsage = useCallback(async () => {
-    if (!user?.businessId) return;
+    setLoadError(null);
     try {
       const docs = await fetchDocs(`businesses/${user.businessId}/products`);
       const map: Record<string, MenuUsage[]> = {};
-      docs.forEach((data: any) => {
-        const meta = data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
-        const productType = data.productType || meta.productType;
-        if (productType === 'ingredient') return;
-        const recipe = Array.isArray(data.recipeIngredients)
-          ? data.recipeIngredients
-          : Array.isArray(meta.recipeIngredients)
-            ? meta.recipeIngredients
-            : [];
-        recipe.forEach((line: any) => {
-          if (!line?.ingredientId) return;
-          if (!map[line.ingredientId]) map[line.ingredientId] = [];
-          map[line.ingredientId].push({
-            menuId: data.id,
-            menuName: data.name || 'Menu item',
-            quantity: Number(line.quantity || 0),
-            unit: line.unit || '',
-          });
-        });
-      });
-      setUsageMap(map);
-    } catch (error) {
-      console.error('Failed to load menu usage:', error);
-    }
-  }, [user?.businessId]);
+      const items: Ingredient[] = [];
 
+      for (const data of docs as any[]) {
+        const meta =
+          data.metadata && typeof data.metadata === 'object' && !Array.isArray(data.metadata)
+            ? data.metadata
+            : {};
+        const productType = data.productType || meta.productType || null;
+
+        // Build menu usage from dishes
+        if (productType !== 'ingredient') {
+          const recipe = Array.isArray(data.recipeIngredients)
+            ? data.recipeIngredients
+            : Array.isArray(meta.recipeIngredients)
+              ? meta.recipeIngredients
+              : [];
+          for (const line of recipe) {
+            if (!line?.ingredientId) continue;
+            if (!map[line.ingredientId]) map[line.ingredientId] = [];
+            map[line.ingredientId].push({
+              menuId: String(data.id),
+              menuName: String(data.name || 'Menu item'),
+              quantity: Number(line.quantity || 0),
+              unit: String(line.unit || ''),
+            });
+          }
+          continue;
+        }
+
+        items.push({
+          id: String(data.id),
+          name: String(data.name || ''),
+          category: String(data.category || meta.category || 'other'),
+          unit: String(
+            data.ingredientUnit || meta.ingredientUnit || data.unit || 'Piece'
+          ),
+          currentStock: Number(
+            data.stock ?? data.stockLevel ?? data.currentStock ?? meta.currentStock ?? 0
+          ),
+          minimumStock: Number(
+            data.reorderLevel ??
+              data.lowStockThreshold ??
+              meta.minimumStock ??
+              meta.reorderLevel ??
+              10
+          ),
+          unitCost: Number(
+            data.cost ?? data.costPrice ?? data.unitCost ?? meta.unitCost ?? 0
+          ),
+          supplier: (data.supplier || meta.supplier || undefined) as string | undefined,
+          lastRestocked:
+            toDate(data.lastRestocked || meta.lastRestocked) ||
+            toDate(data.updatedAt) ||
+            toDate(data.createdAt),
+          expiryDate: toDate(data.expiryDate || meta.expiryDate),
+          active: data.active !== false && data.status !== 'inactive',
+          createdAt: toDate(data.createdAt) || new Date(),
+        });
+      }
+
+      setIngredients(items);
+      setUsageMap(map);
+      return true;
+    } catch (error: any) {
+      console.error('Failed to load ingredients:', error);
+      setLoadError(error?.message || 'Failed to load ingredients');
+      showToast('Failed to load ingredients');
+      return true; // stop spinner even on error
+    }
+  }, [user?.businessId, showToast]);
+
+  // Load when businessId is ready; always clear spinner
   useEffect(() => {
-    loadIngredients();
-    loadMenuUsage();
-  }, [loadIngredients, loadMenuUsage]);
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const run = async () => {
+      if (!user?.businessId) {
+        // Wait for auth/business resolution, then stop spinner so page is usable
+        timer = setTimeout(() => {
+          if (!cancelled) setIsLoading(false);
+        }, 4000);
+        return;
+      }
+      setIsLoading(true);
+      await loadAll();
+      if (!cancelled) setIsLoading(false);
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [user?.businessId, loadAll]);
+
+  const loadIngredients = loadAll;
+  const loadMenuUsage = loadAll;
 
   const resetForm = () => {
     setFormData({
@@ -372,6 +423,11 @@ export default function IngredientsPage() {
         <div className="text-center">
           <div className={styles.loadingSpinner}></div>
           <p className={styles.loadingText}>Loading ingredients...</p>
+          {!user?.businessId && (
+            <p className={styles.loadingText} style={{ marginTop: 8, opacity: 0.7 }}>
+              Waiting for business…
+            </p>
+          )}
         </div>
       </div>
     );
@@ -379,6 +435,24 @@ export default function IngredientsPage() {
 
   return (
     <div className={styles.wrapper}>
+      {loadError && (
+        <div className={styles.alertBanner} style={{ marginBottom: 16 }}>
+          <AlertTriangle size={18} />
+          <span>{loadError}</span>
+          <button
+            type="button"
+            className={styles.addButton}
+            style={{ marginLeft: 'auto' }}
+            onClick={async () => {
+              setIsLoading(true);
+              await loadAll();
+              setIsLoading(false);
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>Ingredients</h1>
@@ -389,9 +463,10 @@ export default function IngredientsPage() {
         <div className={styles.headerActions}>
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               setIsLoading(true);
-              loadIngredients().then(() => loadMenuUsage());
+              await loadAll();
+              setIsLoading(false);
             }}
             className={styles.refreshButton}
             title="Refresh"
