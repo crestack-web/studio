@@ -85,12 +85,19 @@ export async function sendTransactionalEmail(
     throw new Error('sendTransactionalEmail: recipient email addresses are required');
   }
 
-  const body = {
+  const body: Record<string, unknown> = {
     from: formatFrom(email.sender),
     to,
     subject: email.subject,
     html: email.htmlContent,
   };
+
+  // Optional reply-to from params
+  if (email.params?.replyTo) {
+    body.reply_to = email.params.replyTo;
+  }
+
+  console.log('[email] Sending via Resend →', to.join(', '), '| from:', body.from);
 
   const res = await fetch(RESEND_API_URL, {
     method: 'POST',
@@ -106,15 +113,23 @@ export async function sendTransactionalEmail(
   if (!res.ok) {
     const msg =
       (data as any)?.message ||
-      (data as any)?.error ||
+      (typeof (data as any)?.error === 'string'
+        ? (data as any).error
+        : (data as any)?.error?.message) ||
       res.statusText ||
       'Unknown Resend error';
-    console.error('[email] Resend error:', res.status, data);
+    console.error('[email] Resend error:', res.status, JSON.stringify(data));
     throw new Error(`Failed to send email via Resend: ${msg}`);
   }
 
-  console.log('[email] Sent via Resend:', (data as any)?.id, '→', to.join(', '));
-  return { id: (data as any)?.id || '' };
+  const id = (data as any)?.id || '';
+  if (!id) {
+    console.error('[email] Resend 2xx but missing id', data);
+    throw new Error('Resend accepted the request but returned no message id');
+  }
+
+  console.log('[email] Sent via Resend:', id, '→', to.join(', '));
+  return { id };
 }
 
 // ── Campaign / contact stubs (Brevo-specific; not used for Resend) ─

@@ -81,7 +81,8 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
       if (!res.ok) {
         throw new Error(json.error || 'Failed to alert owner');
       }
-      setAlertMsg('Owner has been emailed about the stock issue.');
+      const dest = json.emailed ? ` (${json.emailed})` : '';
+      setAlertMsg(`Owner has been emailed about the stock issue${dest}.`);
     } catch (e: any) {
       console.error(e);
       setAlertMsg(e?.message || 'Could not send alert. Try again.');

@@ -423,5 +423,6 @@ export async function sendStaffStockAlertToOwner(params: StaffStockAlertParams):
     to: [{ email: ownerEmail, name: ownerName }],
     subject: `🚨 ${title}: ${products.length} product${products.length === 1 ? '' : 's'} · ${businessName}`,
     htmlContent,
+    params: staffEmail ? { replyTo: staffEmail } : undefined,
   });
 }
