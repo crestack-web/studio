@@ -38,35 +38,49 @@ const InventoryPage: React.FC = () => {
   useEffect(() => {
     const fetchProducts = async () => {
       if (!user?.id) {
-        setIsLoading(true);
+        setIsLoading(false);
         return;
       }
 
       try {
         setIsLoading(true);
-        
-        const effectiveBusinessId = user.businessId || businessId;
-        if (!effectiveBusinessId) {
-          setIsLoading(true);
-          return;
-        }
+        setError(null);
 
-        // Load business category from Supabase
+        // Resolve business id the same way as Add Product / Record Sale
+        let effectiveBusinessId = user.businessId || businessId || '';
         try {
-          const { data: userData } = await getSupabase().from('users').select('*').eq('id', user.id).single();
+          const { data: userData } = await getSupabase()
+            .from('users')
+            .select('*')
+            .eq('id', user.id)
+            .single();
           if (userData) {
+            effectiveBusinessId =
+              userData.businessId ||
+              userData.business_id ||
+              effectiveBusinessId ||
+              user.id;
             if (userData.category || userData.business_type) {
               setBusinessCategory((userData.category || userData.business_type).toLowerCase());
             }
           }
         } catch (e) {
-          console.error('Error loading business category:', e);
+          console.error('Error loading user/business for inventory:', e);
         }
 
+        if (!effectiveBusinessId) {
+          setProducts([]);
+          setError('Business not found for this account.');
+          setIsLoading(false);
+          return;
+        }
+
+        console.log('[Inventory] loading products for businessId:', effectiveBusinessId);
+
         // Always load business-level products (add-product writes here).
-        // Branch-scoped rows are optional extras for Pro multi-location setups.
         const mainProducts = await fetchDocs(`businesses/${effectiveBusinessId}/products`);
         let productsData: any[] = Array.isArray(mainProducts) ? [...mainProducts] : [];
+        console.log('[Inventory] main products count:', productsData.length);
 
         if (selectedBranchId && isProUser) {
           try {
@@ -85,12 +99,13 @@ const InventoryPage: React.FC = () => {
           }
         }
 
-        // Include active products and legacy rows with missing status
-        // (older writes stored boolean `active` in metadata without Postgres status).
+        // Hide only explicitly inactive/archived/draft products
         const isVisibleProduct = (data: any) => {
           const status = (data.status || '').toString().toLowerCase();
           if (['inactive', 'archived', 'deleted', 'draft'].includes(status)) return false;
-          if (data.active === false) return false;
+          // Only treat active===false as hidden when status is also explicitly inactive-like
+          // (toDoc used to force active=false for null status — those must still show)
+          if (data.active === false && status && status !== 'active') return false;
           return true;
         };
 

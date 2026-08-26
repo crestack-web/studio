@@ -235,8 +235,18 @@ function toDoc(tableName: string, row: Record<string, unknown>): Record<string, 
   }
 
   // Special status field handling for products
+  // Legacy rows may have null status (boolean active was stored in metadata only).
+  // Treat null/empty status as active so inventory still lists them.
   if (tableName === 'products') {
-    doc.active = row.status === 'active';
+    const status = row.status == null ? '' : String(row.status).toLowerCase();
+    if (!status || status === 'active') {
+      doc.active = true;
+      if (!status) doc.status = 'active';
+    } else if (['inactive', 'archived', 'deleted', 'draft'].includes(status)) {
+      doc.active = false;
+    } else {
+      doc.active = true;
+    }
   }
 
   return doc;
@@ -345,20 +355,18 @@ export interface QueryOptions {
  * Supports: `businesses/{bid}/collectionName` or just `collectionName`.
  */
 function parsePath(path: string): { businessId: string | null; table: string } {
-  const parts = path.split('/');
+  const parts = path.split('/').filter(Boolean);
 
   if (parts.length >= 3 && parts[0] === 'businesses') {
     const businessId = parts[1];
-    const collection = parts[2];
-    // Handle nested like `businesses/{bid}/branches/{branchId}/products`
-    if (parts.length > 3) {
-      return { businessId, table: tableForCollection(collection) };
-    }
+    // Last path segment is the collection/table (supports nested paths like
+    // businesses/{bid}/branches/{branchId}/products → products)
+    const collection = parts[parts.length - 1];
     return { businessId, table: tableForCollection(collection) };
   }
 
   // Top-level collection (e.g., 'users')
-  return { businessId: null, table: tableForCollection(parts[parts.length - 1]) };
+  return { businessId: null, table: tableForCollection(parts[parts.length - 1] || path) };
 }
 
 /**
