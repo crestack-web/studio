@@ -128,3 +128,5 @@ export {
   sendServiceIncidentEmail,
   sendServiceRestoredEmail,
 } from './administrative-emails';
+
+export { sendStaffStockAlertToOwner } from './inventory-emails';

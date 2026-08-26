@@ -14,6 +14,8 @@ interface InventoryPageProps {
   hasAccess: boolean;
   businessId: string;
   currency?: string;
+  staffId?: string;
+  staffName?: string;
 }
 
 
@@ -22,11 +24,71 @@ function staffDb() {
   return firestore;
 }
 
-export const InventoryPage: React.FC<InventoryPageProps> = ({ hasAccess, businessId, currency: currencyProp }) => {
+export const InventoryPage: React.FC<InventoryPageProps> = ({
+  hasAccess,
+  businessId,
+  currency: currencyProp,
+  staffId,
+  staffName,
+}) => {
   const [search, setSearch] = useState('');
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [businessCurrency, setBusinessCurrency] = useState('₦');
+  const [alerting, setAlerting] = useState(false);
+  const [alertMsg, setAlertMsg] = useState<string | null>(null);
+
+  const alertOwnerAboutStock = async () => {
+    const lowProducts = products.filter((p) => p.stock <= (p.lowStockThreshold || 10));
+    if (!lowProducts.length) {
+      setAlertMsg('No low-stock products to report.');
+      return;
+    }
+    if (!businessId) {
+      setAlertMsg('Business not found.');
+      return;
+    }
+    setAlerting(true);
+    setAlertMsg(null);
+    try {
+      const { getSupabase } = await import('@/lib/supabase');
+      const supabase = getSupabase();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        setAlertMsg('Please sign in again to send an alert.');
+        return;
+      }
+      const res = await fetch('/api/staff/stock-alert', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          businessId,
+          alertType: lowProducts.some((p) => p.stock === 0) ? 'lost_stock' : 'low_stock',
+          products: lowProducts.map((p) => ({
+            name: p.name,
+            stock: p.stock,
+            lowStockThreshold: p.lowStockThreshold || 10,
+            status: p.stock === 0 ? 'out' : 'low',
+          })),
+          note: staffName ? `Alert raised from staff inventory by ${staffName}` : undefined,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error || 'Failed to alert owner');
+      }
+      setAlertMsg('Owner has been emailed about the stock issue.');
+    } catch (e: any) {
+      console.error(e);
+      setAlertMsg(e?.message || 'Could not send alert. Try again.');
+    } finally {
+      setAlerting(false);
+    }
+  };
 
   useEffect(() => {
     if (currencyProp) setBusinessCurrency(currencyProp);
@@ -109,7 +171,19 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({ hasAccess, busines
             </div>
             Low Stock Alerts
           </div>
-          <button className="btn bxs bamb">Alert Owner</button>
+          <button
+            type="button"
+            className="btn bxs bamb"
+            disabled={alerting || products.filter((p) => p.stock <= (p.lowStockThreshold || 10)).length === 0}
+            onClick={alertOwnerAboutStock}
+          >
+            {alerting ? 'Sending…' : 'Alert Owner'}
+          </button>
+          {alertMsg && (
+            <p style={{ fontSize: '0.8rem', marginTop: 8, color: alertMsg.includes('emailed') ? '#15803d' : '#b91c1c' }}>
+              {alertMsg}
+            </p>
+          )}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
           {lowCount > 0 ? (

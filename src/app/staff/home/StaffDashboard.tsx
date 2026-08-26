@@ -217,7 +217,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
               <LockedPage pageName="Record Sale" />
             ))}
           {page === 'inv' && (
-            <InventoryPage hasAccess={permissions.inv} businessId={businessId} currency={currency} />
+            <InventoryPage hasAccess={permissions.inv} businessId={businessId} currency={currency} staffId={staff?.id} staffName={staff?.name} />
           )}
           {page === 'hist' && (
             <HistoryPage

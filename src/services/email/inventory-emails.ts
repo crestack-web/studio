@@ -1,16 +1,8 @@
 import { sendTransactionalEmail } from './brevo-service';
+import { BUSMO_LOGO, getEmailHeader as sharedGetEmailHeader } from './email-constants';
 
-const BUSMO_LOGO = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAfQAAAH0CAYAAADL1t+KAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAABAAAAGgEFAAEAAABWAAAAGwEFAAEAAABeAAAAKAEDAAEAAAACAAAAEwIDAAEAAAABAAAAaYcEAAEAAABmAAAAAAAAAGAAAAABAAAAYAAAAAEAAAAGAACQBwAEAAAAMDIxMAGRBwAEAAAAAQIDAACgBwAEAAAAMDEwMAGgAwABAAAA//8AAAKgBAABAAAA9AEAAAOgBAABAAAA9AEAAAAAAAAA4cNEAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAF1mlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSfvu78nIGlkPSdXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQnPz4KPHg6eG1wbWV0YSB4bWxuczp4PSdhZG9iZTpuczptZXRhLyc+CjxyZGY6UkRGIHhtbG5zOnJkZj0naHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyc+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpBdHRyaWI9J2h0dHA6Ly9ucy5hdHRyaWJ1dGlvbi5jb20vYWRzLzEuMC8nPgogIDxBdHRyaWI6QWRzPgogICA8cmRmOlNlcT4KICAgIDxyZGY6bGkgcmRmOnBhcnNlVHlwZT0nUmVzb3VyY2UnPgogICAgIDxBdHRyaWI6Q3JlYXRlZD4yMDI2LTAyLTA3PC9BdHRyaWI6Q3JlYXRlZD4KICAgICA8QXR0cmliOkRhdGE+eyZxdW90O2RvYyZxdW90OzomcXVvdDtEQUctd2xCT0lvMCZxdW90OywmcXVvdDt1c2VyJnF1b3Q7OiZxdW90O1VBR3kzUUpfNGlZJnF1b3Q7LCZxdW90O2JyYW5kJnF1b3Q7OiZxdW90O0JBR3kzZTVObENvJnF1b3Q7LCZxdW90O3RlbXBsYXRlJnF1b3Q7OiZxdW90O09yYW5nZSBCbGFjayBCb2xkIFN0YXJ0dXAgSCBMZXR0ZXIgTG9nbyZxdW90O308L0F0dHJpYjpEYXRhPgogICAgIDxBdHRyaWI6RXh0SWQ+M2YyZTNkNTEtOTA0OS00YmM4LTkwZjAtMTcxMGZmYzFkYjQ2PC9BdHRyaWI6RXh0SWQ+CiAgICAgPEF0dHJpYjpGYklkPjUyNTI2NTkxNDE3OTU4MDwvQXR0cmliOkZiSWQ+CiAgICAgPEF0dHJpYjpUb3VjaFR5cGU+MjwvQXR0cmliOlRvdWNoVHlwZT4KICAgIDwvcmRmOmxpPgogICA8L3JkZjpTZXE+CiAgPC9BdHRyaWI6QWRzPgogPC9yZGY6RGVzY3JpcHRpb24+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpkYz0naHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8nPgogIDxkYzp0aXRsZT4KICAgPHJkZjpBbHQ+CiAgICA8cmRmOmxpIHhtbDpsYW5nPSd4LWRlZmF1bHQnPk9yYW5nZSBCbGFjayBCb2xkIFN0YXJ0dXAgSCBMZXR0ZXIgTG9nbyAtIDI8L3JkZjpsaT4KICAgPC9yZGY6QWx0PgogIDwvZGM6dGl0bGU+CiA8L3JkZjpEZXNjcmlwdGlvbj4KCiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0nJwogIHhtbG5zOnBkZj0naHR0cDovL25zLmFkb2JlLmNvbS9wZGYvMS4zLyc+CiAgPHBkZjpBdXRob3I+dGFoZWVyYXRmb29kczwvcGRmOkF1dGhvcj4KIDwvcmRmOkRlc2NyaXB0aW9uPgoK';
-
-const getEmailHeader = (icon: string, title: string, subtitle: string) => `
-  <div style="padding: 40px 30px; text-align: center; color: white; background: linear-gradient(135deg, #6B3FE7 0%, #8B5CF6 100%); position: relative; overflow: hidden;">
-    <div style="position: relative; z-index: 1;">
-      <img src="${BUSMO_LOGO}" alt="Busmo Logo" style="width: 80px; height: 80px; margin-bottom: 16px; display: inline-block; border-radius: 16px; background: white; padding: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
-      <h1 style="margin: 16px 0 8px; font-size: 28px; font-weight: 700; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">${title}</h1>
-      <p style="margin: 0; font-size: 16px; opacity: 0.95; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">${subtitle}</p>
-    </div>
-  </div>
-`;
+const getEmailHeader = (icon: string, title: string, subtitle: string) =>
+  sharedGetEmailHeader(title, subtitle, icon);
 
 export interface OutOfStockAlertParams {
   email: string;
@@ -316,6 +308,120 @@ export async function sendInventoryValueSummaryEmail(params: InventoryValueSumma
   return sendTransactionalEmail({
     to: [{ email, name }],
     subject: `📦 Inventory Value Summary - ${businessName}`,
+    htmlContent,
+  });
+}
+
+
+export interface StaffStockAlertParams {
+  ownerEmail: string;
+  ownerName: string;
+  businessName: string;
+  staffName: string;
+  staffEmail?: string;
+  staffRole?: string;
+  products: Array<{
+    name: string;
+    stock: number;
+    lowStockThreshold?: number;
+    status?: 'out' | 'low' | 'lost';
+  }>;
+  note?: string;
+  alertType?: 'low_stock' | 'lost_stock';
+}
+
+/**
+ * Email the business owner when a staff member alerts about low / lost stock.
+ * Includes staff identity and the affected products.
+ */
+export async function sendStaffStockAlertToOwner(params: StaffStockAlertParams): Promise<any> {
+  const {
+    ownerEmail,
+    ownerName,
+    businessName,
+    staffName,
+    staffEmail,
+    staffRole,
+    products,
+    note,
+    alertType = 'low_stock',
+  } = params;
+
+  const isLost = alertType === 'lost_stock';
+  const title = isLost ? 'Lost Stock Alert' : 'Stock Alert from Staff';
+  const subtitle = isLost
+    ? `${staffName} reported lost stock at ${businessName}`
+    : `${staffName} flagged inventory that needs attention`;
+
+  const itemsList = products
+    .map((p) => {
+      const status =
+        p.status === 'out' || p.stock === 0
+          ? 'Out of stock'
+          : p.status === 'lost'
+            ? 'Reported lost'
+            : `Only ${p.stock} left` +
+              (p.lowStockThreshold != null ? ` (threshold ${p.lowStockThreshold})` : '');
+      return `<li style="padding:10px 0;border-bottom:1px solid #E5E7EB;">
+        <strong>${p.name}</strong>
+        <span style="display:block;color:#6B7280;font-size:13px;margin-top:4px;">${status}</span>
+      </li>`;
+    })
+    .join('');
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+  <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+  <body style="margin:0;padding:0;background:#F3F4F6;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+    <div style="max-width:600px;margin:24px auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
+      ${getEmailHeader('🚨', title, subtitle)}
+      <div style="padding:32px 28px;">
+        <p style="margin:0 0 12px;color:#111827;font-size:15px;">Hi ${ownerName || 'there'},</p>
+        <p style="margin:0 0 16px;color:#374151;font-size:15px;line-height:1.6;">
+          <strong>${staffName}</strong>${staffRole ? ` (${staffRole})` : ''}${staffEmail ? ` &lt;${staffEmail}&gt;` : ''}
+          alerted you about stock at <strong>${businessName}</strong>.
+        </p>
+
+        <div style="background:#F5F3FF;border:1px solid #DDD6FE;border-radius:10px;padding:14px 16px;margin:16px 0;">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#6B3FE7;margin-bottom:6px;">Reported by</div>
+          <div style="font-size:15px;color:#111827;font-weight:600;">${staffName}</div>
+          ${staffEmail ? `<div style="font-size:13px;color:#6B7280;margin-top:2px;">${staffEmail}</div>` : ''}
+          ${staffRole ? `<div style="font-size:13px;color:#6B7280;margin-top:2px;">Role: ${staffRole}</div>` : ''}
+        </div>
+
+        <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:16px;margin:16px 0;">
+          <h2 style="margin:0 0 10px;font-size:16px;color:#B91C1C;">Affected products</h2>
+          <ul style="list-style:none;padding:0;margin:0;">${itemsList}</ul>
+        </div>
+
+        ${
+          note
+            ? `<div style="background:#FFFBEB;border-left:4px solid #F59E0B;padding:12px 14px;margin:16px 0;border-radius:6px;">
+                <div style="font-size:12px;font-weight:700;color:#B45309;margin-bottom:4px;">Staff note</div>
+                <div style="font-size:14px;color:#78350F;">${note}</div>
+              </div>`
+            : ''
+        }
+
+        <p style="margin:20px 0 8px;color:#374151;font-size:14px;">
+          Open inventory in Busmo to restock or investigate.
+        </p>
+        <a href="${(process.env.NEXT_PUBLIC_APP_URL || 'https://busmo.io').replace(/\/$/, '')}/owner"
+           style="display:inline-block;padding:12px 28px;background:linear-gradient(135deg,#6B3FE7,#8B5CF6);color:#fff;text-decoration:none;border-radius:10px;font-weight:600;font-size:14px;margin-top:8px;">
+          Open dashboard
+        </a>
+      </div>
+      <div style="background:#F9FAFB;padding:20px;text-align:center;font-size:12px;color:#6B7280;border-top:1px solid #E5E7EB;">
+        Sent by Busmo · Staff inventory alert
+      </div>
+    </div>
+  </body>
+</html>`;
+
+  return sendTransactionalEmail({
+    to: [{ email: ownerEmail, name: ownerName }],
+    subject: `🚨 ${title}: ${products.length} product${products.length === 1 ? '' : 's'} · ${businessName}`,
     htmlContent,
   });
 }

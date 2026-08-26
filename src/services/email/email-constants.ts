@@ -1,9 +1,42 @@
 /**
  * Shared email constants.
- * Single source of truth for the Busmo logo used in all transactional emails.
+ * Logo must be an absolute HTTPS URL — most clients block data: URIs.
+ * Uses the same asset as the welcome page / dashboard header: /email-logo.png
  */
 
-export const BUSMO_LOGO =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAfQAAAH0CAYAAADL1t+KAAAAtGVYSWZJSSoACAAAAAYAEgEDAAEAAAABAAAAGgEFAAEAAABWAAAAGwEFAAEAAABeAAAAKAEDAAEAAAACAAAAEwIDAAEAAAABAAAAaYcEAAEAAABmAAAAAAAAAGAAAAABAAAAYAAAAAEAAAAGAACQBwAEAAAAMDIxMAGRBwAEAAAAAQIDAACgBwAEAAAAMDEwMAGgAwABAAAA//8AAAKgBAABAAAA9AEAAAOgBAABAAAA9AEAAAAAAAAA4cNEAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAF1mlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSfvu78nIGlkPSdXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQnPz4KPHg6eG1wbWV0YSB4bWxuczp4PSdhZG9iZTpuczptZXRhLyc+CjxyZGY6UkRGIHhtbG5zOnJkZj0naHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyc+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpBdHRyaWI9J2h0dHA6Ly9ucy5hdHRyaWJ1dGlvbi5jb20vYWRzLzEuMC8nPgogIDxBdHRyaWI6QWRzPgogICA8cmRmOlNlcT4KICAgIDxyZGY6bGkgcmRmOnBhcnNlVHlwZT0nUmVzb3VyY2UnPgogICAgIDxBdHRyaWI6Q3JlYXRlZD4yMDI2LTAyLTA3PC9BdHRyaWI6Q3JlYXRlZD4KICAgICA8QXR0cmliOkRhdGE+eyZxdW90O2RvYyZxdW90OzomcXVvdDtEQUctd2xCT0lvMCZxdW90OywmcXVvdDt1c2VyJnF1b3Q7OiZxdW90O1VBR3kzUUpfNGlZJnF1b3Q7LCZxdW90O2JyYW5kJnF1b3Q7OiZxdW90O0JBR3kzZTVObENvJnF1b3Q7LCZxdW90O3RlbXBsYXRlJnF1b3Q7OiZxdW90O09yYW5nZSBCbGFjayBCb2xkIFN0YXJ0dXAgSCBMZXR0ZXIgTG9nbyZxdW90O308L0F0dHJpYjpEYXRhPgogICAgIDxBdHRyaWI6RXh0SWQ+M2YyZTNkNTEtOTA0OS00YmM4LTkwZjAtMTcxMGZmYzFkYjQ2PC9BdHRyaWI6RXh0SWQ+CiAgICAgPEF0dHJpYjpGYklkPjUyNTI2NTkxNDE3OTU4MDwvQXR0cmliOkZiSWQ+CiAgICAgPEF0dHJpYjpUb3VjaFR5cGU+MjwvQXR0cmFiOlRvdWNoVHlwZT4KICAgIDwvcmRmOmxpPgogICA8L3JkZjpTZXE+CiAgPC9BdHRyaWI6QWRzPgogPC9yZGY6RGVzY3JpcHRpb24+CgogPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9JycKICB4bWxuczpkYz0naHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8nPgogIDxkYzp0aXRsZT4KICAgPHJkZjpBbHQ+CiAgICA8cmRmOmxpIHhtbDpsYW5nPSd4LWRlZmF1bHQnPk9yYW5nZSBCbGFjayBCb2xkIFN0YXJ0dXAgSCBMZXR0ZXIgTG9nbyAtIDI8L3JkZjpsaT4KICAgPC9yZGY6QWx0PgogIDwvZGM6dGl0bGU+CiA8L3JkZjpEZXNjcmlwdGlvbj4KCiA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0nJwogIHhtbG5zOnBkZj0naHR0cDovL25zLmFkb2JlLmNvbS9wZGYvMS4zLyc+CiAgPHBkZjpBdXRob3I+dGFoZWVyYXRmb29kczwvcGRmOkF1dGhvcj4KIDwvcmRmOkRlc2NyaXB0aW9uPgoK';
+const rawBase =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+  process.env.VERCEL_URL ||
+  'https://busmo.io';
 
-export const EMAIL_LOGO_IMG = `<img src="${BUSMO_LOGO}" alt="Busmo" style="width:80px;height:80px;display:inline-block;border-radius:16px;background:white;padding:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);margin-bottom:16px;" />`;
+const normalized = rawBase.startsWith('http') ? rawBase : `https://${rawBase}`;
+export const APP_BASE_URL = normalized.replace(/\/$/, '');
+
+/** Absolute URL to the Busmo mark (public/email-logo.png). */
+export const BUSMO_LOGO_URL = `${APP_BASE_URL}/email-logo.png`;
+
+/** Back-compat alias used across template modules. */
+export const BUSMO_LOGO = BUSMO_LOGO_URL;
+
+export const EMAIL_LOGO_IMG = `<img src="${BUSMO_LOGO_URL}" alt="Busmo" width="80" height="80" style="width:80px;height:80px;display:inline-block;border:0;border-radius:16px;background:#ffffff;padding:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);margin-bottom:16px;" />`;
+
+export function getEmailHeader(title: string, subtitle: string, icon?: string): string {
+  const iconHtml = icon
+    ? `<div style="font-size:28px;margin-bottom:8px;">${icon}</div>`
+    : '';
+  return `
+  <div style="padding:36px 28px;text-align:center;color:#ffffff;background:linear-gradient(135deg,#6B3FE7 0%,#8B5CF6 100%);">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto;">
+      <tr>
+        <td align="center" style="text-align:center;">
+          <img src="${BUSMO_LOGO_URL}" alt="Busmo" width="72" height="72" style="display:block;width:72px;height:72px;border:0;border-radius:14px;background:#ffffff;padding:6px;" />
+        </td>
+      </tr>
+    </table>
+    ${iconHtml}
+    <h1 style="margin:14px 0 6px;font-size:24px;font-weight:700;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;color:#ffffff;">${title}</h1>
+    <p style="margin:0;font-size:15px;opacity:0.95;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;color:#ffffff;">${subtitle}</p>
+  </div>`;
+}
