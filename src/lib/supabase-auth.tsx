@@ -199,19 +199,25 @@ export function getAuthCurrentUser(): { uid: string; email: string | null; displ
  */
 export function getFirestoreUserId(): { supabaseUid: string; firestoreUid: string; email: string | null } | null {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!supabaseUrl || typeof window === 'undefined') return null;
+    if (typeof window === 'undefined') return null;
 
     const keys = Object.keys(localStorage);
-    const sessionKey = keys.find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+    const sessionKey = keys.find(
+      (k) => k.startsWith('sb-') && k.includes('auth-token')
+    );
     if (!sessionKey) return null;
 
     const raw = localStorage.getItem(sessionKey);
     if (!raw) return null;
 
     const parsed = JSON.parse(raw);
-    const user = parsed?.currentSession?.user;
-    if (!user) return null;
+    // Supabase JS v2 shapes vary: root user, currentSession.user, or session.user
+    const user =
+      parsed?.currentSession?.user ||
+      parsed?.user ||
+      parsed?.session?.user ||
+      null;
+    if (!user?.id) return null;
 
     const supabaseUid = user.id;
     const firestoreUid = user.user_metadata?.firebase_uid || supabaseUid;

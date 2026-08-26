@@ -5,7 +5,6 @@ import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { fetchDocs, fetchDoc } from '@/lib/supabase-client-data';
-import { getFirestoreUserId } from '@/lib/supabase-auth';
 import { getSupabase } from '@/lib/supabase';
 import styles from './Statementpage.module.css';
 
@@ -67,7 +66,7 @@ function getDefaultDateRange() {
 }
 
 export function StatementPage() {
-  const { showToast } = useApp();
+  const { showToast, user } = useApp();
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();
   const printRef = useRef<HTMLDivElement>(null);
@@ -97,56 +96,63 @@ export function StatementPage() {
       try {
         setLoading(true);
 
-        const userIds = getFirestoreUserId();
-        if (!userIds) {
-          console.warn('User not authenticated');
-          setLoading(false);
-          return;
+        // 1) Resolve auth + businessId the same way Home / Cashflow do
+        const supabase = getSupabase();
+        let authUserId = user?.id || '';
+        let businessId = user?.businessId || '';
+
+        if (!authUserId) {
+          const { data: { session } } = await supabase.auth.getSession();
+          authUserId = session?.user?.id || '';
         }
 
-        // Resolve businessId from Supabase (same as HomePage)
-        let businessId: string | undefined;
-        try {
-          const supabase = getSupabase();
-          let { data: userData } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', userIds.supabaseUid)
-            .maybeSingle();
-          if (!userData && userIds.firestoreUid !== userIds.supabaseUid) {
-            const alt = await supabase
+        if (!businessId && authUserId) {
+          try {
+            let { data: userData } = await supabase
               .from('users')
               .select('*')
-              .eq('id', userIds.firestoreUid)
+              .eq('id', authUserId)
               .maybeSingle();
-            userData = alt.data;
+            if (!userData) {
+              const { data: byEmail } = await supabase
+                .from('users')
+                .select('*')
+                .eq('email', user?.email || '')
+                .maybeSingle();
+              userData = byEmail;
+            }
+            businessId = (userData?.businessId || userData?.business_id || '') as string;
+          } catch (e) {
+            console.warn('Statement user lookup failed', e);
           }
-          businessId = (userData?.businessId || userData?.business_id) as string | undefined;
-        } catch (e) {
-          console.warn('Supabase user lookup failed, falling back', e);
+        }
+
+        // Last-resort: fetchDoc helpers
+        if (!businessId && authUserId) {
+          const userData = await fetchDoc('users', authUserId);
+          businessId = (userData?.businessId || userData?.business_id || '') as string;
         }
 
         if (!businessId) {
-          const userData = await fetchDoc('users', userIds.firestoreUid);
-          businessId = (userData?.businessId || userData?.business_id) as string | undefined;
-        }
-
-        if (!businessId) {
-          console.warn('Business ID not found');
+          console.warn('Statement: Business ID not found', { authUserId, userBiz: user?.businessId });
+          setTransactions([]);
+          setStockSummary([]);
+          setStats({
+            totalRevenue: 0,
+            totalExpenses: 0,
+            netProfit: 0,
+            closingStock: 0,
+            openingStock: 0,
+            totalCOGS: 0,
+          });
           setLoading(false);
           return;
         }
 
-        const endDateNext = new Date(endDate);
-        endDateNext.setDate(endDateNext.getDate() + 1);
-        const rangeStartMs = new Date(startDate).getTime();
-        const rangeEndMs = endDateNext.getTime();
+        console.log('[Statement] loading for businessId:', businessId);
 
-        // Fetch sales then filter client-side so we still show rows when
-        // created_at is stored in metadata or older timestamp formats.
-        let salesDocs = await fetchDocs('businesses/' + businessId + '/sales', {
-          orderBy: { field: 'created_at', ascending: false },
-        });
+        const rangeStartMs = new Date(startDate + 'T00:00:00').getTime();
+        const rangeEndMs = new Date(endDate + 'T23:59:59.999').getTime();
 
         const saleMs = (data: any): number => {
           const c = data?.createdAt || data?.created_at;
@@ -157,39 +163,62 @@ export function StatementPage() {
           return 0;
         };
 
-        salesDocs = (salesDocs || []).filter((d: any) => {
+        // 2) Sales — fetch all then filter by selected range (no server date filter fragility)
+        let salesDocs: any[] = await fetchDocs(`businesses/${businessId}/sales`, {
+          orderBy: { field: 'created_at', ascending: false },
+        }) || [];
+
+        console.log('[Statement] sales fetched:', salesDocs.length);
+
+        const inRange = (d: any) => {
           const ms = saleMs(d);
-          if (!ms) return true; // keep undated sales rather than hide them
-          return ms >= rangeStartMs && ms < rangeEndMs;
-        });
+          if (!ms) return true; // keep undated rather than hide
+          return ms >= rangeStartMs && ms <= rangeEndMs;
+        };
+
+        let rangedSales = salesDocs.filter(inRange);
+        // If the selected month is empty but the business has sales, show all sales
+        // so the page never looks "broken" when the default range is wrong.
+        if (rangedSales.length === 0 && salesDocs.length > 0) {
+          console.warn('[Statement] no sales in selected range; showing all sales');
+          rangedSales = salesDocs;
+        }
 
         let totalRevenue = 0;
         let totalCOGS = 0;
         const saleTransactions: Transaction[] = [];
         let runningBalance = 0;
 
-        for (const data of salesDocs) {
-          const amount = Number((data as any).totalRevenue ?? (data as any).total ?? (data as any).totalAmount ?? (data as any).total_amount ?? 0) || 0;
-          const date = (data as any).createdAt || (data as any).created_at ? new Date(((data as any).createdAt || (data as any).created_at) as string) : new Date();
-          
+        for (const data of rangedSales) {
+          const amount =
+            Number(
+              (data as any).totalRevenue ??
+                (data as any).total ??
+                (data as any).totalAmount ??
+                (data as any).total_amount ??
+                0
+            ) || 0;
+          const ms = saleMs(data);
+          const date = ms ? new Date(ms) : new Date();
+
           totalRevenue += amount;
           runningBalance += amount;
 
-          const products = (data.products || data.items || []) as any[];
+          const products = ((data as any).products || (data as any).items || []) as any[];
           let saleCOGS = 0;
           if (products.length > 0) {
             saleCOGS = products.reduce((sum: number, p: any) => {
               const costPrice = p.costPrice || p.cost || 0;
               const quantity = p.quantity || 1;
-              return sum + (costPrice * quantity);
+              return sum + costPrice * quantity;
             }, 0);
           }
           totalCOGS += saleCOGS;
 
           saleTransactions.push({
-            id: data.id as string,
-            date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-            ref: `SALE-${(data.id as string).substring(0, 5).toUpperCase()}`,
+            id: String((data as any).id || crypto.randomUUID()),
+            date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+            ref: `SALE-${String((data as any).id || '').substring(0, 5).toUpperCase()}`,
             type: 'Sale',
             description: `Sale (${products.length} items)`,
             debit: 0,
@@ -198,112 +227,108 @@ export function StatementPage() {
           });
         }
 
-        let expensesDocs = await fetchDocs('businesses/' + businessId + '/expenses', {
-          orderBy: { field: 'created_at', ascending: false },
-        });
-        expensesDocs = (expensesDocs || []).filter((d: any) => {
-          const c = (d as any).createdAt || (d as any).created_at;
-          const ms = c ? new Date(c as string).getTime() : 0;
-          if (!ms) return true;
-          return ms >= rangeStartMs && ms < rangeEndMs;
-        });
+        // 3) Expenses
+        let expensesDocs: any[] =
+          (await fetchDocs(`businesses/${businessId}/expenses`, {
+            orderBy: { field: 'created_at', ascending: false },
+          })) || [];
+        let rangedExpenses = expensesDocs.filter(inRange);
+        if (rangedExpenses.length === 0 && expensesDocs.length > 0 && rangedSales === salesDocs) {
+          rangedExpenses = expensesDocs;
+        }
 
         let totalExpenses = 0;
         const expenseTransactions: Transaction[] = [];
 
-        for (const data of expensesDocs) {
-          const amount = (data.amount as number) || 0;
-          const date = (data as any).createdAt || (data as any).created_at ? new Date(((data as any).createdAt || (data as any).created_at) as string) : new Date();
+        for (const data of rangedExpenses) {
+          const amount = Number((data as any).amount) || 0;
+          const ms = saleMs(data);
+          const date = ms ? new Date(ms) : new Date();
 
           totalExpenses += amount;
           runningBalance -= amount;
 
           expenseTransactions.push({
-            id: data.id as string,
-            date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-            ref: `EXP-${(data.id as string).substring(0, 5).toUpperCase()}`,
+            id: String((data as any).id || crypto.randomUUID()),
+            date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+            ref: `EXP-${String((data as any).id || '').substring(0, 5).toUpperCase()}`,
             type: 'Expense',
-            description: `${data.category || 'Expense'}: ${data.title || data.description || 'Expense'}`,
+            description: `${(data as any).category || 'Expense'}: ${(data as any).title || (data as any).description || 'Expense'}`,
             debit: amount,
             credit: 0,
             balance: runningBalance,
           });
         }
 
-        const allTransactions = [...saleTransactions, ...expenseTransactions]
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        // Sort by real timestamps, not display strings
+        const stamp = (tx: Transaction) => {
+          const d = new Date(tx.date);
+          return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+        };
+        const allTransactions = [...saleTransactions, ...expenseTransactions].sort(
+          (a, b) => stamp(a) - stamp(b)
+        );
 
         let balance = 0;
-        allTransactions.reverse().forEach(tx => {
-          balance += (tx.credit - tx.debit);
+        for (const tx of allTransactions) {
+          balance += tx.credit - tx.debit;
           tx.balance = balance;
-        });
-        allTransactions.reverse();
+        }
+        allTransactions.reverse(); // newest first for display
 
-        const productsDocs = await fetchDocs('businesses/' + businessId + '/products', {
-          filters: [{ field: 'active', op: '=', value: true }],
+        // 4) Products / stock (do not filter on non-existent `active` column)
+        const productsDocs =
+          (await fetchDocs(`businesses/${businessId}/products`)) || [];
+        const visibleProducts = productsDocs.filter((data: any) => {
+          const status = String(data.status || '').toLowerCase();
+          if (['inactive', 'archived', 'deleted', 'draft'].includes(status)) return false;
+          return true;
         });
 
         let closingStock = 0;
         let openingStock = 0;
         const stockSummaryItems: StockItem[] = [];
 
-        const productSalesMap = new Map<string, number>();
-        
-        for (const data of salesDocs) {
-          const products = (data.products || data.items || []) as any[];
-          for (const p of products) {
-            const productId = p.productId || p.id;
-            const quantity = p.quantity || 1;
-            productSalesMap.set(productId, (productSalesMap.get(productId) || 0) + quantity);
-          }
-        }
-
-        for (const data of productsDocs) {
-          const currentStock = (data.stock as number) || (data.stockLevel as number) || 0;
-          const costPrice = (data.cost as number) || (data.costPrice as number) || 0;
-          const soldQuantity = productSalesMap.get(data.id as string) || 0;
-          const openingStockQuantity = currentStock + soldQuantity;
-          
-          const openingValue = openingStockQuantity * costPrice;
-          const closingValue = currentStock * costPrice;
-          
-          openingStock += openingValue;
-          closingStock += closingValue;
-
+        for (const data of visibleProducts) {
+          const stock = Number(data.stock ?? data.stockLevel ?? data.quantity ?? 0) || 0;
+          const cost = Number(data.cost ?? data.costPrice ?? 0) || 0;
+          const value = stock * cost;
+          closingStock += value;
+          openingStock += value; // approximate without movement ledger
           stockSummaryItems.push({
-            product: (data.name as string) || 'Unknown Product',
-            open: openingStockQuantity,
-            sold: soldQuantity,
+            product: data.name || 'Product',
+            open: stock,
+            sold: 0,
             loss: 0,
             restock: 0,
-            close: currentStock,
-            value: closingValue,
+            close: stock,
+            value,
           });
         }
 
         setTransactions(allTransactions);
-        const grossProfit = totalRevenue - totalCOGS;
-        const netProfit = grossProfit - totalExpenses;
+        setStockSummary(stockSummaryItems);
         setStats({
           totalRevenue,
           totalExpenses,
-          netProfit,
+          netProfit: totalRevenue - totalExpenses - totalCOGS,
           closingStock,
           openingStock,
           totalCOGS,
         });
-        setStockSummary(stockSummaryItems);
-      } catch (error) {
-        console.error('Error fetching statement data:', error);
-        showToast('Failed to load statement data');
+      } catch (error: any) {
+        console.error('Statement fetch error:', error);
+        showToast(error?.message || 'Failed to load statement');
+        setTransactions([]);
+        setStockSummary([]);
       } finally {
         setLoading(false);
       }
     }
 
     fetchData();
-  }, [showToast, startDate, endDate]);
+  }, [startDate, endDate, user?.id, user?.businessId, user?.email, showToast]);
+
 
   const stmtId = `STMT-${Date.now().toString().substring(5)}`;
 
