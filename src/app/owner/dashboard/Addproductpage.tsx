@@ -385,38 +385,45 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
       return;
     }
 
-    // Cost price is required for all products including ingredients
-    if (!form.costPrice || parseFloat(form.costPrice) <= 0) {
-      showToast(t('toast.enterCostPrice'));
-      return;
-    }
-
-    const effectiveBusinessId = businessId || user?.businessId || null;
-    if (!effectiveBusinessId) {
-      showToast(t('toast.businessIdNotFound') || 'Business not loaded — refresh and try again');
+    // Cost can be 0 (e.g. free samples) but must be a number
+    if (form.costPrice === '' || isNaN(parseFloat(form.costPrice)) || parseFloat(form.costPrice) < 0) {
+      showToast(t('toast.enterCostPrice') || 'Enter a valid cost price');
       return;
     }
 
     setIsLoading(true);
     try {
+      // Resolve business id at save-time (AppContext may still be loading)
+      let effectiveBusinessId = businessId || user?.businessId || null;
+      if (!effectiveBusinessId) {
+        const { data: { session } } = await getSupabase().auth.getSession();
+        const uid = session?.user?.id || user?.id;
+        if (uid) {
+          const { resolveOwnerScopeBusinessId } = await import('@/lib/resolve-business-scope');
+          effectiveBusinessId = await resolveOwnerScopeBusinessId(
+            uid,
+            session?.user?.user_metadata?.businessId || null
+          );
+        }
+      }
+      if (!effectiveBusinessId) {
+        showToast(t('toast.businessIdNotFound') || 'Business not loaded — refresh and try again');
+        return;
+      }
+      if (!businessId) setBusinessId(effectiveBusinessId);
+
       let imageUrl = form.imageUrl;
       
-      // Upload image to Supabase Storage if a new image was selected
+      // Upload image to Supabase Storage if a new image was selected (non-blocking on failure)
       if (imageFile) {
-        console.log('📤 Uploading image to Supabase Storage...');
-        console.log('📤 Image file:', imageFile.name, imageFile.size, imageFile.type);
-        
         try {
           const filePath = `products/${effectiveBusinessId}/${Date.now()}_${imageFile.name}`;
-          console.log('📤 Image path:', filePath);
-          
           const { error: uploadError } = await getSupabase()
             .storage
             .from('products')
             .upload(filePath, imageFile);
           
           if (uploadError) throw uploadError;
-          console.log('✅ Image uploaded successfully');
           
           const { data: urlData } = getSupabase()
             .storage
@@ -424,33 +431,35 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
             .getPublicUrl(filePath);
           
           imageUrl = urlData.publicUrl;
-          console.log('✅ Image URL obtained:', imageUrl);
         } catch (uploadError) {
-          console.error('❌ Image upload failed:', uploadError);
-          console.error('Upload error details:', {
-            message: (uploadError as any).message,
-          });
-          
-          showToast(t('toast.uploadImageFailed') + (uploadError as any).message);
-          return;
+          console.error('Image upload failed (saving product without image):', uploadError);
+          showToast(
+            (t('toast.uploadImageFailed') || 'Image upload failed: ') +
+              ((uploadError as any).message || '') +
+              ' — saving product without image'
+          );
+          // Continue save without image
         }
       }
 
+      const sku = form.sku.trim() || `SKU-${Date.now()}`;
       const productData: any = {
         name: form.name.trim(),
-        description: form.description,
+        description: form.description || '',
         category: form.productType === 'dish' ? form.dishCategory : form.category,
-        price: form.productType === 'ingredient' ? 0 : parseFloat(form.sellPrice),
-        cost: parseFloat(form.costPrice) || 0, // Use 'cost' field for existing structure
+        price: form.productType === 'ingredient' ? 0 : parseFloat(form.sellPrice) || 0,
+        cost: parseFloat(form.costPrice) || 0,
         stock: parseInt(form.openingStock) || 0,
         lowStockThreshold: parseInt(form.lowStockAlert) || 5,
+        reorderLevel: parseInt(form.lowStockAlert) || 5,
+        sku,
         active: !draft,
         status: draft ? 'draft' : 'active',
         attributes: {
           emoji: form.productType === 'dish' ? '🍽️' : form.productType === 'ingredient' ? '🥘' : '📦',
-          sku: form.sku.trim() || `SKU-${Date.now()}`,
+          sku,
         },
-        imageUrl: imageUrl,
+        imageUrl: imageUrl || null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
