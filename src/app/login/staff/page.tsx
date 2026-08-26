@@ -164,6 +164,7 @@ export default function StaffLogin() {
       }
       console.log('🔐 [Staff Login] Attempting login with:', email);
       const supabase = getSupabase();
+      await supabase.auth.signOut().catch(() => {});
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,

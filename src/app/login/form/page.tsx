@@ -215,6 +215,7 @@ export default function BusmoLogin() {
         throw new Error(getSupabaseConfigErrorMessage());
       }
       const supabase = getSupabase();
+      await supabase.auth.signOut().catch(() => {});
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,

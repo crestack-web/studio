@@ -88,7 +88,7 @@ export function HomePage() {
       // For now, we'll just log that cleanup happened
       console.log('🧹 [HomePage] Unsubscribing from data refresh events');
     };
-  }, [user.id, selectedPeriod]);
+  }, [user.id, user.businessId, selectedPeriod]);
 
   async function fetchData() {
     try {
@@ -110,24 +110,20 @@ export function HomePage() {
           return;
         }
 
-        // Get user's business ID from Supabase
-        const { data: userData, error: userError } = await getSupabase()
-          .from('users')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (userError || !userData) {
-          console.warn('User document not found');
-          setLoading(false);
-          setDailyLoading(false);
-          return;
-        }
-
-        const businessId = userData.businessId || userData.business_id;
-
+        // Prefer AppContext businessId (already ownership-scoped). Do not
+        // fall back to a staff-linked business_id on the users row.
+        let businessId = user.businessId || '';
         if (!businessId) {
-          console.warn('No business ID found for user');
+          const { data: owned } = await getSupabase()
+            .from('businesses')
+            .select('id')
+            .eq('owner_id', user.id)
+            .limit(1)
+            .maybeSingle();
+          businessId = owned?.id || '';
+        }
+        if (!businessId) {
+          console.warn('No owned business ID for user', user.id, user.email);
           setLoading(false);
           setDailyLoading(false);
           return;
@@ -449,8 +445,8 @@ export function HomePage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: reply,
-        businessId: user?.businessId || user?.id || 'demo',
-        userId: user?.id || 'demo',
+        businessId: user?.businessId || '',
+        userId: user?.id || '',
         language: lang,
         languageName: langMeta?.englishName || 'English',
         businessCategory: businessCategory,

@@ -177,117 +177,184 @@ export function AppProvider({ children }: { children: ReactNode }) {
   });
 
   const loadUser = useCallback(async (userId: string, userEmail: string, metadata: Record<string, any> | undefined, _firestore?: any) => {
-    // Prefer Supabase users table (same source as Home / Record Sale).
-    // Firestore is only a fallback for older profiles.
+    /**
+     * Isolate each owner account:
+     * - Prefer a business this user *owns* (businesses.owner_id = auth uid)
+     * - Never adopt another owner's businessId from a staff assignment
+     * - Never fall back to a different user's profile by loose email match
+     * - Never use auth uid as businessId unless that business is owned by them
+     */
     const firestoreUid = metadata?.firebase_uid || userId;
+    const emailNorm = (userEmail || '').trim().toLowerCase();
 
     try {
       const supabase = getSupabase();
       let sbData: any = null;
 
-      // Try by Supabase auth id first, then firebase_uid column if present
+      // 1) Users row by auth id only (strict — do not steal another account's row)
       const byId = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
-      if (byId.data) sbData = byId.data;
+      if (byId.data) {
+        sbData = byId.data;
+      }
+
+      // 2) Optional legacy id = firebase_uid, only if email matches this login
       if (!sbData && firestoreUid && firestoreUid !== userId) {
         const byFb = await supabase.from('users').select('*').eq('id', firestoreUid).maybeSingle();
-        if (byFb.data) sbData = byFb.data;
-      }
-      if (!sbData && userEmail) {
-        const byEmail = await supabase.from('users').select('*').eq('email', userEmail).maybeSingle();
-        if (byEmail.data) sbData = byEmail.data;
-      }
-
-      if (sbData) {
-        const displayName =
-          (metadata?.full_name || metadata?.name) ||
-          sbData.displayName ||
-          sbData.display_name ||
-          sbData.businessName ||
-          sbData.business_name ||
-          (sbData.firstName ? `${sbData.firstName} ${sbData.lastName || ''}`.trim() : '') ||
-          userEmail.split('@')[0] ||
-          'User';
-        const firstName = String(displayName).split(' ')[0] || 'User';
-        const resolvedBusinessId =
-          sbData.businessId ||
-          sbData.business_id ||
-          metadata?.businessId ||
-          firestoreUid;
-
-        setUser({
-          initials: (firstName.charAt(0) + (String(displayName).split(' ')[1]?.charAt(0) || '')).toUpperCase(),
-          shortName: firstName,
-          role: sbData.role || metadata?.role || 'Owner',
-          plan: sbData.plan || 'Free',
-          id: userId,
-          name: displayName,
-          email: userEmail || sbData.email || '',
-          avatarContent: sbData.photoURL || sbData.photo_url || sbData.avatarContent || '👤',
-          avatarStyle: {
-            background: sbData.photoURL || sbData.photo_url || sbData.avatarBg || '#6B3FE7',
-            color: sbData.avatarColor || '#fff',
-          },
-          photoURL: sbData.photoURL || sbData.photo_url,
-          businessId: resolvedBusinessId,
-        });
-        return;
-      }
-
-      // Fallback: Firestore profile (legacy)
-      try {
-        const { initializeFirebase } = await import('@/firebase');
-        const { doc, getDoc } = await import('firebase/firestore');
-        const { firestore } = initializeFirebase();
-        const userDoc = await getDoc(doc(firestore, 'users', firestoreUid));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          const displayName =
-            (metadata?.full_name || metadata?.name) ||
-            data.displayName ||
-            data.businessName ||
-            (data.firstName ? data.firstName + ' ' + (data.lastName || '') : '') ||
-            'User';
-          const firstName = displayName.split(' ')[0];
-          setUser({
-            initials: (firstName.charAt(0) + (displayName.split(' ')[1]?.charAt(0) || '')).toUpperCase(),
-            shortName: firstName,
-            role: data.role || metadata?.role || 'Owner',
-            plan: data.plan || 'Free',
-            id: userId,
-            name: displayName,
-            email: userEmail || data.email || '',
-            avatarContent: data.photoURL || data.avatarContent || '👤',
-            avatarStyle: {
-              background: data.photoURL || data.avatarBg || '#6B3FE7',
-              color: data.avatarColor || '#fff',
-            },
-            photoURL: data.photoURL,
-            businessId: data.businessId || metadata?.businessId || firestoreUid,
-          });
-          return;
+        if (byFb.data) {
+          const rowEmail = String(byFb.data.email || '').trim().toLowerCase();
+          if (!emailNorm || !rowEmail || rowEmail === emailNorm) {
+            sbData = byFb.data;
+          }
         }
-      } catch (fbErr) {
-        console.warn('Firestore user fallback failed:', fbErr);
       }
 
-      // Last resort: metadata only
-      const displayName = (metadata?.full_name || metadata?.name) || userEmail.split('@')[0] || 'User';
-      const firstName = displayName.split(' ')[0];
+      // 3) Email lookup — only if the row's id is this user (prevents cross-account mix)
+      if (!sbData && emailNorm) {
+        const byEmail = await supabase
+          .from('users')
+          .select('*')
+          .ilike('email', emailNorm)
+          .limit(5);
+        const match = (byEmail.data || []).find((row: any) => {
+          const idOk = row.id === userId || row.id === firestoreUid;
+          const emailOk =
+            String(row.email || '').trim().toLowerCase() === emailNorm;
+          return idOk && emailOk;
+        });
+        if (match) sbData = match;
+      }
+
+      // ── Resolve business this user OWNS ────────────────────────────────
+      let resolvedBusinessId: string | undefined;
+
+      // A) businesses.owner_id / ownerId = this auth user
+      try {
+        let owned = await supabase
+          .from('businesses')
+          .select('id, owner_id, name, business_name, businessName')
+          .eq('owner_id', userId)
+          .limit(1)
+          .maybeSingle();
+        if (!owned.data) {
+          owned = await supabase
+            .from('businesses')
+            .select('id, owner_id, ownerId, name, business_name, businessName')
+            .eq('ownerId', userId)
+            .limit(1)
+            .maybeSingle();
+        }
+        if (owned.data?.id) {
+          resolvedBusinessId = String(owned.data.id);
+        }
+      } catch (e) {
+        console.warn('[loadUser] owned business lookup failed', e);
+      }
+
+      // B) Candidate from profile / metadata — only accept if that business is owned by this user
+      const candidate =
+        (sbData?.businessId ||
+          sbData?.business_id ||
+          metadata?.businessId ||
+          metadata?.business_id ||
+          '') as string;
+
+      if (!resolvedBusinessId && candidate) {
+        try {
+          const { data: biz } = await supabase
+            .from('businesses')
+            .select('id, owner_id, ownerId, user_id')
+            .eq('id', candidate)
+            .maybeSingle();
+          const ownerOfBiz =
+            biz?.owner_id || biz?.ownerId || biz?.user_id || null;
+          if (biz && ownerOfBiz && String(ownerOfBiz) === String(userId)) {
+            resolvedBusinessId = String(biz.id);
+          } else if (biz && !ownerOfBiz) {
+            // Legacy business with no owner_id — accept only if profile id matches auth user
+            if (sbData?.id === userId) {
+              resolvedBusinessId = String(biz.id);
+            }
+          } else {
+            console.warn(
+              '[loadUser] rejecting businessId from profile — not owned by this user',
+              { candidate, userId, ownerOfBiz }
+            );
+          }
+        } catch (e) {
+          console.warn('[loadUser] candidate business check failed', e);
+        }
+      }
+
+      // C) Role is Staff → do not load owner dashboard under someone else's business
+      const roleLc = String(
+        sbData?.role || metadata?.role || 'Owner'
+      ).toLowerCase();
+      const looksLikeStaff =
+        roleLc === 'staff' ||
+        Boolean(metadata?.staffId || metadata?.staff_id || sbData?.staffId || sbData?.staff_id);
+
+      if (looksLikeStaff && !resolvedBusinessId) {
+        console.warn('[loadUser] staff account on owner shell — no owned business');
+      }
+
+      const displayName =
+        (metadata?.full_name || metadata?.name) ||
+        sbData?.displayName ||
+        sbData?.display_name ||
+        sbData?.businessName ||
+        sbData?.business_name ||
+        (sbData?.firstName
+          ? `${sbData.firstName} ${sbData.lastName || ''}`.trim()
+          : '') ||
+        (emailNorm ? emailNorm.split('@')[0] : '') ||
+        'User';
+      const firstName = String(displayName).split(' ')[0] || 'User';
+
       setUser({
-        initials: (firstName.charAt(0) + (displayName.split(' ')[1]?.charAt(0) || '')).toUpperCase(),
+        initials: (
+          firstName.charAt(0) + (String(displayName).split(' ')[1]?.charAt(0) || '')
+        ).toUpperCase(),
         shortName: firstName,
-        role: metadata?.role || 'Owner',
-        plan: 'Free',
+        role: looksLikeStaff
+          ? String(sbData?.role || metadata?.role || 'Staff')
+          : String(sbData?.role || metadata?.role || 'Owner'),
+        plan: sbData?.plan || 'Free',
         id: userId,
         name: displayName,
+        email: userEmail || sbData?.email || '',
+        avatarContent:
+          sbData?.photoURL || sbData?.photo_url || sbData?.avatarContent || '👤',
+        avatarStyle: {
+          background:
+            sbData?.photoURL || sbData?.photo_url || sbData?.avatarBg || '#6B3FE7',
+          color: sbData?.avatarColor || '#fff',
+        },
+        photoURL: sbData?.photoURL || sbData?.photo_url,
+        // Undefined when not resolved — pages must not fall back to another account
+        businessId: resolvedBusinessId,
+      });
+
+      console.log('[loadUser] scoped', {
+        userId,
+        email: emailNorm,
+        businessId: resolvedBusinessId || null,
+        role: looksLikeStaff ? 'staff-like' : 'owner-like',
+      });
+    } catch (error) {
+      console.error('Error loading user data:', error);
+      setUser({
+        initials: '..',
+        shortName: 'User',
+        role: 'Owner',
+        plan: 'Free',
+        id: userId,
+        name: userEmail?.split('@')[0] || 'User',
         email: userEmail || '',
         avatarContent: '👤',
         avatarStyle: { background: '#6B3FE7', color: '#fff' },
         photoURL: undefined,
-        businessId: metadata?.businessId || firestoreUid,
+        businessId: undefined,
       });
-    } catch (error) {
-      console.error('Error loading user data:', error);
     }
   }, []);
 
@@ -298,20 +365,74 @@ export function AppProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         ensureFirebaseAuth().catch(() => {});
-        loadUser(session.user.id, session.user.email || '', session.user.user_metadata);
+        loadUser(
+          session.user.id,
+          session.user.email || '',
+          session.user.user_metadata
+        );
+      } else {
+        // Clear identity when no session — prevents previous owner bleeding through
+        setUser({
+          initials: '..',
+          shortName: '',
+          role: 'Owner',
+          plan: 'Free',
+          id: '',
+          name: '',
+          email: '',
+          avatarContent: '👤',
+          avatarStyle: { background: '#6B3FE7', color: '#fff' },
+          photoURL: undefined,
+          businessId: undefined,
+        });
       }
     });
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
+        // Reset before load so UI never briefly shows the previous account
+        setUser({
+          initials: '..',
+          shortName: '…',
+          role: 'Owner',
+          plan: 'Free',
+          id: session.user.id,
+          name: '',
+          email: session.user.email || '',
+          avatarContent: '👤',
+          avatarStyle: { background: '#6B3FE7', color: '#fff' },
+          photoURL: undefined,
+          businessId: undefined,
+        });
         ensureFirebaseAuth().catch(() => {});
-        loadUser(session.user.id, session.user.email || '', session.user.user_metadata);
+        loadUser(
+          session.user.id,
+          session.user.email || '',
+          session.user.user_metadata
+        );
+      } else {
+        setUser({
+          initials: '..',
+          shortName: '',
+          role: 'Owner',
+          plan: 'Free',
+          id: '',
+          name: '',
+          email: '',
+          avatarContent: '👤',
+          avatarStyle: { background: '#6B3FE7', color: '#fff' },
+          photoURL: undefined,
+          businessId: undefined,
+        });
       }
     });
 
     return () => subscription.unsubscribe();
   }, [loadUser]);
+
 
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
   const openAvatarModal  = useCallback(() => setAvatarModalOpen(true), []);
