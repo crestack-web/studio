@@ -5,6 +5,7 @@ import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
+import { getSupabase } from '@/lib/supabase';
 import { fetchDocs, addDoc as sbAddDoc, updateDoc as sbUpdateDoc, runBatch, toISOString } from '@/lib/supabase-client-data';
 import { Building2, Package, TrendingDown, Wallet, ArrowUpRight, X, Plus, ShoppingCart, TrendingUp, Banknote } from 'lucide-react';
 import styles from './Cashflowpage.module.css';
@@ -239,7 +240,20 @@ export default function Cashflowpage() {
   };
 
   const loadData = async () => {
-    if (!businessId) {
+    let resolvedBusinessId = businessId || user?.businessId || '';
+    if (!resolvedBusinessId && user?.id) {
+      try {
+        const { data: userData } = await getSupabase()
+          .from('users')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle();
+        resolvedBusinessId = userData?.businessId || userData?.business_id || '';
+      } catch (e) {
+        console.warn('Cashflow businessId lookup failed', e);
+      }
+    }
+    if (!resolvedBusinessId) {
       setLoading(false);
       return;
     }
@@ -247,7 +261,7 @@ export default function Cashflowpage() {
     try {
       setLoading(true);
       
-      const accountsList: BankAccount[] = await fetchDocs(`businesses/${businessId}/bankAccounts`, {
+      const accountsList: BankAccount[] = await fetchDocs(`businesses/${resolvedBusinessId}/bankAccounts`, {
         filters: [{ field: 'is_active', op: '=', value: true }],
       });
       
@@ -262,7 +276,7 @@ export default function Cashflowpage() {
         );
       }
 
-      const bankTxDocs = await fetchDocs(`businesses/${businessId}/bankTransactions`, {
+      const bankTxDocs = await fetchDocs(`businesses/${resolvedBusinessId}/bankTransactions`, {
         filters: txFilters.length > 0 ? txFilters : undefined,
         orderBy: { field: 'created_at', ascending: false },
         limit: 50,
@@ -311,7 +325,7 @@ export default function Cashflowpage() {
         );
       }
 
-      const salesDocs = await fetchDocs(`businesses/${businessId}/sales`, {
+      const salesDocs = await fetchDocs(`businesses/${resolvedBusinessId}/sales`, {
         filters: salesFilters.length > 0 ? salesFilters : undefined,
         orderBy: { field: 'created_at', ascending: false },
         limit: 50,
@@ -391,7 +405,7 @@ export default function Cashflowpage() {
         );
       }
 
-      const expensesDocs = await fetchDocs(`businesses/${businessId}/expenses`, {
+      const expensesDocs = await fetchDocs(`businesses/${resolvedBusinessId}/expenses`, {
         filters: expenseFilters.length > 0 ? expenseFilters : undefined,
         orderBy: { field: 'created_at', ascending: false },
         limit: 100,
@@ -420,7 +434,7 @@ export default function Cashflowpage() {
           const defaultAccount = accountsList.find(a => a.isDefault || a.isPosDefault) || accountsList[0];
           if (defaultAccount && defaultAccount.currentBalance >= amount) {
             const newBalance = defaultAccount.currentBalance - amount;
-            await sbUpdateDoc(`businesses/${businessId}/bankAccounts`, defaultAccount.id, {
+            await sbUpdateDoc(`businesses/${resolvedBusinessId}/bankAccounts`, defaultAccount.id, {
               currentBalance: newBalance,
             });
             
@@ -435,7 +449,7 @@ export default function Cashflowpage() {
               description: data.description || `Expense: ${data.category}`,
               createdAt: new Date().toISOString(),
             };
-            await sbAddDoc(`businesses/${businessId}/bankTransactions`, transactionData);
+            await sbAddDoc(`businesses/${resolvedBusinessId}/bankTransactions`, transactionData);
           }
         }
       }

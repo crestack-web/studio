@@ -7,6 +7,7 @@ import { useCurrency } from './CurrencyContext';
 import { Button } from './Button';
 import { MoneyControlSummary, PaymentBreakdown } from './types';
 import { fetchDocs } from '@/lib/supabase-client-data';
+import { getSupabase } from '@/lib/supabase';
 import { isRestaurantBusiness } from './utils/restaurantHelpers';
 import { DollarSign, Banknote, Smartphone, CreditCard, RefreshCw, FileText, Package, Zap, Users, BarChart3, Utensils, Download, Building2, Check, Clock, Link, HelpCircle, TrendingUp, Target, Wallet, Lightbulb, ChevronRight, ChevronDown, AlertTriangle, Plus } from 'lucide-react';
 import styles from './MoneyControlPage.module.css';
@@ -138,47 +139,43 @@ export default function MoneyControlPage() {
   }, []);
 
   const loadSummary = useCallback(async () => {
-    if (!user.businessId) {
+    if (!user.businessId && !user.id) {
       setLoading(false);
-      setSummary({
-        totalSales: 0,
-        cashSales: 0,
-        transferSales: 0,
-        posSales: 0,
-        splitPayments: 0,
-        creditSales: 0,
-        expectedCashCollections: 0,
-        expectedBankCollections: 0,
-        confirmedCashCollections: 0,
-        confirmedBankCollections: 0,
-        outstandingCollections: 0,
-        matchedTransactions: 0,
-        unmatchedSales: 0,
-        unmatchedBankTransactions: 0,
-        pendingReconciliation: 0,
-        alerts: {
-          cashShortages: 0,
-          missingTransfers: 0,
-          unmatchedDeposits: 0,
-          overpayments: 0,
-          duplicatePayments: 0,
-        },
-      });
-      setLoadError(null);
       return;
     }
 
     setLoading(true);
     setLoadError(null);
     try {
-      const restaurant = await isRestaurantBusiness(user.businessId);
+      // Resolve businessId the same way as Home (Supabase users table)
+      let resolvedBusinessId = user.businessId || '';
+      if (!resolvedBusinessId && user.id) {
+        try {
+          const { data: userData } = await getSupabase()
+            .from('users')
+            .select('*')
+            .eq('id', user.id)
+            .maybeSingle();
+          resolvedBusinessId =
+            userData?.businessId || userData?.business_id || user.id;
+        } catch (e) {
+          console.warn('Money Control businessId lookup failed', e);
+        }
+      }
+      if (!resolvedBusinessId) {
+        setLoading(false);
+        setLoadError('Business not found for this account.');
+        return;
+      }
+
+      const restaurant = await isRestaurantBusiness(resolvedBusinessId);
       setIsRestaurant(restaurant);
 
       const periodStart = getPeriodStart(selectedPeriod);
       const startMs = periodStart ? periodStart.getTime() : 0;
 
       // Sales live in Supabase (same path as Record Sale / Home)
-      const salesDocs = await fetchDocs(`businesses/${user.businessId}/sales`);
+      const salesDocs = await fetchDocs(`businesses/${resolvedBusinessId}/sales`);
       let sales: SaleData[] = (salesDocs || []).map((data: any) => {
         const breakdown =
           Array.isArray(data.paymentBreakdown)
@@ -229,7 +226,7 @@ export default function MoneyControlPage() {
       const expectedCashCollections = cashSales + splitPayments * 0.5;
       const expectedBankCollections = transferSales + posSales + splitPayments * 0.5;
       
-      const reconciliations = await fetchDocs(`businesses/${user.businessId}/cashReconciliations`).catch(() => []);
+      const reconciliations = await fetchDocs(`businesses/${resolvedBusinessId}/cashReconciliations`).catch(() => []);
       
       let confirmedCashCollections = 0;
       let confirmedBankCollections = 0;
@@ -311,7 +308,7 @@ export default function MoneyControlPage() {
       setReconciledSaleIds(recSaleIds);
 
       if (restaurant) {
-        await loadRestaurantProfitMetrics(user.businessId, selectedPeriod, totalSales);
+        await loadRestaurantProfitMetrics(resolvedBusinessId, selectedPeriod, totalSales);
       }
     } catch (error: any) {
       console.error('Error loading money control summary:', error);

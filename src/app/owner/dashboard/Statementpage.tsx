@@ -6,6 +6,7 @@ import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { fetchDocs, fetchDoc } from '@/lib/supabase-client-data';
 import { getFirestoreUserId } from '@/lib/supabase-auth';
+import { getSupabase } from '@/lib/supabase';
 import styles from './Statementpage.module.css';
 
 // ═══════════════════════════════════════════
@@ -97,21 +98,39 @@ export function StatementPage() {
         setLoading(true);
 
         const userIds = getFirestoreUserId();
-        
         if (!userIds) {
           console.warn('User not authenticated');
           setLoading(false);
           return;
         }
 
-        const userData = await fetchDoc('users', userIds.firestoreUid);
-        if (!userData) {
-          console.warn('User document not found');
-          setLoading(false);
-          return;
+        // Resolve businessId from Supabase (same as HomePage)
+        let businessId: string | undefined;
+        try {
+          const supabase = getSupabase();
+          let { data: userData } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', userIds.supabaseUid)
+            .maybeSingle();
+          if (!userData && userIds.firestoreUid !== userIds.supabaseUid) {
+            const alt = await supabase
+              .from('users')
+              .select('*')
+              .eq('id', userIds.firestoreUid)
+              .maybeSingle();
+            userData = alt.data;
+          }
+          businessId = (userData?.businessId || userData?.business_id) as string | undefined;
+        } catch (e) {
+          console.warn('Supabase user lookup failed, falling back', e);
         }
 
-        const businessId = userData.businessId as string;
+        if (!businessId) {
+          const userData = await fetchDoc('users', userIds.firestoreUid);
+          businessId = (userData?.businessId || userData?.business_id) as string | undefined;
+        }
+
         if (!businessId) {
           console.warn('Business ID not found');
           setLoading(false);
@@ -120,15 +139,28 @@ export function StatementPage() {
 
         const endDateNext = new Date(endDate);
         endDateNext.setDate(endDateNext.getDate() + 1);
-        const startISO = new Date(startDate).toISOString();
-        const endISO = endDateNext.toISOString();
+        const rangeStartMs = new Date(startDate).getTime();
+        const rangeEndMs = endDateNext.getTime();
 
-        const salesDocs = await fetchDocs('businesses/' + businessId + '/sales', {
-          filters: [
-            { field: 'createdAt', op: '>=', value: startISO },
-            { field: 'createdAt', op: '<', value: endISO },
-          ],
-          orderBy: { field: 'createdAt', ascending: false },
+        // Fetch sales then filter client-side so we still show rows when
+        // created_at is stored in metadata or older timestamp formats.
+        let salesDocs = await fetchDocs('businesses/' + businessId + '/sales', {
+          orderBy: { field: 'created_at', ascending: false },
+        });
+
+        const saleMs = (data: any): number => {
+          const c = data?.createdAt || data?.created_at;
+          if (!c) return 0;
+          if (typeof c === 'string' || c instanceof Date) return new Date(c).getTime() || 0;
+          if (typeof c?.toDate === 'function') return c.toDate().getTime();
+          if (typeof c?.seconds === 'number') return c.seconds * 1000;
+          return 0;
+        };
+
+        salesDocs = (salesDocs || []).filter((d: any) => {
+          const ms = saleMs(d);
+          if (!ms) return true; // keep undated sales rather than hide them
+          return ms >= rangeStartMs && ms < rangeEndMs;
         });
 
         let totalRevenue = 0;
@@ -166,12 +198,14 @@ export function StatementPage() {
           });
         }
 
-        const expensesDocs = await fetchDocs('businesses/' + businessId + '/expenses', {
-          filters: [
-            { field: 'createdAt', op: '>=', value: startISO },
-            { field: 'createdAt', op: '<', value: endISO },
-          ],
-          orderBy: { field: 'createdAt', ascending: false },
+        let expensesDocs = await fetchDocs('businesses/' + businessId + '/expenses', {
+          orderBy: { field: 'created_at', ascending: false },
+        });
+        expensesDocs = (expensesDocs || []).filter((d: any) => {
+          const c = (d as any).createdAt || (d as any).created_at;
+          const ms = c ? new Date(c as string).getTime() : 0;
+          if (!ms) return true;
+          return ms >= rangeStartMs && ms < rangeEndMs;
         });
 
         let totalExpenses = 0;

@@ -176,51 +176,116 @@ export function AppProvider({ children }: { children: ReactNode }) {
     businessId: undefined,
   });
 
-  const loadUser = useCallback(async (userId: string, userEmail: string, metadata: Record<string, any> | undefined, firestore: any) => {
-    // For migrated users, Firestore doc is under firebase_uid not Supabase UID
+  const loadUser = useCallback(async (userId: string, userEmail: string, metadata: Record<string, any> | undefined, _firestore?: any) => {
+    // Prefer Supabase users table (same source as Home / Record Sale).
+    // Firestore is only a fallback for older profiles.
     const firestoreUid = metadata?.firebase_uid || userId;
 
     try {
-      const userDoc = await getDoc(doc(firestore, 'users', firestoreUid));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        const displayName = (metadata?.full_name || metadata?.name) || data.displayName || data.businessName || (data.firstName ? data.firstName + ' ' + (data.lastName || '') : '') || 'User';
-        const firstName = displayName.split(' ')[0];
-        
-        setUser({
-          initials: (firstName.charAt(0) + (displayName.split(' ')[1]?.charAt(0) || '')).toUpperCase(),
-          shortName: firstName,
-          role: data.role || metadata?.role || 'Owner',
-          plan: data.plan || 'Free',
-          id: userId,
-          name: displayName,
-          email: userEmail || data.email || '',
-          avatarContent: data.photoURL || data.avatarContent || '👤',
-          avatarStyle: { 
-            background: data.photoURL || data.avatarBg || '#6B3FE7', 
-            color: data.avatarColor || '#fff' 
-          },
-          photoURL: data.photoURL,
-          businessId: data.businessId || firestoreUid,
-        });
-      } else {
-        const displayName = (metadata?.full_name || metadata?.name) || userEmail.split('@')[0] || 'User';
-        const firstName = displayName.split(' ')[0];
-        
-        setUser({
-          initials: (firstName.charAt(0) + (displayName.split(' ')[1]?.charAt(0) || '')).toUpperCase(),
-          shortName: firstName,
-          role: metadata?.role || 'Owner',
-          plan: 'Free',
-          id: userId,
-          name: displayName,
-          email: userEmail || '',
-          avatarContent: '👤',
-          avatarStyle: { background: '#6B3FE7', color: '#fff' },
-          photoURL: undefined,
-          businessId: metadata?.businessId || firestoreUid,
-        });
+      const supabase = getSupabase();
+      let sbData: any = null;
+
+      // Try by Supabase auth id first, then firebase_uid column if present
+      const byId = await supabase.from('users').select('*').eq('id', userId).maybeSingle();
+      if (byId.data) sbData = byId.data;
+      if (!sbData && firestoreUid && firestoreUid !== userId) {
+        const byFb = await supabase.from('users').select('*').eq('id', firestoreUid).maybeSingle();
+        if (byFb.data) sbData = byFb.data;
       }
+      if (!sbData && userEmail) {
+        const byEmail = await supabase.from('users').select('*').eq('email', userEmail).maybeSingle();
+        if (byEmail.data) sbData = byEmail.data;
+      }
+
+      if (sbData) {
+        const displayName =
+          (metadata?.full_name || metadata?.name) ||
+          sbData.displayName ||
+          sbData.display_name ||
+          sbData.businessName ||
+          sbData.business_name ||
+          (sbData.firstName ? `${sbData.firstName} ${sbData.lastName || ''}`.trim() : '') ||
+          userEmail.split('@')[0] ||
+          'User';
+        const firstName = String(displayName).split(' ')[0] || 'User';
+        const resolvedBusinessId =
+          sbData.businessId ||
+          sbData.business_id ||
+          metadata?.businessId ||
+          firestoreUid;
+
+        setUser({
+          initials: (firstName.charAt(0) + (String(displayName).split(' ')[1]?.charAt(0) || '')).toUpperCase(),
+          shortName: firstName,
+          role: sbData.role || metadata?.role || 'Owner',
+          plan: sbData.plan || 'Free',
+          id: userId,
+          name: displayName,
+          email: userEmail || sbData.email || '',
+          avatarContent: sbData.photoURL || sbData.photo_url || sbData.avatarContent || '👤',
+          avatarStyle: {
+            background: sbData.photoURL || sbData.photo_url || sbData.avatarBg || '#6B3FE7',
+            color: sbData.avatarColor || '#fff',
+          },
+          photoURL: sbData.photoURL || sbData.photo_url,
+          businessId: resolvedBusinessId,
+        });
+        return;
+      }
+
+      // Fallback: Firestore profile (legacy)
+      try {
+        const { initializeFirebase } = await import('@/firebase');
+        const { doc, getDoc } = await import('firebase/firestore');
+        const { firestore } = initializeFirebase();
+        const userDoc = await getDoc(doc(firestore, 'users', firestoreUid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          const displayName =
+            (metadata?.full_name || metadata?.name) ||
+            data.displayName ||
+            data.businessName ||
+            (data.firstName ? data.firstName + ' ' + (data.lastName || '') : '') ||
+            'User';
+          const firstName = displayName.split(' ')[0];
+          setUser({
+            initials: (firstName.charAt(0) + (displayName.split(' ')[1]?.charAt(0) || '')).toUpperCase(),
+            shortName: firstName,
+            role: data.role || metadata?.role || 'Owner',
+            plan: data.plan || 'Free',
+            id: userId,
+            name: displayName,
+            email: userEmail || data.email || '',
+            avatarContent: data.photoURL || data.avatarContent || '👤',
+            avatarStyle: {
+              background: data.photoURL || data.avatarBg || '#6B3FE7',
+              color: data.avatarColor || '#fff',
+            },
+            photoURL: data.photoURL,
+            businessId: data.businessId || metadata?.businessId || firestoreUid,
+          });
+          return;
+        }
+      } catch (fbErr) {
+        console.warn('Firestore user fallback failed:', fbErr);
+      }
+
+      // Last resort: metadata only
+      const displayName = (metadata?.full_name || metadata?.name) || userEmail.split('@')[0] || 'User';
+      const firstName = displayName.split(' ')[0];
+      setUser({
+        initials: (firstName.charAt(0) + (displayName.split(' ')[1]?.charAt(0) || '')).toUpperCase(),
+        shortName: firstName,
+        role: metadata?.role || 'Owner',
+        plan: 'Free',
+        id: userId,
+        name: displayName,
+        email: userEmail || '',
+        avatarContent: '👤',
+        avatarStyle: { background: '#6B3FE7', color: '#fff' },
+        photoURL: undefined,
+        businessId: metadata?.businessId || firestoreUid,
+      });
     } catch (error) {
       console.error('Error loading user data:', error);
     }
@@ -228,13 +293,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const supabase = getSupabase();
-    const { firestore } = initializeFirebase();
-    
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         ensureFirebaseAuth().catch(() => {});
-        loadUser(session.user.id, session.user.email || '', session.user.user_metadata, firestore);
+        loadUser(session.user.id, session.user.email || '', session.user.user_metadata);
       }
     });
 
@@ -242,7 +306,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         ensureFirebaseAuth().catch(() => {});
-        loadUser(session.user.id, session.user.email || '', session.user.user_metadata, firestore);
+        loadUser(session.user.id, session.user.email || '', session.user.user_metadata);
       }
     });
 
