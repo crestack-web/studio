@@ -32,6 +32,8 @@ export default function ExpiryAlertsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [isAskingMO, setIsAskingMO] = useState(false);
+  const [actionId, setActionId] = useState<string | null>(null);
+  const [actionType, setActionType] = useState<'used' | 'dispose' | null>(null);
 
   // Check feature access
   useEffect(() => {
@@ -105,45 +107,51 @@ export default function ExpiryAlertsPage() {
   };
 
   const handleMarkAsSold = async (productId: string) => {
-    if (!confirm('Mark this product as sold to clear it from expiry alerts?')) return;
-    
+    if (!confirm('Clear this item from expiry alerts (used / sold)?')) return;
+    if (!user?.businessId) return;
+    setActionId(productId);
+    setActionType('used');
     try {
-      if (!user?.businessId) return;
-      
       await updateDoc(`businesses/${user.businessId}/products`, productId, {
         expiryDate: null,
         expiryAlertCleared: true,
         expiryAlertClearedAt: new Date().toISOString(),
       });
-      
-      showToast('Product marked as sold');
-      loadExpiringProducts();
+      showToast('Cleared from expiry alerts');
+      await loadExpiringProducts();
     } catch (error) {
-      console.error('Failed to mark product as sold:', error);
-      showToast('Failed to mark product as sold');
+      console.error('Failed to clear alert:', error);
+      showToast('Failed to update product');
+    } finally {
+      setActionId(null);
+      setActionType(null);
     }
   };
 
   const handleDispose = async (productId: string) => {
-    const reason = prompt('Enter reason for disposal:');
+    const reason = prompt('Reason for disposal (spoilage, waste, etc.):');
     if (!reason) return;
-    
+    if (!user?.businessId) return;
+    setActionId(productId);
+    setActionType('dispose');
     try {
-      if (!user?.businessId) return;
-      
       await updateDoc(`businesses/${user.businessId}/products`, productId, {
         stock: 0,
+        stockLevel: 0,
+        currentStock: 0,
         expiryDate: null,
         disposed: true,
         disposalReason: reason,
         disposedAt: new Date().toISOString(),
       });
-      
-      showToast('Product disposed successfully');
-      loadExpiringProducts();
+      showToast('Product disposed and stock zeroed');
+      await loadExpiringProducts();
     } catch (error) {
       console.error('Failed to dispose product:', error);
       showToast('Failed to dispose product');
+    } finally {
+      setActionId(null);
+      setActionType(null);
     }
   };
 
@@ -409,16 +417,18 @@ export default function ExpiryAlertsPage() {
                       <button
                         onClick={() => handleMarkAsSold(product.id)}
                         className={`${styles.actionButton} ${styles.sold}`}
-                        title="Mark as sold"
+                        title="Mark as used"
+                        disabled={actionId === product.id}
                       >
-                        Sold
+                        {actionId === product.id && actionType === 'used' ? '…' : 'Used'}
                       </button>
                       <button
                         onClick={() => handleDispose(product.id)}
                         className={`${styles.actionButton} ${styles.dispose}`}
                         title="Dispose"
+                        disabled={actionId === product.id}
                       >
-                        Dispose
+                        {actionId === product.id && actionType === 'dispose' ? '…' : 'Dispose'}
                       </button>
                     </div>
                   </td>

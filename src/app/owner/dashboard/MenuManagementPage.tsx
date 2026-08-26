@@ -3,8 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
-import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { fetchDocs, addDoc, updateDoc, deleteDoc, toDate } from '@/lib/supabase-client-data';
 import { checkFeatureAccess } from '@/lib/featureRestrictions';
 import { getDishCategories } from './utils/restaurantHelpers';
 import { Plus, Edit2, Trash2, Search, Clock, X, ChefHat } from 'lucide-react';
@@ -62,6 +61,8 @@ export default function MenuManagementPage() {
   const [recipeLines, setRecipeLines] = useState<RecipeLine[]>([]);
   const [pickIngredientId, setPickIngredientId] = useState('');
   const [pickQuantity, setPickQuantity] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const dishCategories = getDishCategories();
 
@@ -85,30 +86,30 @@ export default function MenuManagementPage() {
   const loadMenuItems = async () => {
     try {
       if (!user?.businessId) return;
-      const { firestore } = initializeFirebase();
-      const productsCollection = collection(firestore, 'businesses', user.businessId, 'products');
-      const snapshot = await getDocs(productsCollection);
-      const items = snapshot.docs
-        .map((d) => {
-          const data = d.data();
+      const docs = await fetchDocs(`businesses/${user.businessId}/products`);
+      const items = docs
+        .map((data: any) => {
+          const meta = data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
           const recipeIngredients: RecipeLine[] = Array.isArray(data.recipeIngredients)
             ? data.recipeIngredients
-            : [];
+            : Array.isArray(meta.recipeIngredients)
+              ? meta.recipeIngredients
+              : [];
           return {
-            id: d.id,
+            id: data.id,
             name: data.name || '',
             description: data.description,
-            category: data.dishCategory || data.category || 'Other',
+            category: data.dishCategory || meta.dishCategory || data.category || 'Other',
             price: Number(data.price ?? data.sellingPrice ?? 0),
             cost: Number(data.cost ?? data.costPrice ?? 0),
-            preparationTime: Number(data.preparationTime || 0),
-            ingredients: data.ingredients || [],
+            preparationTime: Number(data.preparationTime || meta.preparationTime || 0),
+            ingredients: data.ingredients || meta.ingredients || [],
             recipeIngredients,
             available: data.active !== false,
             imageUrl: data.imageUrl,
-            createdAt: data.createdAt?.toDate?.() || new Date(),
-            productType: data.productType,
-            dishCategory: data.dishCategory,
+            createdAt: toDate(data.createdAt) || new Date(),
+            productType: data.productType || meta.productType,
+            dishCategory: data.dishCategory || meta.dishCategory,
           };
         })
         .filter((item: any) => {
@@ -128,19 +129,17 @@ export default function MenuManagementPage() {
   const loadIngredients = async () => {
     try {
       if (!user?.businessId) return;
-      const { firestore } = initializeFirebase();
-      const productsCollection = collection(firestore, 'businesses', user.businessId, 'products');
-      const snapshot = await getDocs(productsCollection);
-      const options = snapshot.docs
-        .map((d) => {
-          const data = d.data();
+      const docs = await fetchDocs(`businesses/${user.businessId}/products`);
+      const options = docs
+        .map((data: any) => {
+          const meta = data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
           return {
-            id: d.id,
+            id: data.id,
             name: data.name || '',
-            unit: data.ingredientUnit || data.unit || 'Piece',
-            unitCost: Number(data.cost ?? data.costPrice ?? data.unitCost ?? 0),
+            unit: data.ingredientUnit || meta.ingredientUnit || data.unit || 'Piece',
+            unitCost: Number(data.cost ?? data.costPrice ?? data.unitCost ?? meta.unitCost ?? 0),
             stock: Number(data.stock ?? data.stockLevel ?? 0),
-            productType: data.productType,
+            productType: data.productType || meta.productType,
           };
         })
         .filter((item: any) => item.productType === 'ingredient') as IngredientOption[];
@@ -197,25 +196,25 @@ export default function MenuManagementPage() {
   };
 
   const handleSave = async () => {
+    if (!user?.businessId) return;
+    if (!formData.name.trim()) {
+      showToast('Name is required');
+      return;
+    }
+    if (!formData.category) {
+      showToast('Category is required');
+      return;
+    }
+    const price = parseFloat(formData.price);
+    if (isNaN(price) || price < 0) {
+      showToast('Enter a valid selling price');
+      return;
+    }
+    setSaving(true);
     try {
-      if (!user?.businessId) return;
-      if (!formData.name.trim()) {
-        showToast('Name is required');
-        return;
-      }
-      if (!formData.category) {
-        showToast('Category is required');
-        return;
-      }
-      const price = parseFloat(formData.price);
-      if (isNaN(price) || price < 0) {
-        showToast('Enter a valid selling price');
-        return;
-      }
-      const { firestore } = initializeFirebase();
-      const productsCollection = collection(firestore, 'businesses', user.businessId, 'products');
+      const path = `businesses/${user.businessId}/products`;
       const cost = calculatedCost;
-      const itemData = {
+      const itemData: Record<string, unknown> = {
         name: formData.name.trim(),
         description: formData.description.trim(),
         category: formData.category,
@@ -231,37 +230,42 @@ export default function MenuManagementPage() {
         active: formData.available,
         stock: 999,
         lowStockThreshold: 10,
-        createdAt: editingItem ? editingItem.createdAt : new Date(),
         attributes: { emoji: '🍽️' },
       };
       if (editingItem) {
-        await updateDoc(doc(productsCollection, editingItem.id), itemData);
+        await updateDoc(path, editingItem.id, itemData);
         showToast('Menu item updated successfully');
       } else {
-        await addDoc(productsCollection, itemData);
+        itemData.createdAt = new Date().toISOString();
+        await addDoc(path, itemData);
         showToast('Menu item added successfully');
       }
       setShowAddModal(false);
       setEditingItem(null);
       resetForm();
-      loadMenuItems();
+      await loadMenuItems();
+      await loadIngredients();
     } catch (error) {
       console.error('Failed to save menu item:', error);
       showToast('Failed to save menu item');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleDelete = async (itemId: string) => {
     if (!confirm('Are you sure you want to delete this menu item?')) return;
+    if (!user?.businessId) return;
+    setDeletingId(itemId);
     try {
-      if (!user?.businessId) return;
-      const { firestore } = initializeFirebase();
-      await deleteDoc(doc(firestore, 'businesses', user.businessId, 'products', itemId));
+      await deleteDoc(`businesses/${user.businessId}/products`, itemId);
       showToast('Menu item deleted successfully');
-      loadMenuItems();
+      await loadMenuItems();
     } catch (error) {
       console.error('Failed to delete menu item:', error);
       showToast('Failed to delete menu item');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -381,6 +385,7 @@ export default function MenuManagementPage() {
                   onClick={() => handleDelete(item.id)}
                   className={`${styles.actionButton} ${styles.danger}`}
                   title="Delete"
+                  disabled={deletingId === item.id || saving}
                 >
                   <Trash2 size={16} />
                 </button>
@@ -623,16 +628,22 @@ export default function MenuManagementPage() {
             <div className={styles.modalActions}>
               <button
                 onClick={() => {
+                  if (saving) return;
                   setShowAddModal(false);
                   setEditingItem(null);
                   resetForm();
                 }}
                 className={`${styles.modalButton} ${styles.secondary}`}
+                disabled={saving}
               >
                 Cancel
               </button>
-              <button onClick={handleSave} className={`${styles.modalButton} ${styles.primary}`}>
-                {editingItem ? 'Update' : 'Add'}
+              <button
+                onClick={handleSave}
+                className={`${styles.modalButton} ${styles.primary}`}
+                disabled={saving}
+              >
+                {saving ? 'Saving…' : editingItem ? 'Update' : 'Add'}
               </button>
             </div>
           </div>

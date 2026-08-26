@@ -251,6 +251,17 @@ function toDoc(tableName: string, row: Record<string, unknown>): Record<string, 
     }
   }
 
+  // Flatten metadata jsonb onto the document so callers can read
+  // productType, recipeIngredients, expiryDate, etc. at the top level.
+  const meta = row.metadata;
+  if (meta && typeof meta === 'object' && !Array.isArray(meta)) {
+    for (const [k, v] of Object.entries(meta as Record<string, unknown>)) {
+      if (doc[k] === undefined) {
+        doc[k] = v;
+      }
+    }
+  }
+
   // Special status field handling for products
   // Legacy rows may have null status (boolean active was stored in metadata only).
   // Treat null/empty status as active so inventory still lists them.

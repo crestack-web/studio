@@ -513,3 +513,186 @@
   color: var(--text-3);
   margin: 8px 0 16px;
 }
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.refreshButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.refreshButton:hover {
+  background: var(--bg-2);
+  color: var(--text-1);
+}
+
+.cardsGrid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .cardsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .cardsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.ingredientCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color var(--transition);
+}
+
+.ingredientCard:hover {
+  border-color: var(--purple);
+}
+
+.ingredientCard.cardLow {
+  border-color: color-mix(in srgb, var(--red) 40%, var(--border));
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.cardName {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-1);
+  margin: 0 0 2px;
+}
+
+.cardMeta {
+  font-size: 0.8125rem;
+  color: var(--text-3);
+  margin: 0;
+  text-transform: capitalize;
+}
+
+.cardStats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.statLabel {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-3);
+}
+
+.statValue {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.statValue.low {
+  color: var(--red);
+}
+
+.cardExtra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.8125rem;
+}
+
+.cardActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.cardBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-2);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cardBtn:hover:not(:disabled) {
+  background: var(--bg-2);
+  color: var(--text-1);
+}
+
+.cardBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cardBtnPrimary {
+  background: var(--purple-lt);
+  color: var(--purple);
+  border-color: transparent;
+}
+
+.cardBtnPrimary:hover:not(:disabled) {
+  background: var(--purple);
+  color: #fff;
+}
+
+.cardBtnDanger:hover:not(:disabled) {
+  background: var(--red-lt);
+  color: var(--red);
+  border-color: transparent;
+}
+
+.emptyIcon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 12px;
+  color: var(--text-3);
+  opacity: 0.35;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+.modalButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.modalButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
