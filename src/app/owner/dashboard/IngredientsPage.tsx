@@ -182,7 +182,10 @@ export default function IngredientsPage() {
   };
 
   const handleSave = async () => {
-    if (!path) return;
+    if (!user?.businessId) {
+      showToast('Business not loaded — refresh and try again');
+      return;
+    }
     if (!formData.name.trim() || !formData.category || !formData.unit) {
       showToast('Name, category, and unit are required');
       return;
@@ -195,34 +198,44 @@ export default function IngredientsPage() {
 
     setSaving(true);
     try {
-      const stock = parseFloat(formData.currentStock) || 0;
-      const minStock = parseFloat(formData.minimumStock) || 10;
+      const savePath = `businesses/${user.businessId}/products`;
+      const stock = Math.max(0, Math.round(parseFloat(formData.currentStock) || 0));
+      const minStock = Math.max(0, Math.round(parseFloat(formData.minimumStock) || 10));
       const ingredientData: Record<string, unknown> = {
         name: formData.name.trim(),
+        description: '',
         category: formData.category,
         unit: formData.unit,
         ingredientUnit: formData.unit,
-        unitCost,
+        price: 0,
         cost: unitCost,
         costPrice: unitCost,
+        unitCost,
         stock,
         stockLevel: stock,
-        currentStock: stock,
         reorderLevel: minStock,
         lowStockThreshold: minStock,
         productType: 'ingredient',
-        supplier: formData.supplier.trim() || null,
-        expiryDate: formData.expiryDate ? formData.expiryDate : null,
         active: true,
+        status: 'active',
         attributes: { emoji: '🥘' },
+        updatedAt: new Date().toISOString(),
       };
+      if (formData.supplier.trim()) {
+        ingredientData.supplier = formData.supplier.trim();
+      }
+      if (formData.expiryDate) {
+        ingredientData.expiryDate = formData.expiryDate;
+      }
 
       if (editingIngredient) {
-        await updateDoc(path, editingIngredient.id, ingredientData);
+        await updateDoc(savePath, editingIngredient.id, ingredientData);
         showToast('Ingredient updated');
       } else {
+        const id = crypto.randomUUID();
+        ingredientData.id = id;
         ingredientData.createdAt = new Date().toISOString();
-        await addDoc(path, ingredientData);
+        await addDoc(savePath, ingredientData);
         showToast('Ingredient added');
       }
 
@@ -231,9 +244,10 @@ export default function IngredientsPage() {
       resetForm();
       await loadIngredients();
       await loadMenuUsage();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save ingredient:', error);
-      showToast('Failed to save ingredient');
+      const msg = error?.message || error?.details || 'Failed to save ingredient';
+      showToast(String(msg));
     } finally {
       setSaving(false);
     }
@@ -789,12 +803,12 @@ export default function IngredientsPage() {
                 {saving ? (
                   <>
                     <Loader2 size={16} className={styles.spin} />
-                    Saving…
+                    {editingIngredient ? 'Updating…' : 'Adding…'}
                   </>
                 ) : editingIngredient ? (
                   'Update'
                 ) : (
-                  'Add'
+                  'Add ingredient'
                 )}
               </button>
             </div>

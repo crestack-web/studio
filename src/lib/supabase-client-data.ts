@@ -221,10 +221,37 @@ function toRow(
     }
   }
 
+  // Drop null/undefined from metadata (PostgREST is happier without them)
+  for (const k of Object.keys(metadata)) {
+    if (metadata[k] === null || metadata[k] === undefined) {
+      delete metadata[k];
+    }
+  }
+
   if (Object.keys(metadata).length > 0) {
     row.metadata = row.metadata
       ? { ...(row.metadata as object), ...metadata }
       : metadata;
+  }
+
+  // Products: stock_level / reorder_level are integer columns
+  if (tableName === 'products') {
+    if (row.stock_level != null && row.stock_level !== '') {
+      const n = Number(row.stock_level);
+      row.stock_level = Number.isFinite(n) ? Math.max(0, Math.round(n)) : 0;
+    }
+    if (row.reorder_level != null && row.reorder_level !== '') {
+      const n = Number(row.reorder_level);
+      row.reorder_level = Number.isFinite(n) ? Math.max(0, Math.round(n)) : 0;
+    }
+    if (row.price != null && row.price !== '') {
+      const n = Number(row.price);
+      row.price = Number.isFinite(n) ? n : 0;
+    }
+    if (row.cost != null && row.cost !== '') {
+      const n = Number(row.cost);
+      row.cost = Number.isFinite(n) ? n : 0;
+    }
   }
 
   return row;
@@ -546,8 +573,11 @@ export async function addDoc(
   const { error } = await supabase.from(table).insert(row);
 
   if (error) {
-    console.error(`[supabase-client-data] addDoc error (${table}):`, error);
-    throw error;
+    console.error(`[supabase-client-data] addDoc error (${table}):`, error, row);
+    const err = new Error(error.message || 'Failed to save') as Error & { code?: string; details?: string };
+    err.code = error.code;
+    err.details = error.details;
+    throw err;
   }
 
   return id;

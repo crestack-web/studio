@@ -647,3 +647,19 @@
 .costRow .loss {
   color: var(--red);
 }
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+.modalButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.modalButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}

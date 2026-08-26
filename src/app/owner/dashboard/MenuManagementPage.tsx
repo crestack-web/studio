@@ -6,7 +6,7 @@ import { useCurrency } from './CurrencyContext';
 import { fetchDocs, addDoc, updateDoc, deleteDoc, toDate } from '@/lib/supabase-client-data';
 import { checkFeatureAccess } from '@/lib/featureRestrictions';
 import { getDishCategories } from './utils/restaurantHelpers';
-import { Plus, Edit2, Trash2, Search, Clock, X, ChefHat } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Clock, X, ChefHat, Loader2 } from 'lucide-react';
 import styles from './MenuManagementPage.module.css';
 
 interface RecipeLine {
@@ -196,7 +196,10 @@ export default function MenuManagementPage() {
   };
 
   const handleSave = async () => {
-    if (!user?.businessId) return;
+    if (!user?.businessId) {
+      showToast('Business not loaded — refresh and try again');
+      return;
+    }
     if (!formData.name.trim()) {
       showToast('Name is required');
       return;
@@ -216,7 +219,7 @@ export default function MenuManagementPage() {
       const cost = calculatedCost;
       const itemData: Record<string, unknown> = {
         name: formData.name.trim(),
-        description: formData.description.trim(),
+        description: formData.description.trim() || '',
         category: formData.category,
         dishCategory: formData.category,
         price,
@@ -228,26 +231,34 @@ export default function MenuManagementPage() {
         recipeIngredients: recipeLines,
         productType: 'dish',
         active: formData.available,
+        status: formData.available ? 'active' : 'inactive',
         stock: 999,
+        stockLevel: 999,
+        reorderLevel: 10,
         lowStockThreshold: 10,
+        unit: 'portion',
         attributes: { emoji: '🍽️' },
+        updatedAt: new Date().toISOString(),
       };
       if (editingItem) {
         await updateDoc(path, editingItem.id, itemData);
-        showToast('Menu item updated successfully');
+        showToast('Menu item updated');
       } else {
+        const id = crypto.randomUUID();
+        itemData.id = id;
         itemData.createdAt = new Date().toISOString();
         await addDoc(path, itemData);
-        showToast('Menu item added successfully');
+        showToast('Menu item added');
       }
       setShowAddModal(false);
       setEditingItem(null);
       resetForm();
       await loadMenuItems();
       await loadIngredients();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save menu item:', error);
-      showToast('Failed to save menu item');
+      const msg = error?.message || error?.details || 'Failed to save menu item';
+      showToast(String(msg));
     } finally {
       setSaving(false);
     }
@@ -643,7 +654,16 @@ export default function MenuManagementPage() {
                 className={`${styles.modalButton} ${styles.primary}`}
                 disabled={saving}
               >
-                {saving ? 'Saving…' : editingItem ? 'Update' : 'Add'}
+                {saving ? (
+                  <>
+                    <Loader2 size={16} className={styles.spin} />
+                    {editingItem ? 'Updating…' : 'Adding…'}
+                  </>
+                ) : editingItem ? (
+                  'Update'
+                ) : (
+                  'Add menu item'
+                )}
               </button>
             </div>
           </div>
