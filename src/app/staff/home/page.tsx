@@ -192,19 +192,28 @@ export default function StaffHomePage() {
           meta.must_change_password === true ||
           meta.must_change_password === 'true';
 
-        // Firestore rules require Firebase Auth — link from Supabase session
-        await ensureFirebaseAuth();
-
-        const { firestore } = initializeFirebase();
-        if (!firestore) {
-          throw new Error('Data service unavailable. Please refresh.');
+        // Best-effort Firebase link for legacy Firestore reads (not required)
+        await ensureFirebaseAuth().catch(() => false);
+        let firestore = null as ReturnType<typeof initializeFirebase>['firestore'] | null;
+        try {
+          firestore = initializeFirebase().firestore;
+        } catch {
+          firestore = null;
         }
 
         const resolved = await resolveStaffBusinessId(
           firestore,
           user.id,
           user.email,
-          meta.businessId
+          {
+            businessId: meta.businessId || null,
+            staffId: meta.staffId || null,
+            role: meta.role || null,
+            mustChangePassword:
+              meta.must_change_password === true ||
+              meta.must_change_password === 'true',
+            fullName: meta.full_name || meta.name || null,
+          }
         );
 
         if (resolved.role) role = resolved.role;

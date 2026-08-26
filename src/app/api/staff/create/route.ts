@@ -353,6 +353,40 @@ export async function POST(request: NextRequest) {
       }
     }
 
+
+    // Dual-write staff row to Supabase so staff/home can resolve without Firestore
+    try {
+      await supabase.from('staff').upsert(
+        {
+          id: staffId || userId,
+          user_id: userId,
+          business_id: targetBusinessId,
+          name: cleanName,
+          email: cleanEmail,
+          role: staffRole,
+          permissions: permissions || {},
+          status: 'active',
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id' }
+      );
+      await supabase.from('users').upsert(
+        {
+          id: userId,
+          email: cleanEmail,
+          name: cleanName,
+          role: staffRole,
+          business_id: targetBusinessId,
+          status: 'active',
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id' }
+      );
+      console.log('✅ [API] Dual-wrote staff to Supabase tables');
+    } catch (sbErr) {
+      console.warn('[API] Supabase staff dual-write failed (non-fatal)', sbErr);
+    }
+
     let emailSent = false;
 
     let emailError: string | null = null;

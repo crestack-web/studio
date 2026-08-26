@@ -52,11 +52,15 @@ export default function StaffSetPasswordPage() {
         return;
       }
 
+      // Preserve invite metadata (businessId, staffId) — only clear must_change flag
       const { error: updateErr } = await supabase.auth.updateUser({
         password,
         data: {
+          ...user.user_metadata,
           must_change_password: false,
           role: user.user_metadata?.role || 'Staff',
+          businessId: user.user_metadata?.businessId || user.user_metadata?.business_id,
+          staffId: user.user_metadata?.staffId || user.user_metadata?.staff_id,
         },
       });
       if (updateErr) throw updateErr;
