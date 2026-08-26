@@ -5,9 +5,14 @@
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 16px;
+  gap: 8px;
+  padding: 0 12px;
   transition: background var(--transition);
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 /* ── Brand (logo + name) — mobile only; desktop uses sidebar logo ── */
@@ -119,6 +124,9 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .iconBtn {
@@ -257,15 +265,151 @@
   color: var(--text-3);
 }
 
-@media (max-width: 480px) {
-  .userName, .userRole { display: none; }
-  .aiBtn { display: none; }
+/* ── Trial countdown chip ── */
+.trialChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  flex-shrink: 0;
+  white-space: nowrap;
+  max-width: 100%;
+  line-height: 1;
 }
 
+.trialIcon {
+  flex-shrink: 0;
+}
+
+.trialShort {
+  display: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.trialFull {
+  display: inline;
+  font-variant-numeric: tabular-nums;
+}
+
+.trial_normal {
+  color: var(--purple, #6B3FE7);
+  background: color-mix(in srgb, var(--purple, #6B3FE7) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--purple, #6B3FE7) 28%, transparent);
+}
+
+.trial_warn {
+  color: var(--amber, #d97706);
+  background: color-mix(in srgb, var(--amber, #d97706) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--amber, #d97706) 30%, transparent);
+}
+
+.trial_critical {
+  color: var(--red, #dc2626);
+  background: color-mix(in srgb, var(--red, #dc2626) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--red, #dc2626) 30%, transparent);
+}
+
+.branchWrap {
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 140px;
+}
+
+.themeBtn {
+  /* default visible */
+}
 
 /* Home welcome in header is desktop-only; mobile keeps the homepage banner */
 @media (max-width: 768px) {
   .titleBlock {
     display: none;
+  }
+
+  .topbar {
+    gap: 6px;
+    padding: 0 8px;
+  }
+
+  .actions {
+    gap: 4px;
+  }
+
+  /* Compact trial: "2d" only — avoids overflow with hamburger + logo + icons */
+  .trialChip {
+    padding: 4px 7px;
+    gap: 4px;
+  }
+
+  .trialFull {
+    display: none;
+  }
+
+  .trialShort {
+    display: inline;
+  }
+
+  .branchWrap {
+    display: none;
+  }
+
+  .divider {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .userName, .userRole { display: none; }
+  .aiBtn { display: none; }
+
+  .topbar {
+    gap: 4px;
+    padding: 0 6px;
+  }
+
+  .actions {
+    gap: 3px;
+  }
+
+  .trialChip {
+    padding: 3px 6px;
+    font-size: 0.68rem;
+  }
+
+  .trialIcon {
+    width: 12px;
+    height: 12px;
+  }
+
+  .iconBtn {
+    width: 30px;
+    height: 30px;
+  }
+
+  .avatar {
+    width: 26px;
+    height: 26px;
+  }
+
+  .userBtn {
+    padding: 3px;
+  }
+
+  /* Theme toggle can yield space on the tightest widths when trial is on */
+  .topbarWithTrial .themeBtn {
+    display: none;
+  }
+}
+
+@media (max-width: 360px) {
+  .brandName {
+    display: none;
+  }
+
+  .brandLogo {
+    width: 26px;
+    height: 26px;
   }
 }
