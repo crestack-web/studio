@@ -62,12 +62,32 @@ function isRestaurantCategory(cat: string | undefined | null): boolean {
   );
 }
 
+function emptyMetrics(): KitchenMetrics {
+  return {
+    todaySales: 0,
+    todayOrders: 0,
+    todayProfit: 0,
+    weekSales: 0,
+    weekOrders: 0,
+    avgTicket: 0,
+    foodCostPct: null,
+    profitMargin: null,
+    menuCount: 0,
+    ingredientCount: 0,
+    lowStockIngredients: [],
+    expiringSoon: [],
+    topDishes: [],
+    unavailableMenus: 0,
+  };
+}
+
 export function RestaurantHealthScore({ businessId: propBusinessId }: { businessId?: string }) {
   const { user, navigateTo } = useApp();
   const { formatMoney } = useCurrency();
-  const [isRestaurant, setIsRestaurant] = useState(false);
+  const [isRestaurant, setIsRestaurant] = useState<boolean | null>(null); // null = unknown
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<KitchenMetrics | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(
     propBusinessId || user?.businessId || null
@@ -95,34 +115,61 @@ export function RestaurantHealthScore({ businessId: propBusinessId }: { business
       else setRefreshing(true);
 
       try {
+        setLoadError(null);
         const bid = await resolveBid();
         if (!bid) {
-          setIsRestaurant(false);
-          setMetrics(null);
+          // Keep section visible while auth/business still resolving
+          setIsRestaurant(null);
+          setMetrics(emptyMetrics());
           return;
         }
         setBusinessId(bid);
 
-        // Category check (Supabase business row + user)
+        // Category from business + user profile (signup often only sets users.category)
         let restaurant = false;
+        const categoryCandidates: string[] = [];
         try {
           const { data: biz } = await getSupabase()
             .from('businesses')
-            .select('category, selectedCategory, business_type, type')
+            .select('category, selectedCategory, business_type, type, metadata')
             .eq('id', bid)
             .maybeSingle();
-          const cat =
-            (biz as any)?.category ||
-            (biz as any)?.selectedCategory ||
-            (biz as any)?.business_type ||
-            (biz as any)?.type ||
-            '';
-          restaurant = isRestaurantCategory(cat);
+          if (biz) {
+            categoryCandidates.push(
+              String((biz as any).category || ''),
+              String((biz as any).selectedCategory || ''),
+              String((biz as any).business_type || ''),
+              String((biz as any).type || ''),
+              String((biz as any).metadata?.category || ''),
+              String((biz as any).metadata?.selectedCategory || '')
+            );
+          }
         } catch {
           /* ignore */
         }
+        try {
+          const uid = user?.id;
+          if (uid) {
+            const { data: profile } = await getSupabase()
+              .from('users')
+              .select('category, selectedCategory, businessCategory, metadata, role')
+              .eq('id', uid)
+              .maybeSingle();
+            if (profile) {
+              categoryCandidates.push(
+                String((profile as any).category || ''),
+                String((profile as any).selectedCategory || ''),
+                String((profile as any).businessCategory || ''),
+                String((profile as any).metadata?.category || ''),
+                String((profile as any).metadata?.selectedCategory || '')
+              );
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+        restaurant = categoryCandidates.some((c) => isRestaurantCategory(c));
 
-        // Fallback: presence of dishes/ingredients marks kitchen ops
         const products = await fetchDocs(`businesses/${bid}/products`);
         const hasKitchenItems = products.some((p: any) => {
           const meta =
@@ -132,6 +179,29 @@ export function RestaurantHealthScore({ businessId: propBusinessId }: { business
         });
         if (hasKitchenItems) restaurant = true;
 
+        // Soft signal: user already uses kitchen nav / local onboarding cache
+        try {
+          if (typeof window !== 'undefined') {
+            const cached = localStorage.getItem('selectedCategory') || localStorage.getItem('busmo_category') || '';
+            if (isRestaurantCategory(cached)) restaurant = true;
+            const features = localStorage.getItem('selectedFeatures') || '';
+            if (/menu|ingredient|expiry/i.test(features)) restaurant = true;
+          }
+        } catch {
+          /* ignore */
+        }
+
+        // If category is missing entirely, still show kitchen overview (zeros)
+        // so restaurant owners without seeded category/products are not locked out.
+        const anyCategory = categoryCandidates.some((c) => c && c.trim());
+        if (!restaurant && anyCategory) {
+          setIsRestaurant(false);
+          setMetrics(null);
+          return;
+        }
+        if (!restaurant && !anyCategory) {
+          restaurant = true; // optimistic for uncategorized businesses with kitchen tools
+        }
         setIsRestaurant(restaurant);
         if (!restaurant) {
           setMetrics(null);
@@ -281,8 +351,12 @@ export function RestaurantHealthScore({ businessId: propBusinessId }: { business
           topDishes,
           unavailableMenus,
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error('[RestaurantHealthScore]', error);
+        setLoadError(error?.message || 'Failed to load kitchen metrics');
+        // Stay visible with zeros so the section does not vanish
+        setIsRestaurant(true);
+        setMetrics((prev) => prev || emptyMetrics());
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -293,9 +367,10 @@ export function RestaurantHealthScore({ businessId: propBusinessId }: { business
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, user?.businessId, user?.id]);
 
-  if (!loading && !isRestaurant) return null;
+  // Only hide when we finished loading and confirmed non-restaurant
+  if (!loading && isRestaurant === false) return null;
 
   if (loading) {
     return (
@@ -314,14 +389,15 @@ export function RestaurantHealthScore({ businessId: propBusinessId }: { business
     );
   }
 
-  if (!metrics) return null;
+  // isRestaurant true or still unknown after load — keep section visible
+  const data = metrics || emptyMetrics();
 
   const foodCostStatus =
-    metrics.foodCostPct == null
+    data.foodCostPct == null
       ? 'neutral'
-      : metrics.foodCostPct <= 30
+      : data.foodCostPct <= 30
         ? 'good'
-        : metrics.foodCostPct <= 40
+        : data.foodCostPct <= 40
           ? 'warn'
           : 'bad';
 
@@ -347,17 +423,22 @@ export function RestaurantHealthScore({ businessId: propBusinessId }: { business
       </CardHeader>
 
       <div className={styles.body}>
+        {loadError && (
+          <p className={styles.muted} style={{ color: 'var(--red, #dc2626)' }}>
+            {loadError} — showing zeros. Tap refresh to retry.
+          </p>
+        )}
         {/* Today strip */}
         <div className={styles.todayStrip}>
           <div>
             <span className={styles.stripLabel}>Today’s sales</span>
             <span className={styles.stripValue}>
-              {formatMoney(metrics.todaySales)}
+              {formatMoney(data.todaySales)}
             </span>
           </div>
           <div>
             <span className={styles.stripLabel}>Orders</span>
-            <span className={styles.stripValue}>{metrics.todayOrders}</span>
+            <span className={styles.stripValue}>{data.todayOrders}</span>
           </div>
           <div>
             <span className={styles.stripLabel}>Est. profit</span>
@@ -365,12 +446,12 @@ export function RestaurantHealthScore({ businessId: propBusinessId }: { business
               className={styles.stripValue}
               style={{
                 color:
-                  metrics.todayProfit >= 0
+                  data.todayProfit >= 0
                     ? 'var(--green, #16a34a)'
                     : 'var(--red, #dc2626)',
               }}
             >
-              {formatMoney(metrics.todayProfit)}
+              {formatMoney(data.todayProfit)}
             </span>
           </div>
         </div>
@@ -380,26 +461,26 @@ export function RestaurantHealthScore({ businessId: propBusinessId }: { business
           <div className={styles.kpi}>
             <span className={styles.kpiLabel}>7-day sales</span>
             <span className={styles.kpiValue}>
-              {formatMoney(metrics.weekSales)}
+              {formatMoney(data.weekSales)}
             </span>
-            <span className={styles.kpiHint}>{metrics.weekOrders} orders</span>
+            <span className={styles.kpiHint}>{data.weekOrders} orders</span>
           </div>
           <div className={styles.kpi}>
             <span className={styles.kpiLabel}>Avg ticket</span>
             <span className={styles.kpiValue}>
-              {formatMoney(metrics.avgTicket)}
+              {formatMoney(data.avgTicket)}
             </span>
             <span className={styles.kpiHint}>per order (7d)</span>
           </div>
           <div className={`${styles.kpi} ${styles[foodCostStatus]}`}>
             <span className={styles.kpiLabel}>Food cost</span>
             <span className={styles.kpiValue}>
-              {metrics.foodCostPct != null
-                ? `${metrics.foodCostPct.toFixed(0)}%`
+              {data.foodCostPct != null
+                ? `${data.foodCostPct.toFixed(0)}%`
                 : '—'}
             </span>
             <span className={styles.kpiHint}>
-              {metrics.foodCostPct == null
+              {data.foodCostPct == null
                 ? 'Need sales + costs'
                 : foodCostStatus === 'good'
                   ? 'Healthy (≤30%)'
@@ -411,12 +492,12 @@ export function RestaurantHealthScore({ businessId: propBusinessId }: { business
           <div className={styles.kpi}>
             <span className={styles.kpiLabel}>Margin (7d)</span>
             <span className={styles.kpiValue}>
-              {metrics.profitMargin != null
-                ? `${metrics.profitMargin.toFixed(0)}%`
+              {data.profitMargin != null
+                ? `${data.profitMargin.toFixed(0)}%`
                 : '—'}
             </span>
             <span className={styles.kpiHint}>
-              {metrics.profitMargin != null && metrics.profitMargin >= 0 ? (
+              {data.profitMargin != null && data.profitMargin >= 0 ? (
                 <TrendingUp size={12} />
               ) : (
                 <TrendingDown size={12} />
@@ -434,10 +515,10 @@ export function RestaurantHealthScore({ businessId: propBusinessId }: { business
             onClick={() => navigateTo('menu-management' as any)}
           >
             <UtensilsCrossed size={14} />
-            {metrics.menuCount} menu items
-            {metrics.unavailableMenus > 0 && (
+            {data.menuCount} menu items
+            {data.unavailableMenus > 0 && (
               <span className={styles.badgeWarn}>
-                {metrics.unavailableMenus} off
+                {data.unavailableMenus} off
               </span>
             )}
             <ArrowRight size={14} className={styles.chev} />
@@ -448,10 +529,10 @@ export function RestaurantHealthScore({ businessId: propBusinessId }: { business
             onClick={() => navigateTo('ingredient-tracking' as any)}
           >
             <Package size={14} />
-            {metrics.ingredientCount} ingredients
-            {metrics.lowStockIngredients.length > 0 && (
+            {data.ingredientCount} ingredients
+            {data.lowStockIngredients.length > 0 && (
               <span className={styles.badgeWarn}>
-                {metrics.lowStockIngredients.length} low
+                {data.lowStockIngredients.length} low
               </span>
             )}
             <ArrowRight size={14} className={styles.chev} />
@@ -463,9 +544,9 @@ export function RestaurantHealthScore({ businessId: propBusinessId }: { business
           >
             <Clock size={14} />
             Expiry
-            {metrics.expiringSoon.length > 0 && (
+            {data.expiringSoon.length > 0 && (
               <span className={styles.badgeDanger}>
-                {metrics.expiringSoon.length} soon
+                {data.expiringSoon.length} soon
               </span>
             )}
             <ArrowRight size={14} className={styles.chev} />
@@ -478,12 +559,12 @@ export function RestaurantHealthScore({ businessId: propBusinessId }: { business
             <h4 className={styles.panelTitle}>
               <AlertTriangle size={14} /> Needs attention
             </h4>
-            {metrics.lowStockIngredients.length === 0 &&
-            metrics.expiringSoon.length === 0 ? (
+            {data.lowStockIngredients.length === 0 &&
+            data.expiringSoon.length === 0 ? (
               <p className={styles.muted}>Kitchen stock looks fine</p>
             ) : (
               <ul className={styles.alertList}>
-                {metrics.lowStockIngredients.map((i) => (
+                {data.lowStockIngredients.map((i) => (
                   <li key={i.id}>
                     <span className={styles.alertName}>{i.name}</span>
                     <span className={styles.alertMeta}>
@@ -491,7 +572,7 @@ export function RestaurantHealthScore({ businessId: propBusinessId }: { business
                     </span>
                   </li>
                 ))}
-                {metrics.expiringSoon.map((i) => (
+                {data.expiringSoon.map((i) => (
                   <li key={`exp-${i.id}`}>
                     <span className={styles.alertName}>{i.name}</span>
                     <span
@@ -511,13 +592,13 @@ export function RestaurantHealthScore({ businessId: propBusinessId }: { business
             <h4 className={styles.panelTitle}>
               <UtensilsCrossed size={14} /> Top dishes (7d)
             </h4>
-            {metrics.topDishes.length === 0 ? (
+            {data.topDishes.length === 0 ? (
               <p className={styles.muted}>
                 Record sales to see bestsellers
               </p>
             ) : (
               <ol className={styles.topList}>
-                {metrics.topDishes.map((d, idx) => (
+                {data.topDishes.map((d, idx) => (
                   <li key={d.name}>
                     <span className={styles.rank}>{idx + 1}</span>
                     <span className={styles.dishName}>{d.name}</span>
