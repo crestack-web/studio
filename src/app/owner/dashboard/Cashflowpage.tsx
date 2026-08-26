@@ -318,19 +318,34 @@ export default function Cashflowpage() {
       });
       
       for (const data of salesDocs) {
-        const amount = data.totalRevenue || data.totalAmount || 0;
-        const date = toISOString(data.createdAt) ? new Date(toISOString(data.createdAt)!) : new Date();
+        const amount =
+          Number(data.totalRevenue ?? data.total ?? data.totalAmount ?? data.total_amount ?? 0) || 0;
+        const date = toISOString(data.createdAt || data.created_at)
+          ? new Date(toISOString(data.createdAt || data.created_at)!)
+          : new Date();
 
-        const paymentBreakdown = data.paymentBreakdown || [];
-        const bankPayment = paymentBreakdown
+        const paymentBreakdown =
+          data.paymentBreakdown ||
+          data.payment_breakdown ||
+          data.metadata?.paymentBreakdown ||
+          [];
+        let bankPayment = paymentBreakdown
           .filter((p: any) => ['transfer', 'card', 'pos'].includes(p.method))
           .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
-        const cashPayment = paymentBreakdown
+        let cashPayment = paymentBreakdown
           .filter((p: any) => p.method === 'cash')
           .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
-        const creditPayment = paymentBreakdown
+        let creditPayment = paymentBreakdown
           .filter((p: any) => p.method === 'credit')
           .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+
+        // Fallback when breakdown missing: attribute full amount to primary method
+        if (!paymentBreakdown.length && amount > 0) {
+          const primary = String(data.paymentMethod || data.payment_method || 'cash').toLowerCase();
+          if (['transfer', 'card', 'pos'].includes(primary)) bankPayment = amount;
+          else if (primary === 'credit') creditPayment = amount;
+          else cashPayment = amount;
+        }
         
         if (bankPayment > 0) {
           transactionMap.set(`sale-${data.id}`, {

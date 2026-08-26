@@ -6,8 +6,7 @@ import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { Button } from './Button';
 import { MoneyControlSummary, PaymentBreakdown } from './types';
-import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { fetchDocs } from '@/lib/supabase-client-data';
 import { isRestaurantBusiness } from './utils/restaurantHelpers';
 import { DollarSign, Banknote, Smartphone, CreditCard, RefreshCw, FileText, Package, Zap, Users, BarChart3, Utensils, Download, Building2, Check, Clock, Link, HelpCircle, TrendingUp, Target, Wallet, Lightbulb, ChevronRight, ChevronDown, AlertTriangle, Plus } from 'lucide-react';
 import styles from './MoneyControlPage.module.css';
@@ -16,7 +15,7 @@ interface SaleData {
   id: string;
   totalRevenue: number;
   paymentBreakdown?: PaymentBreakdown[];
-  createdAt: Timestamp | Date | null;
+  createdAt: Date | string | null;
   [key: string]: any;
 }
 
@@ -25,7 +24,7 @@ function formatSaleDate(value: unknown): string {
   try {
     if (!value) return '—';
     if (typeof value === 'object' && value !== null && typeof (value as any).toDate === 'function') {
-      return (value as Timestamp).toDate().toLocaleDateString();
+      return (value as any).toDate().toLocaleDateString();
     }
     if (value instanceof Date) return value.toLocaleDateString();
     if (typeof value === 'number') return new Date(value).toLocaleDateString();
@@ -89,36 +88,25 @@ export default function MoneyControlPage() {
   } | null>(null);
 
   const loadRestaurantProfitMetrics = useCallback(async (
-    firestore: any,
     businessId: string,
     period: 'today' | 'week' | 'month' | 'all',
     totalSales: number
   ) => {
     try {
       const startDate = getPeriodStart(period) ?? new Date(0);
-      // Avoid composite-index requirements: filter client-side when needed
-      let expensesSnapshot;
-      try {
-        const expensesQuery = query(
-          collection(firestore, 'businesses', businessId, 'expenses'),
-          where('createdAt', '>=', Timestamp.fromDate(startDate))
-        );
-        expensesSnapshot = await getDocs(expensesQuery);
-      } catch {
-        expensesSnapshot = await getDocs(collection(firestore, 'businesses', businessId, 'expenses'));
-      }
+      const expenses = await fetchDocs(`businesses/${businessId}/expenses`);
 
       let inventoryPurchases = 0;
       let operatingExpenses = 0;
       let payrollExpenses = 0;
       const startMs = startDate.getTime();
 
-      expensesSnapshot.forEach((docSnap: any) => {
-        const data = docSnap.data();
-        const created = data.createdAt;
+      (expenses || []).forEach((data: any) => {
+        const created = data.createdAt || data.created_at;
         let createdMs = 0;
         if (created?.toDate) createdMs = created.toDate().getTime();
         else if (created instanceof Date) createdMs = created.getTime();
+        else if (typeof created === 'string') createdMs = new Date(created).getTime() || 0;
         if (period !== 'all' && createdMs && createdMs < startMs) return;
 
         const category = (data.category || '').toLowerCase();
@@ -183,39 +171,31 @@ export default function MoneyControlPage() {
     setLoading(true);
     setLoadError(null);
     try {
-      const { firestore } = initializeFirebase();
-
       const restaurant = await isRestaurantBusiness(user.businessId);
       setIsRestaurant(restaurant);
 
-      const salesRef = collection(firestore, 'businesses', user.businessId, 'sales');
       const periodStart = getPeriodStart(selectedPeriod);
-
-      // Prefer a simple query to avoid missing composite indexes; filter/sort client-side
-      let snapshot;
-      try {
-        if (periodStart) {
-          snapshot = await getDocs(
-            query(salesRef, where('createdAt', '>=', Timestamp.fromDate(periodStart)))
-          );
-        } else {
-          snapshot = await getDocs(salesRef);
-        }
-      } catch (queryErr) {
-        console.warn('Money Control sales query failed, falling back to full collection:', queryErr);
-        snapshot = await getDocs(salesRef);
-      }
-
       const startMs = periodStart ? periodStart.getTime() : 0;
-      let sales: SaleData[] = snapshot.docs.map((docSnap) => {
-        const data = docSnap.data();
-        const breakdown = Array.isArray(data.paymentBreakdown) ? data.paymentBreakdown : [];
+
+      // Sales live in Supabase (same path as Record Sale / Home)
+      const salesDocs = await fetchDocs(`businesses/${user.businessId}/sales`);
+      let sales: SaleData[] = (salesDocs || []).map((data: any) => {
+        const breakdown =
+          Array.isArray(data.paymentBreakdown)
+            ? data.paymentBreakdown
+            : Array.isArray(data.payment_breakdown)
+              ? data.payment_breakdown
+              : Array.isArray(data.metadata?.paymentBreakdown)
+                ? data.metadata.paymentBreakdown
+                : [];
+        const totalRevenue =
+          Number(data.totalRevenue ?? data.total ?? data.totalAmount ?? data.total_amount ?? 0) || 0;
         return {
-          id: docSnap.id,
+          id: data.id,
           ...data,
-          totalRevenue: Number(data.totalRevenue ?? data.total ?? 0) || 0,
+          totalRevenue,
           paymentBreakdown: breakdown,
-          createdAt: data.createdAt ?? null,
+          createdAt: data.createdAt ?? data.created_at ?? null,
         } as SaleData;
       });
 
@@ -230,38 +210,26 @@ export default function MoneyControlPage() {
       const sumByMethod = (method: string) =>
         sales.reduce((sum, sale) => {
           const breakdown = sale.paymentBreakdown || [];
-          return (
-            sum +
-            breakdown
-              .filter((pb: PaymentBreakdown) => pb.method === method)
-              .reduce((s: number, pb: PaymentBreakdown) => s + paymentAmount(pb), 0)
-          );
+          const fromBreakdown = breakdown
+            .filter((pb: PaymentBreakdown) => pb.method === method)
+            .reduce((s: number, pb: PaymentBreakdown) => s + paymentAmount(pb), 0);
+          if (fromBreakdown > 0) return sum + fromBreakdown;
+          // Fallback when paymentBreakdown was not persisted: use primary paymentMethod
+          const primary = String(sale.paymentMethod || sale.payment_method || '').toLowerCase();
+          if (primary === method) return sum + (sale.totalRevenue || 0);
+          return sum;
         }, 0);
 
       const cashSales = sumByMethod('cash');
       const transferSales = sumByMethod('transfer');
-      const posSales = sumByMethod('pos');
+      const posSales = sumByMethod('pos') + sumByMethod('card');
       const splitPayments = sumByMethod('split');
       const creditSales = sumByMethod('credit');
       
       const expectedCashCollections = cashSales + splitPayments * 0.5;
       const expectedBankCollections = transferSales + posSales + splitPayments * 0.5;
       
-      const reconciliationsRef = collection(firestore, 'businesses', user.businessId, 'cashReconciliations');
-      let recSnapshot;
-      try {
-        if (periodStart) {
-          recSnapshot = await getDocs(
-            query(reconciliationsRef, where('date', '>=', Timestamp.fromDate(periodStart)))
-          );
-        } else {
-          recSnapshot = await getDocs(reconciliationsRef);
-        }
-      } catch (recErr) {
-        console.warn('Money Control reconciliations query failed, falling back:', recErr);
-        recSnapshot = await getDocs(reconciliationsRef);
-      }
-      const reconciliations = recSnapshot.docs.map((docSnap) => docSnap.data());
+      const reconciliations = await fetchDocs(`businesses/${user.businessId}/cashReconciliations`).catch(() => []);
       
       let confirmedCashCollections = 0;
       let confirmedBankCollections = 0;
@@ -343,7 +311,7 @@ export default function MoneyControlPage() {
       setReconciledSaleIds(recSaleIds);
 
       if (restaurant) {
-        await loadRestaurantProfitMetrics(firestore, user.businessId, selectedPeriod, totalSales);
+        await loadRestaurantProfitMetrics(user.businessId, selectedPeriod, totalSales);
       }
     } catch (error: any) {
       console.error('Error loading money control summary:', error);

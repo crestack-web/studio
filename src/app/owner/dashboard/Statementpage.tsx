@@ -137,8 +137,8 @@ export function StatementPage() {
         let runningBalance = 0;
 
         for (const data of salesDocs) {
-          const amount = (data.total as number) || (data.totalRevenue as number) || 0;
-          const date = data.createdAt ? new Date(data.createdAt as string) : new Date();
+          const amount = Number((data as any).totalRevenue ?? (data as any).total ?? (data as any).totalAmount ?? (data as any).total_amount ?? 0) || 0;
+          const date = (data as any).createdAt || (data as any).created_at ? new Date(((data as any).createdAt || (data as any).created_at) as string) : new Date();
           
           totalRevenue += amount;
           runningBalance += amount;
@@ -179,7 +179,7 @@ export function StatementPage() {
 
         for (const data of expensesDocs) {
           const amount = (data.amount as number) || 0;
-          const date = data.createdAt ? new Date(data.createdAt as string) : new Date();
+          const date = (data as any).createdAt || (data as any).created_at ? new Date(((data as any).createdAt || (data as any).created_at) as string) : new Date();
 
           totalExpenses += amount;
           runningBalance -= amount;

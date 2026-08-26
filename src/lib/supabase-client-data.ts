@@ -101,8 +101,10 @@ const READ_ALIASES: Record<string, Record<string, string[]>> = {
   },
   sales: {
     payment_method: ['paymentMethod', 'paymentType'],
-    total_revenue: ['totalRevenue'],
+    total_revenue: ['totalRevenue', 'total', 'totalAmount'],
+    total_amount: ['totalAmount', 'total', 'totalRevenue'],
     items: ['products', 'items'],
+    created_at: ['createdAt'],
   },
   businesses: {
     owner_id: ['ownerId'],
@@ -158,6 +160,20 @@ function toRow(
     // Skip internal Firestore fields
     if (key === 'id' || key === 'businessId' || key === '__name__') continue;
 
+    // Products: callers often set boolean `active` instead of Postgres `status`
+    if (tableName === 'products' && key === 'active') {
+      if (typeof value === 'boolean') {
+        row['status'] = value ? 'active' : 'inactive';
+      } else if (typeof value === 'string') {
+        row['status'] = value;
+      }
+      continue;
+    }
+    if (tableName === 'products' && key === 'status' && typeof value === 'string') {
+      row['status'] = value;
+      continue;
+    }
+
     // Map field aliases
     const colName = aliases[key] || camelToSnake(key);
 
@@ -173,9 +189,24 @@ function toRow(
     }
   }
 
+  // Default product status when neither status nor active was provided
+  if (tableName === 'products' && row['status'] == null) {
+    row['status'] = 'active';
+  }
+
+  // Sales: keep denormalized totals consistent for statement/cashflow/money pages
+  if (tableName === 'sales') {
+    if (row['total_revenue'] == null && data['total'] != null) {
+      row['total_revenue'] = data['total'];
+    }
+    if (row['total_amount'] == null && row['total_revenue'] != null) {
+      row['total_amount'] = row['total_revenue'];
+    }
+  }
+
   if (Object.keys(metadata).length > 0) {
     row.metadata = row.metadata
-      ? { ...row.metadata, ...metadata }
+      ? { ...(row.metadata as object), ...metadata }
       : metadata;
   }
 
@@ -386,9 +417,10 @@ export async function fetchDocs<T = any>(
     }
   }
 
-  // Order by
+  // Order by (normalize camelCase field names to snake_case columns)
   if (options.orderBy) {
-    queryBuilder = queryBuilder.order(options.orderBy.field, {
+    const orderField = camelToSnake(options.orderBy.field);
+    queryBuilder = queryBuilder.order(orderField, {
       ascending: options.orderBy.ascending ?? true,
     });
   }

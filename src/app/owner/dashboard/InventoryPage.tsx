@@ -63,33 +63,51 @@ const InventoryPage: React.FC = () => {
           console.error('Error loading business category:', e);
         }
 
-        // Determine products collection path based on selected branch
-        let productsPath: string;
-        let productsFilters = [{ field: 'status', op: '=' as const, value: 'active' }];
+        // Always load business-level products (add-product writes here).
+        // Branch-scoped rows are optional extras for Pro multi-location setups.
+        const mainProducts = await fetchDocs(`businesses/${effectiveBusinessId}/products`);
+        let productsData: any[] = Array.isArray(mainProducts) ? [...mainProducts] : [];
+
         if (selectedBranchId && isProUser) {
-          productsPath = `businesses/${effectiveBusinessId}/branches/${selectedBranchId}/products`;
-        } else {
-          productsPath = `businesses/${effectiveBusinessId}/products`;
+          try {
+            const branchProducts = await fetchDocs(
+              `businesses/${effectiveBusinessId}/branches/${selectedBranchId}/products`
+            );
+            const seen = new Set(productsData.map((p: any) => p.id));
+            for (const bp of branchProducts || []) {
+              if (bp?.id && !seen.has(bp.id)) {
+                productsData.push(bp);
+                seen.add(bp.id);
+              }
+            }
+          } catch (branchErr) {
+            console.warn('Branch products fetch failed, using main catalog only', branchErr);
+          }
         }
-        
-        const productsData = await fetchDocs(productsPath, {
-          filters: productsFilters,
-        });
-        
-        const productsList: Product[] = productsData.map((data: any) => ({
+
+        // Include active products and legacy rows with missing status
+        // (older writes stored boolean `active` in metadata without Postgres status).
+        const isVisibleProduct = (data: any) => {
+          const status = (data.status || '').toString().toLowerCase();
+          if (['inactive', 'archived', 'deleted', 'draft'].includes(status)) return false;
+          if (data.active === false) return false;
+          return true;
+        };
+
+        const productsList: Product[] = productsData.filter(isVisibleProduct).map((data: any) => ({
           id: data.id,
           name: data.name || '',
-          sku: data.sku || '',
+          sku: data.sku || data.attributes?.sku || '',
           category: data.category || '',
-          stock: data.stock || 0,
-          currentStock: data.stock || 0,
+          stock: data.stock ?? data.stockLevel ?? data.quantity ?? 0,
+          currentStock: data.stock ?? data.stockLevel ?? data.quantity ?? 0,
           costPrice: data.cost || data.costPrice || 0,
-          sellingPrice: data.price || 0,
+          sellingPrice: data.price || data.sellingPrice || 0,
           unitsSold30d: data.unitsSold30d || 0,
           totalSalesCount: data.totalSalesCount || 0,
           lastSaleDate: data.lastSaleDate || '',
           lastSalePrice: data.lastSalePrice || 0,
-          reorderThreshold: data.lowStockThreshold || 10,
+          reorderThreshold: data.lowStockThreshold || data.reorderLevel || 10,
           suggestedReorder: 0,
           emoji: data.attributes?.emoji || '',
           trend: 'flat' as const,

@@ -427,6 +427,7 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
         stock: parseInt(form.openingStock) || 0,
         lowStockThreshold: parseInt(form.lowStockAlert) || 5,
         active: !draft,
+        status: draft ? 'draft' : 'active',
         attributes: {
           emoji: form.productType === 'dish' ? '🍽️' : form.productType === 'ingredient' ? '🥘' : '📦',
           sku: form.sku.trim() || `SKU-${Date.now()}`,

@@ -275,15 +275,17 @@ export function RecordSalePage() {
         console.warn('refreshProducts: Business document not found');
       }
       
-      const fetchedProductsData = await fetchDocs(`businesses/${targetBusinessId}/products`, {
-        filters: [{ field: 'status', op: '=', value: 'active' }],
-      });
+      // Load all products; hide inactive/draft client-side (legacy rows may lack status)
+      const fetchedProductsData = await fetchDocs(`businesses/${targetBusinessId}/products`);
       
       console.log('refreshProducts: Query returned', fetchedProductsData.length, 'products');
       
       const fetchedProducts: Product[] = [];
       
       for (const data of fetchedProductsData) {
+        const status = String((data as any).status || '').toLowerCase();
+        if (['inactive', 'archived', 'deleted', 'draft'].includes(status)) continue;
+        if ((data as any).active === false) continue;
         const productType = (data as any).type || (data as any).category || 'product';
         
         // For restaurant/cafe businesses, exclude ingredients from saleable products
