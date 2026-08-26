@@ -22,17 +22,64 @@
   color: var(--text-3);
 }
 
+/* Product picker and checkout are independent sections.
+   Mobile/tablet: stacked (products above checkout).
+   Desktop: side-by-side, aligned to top — never overlapping. */
 .layout {
-  display: grid;
-  grid-template-columns: 1fr 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+}
+
+.left,
+.right {
+  display: flex;
+  flex-direction: column;
   gap: 14px;
+  min-width: 0;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+  /* Avoid overlapping siblings */
+  isolation: isolate;
 }
 
-@media (max-width: 860px) {
-  .layout { grid-template-columns: 1fr; }
+.left {
+  order: 1;
 }
 
-.left, .right { display: flex; flex-direction: column; gap: 14px; }
+.right {
+  order: 2;
+}
+
+/* Desktop: two columns, products left / checkout right */
+@media (min-width: 960px) {
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+    gap: 18px;
+    align-items: start;
+  }
+
+  .left,
+  .right {
+    order: unset;
+  }
+
+  /* Checkout sticks within its column only — does not cover products */
+  .right {
+    position: sticky;
+    top: 12px;
+    align-self: start;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+  }
+}
+
+/* Product grid stays fully visible in its own section */
 
 /* ── Search ── */
 .search {
@@ -57,6 +104,12 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 8px;
+  width: 100%;
+  min-width: 0;
+  /* Never collapse under checkout */
+  position: relative;
+  z-index: 1;
+  overflow: visible;
 }
 
 @keyframes spin {

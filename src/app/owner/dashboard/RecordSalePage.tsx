@@ -1066,8 +1066,8 @@ export function RecordSalePage() {
       </div>
 
       <div className={styles.layout}>
-        {/* Left — product picker */}
-        <div className={styles.left}>
+        {/* Section 1 — product picker (always above checkout on mobile; left on desktop) */}
+        <section className={styles.left} aria-label="Product picker">
           <Card style={{ marginBottom: 12 }}>
             <CardHeader
               action={<span className={styles.selCount}>{cart.length} {t('sale.quantity')}</span>}
@@ -1208,10 +1208,10 @@ export function RecordSalePage() {
               </Button>
             </Card>
           )}
-        </div>
+        </section>
 
-        {/* Right — sale summary */}
-        <div className={styles.right}>
+        {/* Section 2 — cart & checkout (below products on mobile; right column on desktop) */}
+        <section className={styles.right} aria-label="Checkout">
           <Card>
             <CardHeader action={<Button variant="danger" size="xs" onClick={clearCart}>Clear</Button>}>
               <CardIcon bg="var(--purple-lt)">
@@ -1554,7 +1554,7 @@ export function RecordSalePage() {
               </Button>
             </div>
           </Card>
-        </div>
+        </section>
       </div>
 
       {/* Receipt Modal */}
