@@ -80,6 +80,16 @@ const WRITE_ALIASES: Record<string, Record<string, string>> = {
     customerId: 'customer_id',
     createdAt: 'created_at',
   },
+  attendance: {
+    clockIn: 'check_in',
+    clockOut: 'check_out',
+    checkIn: 'check_in',
+    checkOut: 'check_out',
+    staffId: 'staff_id',
+    userId: 'user_id',
+    businessId: 'business_id',
+    createdAt: 'created_at',
+  },
   customers: { isActive: 'active' },
   expenses: { timestamp: 'metadata', receiptUrl: 'receipt_url' },
   bank_accounts: { isActive: 'active' },
@@ -104,6 +114,13 @@ const READ_ALIASES: Record<string, Record<string, string[]>> = {
     total_revenue: ['totalRevenue', 'total', 'totalAmount'],
     total_amount: ['totalAmount', 'total', 'totalRevenue'],
     items: ['products', 'items'],
+    created_at: ['createdAt'],
+  },
+  attendance: {
+    check_in: ['checkIn', 'clockIn'],
+    check_out: ['checkOut', 'clockOut'],
+    staff_id: ['staffId'],
+    user_id: ['userId'],
     created_at: ['createdAt'],
   },
   businesses: {
@@ -263,6 +280,10 @@ const KNOWN_COLUMNS: Record<string, Set<string>> = {
     'id', 'business_id', 'customer_id', 'customer_name', 'items',
     'total_amount', 'total_revenue', 'profit', 'payment_method',
     'cash_received', 'change_due', 'status', 'metadata', 'created_at',
+  ]),
+  attendance: new Set([
+    'id', 'business_id', 'staff_id', 'user_id', 'check_in', 'check_out',
+    'note', 'created_at',
   ]),
   expenses: new Set([
     'id', 'business_id', 'category', 'amount', 'description',

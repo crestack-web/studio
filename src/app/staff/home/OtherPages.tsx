@@ -5,7 +5,8 @@ import { LockedPage } from './components/shared';
 import { useLiveClock } from './hooks';
 import { initializeFirebase } from '@/firebase';
 import { getFirestore, doc, getDoc, collection, getDocs, query, where, Timestamp, addDoc, updateDoc } from 'firebase/firestore';
-import { fetchProducts, fetchRecentSales, getStaffBusinessId } from './services/dataService';
+import { fetchProducts, fetchRecentSales, getStaffBusinessId, fetchAttendance, clockInAttendance, clockOutAttendance } from './services/dataService';
+import { getSupabase } from '@/lib/supabase';
 
 /* ═══════════════════════════════════════
    INVENTORY PAGE
@@ -432,13 +433,33 @@ interface AttendancePageProps {
   staffName?: string;
 }
 
-export const AttendancePage: React.FC<AttendancePageProps> = ({ hasAccess, businessId: businessIdProp, staffId: staffIdProp, staffName }) => {
+export const AttendancePage: React.FC<AttendancePageProps> = ({
+  hasAccess,
+  businessId: businessIdProp,
+  staffId: staffIdProp,
+  staffName,
+}) => {
   const clock = useLiveClock();
   const [clockedIn, setClockedIn] = useState(false);
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
-  const [shiftLog, setShiftLog] = useState<any[]>([]);
+  const [shiftLog, setShiftLog] = useState<
+    Array<{ date: string; hours: string; clockIn: string; clockOut: string; status: string }>
+  >([]);
   const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
+
+
+  async function authHeaders() {
+    const supabase = getSupabase();
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new Error('Session expired. Please sign in again.');
+    return {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+  }
 
   useEffect(() => {
     if (!businessIdProp || !staffIdProp) {
@@ -447,29 +468,48 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({ hasAccess, busin
     }
     setBusinessId(businessIdProp);
     let cancelled = false;
+
     async function loadAttendanceData() {
       try {
-        const { firestore } = initializeFirebase();
-        if (!firestore) return;
-        const attendanceQuery = query(
-          collection(firestore, 'businesses', businessIdProp, 'attendance'),
-          where('staffId', '==', staffIdProp)
-        );
-        const attendanceSnapshot = await getDocs(attendanceQuery);
+        let records: any[] = [];
+        try {
+          const headers = await authHeaders();
+          const res = await fetch(
+            `/api/staff/attendance?businessId=${encodeURIComponent(businessIdProp)}`,
+            { headers }
+          );
+          const json = await res.json().catch(() => ({}));
+          if (res.ok && Array.isArray(json.records)) {
+            records = json.records.map((r: any) => ({
+              id: r.id,
+              clockIn: r.check_in || r.clockIn,
+              clockOut: r.check_out || r.clockOut,
+              status: r.check_out ? 'clocked_out' : 'clocked_in',
+              note: r.note,
+            }));
+          } else {
+            records = await fetchAttendance(undefined, businessIdProp, staffIdProp, 60);
+          }
+        } catch {
+          records = await fetchAttendance(undefined, businessIdProp, staffIdProp, 60);
+        }
         if (cancelled) return;
-        const attendanceRecords = attendanceSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-        setAttendanceData(attendanceRecords);
+        setAttendanceData(records);
+
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const todayAttendance = attendanceRecords.find((record: any) => {
-          const recordDate = record.clockIn?.toDate ? record.clockIn.toDate() : new Date(record.clockIn);
-          return recordDate >= today && !record.clockOut;
+        const openToday = records.find((record) => {
+          if (!record.clockIn || record.clockOut) return false;
+          const recordDate = new Date(record.clockIn);
+          return recordDate >= today;
         });
-        setClockedIn(!!todayAttendance);
-        const log = attendanceRecords
-          .filter((record: any) => record.clockOut)
-          .map((record: any) => ({
-            date: new Date(record.clockIn?.toDate ? record.clockIn.toDate() : record.clockIn).toLocaleDateString(),
+        setClockedIn(!!openToday);
+
+        const log = records
+          .filter((record) => record.clockOut)
+          .slice(0, 14)
+          .map((record) => ({
+            date: new Date(record.clockIn || '').toLocaleDateString(),
             hours: calculateShiftHours(record.clockIn, record.clockOut),
             clockIn: formatTime(record.clockIn),
             clockOut: formatTime(record.clockOut),
@@ -482,75 +522,120 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({ hasAccess, busin
         if (!cancelled) setLoading(false);
       }
     }
+
     loadAttendanceData();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [businessIdProp, staffIdProp]);
 
   const handleClockIn = async () => {
-    if (!businessId || !staffIdProp) return;
+    if (!businessId || !staffIdProp || busy) return;
+    setBusy(true);
     try {
-      const { firestore } = initializeFirebase();
-      if (!firestore) return;
-      await addDoc(collection(firestore, 'businesses', businessId, 'attendance'), {
-        staffId: staffIdProp,
-        staffName: staffName || 'Staff',
-        businessId,
-        clockIn: Timestamp.now(),
-        clockOut: null,
-        date: new Date().toISOString().split('T')[0],
-        status: 'clocked_in',
-      });
+      try {
+        const headers = await authHeaders();
+        const res = await fetch('/api/staff/attendance', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            action: 'clock_in',
+            businessId,
+            staffId: staffIdProp,
+            staffName,
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || 'Clock in failed');
+      } catch (apiErr) {
+        console.warn('[attendance] API clock in failed, client fallback', apiErr);
+        await clockInAttendance(businessId, staffIdProp, staffName);
+      }
       setClockedIn(true);
+      const records = await fetchAttendance(undefined, businessId, staffIdProp, 60);
+      setAttendanceData(records);
     } catch (error) {
       console.error('Error clocking in:', error);
+      alert(
+        (error as any)?.message ||
+          'Could not clock in. Please try again.'
+      );
+    } finally {
+      setBusy(false);
     }
   };
 
   const handleClockOut = async () => {
-    if (!businessId || !staffIdProp) return;
+    if (!businessId || !staffIdProp || busy) return;
+    setBusy(true);
     try {
-      const { firestore } = initializeFirebase();
-      if (!firestore) return;
-      const attendanceQuery = query(
-        collection(firestore, 'businesses', businessId, 'attendance'),
-        where('staffId', '==', staffIdProp),
-        where('clockOut', '==', null)
-      );
-      const attendanceSnapshot = await getDocs(attendanceQuery);
-      if (!attendanceSnapshot.empty) {
-        const docRef = doc(
-          firestore,
-          'businesses',
-          businessId,
-          'attendance',
-          attendanceSnapshot.docs[0].id
-        );
-        await updateDoc(docRef, {
-          clockOut: Timestamp.now(),
-          status: 'clocked_out',
+      try {
+        const headers = await authHeaders();
+        const res = await fetch('/api/staff/attendance', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            action: 'clock_out',
+            businessId,
+            staffId: staffIdProp,
+            staffName,
+          }),
         });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json.error || 'Clock out failed');
+      } catch (apiErr: any) {
+        console.warn('[attendance] API clock out failed, client fallback', apiErr);
+        const ok = await clockOutAttendance(businessId, staffIdProp);
+        if (!ok) {
+          alert(apiErr?.message || 'No open shift found to clock out.');
+          setBusy(false);
+          return;
+        }
       }
       setClockedIn(false);
+      const records = await fetchAttendance(undefined, businessId, staffIdProp, 60);
+      setAttendanceData(records);
+      const log = records
+        .filter((record) => record.clockOut)
+        .slice(0, 14)
+        .map((record) => ({
+          date: new Date(record.clockIn || '').toLocaleDateString(),
+          hours: calculateShiftHours(record.clockIn, record.clockOut),
+          clockIn: formatTime(record.clockIn),
+          clockOut: formatTime(record.clockOut),
+          status: 'complete',
+        }));
+      setShiftLog(log);
     } catch (error) {
       console.error('Error clocking out:', error);
+      alert(
+        (error as any)?.message ||
+          'Could not clock out. Please try again.'
+      );
+    } finally {
+      setBusy(false);
     }
   };
 
   const calculateShiftHours = (clockIn: any, clockOut: any) => {
-    const inTime = clockIn?.toDate ? clockIn.toDate() : new Date(clockIn);
-    const outTime = clockOut?.toDate ? clockOut.toDate() : new Date(clockOut);
+    if (!clockIn || !clockOut) return '—';
+    const inTime = new Date(clockIn);
+    const outTime = new Date(clockOut);
     const diffMs = outTime.getTime() - inTime.getTime();
+    if (Number.isNaN(diffMs) || diffMs < 0) return '—';
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
     const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
     return `${hours}h ${minutes}m`;
   };
 
   const formatTime = (timestamp: any) => {
-    const date = timestamp?.toDate ? timestamp.toDate() : new Date(timestamp);
+    if (!timestamp) return '—';
+    const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return '—';
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
-  if (!hasAccess) return <LockedPage pageName="Attendance"/>;
+  if (!hasAccess) return <LockedPage pageName="Attendance" />;
 
   if (loading) {
     return (
@@ -629,11 +714,22 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({ hasAccess, busin
         </div>
         <div className="atd-g">
           {attendanceData.length > 0 ? (
-            attendanceData.map((d) => (
-              <div key={d.day} className={`atd-day ${d.status}`} title={d.status}>
-                {d.day}
-              </div>
-            ))
+            attendanceData.map((d: any) => {
+              const day = d.clockIn
+                ? new Date(d.clockIn).getDate()
+                : d.day || '—';
+              const status =
+                d.clockOut || d.status === 'clocked_out' || d.status === 'complete'
+                  ? 'present'
+                  : d.clockIn
+                    ? 'late'
+                    : 'absent';
+              return (
+                <div key={d.id || day} className={`atd-day ${status}`} title={status}>
+                  {day}
+                </div>
+              );
+            })
           ) : (
             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--t3)' }}>
               No attendance data available yet

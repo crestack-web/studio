@@ -334,3 +334,149 @@ export async function getStaffBusinessId(
     return null;
   }
 }
+
+// ═══════════════════════════════════════════
+//  Attendance (Supabase)
+// ═══════════════════════════════════════════
+
+export interface AttendanceRecord {
+  id: string;
+  businessId: string;
+  staffId?: string;
+  userId?: string;
+  clockIn: string | null;
+  clockOut: string | null;
+  status?: string;
+  staffName?: string;
+  note?: string;
+  createdAt?: string;
+}
+
+function mapAttendance(row: any): AttendanceRecord {
+  const clockIn = row.clockIn || row.checkIn || row.check_in || null;
+  const clockOut = row.clockOut || row.checkOut || row.check_out || null;
+  let status = row.status;
+  if (!status) {
+    status = clockOut ? 'clocked_out' : clockIn ? 'clocked_in' : 'unknown';
+  }
+  // status may live in note as JSON
+  let staffName = row.staffName;
+  let note = row.note;
+  if (typeof note === 'string' && note.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(note);
+      staffName = staffName || parsed.staffName;
+      status = parsed.status || status;
+      note = parsed.note || '';
+    } catch { /* plain note */ }
+  }
+  return {
+    id: row.id,
+    businessId: row.businessId || row.business_id,
+    staffId: row.staffId || row.staff_id,
+    userId: row.userId || row.user_id,
+    clockIn: clockIn ? String(clockIn) : null,
+    clockOut: clockOut ? String(clockOut) : null,
+    status,
+    staffName,
+    note: typeof note === 'string' ? note : undefined,
+    createdAt: row.createdAt || row.created_at,
+  };
+}
+
+/**
+ * Fetch attendance rows for a business, optionally filtered by staff.
+ */
+export async function fetchAttendance(
+  _db: any,
+  businessId: string,
+  staffId?: string,
+  limit = 60
+): Promise<AttendanceRecord[]> {
+  if (!businessId) return [];
+  try {
+    const filters: any[] = [];
+    if (staffId) {
+      // Match either staff_id or user_id (staff portal uses auth uid as staffId often)
+      filters.push({ field: 'user_id', op: '=', value: staffId });
+    }
+    let rows = await fetchDocs(`businesses/${businessId}/attendance`, {
+      filters: staffId ? undefined : undefined,
+      orderBy: { field: 'created_at', ascending: false },
+      limit,
+    });
+    // Client-side filter: staff_id OR user_id matches
+    if (staffId) {
+      rows = (rows || []).filter(
+        (r: any) =>
+          r.staffId === staffId ||
+          r.staff_id === staffId ||
+          r.userId === staffId ||
+          r.user_id === staffId
+      );
+    }
+    return (rows || []).map(mapAttendance);
+  } catch (e) {
+    console.error('fetchAttendance', e);
+    return [];
+  }
+}
+
+/**
+ * Clock in — creates attendance row with check_in now.
+ */
+export async function clockInAttendance(
+  businessId: string,
+  staffId: string,
+  staffName?: string
+): Promise<string> {
+  const now = new Date().toISOString();
+  const notePayload = JSON.stringify({
+    status: 'clocked_in',
+    staffName: staffName || 'Staff',
+    staffId,
+  });
+  // staff_id FK may fail if staffId is auth uid not staff table id — leave null and use user_id
+  const isUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      staffId
+    );
+  const payload: Record<string, unknown> = {
+    id: crypto.randomUUID(),
+    businessId,
+    clockIn: now,
+    note: notePayload,
+    createdAt: now,
+  };
+  if (isUuid) payload.userId = staffId;
+  const id = await addDoc(`businesses/${businessId}/attendance`, payload);
+  return id;
+}
+
+/**
+ * Clock out the open attendance row for this staff (check_out is null).
+ */
+export async function clockOutAttendance(
+  businessId: string,
+  staffId: string
+): Promise<boolean> {
+  const rows = await fetchAttendance(undefined, businessId, staffId, 30);
+  const open = rows.find((r) => r.clockIn && !r.clockOut);
+  if (!open) return false;
+  const now = new Date().toISOString();
+  let note = open.note;
+  try {
+    const parsed = note && note.startsWith('{') ? JSON.parse(note) : { staffName: open.staffName, staffId };
+    parsed.status = 'clocked_out';
+    note = JSON.stringify(parsed);
+  } catch {
+    note = JSON.stringify({ status: 'clocked_out', staffId });
+  }
+  await updateDoc(`businesses/${businessId}/attendance`, open.id, {
+    clockOut: now,
+    check_out: now,
+    note,
+  });
+  return true;
+}
+
