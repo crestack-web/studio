@@ -158,35 +158,30 @@ export default function BusmoOnboarding() {
             userId = data.googleUserId;
             userCreated = true;
           } else {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user && session.user.email === data.email) {
-              userId = session.user.id;
-              userCreated = true;
-            } else {
-              const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            // Create account via Admin API so Supabase does NOT send its default
+            // confirmation email. Only our Resend email is sent (below).
+            const signupRes = await fetch("/api/auth/signup", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
                 email: data.email,
                 password: data.password,
-                options: { data: { full_name: data.fullName } },
-              });
-              if (signUpError) {
-                const msg = signUpError.message || "";
-                if (msg.includes("already")) {
-                  const { error: signInError } = await supabase.auth.signInWithPassword({
-                    email: data.email,
-                    password: data.password,
-                  });
-                  if (signInError) throw signInError;
-                  const { data: { session: s2 } } = await supabase.auth.getSession();
-                  userId = s2?.user?.id ?? null;
-                  userCreated = true;
-                } else {
-                  throw signUpError;
-                }
-              } else {
-                userId = signUpData.user?.id ?? null;
-                userCreated = true;
-              }
+                fullName: data.fullName,
+              }),
+            });
+            const signupJson = await signupRes.json().catch(() => ({}));
+            if (!signupRes.ok) {
+              const err = new Error(
+                signupJson?.error || "Failed to create account. Please try again."
+              ) as Error & { code?: string };
+              err.code = signupJson?.code;
+              throw err;
             }
+            userId = signupJson.userId || null;
+            if (!userId) {
+              throw new Error("Failed to create account. Please try again.");
+            }
+            userCreated = true;
           }
         }
 
@@ -290,7 +285,16 @@ export default function BusmoOnboarding() {
         break;
       } catch (error: any) {
         console.error(`Onboarding attempt ${retryCount + 1} failed:`, error);
-        if (retryCount >= maxRetries - 1) break;
+        // Do not retry permanent auth errors (e.g. email already registered)
+        if (error?.code === "email_exists" || String(error?.message || "").toLowerCase().includes("already exists")) {
+          setError(error.message || "An account with this email already exists. Please log in instead.");
+          setIsLoading(false);
+          return;
+        }
+        if (retryCount >= maxRetries - 1) {
+          setError(error?.message || "Setup failed. Please try again.");
+          break;
+        }
         await new Promise((r) => setTimeout(r, 1000 * (retryCount + 1)));
       }
     }
@@ -317,7 +321,7 @@ export default function BusmoOnboarding() {
       businessName: data.businessName,
     }).catch((e) => console.error("welcome email series failed", e));
 
-    // Email/password: Resend confirmation (not Supabase Auth mail)
+    // Email/password: only our custom Resend confirmation (Supabase Auth mail is not sent)
     if (userId && data.email && !data.googleUserId && !isGoogleAuth) {
       try {
         const confRes = await fetch("/api/auth/send-confirmation", {
@@ -332,6 +336,7 @@ export default function BusmoOnboarding() {
       } catch (e) {
         console.error("Failed to send confirmation email:", e);
       }
+      // Ensure no leftover client session (admin signup does not create one)
       try {
         await getSupabase().auth.signOut();
       } catch (_) {}
