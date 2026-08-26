@@ -303,6 +303,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
         'User';
       const firstName = String(displayName).split(' ')[0] || 'User';
 
+      // Avatar: prefer Supabase users.avatar_url / metadata, then auth user_metadata
+      const sbMeta =
+        sbData?.metadata && typeof sbData.metadata === 'object'
+          ? sbData.metadata
+          : {};
+      const photoURL =
+        sbData?.avatar_url ||
+        sbData?.photoURL ||
+        sbData?.photo_url ||
+        sbMeta.photoURL ||
+        sbMeta.avatar_url ||
+        metadata?.photoURL ||
+        metadata?.avatar_url ||
+        null;
+      const avatarContent =
+        (typeof photoURL === 'string' && photoURL
+          ? photoURL
+          : null) ||
+        sbMeta.avatarContent ||
+        metadata?.avatarContent ||
+        sbData?.avatarContent ||
+        '👤';
+      const avatarBg =
+        (typeof photoURL === 'string' && photoURL
+          ? photoURL
+          : null) ||
+        sbMeta.avatarBg ||
+        metadata?.avatarBg ||
+        sbData?.avatarBg ||
+        '#6B3FE7';
+      const avatarColor =
+        sbMeta.avatarColor ||
+        metadata?.avatarColor ||
+        sbData?.avatarColor ||
+        '#fff';
+
       setUser({
         initials: (
           firstName.charAt(0) + (String(displayName).split(' ')[1]?.charAt(0) || '')
@@ -315,14 +351,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         id: userId,
         name: displayName,
         email: userEmail || sbData?.email || '',
-        avatarContent:
-          sbData?.photoURL || sbData?.photo_url || sbData?.avatarContent || '👤',
+        avatarContent: String(avatarContent),
         avatarStyle: {
-          background:
-            sbData?.photoURL || sbData?.photo_url || sbData?.avatarBg || '#6B3FE7',
-          color: sbData?.avatarColor || '#fff',
+          background: String(avatarBg),
+          color: String(avatarColor),
         },
-        photoURL: sbData?.photoURL || sbData?.photo_url,
+        photoURL: photoURL ? String(photoURL) : undefined,
         // Undefined when not resolved — pages must not fall back to another account
         businessId: resolvedBusinessId,
       });
