@@ -1,265 +1,553 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { Card, CardHeader, CardIcon } from './Card';
-import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, Timestamp, doc, getDoc } from 'firebase/firestore';
-import { isRestaurantBusiness } from './utils/restaurantHelpers';
+import { fetchDocs, toDate } from '@/lib/supabase-client-data';
+import { resolveOwnerScopeBusinessId } from '@/lib/resolve-business-scope';
+import { getSupabase } from '@/lib/supabase';
+import {
+  ChefHat,
+  TrendingUp,
+  TrendingDown,
+  Package,
+  AlertTriangle,
+  UtensilsCrossed,
+  RefreshCw,
+  ArrowRight,
+  Loader2,
+  Clock,
+} from 'lucide-react';
+import styles from './RestaurantHealthScore.module.css';
 
-interface HealthScoreProps {
-  businessId?: string;
+interface KitchenMetrics {
+  todaySales: number;
+  todayOrders: number;
+  todayProfit: number;
+  weekSales: number;
+  weekOrders: number;
+  avgTicket: number;
+  foodCostPct: number | null;
+  profitMargin: number | null;
+  menuCount: number;
+  ingredientCount: number;
+  lowStockIngredients: { id: string; name: string; stock: number; unit: string }[];
+  expiringSoon: { id: string; name: string; days: number }[];
+  topDishes: { name: string; qty: number; revenue: number }[];
+  unavailableMenus: number;
 }
 
-interface HealthMetrics {
-  profitability: {
-    revenueGrowth: number;
-    profitMargin: number;
-  };
-  inventory: {
-    stockAvailability: number;
-    reorderEfficiency: number;
-  };
-  expenses: {
-    foodCostPercentage: number;
-    operatingExpenseRatio: number;
-  };
+function startOfDay(d = new Date()) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
 }
 
-export function RestaurantHealthScore({ businessId: propBusinessId }: HealthScoreProps) {
-  const { user } = useApp();
+function daysAgo(n: number) {
+  const x = new Date();
+  x.setDate(x.getDate() - n);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function isRestaurantCategory(cat: string | undefined | null): boolean {
+  if (!cat) return false;
+  const c = cat.toLowerCase();
+  return (
+    c.includes('restaurant') ||
+    c.includes('cafe') ||
+    c.includes('food') ||
+    c === 'catering'
+  );
+}
+
+export function RestaurantHealthScore({ businessId: propBusinessId }: { businessId?: string }) {
+  const { user, navigateTo } = useApp();
   const { formatMoney } = useCurrency();
   const [isRestaurant, setIsRestaurant] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [healthMetrics, setHealthMetrics] = useState<HealthMetrics | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [metrics, setMetrics] = useState<KitchenMetrics | null>(null);
+  const [businessId, setBusinessId] = useState<string | null>(
+    propBusinessId || user?.businessId || null
+  );
 
-  const businessId = propBusinessId || user.businessId;
+  const resolveBid = useCallback(async () => {
+    if (propBusinessId) return propBusinessId;
+    if (user?.businessId) return user.businessId;
+    if (!user?.id) {
+      const {
+        data: { session },
+      } = await getSupabase().auth.getSession();
+      if (!session?.user?.id) return null;
+      return resolveOwnerScopeBusinessId(
+        session.user.id,
+        session.user.user_metadata?.businessId
+      );
+    }
+    return resolveOwnerScopeBusinessId(user.id, user.businessId);
+  }, [propBusinessId, user?.businessId, user?.id]);
 
-  useEffect(() => {
-    async function loadData() {
-      if (!businessId) return;
+  const load = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      else setRefreshing(true);
 
       try {
-        // Check if restaurant
-        const restaurant = await isRestaurantBusiness(businessId);
-        setIsRestaurant(restaurant);
+        const bid = await resolveBid();
+        if (!bid) {
+          setIsRestaurant(false);
+          setMetrics(null);
+          return;
+        }
+        setBusinessId(bid);
 
+        // Category check (Supabase business row + user)
+        let restaurant = false;
+        try {
+          const { data: biz } = await getSupabase()
+            .from('businesses')
+            .select('category, selectedCategory, business_type, type')
+            .eq('id', bid)
+            .maybeSingle();
+          const cat =
+            (biz as any)?.category ||
+            (biz as any)?.selectedCategory ||
+            (biz as any)?.business_type ||
+            (biz as any)?.type ||
+            '';
+          restaurant = isRestaurantCategory(cat);
+        } catch {
+          /* ignore */
+        }
+
+        // Fallback: presence of dishes/ingredients marks kitchen ops
+        const products = await fetchDocs(`businesses/${bid}/products`);
+        const hasKitchenItems = products.some((p: any) => {
+          const meta =
+            p.metadata && typeof p.metadata === 'object' ? p.metadata : {};
+          const pt = p.productType || meta.productType;
+          return pt === 'dish' || pt === 'ingredient';
+        });
+        if (hasKitchenItems) restaurant = true;
+
+        setIsRestaurant(restaurant);
         if (!restaurant) {
-          setLoading(false);
+          setMetrics(null);
           return;
         }
 
-        // Calculate health metrics
-        const metrics = await calculateHealthMetrics(businessId);
-        setHealthMetrics(metrics);
+        const todayStart = startOfDay();
+        const weekStart = daysAgo(7);
+
+        const sales = await fetchDocs(`businesses/${bid}/sales`);
+
+        let todaySales = 0;
+        let todayOrders = 0;
+        let todayProfit = 0;
+        let weekSales = 0;
+        let weekOrders = 0;
+        let weekCogs = 0;
+        const dishSales: Record<string, { qty: number; revenue: number }> = {};
+
+        for (const s of sales as any[]) {
+          const created =
+            toDate(s.createdAt) ||
+            toDate(s.created_at) ||
+            toDate(s.date) ||
+            null;
+          if (!created) continue;
+          const total = Number(
+            s.totalRevenue ?? s.total_revenue ?? s.total ?? s.totalAmount ?? 0
+          );
+          const profit = Number(s.profit ?? s.totalProfit ?? 0);
+          const cogs = Number(
+            s.totalCost ?? s.cogs ?? s.cost ?? total - profit
+          );
+
+          if (created >= todayStart) {
+            todaySales += total;
+            todayOrders += 1;
+            todayProfit += profit;
+          }
+          if (created >= weekStart) {
+            weekSales += total;
+            weekOrders += 1;
+            weekCogs += cogs > 0 ? cogs : 0;
+
+            const items = Array.isArray(s.items)
+              ? s.items
+              : Array.isArray(s.products)
+                ? s.products
+                : [];
+            for (const item of items) {
+              const name = String(
+                item.name || item.productName || item.title || ''
+              ).trim();
+              if (!name) continue;
+              const qty = Number(item.quantity || item.qty || 1);
+              const lineRev = Number(
+                item.total || item.lineTotal || item.price * qty || 0
+              );
+              if (!dishSales[name]) dishSales[name] = { qty: 0, revenue: 0 };
+              dishSales[name].qty += qty;
+              dishSales[name].revenue += lineRev;
+            }
+          }
+        }
+
+        const dishes: any[] = [];
+        const ingredients: any[] = [];
+        for (const p of products as any[]) {
+          const meta =
+            p.metadata && typeof p.metadata === 'object' ? p.metadata : {};
+          const pt = p.productType || meta.productType;
+          if (pt === 'ingredient') ingredients.push({ ...p, ...meta });
+          else if (pt === 'dish') dishes.push({ ...p, ...meta });
+        }
+
+        const lowStockIngredients = ingredients
+          .map((ing) => {
+            const stock = Number(
+              ing.stock ?? ing.stockLevel ?? ing.currentStock ?? 0
+            );
+            const min = Number(
+              ing.reorderLevel ?? ing.lowStockThreshold ?? 10
+            );
+            return {
+              id: String(ing.id),
+              name: String(ing.name || 'Ingredient'),
+              stock,
+              unit: String(ing.ingredientUnit || ing.unit || ''),
+              min,
+            };
+          })
+          .filter((i) => i.stock <= i.min)
+          .sort((a, b) => a.stock - b.stock)
+          .slice(0, 5)
+          .map(({ id, name, stock, unit }) => ({ id, name, stock, unit }));
+
+        const now = new Date();
+        const expiringSoon = ingredients
+          .map((ing) => {
+            const exp = toDate(ing.expiryDate);
+            if (!exp) return null;
+            const days = Math.ceil(
+              (exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+            );
+            if (days > 7) return null;
+            return {
+              id: String(ing.id),
+              name: String(ing.name || 'Ingredient'),
+              days,
+            };
+          })
+          .filter(Boolean)
+          .sort((a: any, b: any) => a.days - b.days)
+          .slice(0, 5) as { id: string; name: string; days: number }[];
+
+        const unavailableMenus = dishes.filter(
+          (d) => d.active === false || d.status === 'inactive' || d.available === false
+        ).length;
+
+        const topDishes = Object.entries(dishSales)
+          .map(([name, v]) => ({ name, qty: v.qty, revenue: v.revenue }))
+          .sort((a, b) => b.qty - a.qty)
+          .slice(0, 5);
+
+        const foodCostPct =
+          weekSales > 0 && weekCogs > 0 ? (weekCogs / weekSales) * 100 : null;
+        const profitMargin =
+          weekSales > 0
+            ? ((weekSales - weekCogs) / weekSales) * 100
+            : todaySales > 0 && todayProfit
+              ? (todayProfit / todaySales) * 100
+              : null;
+
+        setMetrics({
+          todaySales,
+          todayOrders,
+          todayProfit,
+          weekSales,
+          weekOrders,
+          avgTicket: weekOrders > 0 ? weekSales / weekOrders : 0,
+          foodCostPct,
+          profitMargin,
+          menuCount: dishes.length,
+          ingredientCount: ingredients.length,
+          lowStockIngredients,
+          expiringSoon,
+          topDishes,
+          unavailableMenus,
+        });
       } catch (error) {
-        console.error('Error loading health metrics:', error);
+        console.error('[RestaurantHealthScore]', error);
       } finally {
         setLoading(false);
+        setRefreshing(false);
       }
-    }
+    },
+    [resolveBid]
+  );
 
-    loadData();
-  }, [businessId]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  async function calculateHealthMetrics(bid: string): Promise<HealthMetrics> {
-    const { firestore } = initializeFirebase();
-
-    // Fetch sales data (last 30 days vs previous 30 days)
-    const now = new Date();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const sixtyDaysAgo = new Date();
-    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
-
-    const recentSalesQuery = query(
-      collection(firestore, 'businesses', bid, 'sales'),
-      where('createdAt', '>=', Timestamp.fromDate(thirtyDaysAgo))
-    );
-    const previousSalesQuery = query(
-      collection(firestore, 'businesses', bid, 'sales'),
-      where('createdAt', '>=', Timestamp.fromDate(sixtyDaysAgo)),
-      where('createdAt', '<', Timestamp.fromDate(thirtyDaysAgo))
-    );
-
-    const [recentSnapshot, previousSnapshot] = await Promise.all([
-      getDocs(recentSalesQuery),
-      getDocs(previousSalesQuery)
-    ]);
-
-    let recentRevenue = 0;
-    let recentProfit = 0;
-    let previousRevenue = 0;
-
-    recentSnapshot.forEach(doc => {
-      const data = doc.data();
-      recentRevenue += data.totalRevenue || data.total || 0;
-      recentProfit += data.profit || 0;
-    });
-
-    previousSnapshot.forEach(doc => {
-      const data = doc.data();
-      previousRevenue += data.totalRevenue || data.total || 0;
-    });
-
-    // Profitability metrics
-    const revenueGrowth = previousRevenue > 0 ? ((recentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
-    const profitMargin = recentRevenue > 0 ? (recentProfit / recentRevenue) * 100 : 0;
-
-    // Inventory metrics
-    const productsQuery = query(
-      collection(firestore, 'businesses', bid, 'products'),
-      where('active', '==', true)
-    );
-    const productsSnapshot = await getDocs(productsQuery);
-
-    let totalProducts = 0;
-    let outOfStock = 0;
-    let ingredientsNeedingReorder = 0;
-
-    productsSnapshot.forEach(doc => {
-      const data = doc.data();
-      totalProducts++;
-      const stock = data.stock || 0;
-
-      if (stock === 0) outOfStock++;
-
-      if (data.productType === 'ingredient' && stock <= (data.reorderLevel || 10)) {
-        ingredientsNeedingReorder++;
-      }
-    });
-
-    const stockAvailability = totalProducts > 0 ? ((totalProducts - outOfStock) / totalProducts) * 100 : 100;
-    const reorderEfficiency = totalProducts > 0 ? ((totalProducts - ingredientsNeedingReorder) / totalProducts) * 100 : 100;
-
-    // Expense metrics
-    const expensesQuery = query(
-      collection(firestore, 'businesses', bid, 'expenses'),
-      where('createdAt', '>=', Timestamp.fromDate(thirtyDaysAgo))
-    );
-    const expensesSnapshot = await getDocs(expensesQuery);
-
-    let totalExpenses = 0;
-    expensesSnapshot.forEach(doc => {
-      const data = doc.data();
-      totalExpenses += data.amount || 0;
-    });
-
-    const foodCostPercentage = recentRevenue > 0 ? (recentProfit / recentRevenue) * 100 : 0;
-    const operatingExpenseRatio = recentRevenue > 0 ? (totalExpenses / recentRevenue) * 100 : 0;
-
-    return {
-      profitability: {
-        revenueGrowth,
-        profitMargin,
-      },
-      inventory: {
-        stockAvailability,
-        reorderEfficiency,
-      },
-      expenses: {
-        foodCostPercentage,
-        operatingExpenseRatio,
-      },
-    };
-  }
-
-  if (!isRestaurant) return null;
+  if (!loading && !isRestaurant) return null;
 
   if (loading) {
     return (
       <Card>
         <CardHeader>
-          <CardIcon bg="var(--blue-bg)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth={2}>
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-            </svg>
+          <CardIcon bg="var(--amber-bg, #FEF3C7)">
+            <ChefHat size={18} color="var(--amber, #D97706)" />
           </CardIcon>
-          Restaurant Metrics
+          Kitchen overview
         </CardHeader>
-        <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-3)' }}>
-          Loading metrics...
+        <div className={styles.loading}>
+          <Loader2 size={20} className={styles.spin} />
+          Loading kitchen metrics…
         </div>
       </Card>
     );
   }
 
+  if (!metrics) return null;
+
+  const foodCostStatus =
+    metrics.foodCostPct == null
+      ? 'neutral'
+      : metrics.foodCostPct <= 30
+        ? 'good'
+        : metrics.foodCostPct <= 40
+          ? 'warn'
+          : 'bad';
+
   return (
     <Card>
-      <CardHeader>
-        <CardIcon bg="var(--blue-bg)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth={2}>
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-          </svg>
+      <CardHeader
+        action={
+          <button
+            type="button"
+            className={styles.iconBtn}
+            title="Refresh"
+            onClick={() => load(true)}
+            disabled={refreshing}
+          >
+            <RefreshCw size={16} className={refreshing ? styles.spin : undefined} />
+          </button>
+        }
+      >
+        <CardIcon bg="var(--amber-bg, #FEF3C7)">
+          <ChefHat size={18} color="var(--amber, #D97706)" />
         </CardIcon>
-        Restaurant Metrics
+        Kitchen overview
       </CardHeader>
-      
-      <div style={{ padding: '20px' }}>
-        {/* Actual Data */}
-        {healthMetrics && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-            {/* Profitability */}
-            <MetricCard
-              title="Profitability"
-              color="var(--green)"
-              metrics={[
-                { label: 'Revenue Growth', value: `${healthMetrics.profitability.revenueGrowth.toFixed(1)}%` },
-                { label: 'Profit Margin', value: `${healthMetrics.profitability.profitMargin.toFixed(1)}%` },
-              ]}
-            />
 
-            {/* Inventory */}
-            <MetricCard
-              title="Inventory"
-              color="var(--blue)"
-              metrics={[
-                { label: 'Stock Availability', value: `${healthMetrics.inventory.stockAvailability.toFixed(0)}%` },
-                { label: 'Reorder Efficiency', value: `${healthMetrics.inventory.reorderEfficiency.toFixed(0)}%` },
-              ]}
-            />
-
-            {/* Expenses */}
-            <MetricCard
-              title="Expenses"
-              color="var(--amber)"
-              metrics={[
-                { label: 'Food Cost %', value: `${healthMetrics.expenses.foodCostPercentage.toFixed(1)}%` },
-                { label: 'Operating Ratio', value: `${healthMetrics.expenses.operatingExpenseRatio.toFixed(1)}%` },
-              ]}
-            />
+      <div className={styles.body}>
+        {/* Today strip */}
+        <div className={styles.todayStrip}>
+          <div>
+            <span className={styles.stripLabel}>Today’s sales</span>
+            <span className={styles.stripValue}>
+              {formatMoney(metrics.todaySales)}
+            </span>
           </div>
-        )}
+          <div>
+            <span className={styles.stripLabel}>Orders</span>
+            <span className={styles.stripValue}>{metrics.todayOrders}</span>
+          </div>
+          <div>
+            <span className={styles.stripLabel}>Est. profit</span>
+            <span
+              className={styles.stripValue}
+              style={{
+                color:
+                  metrics.todayProfit >= 0
+                    ? 'var(--green, #16a34a)'
+                    : 'var(--red, #dc2626)',
+              }}
+            >
+              {formatMoney(metrics.todayProfit)}
+            </span>
+          </div>
+        </div>
+
+        {/* KPI grid */}
+        <div className={styles.kpiGrid}>
+          <div className={styles.kpi}>
+            <span className={styles.kpiLabel}>7-day sales</span>
+            <span className={styles.kpiValue}>
+              {formatMoney(metrics.weekSales)}
+            </span>
+            <span className={styles.kpiHint}>{metrics.weekOrders} orders</span>
+          </div>
+          <div className={styles.kpi}>
+            <span className={styles.kpiLabel}>Avg ticket</span>
+            <span className={styles.kpiValue}>
+              {formatMoney(metrics.avgTicket)}
+            </span>
+            <span className={styles.kpiHint}>per order (7d)</span>
+          </div>
+          <div className={`${styles.kpi} ${styles[foodCostStatus]}`}>
+            <span className={styles.kpiLabel}>Food cost</span>
+            <span className={styles.kpiValue}>
+              {metrics.foodCostPct != null
+                ? `${metrics.foodCostPct.toFixed(0)}%`
+                : '—'}
+            </span>
+            <span className={styles.kpiHint}>
+              {metrics.foodCostPct == null
+                ? 'Need sales + costs'
+                : foodCostStatus === 'good'
+                  ? 'Healthy (≤30%)'
+                  : foodCostStatus === 'warn'
+                    ? 'Watch (30–40%)'
+                    : 'High (>40%)'}
+            </span>
+          </div>
+          <div className={styles.kpi}>
+            <span className={styles.kpiLabel}>Margin (7d)</span>
+            <span className={styles.kpiValue}>
+              {metrics.profitMargin != null
+                ? `${metrics.profitMargin.toFixed(0)}%`
+                : '—'}
+            </span>
+            <span className={styles.kpiHint}>
+              {metrics.profitMargin != null && metrics.profitMargin >= 0 ? (
+                <TrendingUp size={12} />
+              ) : (
+                <TrendingDown size={12} />
+              )}{' '}
+              after COGS
+            </span>
+          </div>
+        </div>
+
+        {/* Menu & stock summary */}
+        <div className={styles.summaryRow}>
+          <button
+            type="button"
+            className={styles.summaryChip}
+            onClick={() => navigateTo('menu-management' as any)}
+          >
+            <UtensilsCrossed size={14} />
+            {metrics.menuCount} menu items
+            {metrics.unavailableMenus > 0 && (
+              <span className={styles.badgeWarn}>
+                {metrics.unavailableMenus} off
+              </span>
+            )}
+            <ArrowRight size={14} className={styles.chev} />
+          </button>
+          <button
+            type="button"
+            className={styles.summaryChip}
+            onClick={() => navigateTo('ingredient-tracking' as any)}
+          >
+            <Package size={14} />
+            {metrics.ingredientCount} ingredients
+            {metrics.lowStockIngredients.length > 0 && (
+              <span className={styles.badgeWarn}>
+                {metrics.lowStockIngredients.length} low
+              </span>
+            )}
+            <ArrowRight size={14} className={styles.chev} />
+          </button>
+          <button
+            type="button"
+            className={styles.summaryChip}
+            onClick={() => navigateTo('expiry-alerts' as any)}
+          >
+            <Clock size={14} />
+            Expiry
+            {metrics.expiringSoon.length > 0 && (
+              <span className={styles.badgeDanger}>
+                {metrics.expiringSoon.length} soon
+              </span>
+            )}
+            <ArrowRight size={14} className={styles.chev} />
+          </button>
+        </div>
+
+        {/* Alerts + top dishes */}
+        <div className={styles.split}>
+          <div className={styles.panel}>
+            <h4 className={styles.panelTitle}>
+              <AlertTriangle size={14} /> Needs attention
+            </h4>
+            {metrics.lowStockIngredients.length === 0 &&
+            metrics.expiringSoon.length === 0 ? (
+              <p className={styles.muted}>Kitchen stock looks fine</p>
+            ) : (
+              <ul className={styles.alertList}>
+                {metrics.lowStockIngredients.map((i) => (
+                  <li key={i.id}>
+                    <span className={styles.alertName}>{i.name}</span>
+                    <span className={styles.alertMeta}>
+                      {i.stock} {i.unit} left
+                    </span>
+                  </li>
+                ))}
+                {metrics.expiringSoon.map((i) => (
+                  <li key={`exp-${i.id}`}>
+                    <span className={styles.alertName}>{i.name}</span>
+                    <span
+                      className={
+                        i.days <= 0 ? styles.alertDanger : styles.alertMeta
+                      }
+                    >
+                      {i.days <= 0 ? 'Expired' : `${i.days}d left`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className={styles.panel}>
+            <h4 className={styles.panelTitle}>
+              <UtensilsCrossed size={14} /> Top dishes (7d)
+            </h4>
+            {metrics.topDishes.length === 0 ? (
+              <p className={styles.muted}>
+                Record sales to see bestsellers
+              </p>
+            ) : (
+              <ol className={styles.topList}>
+                {metrics.topDishes.map((d, idx) => (
+                  <li key={d.name}>
+                    <span className={styles.rank}>{idx + 1}</span>
+                    <span className={styles.dishName}>{d.name}</span>
+                    <span className={styles.dishMeta}>
+                      ×{d.qty} · {formatMoney(d.revenue)}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        </div>
+
+        <div className={styles.footerActions}>
+          <button
+            type="button"
+            className={styles.primaryBtn}
+            onClick={() => navigateTo('sale' as any)}
+          >
+            Record sale
+          </button>
+          <button
+            type="button"
+            className={styles.ghostBtn}
+            onClick={() => navigateTo('menu-management' as any)}
+          >
+            Manage menu
+          </button>
+        </div>
       </div>
     </Card>
   );
 }
-
-interface MetricCardProps {
-  title: string;
-  color: string;
-  metrics: { label: string; value: string }[];
-}
-
-function MetricCard({ title, color, metrics }: MetricCardProps) {
-  return (
-    <div style={{ 
-      padding: '16px', 
-      background: 'var(--surface)', 
-      borderRadius: '8px',
-      border: '1px solid var(--border)'
-    }}>
-      <div style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-1)', marginBottom: '12px' }}>
-        {title}
-      </div>
-      {metrics.map((metric, idx) => (
-        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-2)' }}>{metric.label}</span>
-          <span style={{ fontSize: '0.85rem', fontWeight: 600, color }}>{metric.value}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
