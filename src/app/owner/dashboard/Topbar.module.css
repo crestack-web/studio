@@ -397,8 +397,13 @@
     padding: 3px;
   }
 
-  /* Theme toggle can yield space on the tightest widths when trial is on */
-  .topbarWithTrial .themeBtn {
+  /* Keep theme toggle always visible — free space elsewhere instead */
+  .themeBtn {
+    display: flex;
+  }
+
+  /* Drop brand wordmark earlier when trial chip is present */
+  .topbarWithTrial .brandName {
     display: none;
   }
 }
