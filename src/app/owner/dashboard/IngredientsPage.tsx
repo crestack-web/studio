@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
-import { fetchDocs, addDoc, updateDoc, deleteDoc, toDate } from '@/lib/supabase-client-data';
+import { fetchDocs, toDate } from '@/lib/supabase-client-data';
+import { saveProductViaApi, deleteProductViaApi } from '@/lib/product-api';
 import { resolveOwnerScopeBusinessId } from '@/lib/resolve-business-scope';
 import { getSupabase } from '@/lib/supabase';
 import { checkFeatureAccess } from '@/lib/featureRestrictions';
@@ -348,13 +349,16 @@ export default function IngredientsPage() {
       }
 
       if (editingIngredient) {
-        await updateDoc(savePath, editingIngredient.id, ingredientData);
+        await saveProductViaApi(bid, ingredientData, {
+          mode: 'update',
+          productId: editingIngredient.id,
+        });
         showToast('Ingredient updated');
       } else {
         const id = crypto.randomUUID();
         ingredientData.id = id;
         ingredientData.createdAt = new Date().toISOString();
-        await addDoc(savePath, ingredientData);
+        await saveProductViaApi(bid, ingredientData, { mode: 'insert' });
         showToast('Ingredient added');
       }
 
@@ -394,7 +398,7 @@ export default function IngredientsPage() {
 
     setDeletingId(ingredient.id);
     try {
-      await deleteDoc(deletePath, ingredient.id);
+      await deleteProductViaApi(bid, ingredient.id);
       showToast('Ingredient deleted');
       await loadAll();
     } catch (error) {
@@ -441,7 +445,10 @@ export default function IngredientsPage() {
         updates.cost = newCost;
         updates.costPrice = newCost;
       }
-      await updateDoc(restockPath, restockTarget.id, updates);
+      await saveProductViaApi(bid, updates, {
+        mode: 'update',
+        productId: restockTarget.id,
+      });
       showToast(`Restocked ${qty} ${restockTarget.unit} of ${restockTarget.name}`);
       setShowRestockModal(false);
       setRestockTarget(null);

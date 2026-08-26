@@ -4,7 +4,8 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
-import { fetchDocs, addDoc } from '@/lib/supabase-client-data';
+import { fetchDocs } from '@/lib/supabase-client-data';
+import { saveProductViaApi } from '@/lib/product-api';
 import { getSupabase } from '@/lib/supabase';
 import styles from './Addproductpage.module.css';
 import { isRestaurantBusiness, ProductType, DishCategory, IngredientUnit, getDishCategories, getIngredientUnits } from './utils/restaurantHelpers';
@@ -493,7 +494,7 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
       console.log('📁 Collection path:', `businesses/${effectiveBusinessId}/products`);
       
       const productId = crypto.randomUUID();
-      await addDoc(`businesses/${effectiveBusinessId}/products`, { ...productData, id: productId });
+      await saveProductViaApi(effectiveBusinessId, { ...productData, id: productId }, { mode: 'insert' });
       console.log('✅ Product saved successfully with ID:', productId);
       
       const newProduct = {

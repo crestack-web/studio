@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
-import { fetchDocs, addDoc, updateDoc, deleteDoc, toDate } from '@/lib/supabase-client-data';
+import { fetchDocs, toDate } from '@/lib/supabase-client-data';
+import { saveProductViaApi, deleteProductViaApi } from '@/lib/product-api';
 import { resolveOwnerScopeBusinessId } from '@/lib/resolve-business-scope';
 import { getSupabase } from '@/lib/supabase';
 import { checkFeatureAccess } from '@/lib/featureRestrictions';
@@ -306,13 +307,16 @@ export default function MenuManagementPage() {
         updatedAt: new Date().toISOString(),
       };
       if (editingItem) {
-        await updateDoc(path, editingItem.id, itemData);
+        await saveProductViaApi(bid, itemData, {
+          mode: 'update',
+          productId: editingItem.id,
+        });
         showToast('Menu item updated');
       } else {
         const id = crypto.randomUUID();
         itemData.id = id;
         itemData.createdAt = new Date().toISOString();
-        await addDoc(path, itemData);
+        await saveProductViaApi(bid, itemData, { mode: 'insert' });
         showToast('Menu item added');
       }
       setShowAddModal(false);
@@ -338,7 +342,7 @@ export default function MenuManagementPage() {
     }
     setDeletingId(itemId);
     try {
-      await deleteDoc(`businesses/${bid}/products`, itemId);
+      await deleteProductViaApi(bid, itemId);
       showToast('Menu item deleted successfully');
       await loadMenuItems(bid);
     } catch (error) {
