@@ -140,9 +140,9 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
   const getRecommendedPlan = (features: string[]) => {
     const hasPro = features.some(f => PRO_ONLY_FEATURES.includes(f));
     const hasStd = features.some(f => STANDARD_OR_PRO_FEATURES.includes(f));
-    if (hasPro) return { plan: "pro", reason: "Your selected features require the Pro plan." };
-    if (hasStd || features.length >= 8) return { plan: "standard", reason: "Your selected features require the Standard plan." };
-    return { plan: "starter", reason: "The Starter plan covers your selected features." };
+    if (hasPro) return { plan: "pro", reason: "Your selected features require Busmo Scale." };
+    if (hasStd || features.length >= 8) return { plan: "standard", reason: "Your selected features require Busmo Control." };
+    return { plan: "starter", reason: "Busmo Start covers your selected features." };
   };
 
   const { plan: recommendedPlan, reason: planReason } = getRecommendedPlan(selectedFeatures);

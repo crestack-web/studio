@@ -118,7 +118,7 @@ export default function MenuManagementPage() {
             new Promise<{ eligible: boolean }>((r) => setTimeout(() => r({ eligible: true }), 2500)),
           ]);
           if (!hasAccess.eligible) {
-            showToast('This feature requires a Standard plan or higher');
+            showToast('This feature requires Busmo Control or higher');
           }
         } catch { /* ignore */ }
       }

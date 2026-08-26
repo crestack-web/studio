@@ -13,12 +13,14 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { BUSMO_PLANS } from '@/lib/pricing';
 
-const plans = [
-  { id: 'starter', name: 'Busmo Start', monthlyPrice: 7500, yearlyPrice: 75000 },
-  { id: 'standard', name: 'Busmo Control', monthlyPrice: 20000, yearlyPrice: 200000 },
-  { id: 'pro', name: 'Busmo Scale', monthlyPrice: 40000, yearlyPrice: 400000 }
-];
+const plans = BUSMO_PLANS.map((p) => ({
+  id: p.id,
+  name: p.name,
+  monthlyPrice: p.monthlyPrice,
+  yearlyPrice: p.yearlyPrice,
+}));
 
 interface Coupon {
   id: string;

@@ -163,7 +163,7 @@ export default function IngredientsPage() {
           ),
         ]);
         if (!cancelled && !hasAccess.eligible) {
-          showToast('This feature requires a Standard plan or higher');
+          showToast('This feature requires Busmo Control or higher');
         }
       } catch {
         // ignore — page still usable

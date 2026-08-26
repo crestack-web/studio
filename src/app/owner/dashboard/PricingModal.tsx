@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { X, Check } from 'lucide-react';
+import { BUSMO_PLANS, formatNaira, planDisplayName } from '@/lib/pricing';
 
 interface PricingModalProps {
   isOpen: boolean;
@@ -10,67 +11,19 @@ interface PricingModalProps {
   currentPlan?: string;
 }
 
-const PLANS = [
-  {
-    id: 'starter',
-    name: 'Busmo Start',
-    price: '₦7,500',
-    priceNum: 7500,
-    cycle: '/mo',
-    tag: null as string | null,
-    features: [
-      'Sales tracking',
-      'Expenses & basic inventory',
-      'Customers & suppliers',
-      'Profit dashboard & basic reports',
-      'Limited staff access',
-    ],
-    activeBg: '#F3EFFE',
-    activeBorder: '#6B3FE7',
-    priceColor: '#6B3FE7',
-    tagBg: '#6B3FE7',
-  },
-  {
-    id: 'standard',
-    name: 'Busmo Control',
-    price: '₦20,000',
-    priceNum: 20000,
-    cycle: '/mo',
-    tag: 'Most Popular',
-    features: [
-      'Everything in Start',
-      'Advanced inventory & COGS',
-      'Cash-flow & bank reconciliation',
-      'Credit sales & staff controls',
-      'AI business insights',
-      'Multiple locations (where supported)',
-    ],
-    activeBg: '#F3EFFE',
-    activeBorder: '#6B3FE7',
-    priceColor: '#6B3FE7',
-    tagBg: '#6B3FE7',
-  },
-  {
-    id: 'pro',
-    name: 'Busmo Scale',
-    price: '₦40,000',
-    priceNum: 40000,
-    cycle: '/mo',
-    tag: 'Best Value',
-    features: [
-      'Everything in Control',
-      'Multiple branches',
-      'Advanced staff & permissions',
-      'Centralized reporting',
-      'Priority support',
-      'Assisted onboarding',
-    ],
-    activeBg: '#FEF3C7',
-    activeBorder: '#D97706',
-    priceColor: '#D97706',
-    tagBg: '#D97706',
-  },
-];
+const PLANS = BUSMO_PLANS.map((p) => ({
+  id: p.id,
+  name: p.name,
+  price: formatNaira(p.monthlyPrice),
+  priceNum: p.monthlyPrice,
+  cycle: '/mo',
+  tag: p.popular ? 'Most Popular' : (p.id === 'pro' ? 'Best Value' : null),
+  features: p.features.slice(0, 6),
+  activeBg: p.id === 'pro' ? '#FEF3C7' : '#F3EFFE',
+  activeBorder: p.id === 'pro' ? '#D97706' : '#6B3FE7',
+  priceColor: p.id === 'pro' ? '#D97706' : '#6B3FE7',
+  tagBg: p.id === 'pro' ? '#D97706' : '#6B3FE7',
+}));
 
 export function PricingModal({ isOpen, onClose, onUpgrade, currentPlan = 'starter' }: PricingModalProps) {
   const [selectedPlan, setSelectedPlan] = useState(currentPlan);
@@ -109,7 +62,7 @@ export function PricingModal({ isOpen, onClose, onUpgrade, currentPlan = 'starte
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <h2 style={{ fontSize: '24px', fontWeight: 700, margin: 0, color: '#0A0A0F' }}>
-            Choose Your Plan
+            Choose your Busmo plan
           </h2>
           <button
             onClick={onClose}

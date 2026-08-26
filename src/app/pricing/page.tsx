@@ -11,19 +11,20 @@ import {
   ONBOARDING,
   POSITIONING,
   formatNaira,
+  type BusmoPlan,
+  type PlanId,
 } from '@/lib/pricing';
 
 export default function PricingPage() {
   const [mode, setMode] = useState<'monthly' | 'yearly'>('monthly');
-  const [userCountry, setUserCountry] = useState<string>('NG');
-  const [selectedPlan, setSelectedPlan] = useState<any>(null);
+  const [selectedPlan, setSelectedPlan] = useState<BusmoPlan | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank_transfer' | 'ussd'>('card');
+  const [isPaying, setIsPaying] = useState(false);
 
   useEffect(() => {
-    // Default to Nigeria for now - can be enhanced later with geo-location
-    setUserCountry('NG');
+    // Nigeria default; geo can be added later
   }, []);
 
   const handleNavigate = (page: string) => {
@@ -31,48 +32,53 @@ export default function PricingPage() {
     else if (page === 'login' || page === 'login-form') window.location.href = '/login';
     else if (page === 'pricing') window.location.href = '/pricing';
     else if (page === 'seller') window.location.href = '/sell-welcome';
-    else if (page === 'invest' || page === 'invest-signup' || page === 'invest-login' || page === 'investor')
+    else if (
+      page === 'invest' ||
+      page === 'invest-signup' ||
+      page === 'invest-login' ||
+      page === 'investor'
+    )
       window.location.href = '/invest';
     else window.location.href = '/welcome';
   };
 
-  const plans = BUSMO_PLANS.map((p) => ({
-    id: p.id,
-    name: p.name,
-    tagline: p.tagline,
-    monthlyPrice: p.monthlyPrice,
-    yearlyPrice: p.yearlyPrice,
-    features: p.features.map((text) => ({ text, included: true, highlight: false })),
-    cta: p.cta,
-    popular: !!p.popular,
-  }));
-
   const formatMoney = (amount: number) => formatNaira(amount);
 
-  const handlePlanSelect = (plan: any) => {
+  const startTrialForPlan = (plan: BusmoPlan) => {
+    const trialInfo = {
+      plan: plan.name, // Busmo Start | Busmo Control | Busmo Scale
+      planId: plan.id as PlanId, // internal id for billing/gating only
+      billing: mode,
+      country: 'NG',
+      trialStart: new Date().toISOString(),
+      trialEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+    localStorage.setItem('busmo_trial_info', JSON.stringify(trialInfo));
+    window.location.href = '/welcome/signup?trial=true';
+  };
+
+  const handlePlanSelect = (plan: BusmoPlan) => {
     setSelectedPlan(plan);
     setShowPaymentModal(true);
   };
 
   const handleStartFreeTrial = async () => {
+    if (!selectedPlan) return;
     if (!userEmail || !userEmail.includes('@')) {
       alert('Please enter a valid email address');
       return;
     }
-
     try {
-      // Store trial information in localStorage for use during signup
       const trialInfo = {
         plan: selectedPlan.name,
+        planId: selectedPlan.id,
         billing: mode,
         country: 'NG',
         trialStart: new Date().toISOString(),
-        trialEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days from now
+        trialEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
         email: userEmail,
       };
       localStorage.setItem('busmo_trial_info', JSON.stringify(trialInfo));
-      
-      // Redirect to signup to complete registration with trial
       window.location.href = '/welcome/signup?trial=true';
     } catch (error) {
       console.error('Error starting free trial:', error);
@@ -81,28 +87,36 @@ export default function PricingPage() {
   };
 
   const handlePayment = async () => {
+    if (!selectedPlan) return;
     if (!userEmail || !userEmail.includes('@')) {
       alert('Please enter a valid email address');
       return;
     }
 
-    const price = mode === 'monthly' ? selectedPlan.monthlyPrice : selectedPlan.yearlyPrice;
+    const price =
+      mode === 'monthly' ? selectedPlan.monthlyPrice : selectedPlan.yearlyPrice;
 
+    setIsPaying(true);
     try {
-      const response = await fetch('https://initializepayment-6kxikgkcjq-uc.a.run.app', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: userEmail,
-          amount: price,
-          plan: selectedPlan.name,
-          billing: mode,
-          metadata: {
+      const response = await fetch(
+        'https://initializepayment-6kxikgkcjq-uc.a.run.app',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: userEmail,
+            amount: price,
             plan: selectedPlan.name,
+            planId: selectedPlan.id,
             billing: mode,
-          },
-        }),
-      });
+            metadata: {
+              plan: selectedPlan.name,
+              planId: selectedPlan.id,
+              billing: mode,
+            },
+          }),
+        }
+      );
 
       const data = await response.json();
 
@@ -110,7 +124,6 @@ export default function PricingPage() {
         throw new Error(data.error || 'Failed to initialize payment');
       }
 
-      // Redirect to Paystack checkout
       if (data.data && data.data.authorization_url) {
         window.location.href = data.data.authorization_url;
       } else {
@@ -119,6 +132,8 @@ export default function PricingPage() {
     } catch (error) {
       console.error('Payment error:', error);
       alert('Payment failed. Please try again.');
+    } finally {
+      setIsPaying(false);
     }
   };
 
@@ -127,29 +142,34 @@ export default function PricingPage() {
       <LangProvider>
         <Navbar currentPage="pricing" onNavigate={handleNavigate} />
       </LangProvider>
-      
+
       <main className="pricing-main">
         <div className="max-w">
-          {/* Hero */}
           <div className="section-head center">
-            <h1 className="section-title">Control over sales, stock,<br /><em>cash and staff</em></h1>
+            <h1 className="section-title">
+              Control over sales, stock,
+              <br />
+              <em>cash and staff</em>
+            </h1>
             <p className="section-sub">
               {POSITIONING.headline}
               <br />
-              3-day free trial. Cancel anytime.
+              Choose <strong>Busmo Start</strong>, <strong>Busmo Control</strong>, or{' '}
+              <strong>Busmo Scale</strong>. 3-day free trial. Cancel anytime.
             </p>
           </div>
 
-          {/* Toggle */}
           <div className="pricing-toggle">
             <div className="toggle-switch">
               <button
+                type="button"
                 className={`toggle-btn ${mode === 'monthly' ? 'active' : ''}`}
                 onClick={() => setMode('monthly')}
               >
                 Monthly
               </button>
               <button
+                type="button"
                 className={`toggle-btn ${mode === 'yearly' ? 'active' : ''}`}
                 onClick={() => setMode('yearly')}
               >
@@ -161,11 +181,10 @@ export default function PricingPage() {
             )}
           </div>
 
-          {/* Plans Grid */}
           <div className="plans-grid">
-            {plans.map((plan, index) => (
+            {BUSMO_PLANS.map((plan) => (
               <div
-                key={index}
+                key={plan.id}
                 className={`plan-card ${plan.popular ? 'popular' : ''}`}
               >
                 {plan.popular && (
@@ -177,7 +196,9 @@ export default function PricingPage() {
                 </div>
                 <div className="plan-price">
                   <span className="price-amount">
-                    {formatMoney(mode === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice)}
+                    {formatMoney(
+                      mode === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice
+                    )}
                   </span>
                   <span className="price-period">
                     / {mode === 'monthly' ? 'month' : 'year'}
@@ -185,46 +206,101 @@ export default function PricingPage() {
                 </div>
                 {mode === 'yearly' && (
                   <div className="yearly-savings">
-                    Billed {formatMoney(plan.yearlyPrice)}/yr — save {formatMoney(plan.monthlyPrice * 12 - plan.yearlyPrice)}
+                    Billed {formatMoney(plan.yearlyPrice)}/yr — save{' '}
+                    {formatMoney(plan.monthlyPrice * 12 - plan.yearlyPrice)}
                   </div>
                 )}
+                <p
+                  style={{
+                    fontSize: '0.85rem',
+                    color: 'var(--text-3, #6b7280)',
+                    margin: '8px 0 0',
+                  }}
+                >
+                  {plan.description}
+                </p>
                 <hr className="plan-divider" />
-                <div className="plan-features-title">What's included</div>
+                <div className="plan-features-title">What&apos;s included</div>
                 <ul className="plan-features">
-                  {plan.features.map((feature, idx) => (
-                    <li
-                      key={idx}
-                      className={`feature-item ${!feature.included ? 'inactive' : ''} ${feature.highlight ? 'highlight' : ''}`}
-                    >
-                      <span className="feature-icon">
-                        {feature.included ? '✓' : '✗'}
-                      </span>
-                      <span className="feature-text">{feature.text}</span>
-                      {feature.highlight && <span className="feature-badge">Popular</span>}
+                  {plan.features.map((text, idx) => (
+                    <li key={idx} className="feature-item">
+                      <span className="feature-icon">✓</span>
+                      <span className="feature-text">{text}</span>
                     </li>
                   ))}
                 </ul>
                 <button
+                  type="button"
                   className={`plan-cta ${plan.popular ? 'primary' : ''}`}
-                  onClick={() => {
-                    const trialInfo = {
-                      plan: plan.name,
-                      planId: plan.id,
-                      billing: mode,
-                      country: 'NG',
-                      trialStart: new Date().toISOString(),
-                      trialEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-                    };
-                    localStorage.setItem('busmo_trial_info', JSON.stringify(trialInfo));
-                    window.location.href = '/welcome/signup?trial=true';
-                  }}
+                  onClick={() => startTrialForPlan(plan)}
                 >
                   {plan.cta}
                 </button>
+                <button
+                  type="button"
+                  className="plan-cta"
+                  style={{
+                    marginTop: 8,
+                    background: 'transparent',
+                    color: 'var(--purple, #6B3FE7)',
+                    border: '1.5px solid var(--purple, #6B3FE7)',
+                    boxShadow: 'none',
+                  }}
+                  onClick={() => handlePlanSelect(plan)}
+                >
+                  Pay now — {plan.name}
+                </button>
               </div>
             ))}
+
+            {/* Enterprise */}
+            <div className="plan-card">
+              <div className="plan-header">
+                <div className="plan-name">{ENTERPRISE.name}</div>
+                <div className="plan-tagline">{ENTERPRISE.tagline}</div>
+              </div>
+              <div className="plan-price">
+                <span className="price-amount">{ENTERPRISE.priceLabel}</span>
+              </div>
+              <hr className="plan-divider" />
+              <div className="plan-features-title">Best for</div>
+              <ul className="plan-features">
+                <li className="feature-item">
+                  <span className="feature-icon">✓</span>
+                  <span className="feature-text">Complex multi-location ops</span>
+                </li>
+                <li className="feature-item">
+                  <span className="feature-icon">✓</span>
+                  <span className="feature-text">Custom workflows &amp; integrations</span>
+                </li>
+                <li className="feature-item">
+                  <span className="feature-icon">✓</span>
+                  <span className="feature-text">Dedicated support</span>
+                </li>
+              </ul>
+              <button
+                type="button"
+                className="plan-cta"
+                onClick={() => {
+                  window.location.href =
+                    'mailto:hello@busmo.app?subject=Enterprise%20inquiry';
+                }}
+              >
+                {ENTERPRISE.cta}
+              </button>
+            </div>
           </div>
 
+          <p
+            style={{
+              textAlign: 'center',
+              marginTop: 24,
+              fontSize: '0.875rem',
+              color: 'var(--text-3, #6b7280)',
+            }}
+          >
+            {ONBOARDING.label}. {ONBOARDING.note}
+          </p>
         </div>
       </main>
 
@@ -232,26 +308,40 @@ export default function PricingPage() {
         <Footer onNavigate={handleNavigate} />
       </LangProvider>
 
-      {/* Payment Modal */}
       {showPaymentModal && selectedPlan && (
-        <div className="payment-modal-overlay" onClick={() => setShowPaymentModal(false)}>
-          <div className="payment-modal" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="payment-modal-overlay"
+          onClick={() => setShowPaymentModal(false)}
+        >
+          <div
+            className="payment-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="payment-modal-header">
-              <h3>Complete Your Purchase</h3>
-              <button className="close-modal" onClick={() => setShowPaymentModal(false)}>✕</button>
+              <h3>Complete your purchase</h3>
+              <button
+                type="button"
+                className="close-modal"
+                onClick={() => setShowPaymentModal(false)}
+              >
+                ✕
+              </button>
             </div>
             <div className="payment-modal-body">
               <div className="selected-plan-info">
-                <div className="plan-name">{selectedPlan.name} Plan</div>
+                <div className="plan-name">{selectedPlan.name}</div>
                 <div className="plan-price">
-                  {formatMoney(mode === 'monthly' ? selectedPlan.monthlyPrice : selectedPlan.yearlyPrice)} / {mode === 'monthly' ? 'month' : 'year'}
+                  {formatMoney(
+                    mode === 'monthly'
+                      ? selectedPlan.monthlyPrice
+                      : selectedPlan.yearlyPrice
+                  )}{' '}
+                  / {mode === 'monthly' ? 'month' : 'year'}
                 </div>
-                <div className="payment-gateway">
-                  Paying with Paystack
-                </div>
+                <div className="payment-gateway">Paying with Paystack</div>
               </div>
               <div className="email-input-group">
-                <label htmlFor="payment-email">Email Address</label>
+                <label htmlFor="payment-email">Email address</label>
                 <input
                   id="payment-email"
                   type="email"
@@ -261,48 +351,60 @@ export default function PricingPage() {
                 />
               </div>
               <div className="payment-method-group">
-                <label>Payment Method</label>
+                <label>Payment method</label>
                 <div className="payment-method-options">
-                  <button
-                    className={`payment-method-option ${paymentMethod === 'card' ? 'active' : ''}`}
-                    onClick={() => setPaymentMethod('card')}
-                  >
-                    <span className="payment-method-icon">💳</span>
-                    <span className="payment-method-label">Card</span>
-                  </button>
-                  <button
-                    className={`payment-method-option ${paymentMethod === 'bank_transfer' ? 'active' : ''}`}
-                    onClick={() => setPaymentMethod('bank_transfer')}
-                  >
-                    <span className="payment-method-icon">🏦</span>
-                    <span className="payment-method-label">Bank Transfer</span>
-                  </button>
-                  <button
-                    className={`payment-method-option ${paymentMethod === 'ussd' ? 'active' : ''}`}
-                    onClick={() => setPaymentMethod('ussd')}
-                  >
-                    <span className="payment-method-icon">📱</span>
-                    <span className="payment-method-label">USSD</span>
-                  </button>
+                  {(
+                    [
+                      ['card', '💳', 'Card'],
+                      ['bank_transfer', '🏦', 'Bank Transfer'],
+                      ['ussd', '📱', 'USSD'],
+                    ] as const
+                  ).map(([id, icon, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      className={`payment-method-option ${
+                        paymentMethod === id ? 'active' : ''
+                      }`}
+                      onClick={() => setPaymentMethod(id)}
+                    >
+                      <span className="payment-method-icon">{icon}</span>
+                      <span className="payment-method-label">{label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
             <div className="payment-modal-footer">
-              <button className="btn-secondary" onClick={() => setShowPaymentModal(false)}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setShowPaymentModal(false)}
+                disabled={isPaying}
+              >
                 Cancel
               </button>
-              <button className="btn-trial" onClick={handleStartFreeTrial}>
-                🎁 Start 3-Day Free Trial
+              <button
+                type="button"
+                className="btn-trial"
+                onClick={handleStartFreeTrial}
+                disabled={isPaying}
+              >
+                🎁 Start 3-day free trial
               </button>
-              <button className="btn-primary" onClick={handlePayment}>
-                Proceed to Payment
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handlePayment}
+                disabled={isPaying}
+              >
+                {isPaying ? 'Redirecting…' : 'Proceed to payment'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Support chat widget - connects to our admin support section */}
       <AskMOSupportAgent />
     </main>
   );

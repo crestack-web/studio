@@ -53,7 +53,7 @@ export default function ExpiryAlertsPage() {
       if (user?.id) {
         const hasAccess = await checkFeatureAccess(user.id, 'expiry-alerts');
         if (!hasAccess.eligible) {
-          showToast('This feature requires a Standard plan or higher');
+          showToast('This feature requires Busmo Control or higher');
         }
       }
     };

@@ -95,13 +95,13 @@ export default function BusmoOnboarding() {
         const hasStandardOrProFeatures = selectedFeatures?.some((f: string) => STANDARD_OR_PRO_FEATURES.includes(f));
         const hasManyFeatures = (selectedFeatures?.length ?? 0) >= 8;
         let recommendedPlan = "starter";
-        let recommendedPlanReason = "The Starter plan covers all your selected features perfectly.";
+        let recommendedPlanReason = "Busmo Start covers all your selected features perfectly.";
         if (hasProFeatures) {
           recommendedPlan = "pro";
-          recommendedPlanReason = "Your selected features require advanced capabilities available in the Pro plan.";
+          recommendedPlanReason = "Your selected features require advanced capabilities available in Busmo Scale.";
         } else if (hasStandardOrProFeatures || hasManyFeatures) {
           recommendedPlan = "standard";
-          recommendedPlanReason = "Your selected features require advanced capabilities available in the Standard plan.";
+          recommendedPlanReason = "Your selected features require advanced capabilities available in Busmo Control.";
         }
         const manualAnalysis = {
           businessType: categoryLabel,
@@ -124,7 +124,7 @@ export default function BusmoOnboarding() {
           businessAnalysis: {
             businessType: "Retail Store",
             recommendedPlan: "starter",
-            recommendedPlanReason: "Starter plan is recommended as a starting point.",
+            recommendedPlanReason: "Busmo Start is recommended as a starting point.",
             recommendedFeatures: ["Sales Recording", "Inventory Tracking", "Staff Management"],
             recommendedCategories: ["General"],
           },
