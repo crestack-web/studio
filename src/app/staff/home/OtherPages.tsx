@@ -79,10 +79,13 @@ export const InventoryPage: React.FC<InventoryPageProps> = ({
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(json.error || 'Failed to alert owner');
+        throw new Error(json.error || json.details || 'Failed to alert owner');
       }
-      const dest = json.emailed ? ` (${json.emailed})` : '';
-      setAlertMsg(`Owner has been emailed about the stock issue${dest}.`);
+      if (!json.emailed && !json.messageId) {
+        throw new Error('Email was not confirmed by the server. Try again.');
+      }
+      const dest = json.emailed ? ` to ${json.emailed}` : '';
+      setAlertMsg(`Owner alert sent${dest}.`);
     } catch (e: any) {
       console.error(e);
       setAlertMsg(e?.message || 'Could not send alert. Try again.');

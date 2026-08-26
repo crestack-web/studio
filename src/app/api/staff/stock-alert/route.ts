@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
-import { sendStaffStockAlertToOwner } from '@/services/email/inventory-emails';
+import { getAdminDb, getNativeAdminFirestore, isAdminInitialized } from '@/lib/firebase-admin';
+import { sendStaffStockAlertEmail } from '@/services/email/brevo-service';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-type OwnerInfo = {
-  email: string;
-  name: string;
-  businessName: string;
-};
 
 function isOwnerRole(role: unknown): boolean {
   const r = String(role || '').toLowerCase().trim();
@@ -17,160 +12,201 @@ function isOwnerRole(role: unknown): boolean {
 }
 
 /**
- * Resolve the business owner's email from several possible sources.
- * Staff alerts must reach the real owner inbox via Resend.
+ * Resolve owner email the same way other Busmo server routes do:
+ * Firestore admin first (source of truth for many businesses), then Supabase.
  */
-async function resolveOwner(supabase: ReturnType<typeof getSupabaseAdmin>, businessId: string): Promise<OwnerInfo> {
+async function resolveOwnerEmail(businessId: string): Promise<{
+  email: string;
+  name: string;
+  businessName: string;
+}> {
+  let email: string | null = null;
+  let name = 'Owner';
   let businessName = 'your business';
-  let ownerEmail: string | null = null;
-  let ownerName = 'Owner';
   let ownerId: string | null = null;
 
-  // 1) Businesses table
-  const { data: business, error: bizErr } = await supabase
-    .from('businesses')
-    .select('*')
-    .eq('id', businessId)
-    .maybeSingle();
-
-  if (bizErr) {
-    console.warn('[staff/stock-alert] businesses lookup:', bizErr.message);
-  }
-
-  if (business) {
-    businessName =
-      business.business_name ||
-      business.businessName ||
-      business.name ||
-      businessName;
-    ownerId =
-      business.owner_id ||
-      business.ownerId ||
-      business.user_id ||
-      business.userId ||
-      null;
-    ownerEmail =
-      business.owner_email ||
-      business.ownerEmail ||
-      business.email ||
-      null;
-    ownerName =
-      business.owner_name ||
-      business.ownerName ||
-      business.name ||
-      ownerName;
-  }
-
-  // 2) Users linked to this business with Owner role
-  if (!ownerEmail) {
-    const { data: byBiz } = await supabase
-      .from('users')
-      .select('*')
-      .or(`business_id.eq.${businessId},businessId.eq.${businessId}`)
-      .limit(20);
-
-    const owners = (byBiz || []).filter((u: any) => isOwnerRole(u.role));
-    const pick = owners[0] || (byBiz || []).find((u: any) => u.email);
-    if (pick?.email) {
-      ownerEmail = pick.email;
-      ownerName =
-        pick.display_name ||
-        pick.displayName ||
-        pick.full_name ||
-        pick.name ||
-        ownerName;
-      ownerId = pick.id || ownerId;
+  // ── Firestore Admin (same stack as staff invite) ─────────────────────
+  try {
+    const adminDb = getAdminDb();
+    const bizSnap = await adminDb.collection('businesses').doc(businessId).get();
+    if (bizSnap.exists) {
+      const bd = bizSnap.data() || {};
+      businessName =
+        bd.businessName || bd.name || bd.ownerName || businessName;
+      ownerId = bd.ownerId || bd.owner_id || bd.userId || bd.user_id || null;
+      email =
+        bd.ownerEmail ||
+        bd.owner_email ||
+        bd.email ||
+        null;
+      name = bd.ownerName || bd.owner_name || name;
     }
-  }
 
-  // 3) Users by owner id
-  if (!ownerEmail && ownerId) {
-    const { data: ownerRow } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', ownerId)
-      .maybeSingle();
-    if (ownerRow?.email) {
-      ownerEmail = ownerRow.email;
-      ownerName =
-        ownerRow.display_name ||
-        ownerRow.displayName ||
-        ownerRow.full_name ||
-        ownerRow.name ||
-        ownerName;
-    }
-  }
-
-  // 4) Auth admin API
-  if (!ownerEmail && ownerId) {
-    try {
-      const { data: authUser } = await supabase.auth.admin.getUserById(ownerId);
-      if (authUser?.user?.email) {
-        ownerEmail = authUser.user.email;
-        ownerName =
-          authUser.user.user_metadata?.full_name ||
-          authUser.user.user_metadata?.name ||
-          ownerName;
+    if (!email && ownerId) {
+      const userSnap = await adminDb.collection('users').doc(String(ownerId)).get();
+      if (userSnap.exists) {
+        const ud = userSnap.data() || {};
+        email = ud.email || null;
+        name = ud.displayName || ud.fullName || ud.name || name;
       }
-    } catch (e) {
-      console.warn('[staff/stock-alert] auth.getUserById failed', e);
     }
+
+    if (!email) {
+      const usersSnap = await adminDb
+        .collection('users')
+        .where('businessId', '==', businessId)
+        .limit(25)
+        .get();
+      for (const doc of usersSnap.docs) {
+        const ud = doc.data() || {};
+        if (isOwnerRole(ud.role) && ud.email) {
+          email = ud.email;
+          name = ud.displayName || ud.fullName || ud.name || name;
+          break;
+        }
+      }
+      if (!email) {
+        for (const doc of usersSnap.docs) {
+          const ud = doc.data() || {};
+          const role = String(ud.role || '').toLowerCase();
+          if (ud.email && role !== 'staff' && !ud.staffId) {
+            email = ud.email;
+            name = ud.displayName || ud.fullName || ud.name || name;
+            break;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[staff/stock-alert] Firestore resolve failed', e);
   }
 
-  // 5) Last resort: list users and match metadata.businessId
-  if (!ownerEmail) {
+  // Native Firestore dual-write store
+  if (!email && isAdminInitialized()) {
     try {
-      const { data: listed } = await supabase.auth.admin.listUsers({ perPage: 200 });
-      const match = (listed?.users || []).find((u) => {
-        const meta = u.user_metadata || {};
-        const metaBiz = meta.businessId || meta.business_id;
-        return metaBiz === businessId && isOwnerRole(meta.role || 'Owner');
-      });
-      // Prefer explicit owner role; otherwise any user with this businessId who is not staff-only
-      const fallback = (listed?.users || []).find((u) => {
-        const meta = u.user_metadata || {};
-        return (meta.businessId || meta.business_id) === businessId && u.email;
-      });
-      const chosen = match || fallback;
-      if (chosen?.email) {
-        // Skip if this looks like a staff-only account (has staffId and non-owner role)
-        const role = String(chosen.user_metadata?.role || '').toLowerCase();
-        const isStaffOnly =
-          chosen.user_metadata?.staffId &&
-          role &&
-          !isOwnerRole(role);
-        if (!isStaffOnly) {
-          ownerEmail = chosen.email;
-          ownerName =
-            chosen.user_metadata?.full_name ||
-            chosen.user_metadata?.name ||
-            ownerName;
+      const native = getNativeAdminFirestore();
+      const bizSnap = await native.collection('businesses').doc(businessId).get();
+      if (bizSnap.exists) {
+        const bd = bizSnap.data() || {};
+        businessName =
+          bd.businessName || bd.name || businessName;
+        ownerId = ownerId || bd.ownerId || bd.owner_id || null;
+        email =
+          email ||
+          bd.ownerEmail ||
+          bd.owner_email ||
+          bd.email ||
+          null;
+      }
+      if (!email && ownerId) {
+        const userSnap = await native.collection('users').doc(String(ownerId)).get();
+        if (userSnap.exists) {
+          const ud = userSnap.data() || {};
+          email = ud.email || null;
+          name = ud.displayName || ud.fullName || ud.name || name;
         }
       }
     } catch (e) {
-      console.warn('[staff/stock-alert] listUsers failed', e);
+      console.warn('[staff/stock-alert] native Firestore resolve failed', e);
     }
   }
 
-  if (!ownerEmail) {
+  // ── Supabase ─────────────────────────────────────────────────────────
+  try {
+    const supabase = getSupabaseAdmin();
+    if (!email) {
+      const { data: business } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('id', businessId)
+        .maybeSingle();
+      if (business) {
+        businessName =
+          business.business_name ||
+          business.businessName ||
+          business.name ||
+          businessName;
+        ownerId =
+          ownerId ||
+          business.owner_id ||
+          business.ownerId ||
+          business.user_id ||
+          null;
+        email =
+          business.owner_email ||
+          business.ownerEmail ||
+          business.email ||
+          null;
+      }
+    }
+
+    if (!email && ownerId) {
+      const { data: ownerRow } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', ownerId)
+        .maybeSingle();
+      if (ownerRow?.email) {
+        email = ownerRow.email;
+        name =
+          ownerRow.display_name ||
+          ownerRow.displayName ||
+          ownerRow.full_name ||
+          ownerRow.name ||
+          name;
+      }
+      if (!email) {
+        const { data: authUser } = await supabase.auth.admin.getUserById(
+          String(ownerId)
+        );
+        if (authUser?.user?.email) {
+          email = authUser.user.email;
+          name =
+            authUser.user.user_metadata?.full_name ||
+            authUser.user.user_metadata?.name ||
+            name;
+        }
+      }
+    }
+
+    if (!email) {
+      const { data: byBiz } = await supabase
+        .from('users')
+        .select('*')
+        .eq('business_id', businessId)
+        .limit(25);
+      const owners = (byBiz || []).filter((u: any) => isOwnerRole(u.role) && u.email);
+      if (owners[0]) {
+        email = owners[0].email;
+        name =
+          owners[0].display_name ||
+          owners[0].name ||
+          name;
+      }
+    }
+  } catch (e) {
+    console.warn('[staff/stock-alert] Supabase resolve failed', e);
+  }
+
+  if (!email || !email.includes('@')) {
     throw new Error(
-      'Could not find the business owner email. Ask the owner to open Settings and confirm their account email.'
+      'Could not find the business owner email. Open owner Settings and confirm the account email is saved.'
     );
   }
 
-  return { email: ownerEmail, name: ownerName, businessName };
+  return { email: String(email).trim().toLowerCase(), name, businessName };
 }
 
 /**
  * POST /api/staff/stock-alert
- * Staff notifies the business owner about low / lost stock via Resend.
+ * Mirrors staff-invitation: resolve recipient, then Resend via brevo-service.
  */
 export async function POST(req: NextRequest) {
   try {
     if (!process.env.RESEND_API_KEY) {
-      console.error('[staff/stock-alert] RESEND_API_KEY is missing');
+      console.error('[staff/stock-alert] RESEND_API_KEY missing');
       return NextResponse.json(
-        { error: 'Email service is not configured (RESEND_API_KEY). Contact support.' },
+        { error: 'Email service not configured (RESEND_API_KEY)' },
         { status: 503 }
       );
     }
@@ -190,23 +226,28 @@ export async function POST(req: NextRequest) {
     const staffUser = userData.user;
     const body = await req.json().catch(() => ({}));
     const businessId = String(
-      body.businessId || staffUser.user_metadata?.businessId || staffUser.user_metadata?.business_id || ''
+      body.businessId ||
+        staffUser.user_metadata?.businessId ||
+        staffUser.user_metadata?.business_id ||
+        ''
     ).trim();
     const products = Array.isArray(body.products) ? body.products : [];
     const note = body.note ? String(body.note).slice(0, 1000) : undefined;
-    const alertType = body.alertType === 'lost_stock' ? 'lost_stock' : 'low_stock';
 
     if (!businessId) {
       return NextResponse.json({ error: 'businessId required' }, { status: 400 });
     }
     if (!products.length) {
-      return NextResponse.json({ error: 'At least one product is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'At least one product is required' },
+        { status: 400 }
+      );
     }
 
-    console.log('[staff/stock-alert] resolving owner for business', businessId);
+    console.log('[staff/stock-alert] businessId=', businessId, 'products=', products.length);
 
-    const owner = await resolveOwner(supabase, businessId);
-    console.log('[staff/stock-alert] owner resolved →', owner.email);
+    const owner = await resolveOwnerEmail(businessId);
+    console.log('[staff/stock-alert] owner email resolved:', owner.email);
 
     const staffName =
       staffUser.user_metadata?.full_name ||
@@ -215,7 +256,8 @@ export async function POST(req: NextRequest) {
       'Staff member';
     const staffRole = staffUser.user_metadata?.role || 'Staff';
 
-    const result = await sendStaffStockAlertToOwner({
+    // Same Resend entry point as staff invitation emails
+    const result = await sendStaffStockAlertEmail({
       ownerEmail: owner.email,
       ownerName: owner.name,
       businessName: owner.businessName,
@@ -225,53 +267,30 @@ export async function POST(req: NextRequest) {
       products: products.map((p: any) => ({
         name: String(p.name || 'Product'),
         stock: Number(p.stock) || 0,
-        lowStockThreshold:
+        threshold:
           p.lowStockThreshold != null ? Number(p.lowStockThreshold) : undefined,
         status: p.status,
       })),
       note,
-      alertType,
     });
 
     if (!result?.id) {
-      console.error('[staff/stock-alert] Resend returned no message id', result);
       return NextResponse.json(
-        { error: 'Email provider did not confirm delivery. Try again.' },
+        { error: 'Resend did not return a message id' },
         { status: 502 }
       );
     }
 
-    console.log('[staff/stock-alert] Resend message id', result.id, '→', owner.email);
-
-    // Best-effort audit log
-    try {
-      await supabase.from('audit_trail').insert({
-        business_id: businessId,
-        user_id: staffUser.id,
-        action: 'staff_stock_alert',
-        entity_type: 'inventory',
-        details: {
-          products,
-          note,
-          alertType,
-          staffName,
-          staffEmail: staffUser.email,
-          ownerEmail: owner.email,
-          resendId: result.id,
-        },
-        created_at: new Date().toISOString(),
-      });
-    } catch {
-      /* non-fatal */
-    }
+    console.log('[staff/stock-alert] Resend OK id=', result.id, 'to=', owner.email);
 
     return NextResponse.json({
       ok: true,
+      success: true,
       emailed: owner.email,
       messageId: result.id,
     });
   } catch (err: any) {
-    console.error('[staff/stock-alert]', err);
+    console.error('[staff/stock-alert] FAILED', err?.message || err);
     return NextResponse.json(
       { error: err?.message || 'Failed to send stock alert' },
       { status: 500 }

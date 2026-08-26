@@ -313,6 +313,93 @@ export async function sendLowStockAlertEmail(
   });
 }
 
+
+/**
+ * Staff → owner stock alert (same Resend path as invitations / low-stock).
+ */
+export async function sendStaffStockAlertEmail(params: {
+  ownerEmail: string;
+  ownerName?: string;
+  businessName: string;
+  staffName: string;
+  staffEmail?: string;
+  staffRole?: string;
+  products: Array<{ name: string; stock: number; threshold?: number; status?: string }>;
+  note?: string;
+}): Promise<{ id: string }> {
+  const {
+    ownerEmail,
+    ownerName,
+    businessName,
+    staffName,
+    staffEmail,
+    staffRole,
+    products,
+    note,
+  } = params;
+
+  const itemsList = products
+    .map((item) => {
+      const status =
+        item.status === 'out' || item.stock === 0
+          ? 'Out of stock'
+          : item.status === 'lost'
+            ? 'Reported lost'
+            : `Only ${item.stock} left` +
+              (item.threshold != null ? ` (threshold ${item.threshold})` : '');
+      return `<li style="margin:8px 0;"><strong>${item.name}</strong> — ${status}</li>`;
+    })
+    .join('');
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+    <body style="font-family:Arial,Helvetica,sans-serif;padding:24px;background:#f4f4f4;margin:0">
+      <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
+        <div style="background:linear-gradient(135deg,#6B3FE7,#8B5CF6);padding:28px;text-align:center;color:#fff">
+          <img src="${BUSMO_LOGO}" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:12px;background:#fff;padding:4px;" />
+          <h1 style="margin:0;font-size:22px">Stock Alert from Staff</h1>
+          <p style="margin:8px 0 0;opacity:0.95;font-size:14px">${businessName}</p>
+        </div>
+        <div style="padding:28px;color:#333;font-size:15px;line-height:1.6">
+          <p>Hi ${ownerName || 'there'},</p>
+          <p>
+            <strong>${staffName}</strong>${staffRole ? ` (${staffRole})` : ''}${staffEmail ? ` &lt;${staffEmail}&gt;` : ''}
+            reported stock that needs attention at <strong>${businessName}</strong>.
+          </p>
+          <div style="background:#F5F3FF;border:1px solid #DDD6FE;border-radius:10px;padding:14px 16px;margin:16px 0">
+            <div style="font-size:12px;font-weight:700;color:#6B3FE7;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:6px">Reported by</div>
+            <div style="font-weight:600">${staffName}</div>
+            ${staffEmail ? `<div style="font-size:13px;color:#6B7280">${staffEmail}</div>` : ''}
+          </div>
+          <div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;padding:14px 16px;margin:16px 0">
+            <div style="font-weight:700;color:#B91C1C;margin-bottom:8px">Affected products</div>
+            <ul style="padding-left:18px;margin:0">${itemsList}</ul>
+          </div>
+          ${
+            note
+              ? `<div style="background:#FFFBEB;border-left:4px solid #F59E0B;padding:12px 14px;margin:16px 0;border-radius:6px">
+                   <div style="font-size:12px;font-weight:700;color:#B45309;margin-bottom:4px">Staff note</div>
+                   <div>${note}</div>
+                 </div>`
+              : ''
+          }
+          <p style="margin:20px 0 8px">
+            <a href="https://www.busmo.io/owner" style="display:inline-block;padding:12px 24px;background:#6B3FE7;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Open inventory</a>
+          </p>
+          <p style="color:#6B7280;font-size:13px">Best regards,<br/>The Busmo Team</p>
+        </div>
+      </div>
+    </body></html>`;
+
+  return sendTransactionalEmail({
+    to: [{ email: ownerEmail, name: ownerName }],
+    subject: `🚨 Stock alert from ${staffName} — ${businessName}`,
+    htmlContent,
+    params: staffEmail ? { replyTo: staffEmail } : undefined,
+  });
+}
+
 export async function sendDailySalesSummaryEmail(
   email: string,
   businessName: string,
