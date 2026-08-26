@@ -47,14 +47,39 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
   // Update businessId and isProUser when user data changes
   useEffect(() => {
-    if (user.businessId) {
-      setBusinessIdState(user.businessId);
+    let cancelled = false;
+
+    async function syncBusinessId() {
+      if (user.businessId) {
+        if (!cancelled) setBusinessIdState(user.businessId);
+        return;
+      }
+      if (!user.id) return;
+      try {
+        const { resolveOwnedBusinessId } = await import(
+          '@/lib/resolve-business-scope'
+        );
+        const bid = await resolveOwnedBusinessId(user.id);
+        if (!cancelled && bid) setBusinessIdState(bid);
+      } catch (e) {
+        console.warn('[BranchContext] resolve businessId failed', e);
+        // Signup convention fallback
+        if (!cancelled && user.id) setBusinessIdState(user.id);
+      }
     }
-    
+
+    syncBusinessId();
+
     // Set isProUser based on plan
-    const proPlans = ['multi-branch', 'company'];
-    setIsProUserState(proPlans.includes(user.plan));
-  }, [user.businessId, user.plan]);
+    const proPlans = ['multi-branch', 'company', 'pro', 'Busmo Scale'];
+    setIsProUserState(
+      proPlans.some((p) => String(user.plan || '').toLowerCase().includes(p.toLowerCase()))
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user.businessId, user.plan, user.id]);
 
   // Persist branch selection changes
   useEffect(() => {

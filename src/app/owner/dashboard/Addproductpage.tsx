@@ -118,23 +118,33 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
         if (!userId) return;
 
         const firestoreUid = session.user.user_metadata?.firebase_uid || userId;
-        const { data: userData } = await getSupabase()
-          .from('users')
-          .select('*')
-          .eq('id', firestoreUid)
-          .single();
-        let bid: string | null = null;
-        
-        if (userData) {
-          bid = userData.businessId || userData.business_id || '';
-        } else {
-          bid = session.user.user_metadata?.businessId || '';
-        }
-        // Never use auth uid as businessId (cross-account leak)
-        if (bid === userId || bid === firestoreUid) bid = '';
+        // Prefer AppContext businessId when already resolved
+        let bid: string | null = user?.businessId || null;
+
         if (!bid) {
-          const { resolveOwnedBusinessId } = await import('@/lib/resolve-business-scope');
-          bid = (await resolveOwnedBusinessId(userId)) || '';
+          const { resolveOwnerScopeBusinessId } = await import(
+            '@/lib/resolve-business-scope'
+          );
+          bid = await resolveOwnerScopeBusinessId(
+            userId,
+            session.user.user_metadata?.businessId ||
+              session.user.user_metadata?.business_id ||
+              null,
+            { firebaseUid: firestoreUid !== userId ? firestoreUid : undefined }
+          );
+        }
+
+        // Signup convention: business id may equal auth uid — that is valid for owners
+        if (!bid) {
+          const { data: userData } = await getSupabase()
+            .from('users')
+            .select('business_id, businessId')
+            .eq('id', userId)
+            .maybeSingle();
+          bid =
+            (userData as any)?.business_id ||
+            (userData as any)?.businessId ||
+            userId;
         }
         
         setBusinessId(bid);
@@ -380,8 +390,9 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
       return;
     }
 
-    if (!businessId) {
-      showToast(t('toast.businessIdNotFound'));
+    const effectiveBusinessId = businessId || user?.businessId || null;
+    if (!effectiveBusinessId) {
+      showToast(t('toast.businessIdNotFound') || 'Business not loaded — refresh and try again');
       return;
     }
 
@@ -395,7 +406,7 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
         console.log('📤 Image file:', imageFile.name, imageFile.size, imageFile.type);
         
         try {
-          const filePath = `products/${businessId}/${Date.now()}_${imageFile.name}`;
+          const filePath = `products/${effectiveBusinessId}/${Date.now()}_${imageFile.name}`;
           console.log('📤 Image path:', filePath);
           
           const { error: uploadError } = await getSupabase()
@@ -479,10 +490,10 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
 
       console.log('💾 Saving product to Supabase...');
       console.log('📦 Product data:', productData);
-      console.log('📁 Collection path:', `businesses/${businessId}/products`);
+      console.log('📁 Collection path:', `businesses/${effectiveBusinessId}/products`);
       
       const productId = crypto.randomUUID();
-      await addDoc(`businesses/${businessId}/products`, { ...productData, id: productId });
+      await addDoc(`businesses/${effectiveBusinessId}/products`, { ...productData, id: productId });
       console.log('✅ Product saved successfully with ID:', productId);
       
       const newProduct = {

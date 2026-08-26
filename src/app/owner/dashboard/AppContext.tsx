@@ -11,6 +11,7 @@ import React, {
 } from 'react';
 import { LangProvider } from './LangContext';
 import { getSupabase } from '@/lib/supabase';
+import { resolveOwnedBusinessId, backfillUserBusinessId } from '@/lib/resolve-business-scope';
 import { ensureFirebaseAuth } from '@/lib/ensure-firebase-auth';
 import { initializeFirebase } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -179,10 +180,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const loadUser = useCallback(async (userId: string, userEmail: string, metadata: Record<string, any> | undefined, _firestore?: any) => {
     /**
      * Isolate each owner account:
-     * - Prefer a business this user *owns* (businesses.owner_id = auth uid)
+     * - Prefer a business this user *owns* (owner_id / profile / signup convention)
+     * - Signup convention: businessId may equal auth uid — that is valid for owners
      * - Never adopt another owner's businessId from a staff assignment
      * - Never fall back to a different user's profile by loose email match
-     * - Never use auth uid as businessId unless that business is owned by them
      */
     const firestoreUid = metadata?.firebase_uid || userId;
     const emailNorm = (userEmail || '').trim().toLowerCase();
@@ -225,76 +226,63 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       // ── Resolve business this user OWNS ────────────────────────────────
-      let resolvedBusinessId: string | undefined;
-
-      // A) businesses.owner_id / ownerId = this auth user
-      try {
-        let owned = await supabase
-          .from('businesses')
-          .select('id, owner_id, name, business_name, businessName')
-          .eq('owner_id', userId)
-          .limit(1)
-          .maybeSingle();
-        if (!owned.data) {
-          owned = await supabase
-            .from('businesses')
-            .select('id, owner_id, ownerId, name, business_name, businessName')
-            .eq('ownerId', userId)
-            .limit(1)
-            .maybeSingle();
-        }
-        if (owned.data?.id) {
-          resolvedBusinessId = String(owned.data.id);
-        }
-      } catch (e) {
-        console.warn('[loadUser] owned business lookup failed', e);
-      }
-
-      // B) Candidate from profile / metadata — only accept if that business is owned by this user
-      const candidate =
-        (sbData?.businessId ||
-          sbData?.business_id ||
-          metadata?.businessId ||
-          metadata?.business_id ||
-          '') as string;
-
-      if (!resolvedBusinessId && candidate) {
-        try {
-          const { data: biz } = await supabase
-            .from('businesses')
-            .select('id, owner_id, ownerId, user_id')
-            .eq('id', candidate)
-            .maybeSingle();
-          const ownerOfBiz =
-            biz?.owner_id || biz?.ownerId || biz?.user_id || null;
-          if (biz && ownerOfBiz && String(ownerOfBiz) === String(userId)) {
-            resolvedBusinessId = String(biz.id);
-          } else if (biz && !ownerOfBiz) {
-            // Legacy business with no owner_id — accept only if profile id matches auth user
-            if (sbData?.id === userId) {
-              resolvedBusinessId = String(biz.id);
-            }
-          } else {
-            console.warn(
-              '[loadUser] rejecting businessId from profile — not owned by this user',
-              { candidate, userId, ownerOfBiz }
-            );
-          }
-        } catch (e) {
-          console.warn('[loadUser] candidate business check failed', e);
-        }
-      }
-
-      // C) Role is Staff → do not load owner dashboard under someone else's business
+      // Signup convention: businessId === auth user id (see welcome/signup).
       const roleLc = String(
         sbData?.role || metadata?.role || 'Owner'
       ).toLowerCase();
       const looksLikeStaff =
         roleLc === 'staff' ||
-        Boolean(metadata?.staffId || metadata?.staff_id || sbData?.staffId || sbData?.staff_id);
+        roleLc === 'cashier' ||
+        roleLc === 'manager' ||
+        Boolean(
+          metadata?.staffId ||
+            metadata?.staff_id ||
+            sbData?.staffId ||
+            sbData?.staff_id
+        );
+
+      let resolvedBusinessId: string | undefined;
+
+      try {
+        const owned = await resolveOwnedBusinessId(userId, {
+          firebaseUid: firestoreUid !== userId ? firestoreUid : undefined,
+          email: emailNorm,
+        });
+        if (owned) resolvedBusinessId = owned;
+      } catch (e) {
+        console.warn('[loadUser] resolveOwnedBusinessId failed', e);
+      }
+
+      // Profile / metadata candidates (including businessId === userId)
+      if (!resolvedBusinessId) {
+        const candidate =
+          (sbData?.businessId ||
+            sbData?.business_id ||
+            metadata?.businessId ||
+            metadata?.business_id ||
+            '') as string;
+        if (candidate) {
+          // Owner accounts: allow profile businessId even when equal to userId
+          if (!looksLikeStaff) {
+            resolvedBusinessId = String(candidate);
+          }
+        }
+      }
+
+      // Last resort for owners: business id is the auth uid (Firestore signup path)
+      if (!resolvedBusinessId && !looksLikeStaff) {
+        resolvedBusinessId = userId;
+      }
 
       if (looksLikeStaff && !resolvedBusinessId) {
-        console.warn('[loadUser] staff account on owner shell — no owned business');
+        console.warn(
+          '[loadUser] staff account on owner shell — no owned business'
+        );
+      }
+
+      // Best-effort: keep users.business_id in sync for future loads
+      if (resolvedBusinessId && !looksLikeStaff) {
+        backfillUserBusinessId(userId, resolvedBusinessId).catch(() => {});
       }
 
       const displayName =
