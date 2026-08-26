@@ -43,7 +43,6 @@
   background: var(--purple-dark);
 }
 
-/* Summary Cards */
 .summaryCards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -91,7 +90,6 @@
   color: var(--text-1);
 }
 
-/* Alerts */
 .alerts {
   background: var(--red-lt);
   border: 1px solid var(--red);
@@ -112,7 +110,6 @@
   margin-bottom: 4px;
 }
 
-/* Filters */
 .filters {
   background: var(--surface);
   border-radius: var(--radius-sm);
@@ -149,7 +146,6 @@
   color: var(--text-1);
   background: var(--bg);
   outline: none;
-  transition: border-color var(--transition);
 }
 
 .searchInput:focus {
@@ -165,14 +161,12 @@
   background: var(--bg);
   outline: none;
   cursor: pointer;
-  transition: border-color var(--transition);
 }
 
 .filterSelect:focus {
   border-color: var(--purple);
 }
 
-/* Table */
 .tableContainer {
   background: var(--surface);
   border-radius: var(--radius-sm);
@@ -200,7 +194,6 @@
 
 .tableRow {
   border-bottom: 1px solid var(--border-subtle);
-  transition: background var(--transition);
 }
 
 .tableRow:hover {
@@ -215,7 +208,6 @@
 
 .ingredientName {
   font-weight: 500;
-  color: var(--text-1);
 }
 
 .ingredientUnit {
@@ -289,7 +281,6 @@
   background: none;
   border-radius: 4px;
   cursor: pointer;
-  transition: background var(--transition);
   color: var(--text-2);
 }
 
@@ -307,7 +298,6 @@
   color: var(--red);
 }
 
-/* Empty State */
 .emptyState {
   text-align: center;
   padding: 48px 24px;
@@ -324,7 +314,6 @@
   font-weight: 500;
 }
 
-/* Modal */
 .modalOverlay {
   position: fixed;
   inset: 0;
@@ -379,7 +368,6 @@
   color: var(--text-1);
   background: var(--bg);
   outline: none;
-  transition: border-color var(--transition);
 }
 
 .formInput:focus {
@@ -395,7 +383,6 @@
   background: var(--bg);
   outline: none;
   cursor: pointer;
-  transition: border-color var(--transition);
 }
 
 .formSelect:focus {
@@ -414,23 +401,6 @@
   }
 }
 
-.formCheckbox {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.formCheckboxInput {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-}
-
-.formCheckboxLabel {
-  font-size: 0.875rem;
-  color: var(--text-1);
-}
-
 .modalActions {
   display: flex;
   gap: 12px;
@@ -445,7 +415,6 @@
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition);
 }
 
 .modalButton.secondary {
@@ -467,7 +436,6 @@
   background: var(--purple-dark);
 }
 
-/* Loading State */
 .loadingState {
   display: flex;
   align-items: center;
@@ -502,4 +470,46 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.usedInEmpty {
+  color: var(--text-3);
+}
+
+.usedInList {
+  font-size: 0.8125rem;
+  color: var(--purple);
+  font-weight: 500;
+  cursor: default;
+}
+
+.restockHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.restockHeader .modalTitle {
+  margin-bottom: 0;
+}
+
+.closeIcon {
+  border: none;
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.closeIcon:hover {
+  background: var(--bg-2);
+  color: var(--text-1);
+}
+
+.restockHint {
+  font-size: 0.875rem;
+  color: var(--text-3);
+  margin: 8px 0 16px;
 }
