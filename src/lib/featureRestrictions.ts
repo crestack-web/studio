@@ -8,6 +8,7 @@ import {
   Plan,
   BusinessCategory,
   checkFeatureAccess as checkRegistryAccess,
+  getFeature as getFeatureFromRegistry,
 } from './featureRegistry';
 
 // Business types that are eligible for the credit layer
@@ -44,7 +45,7 @@ const FEATURE_NAME_MAP: Record<string, string> = {
   'expiryAlerts': 'expiry-alerts',
   'productionTracking': 'production-tracking',
   'payrollManagement': 'payroll-management',
-  // Onboarding feature names
+  // Onboarding feature names / UI labels
   'Supplier Management': 'supplier-management',
   'Warehouse Management': 'warehouse-management',
   'Credit Tracking': 'credit-tracking',
@@ -52,8 +53,26 @@ const FEATURE_NAME_MAP: Record<string, string> = {
   'Ingredient Tracking': 'ingredient-tracking',
   'Expiry Alerts': 'expiry-alerts',
   'Multi-branch Support': 'multi-branch-support',
+  'Multi-Branch Support': 'multi-branch-support',
   'Production Tracking': 'production-tracking',
   'Payroll Management': 'payroll-management',
+  'Inventory Tracking': 'inventory-tracking',
+  'Sales Recording': 'sales-recording',
+  'Expense Management': 'expense-management',
+  'Cash Flow Analysis': 'cashflow-tracking',
+  'Cash Flow Tracking': 'cashflow-tracking',
+  'Cashflow Tracking': 'cashflow-tracking',
+  'Profit/Loss Reports': 'reports-analytics',
+  'Business Analytics': 'reports-analytics',
+  'Reports & Analytics': 'reports-analytics',
+  'Ask MO AI Assistant': 'ask-mo-ai-assistant',
+  'Staff Management': 'staff-management',
+  'Staff Accountability': 'staff-accountability',
+  'Customer Management': 'customer-management',
+  'Money Control': 'money-control',
+  'Bank Reconciliation': 'bank-reconciliation',
+  'Bank Accounts': 'bank-accounts',
+  'Document Templates': 'document-templates',
 };
 
 // Get Pro-only features from registry (for backward compatibility)
@@ -112,11 +131,16 @@ export function requiresStandardOrProPlan(feature: string): boolean {
  * Normalize feature name to registry format
  */
 function normalizeFeatureName(feature: string): string {
-  // Check if it's already in registry format (kebab-case)
-  if (feature.includes('-')) return feature;
-  
-  // Map legacy camelCase to kebab-case
-  return FEATURE_NAME_MAP[feature] || feature.toLowerCase().replace(/([A-Z])/g, '-$1').toLowerCase();
+  if (!feature) return '';
+  if (FEATURE_NAME_MAP[feature]) return FEATURE_NAME_MAP[feature];
+  // Already registry id
+  if (feature.includes('-') && feature === feature.toLowerCase()) return feature;
+  // "Title Case Label" → title-case-label
+  if (feature.includes(' ')) {
+    return feature.toLowerCase().replace(/[\/&]+/g, ' ').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
+  // camelCase → kebab-case
+  return feature.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase();
 }
 
 /**
@@ -195,7 +219,13 @@ export async function checkFeatureAccess(
     const plan = normalizePlan(userData?.plan);
     const businessCategory = normalizeBusinessCategory(userData?.category || userData?.businessType);
     const subscriptionStatus = userData?.subscriptionStatus;
-    const trialEndDate = userData?.trialEndDate?.toDate();
+    const trialEndRaw = userData?.trialEndDate;
+    const trialEndDate =
+      trialEndRaw && typeof trialEndRaw.toDate === 'function'
+        ? trialEndRaw.toDate()
+        : trialEndRaw
+          ? new Date(trialEndRaw)
+          : undefined;
     const selectedFeatures = userData?.selectedFeatures || [];
     const lifetimeAccess = userData?.lifetimeAccess;
     const now = new Date();
@@ -205,29 +235,89 @@ export async function checkFeatureAccess(
       return { eligible: true };
     }
 
-    // Check if user is in trial mode
-    const isInTrial = subscriptionStatus === 'trial' && trialEndDate && trialEndDate > now;
+    // Check if user is in trial mode (3-day free trial)
+    const isInTrial =
+      (subscriptionStatus === 'trial' || subscriptionStatus === 'trialing') &&
+      (!trialEndDate || trialEndDate > now);
 
     // Normalize feature name to registry format
     const normalizedFeature = normalizeFeatureName(feature);
 
-    // If in trial, check if feature is in selected features
+    // Normalize selected feature names once (onboarding may store labels or ids)
+    const normalizedSelected = new Set(
+      (Array.isArray(selectedFeatures) ? selectedFeatures : []).map((f: string) =>
+        normalizeFeatureName(String(f))
+      )
+    );
+    // Also keep raw strings for loose matching
+    const rawSelectedLower = new Set(
+      (Array.isArray(selectedFeatures) ? selectedFeatures : []).map((f: string) =>
+        String(f).toLowerCase().trim()
+      )
+    );
+
+    const featureMeta = getFeatureFromRegistry(normalizedFeature);
+
+    // During trial: unlock features the user selected OR anything their trial plan allows.
+    // Trial users often have plan still stored as "starter" even if they explore Control features —
+    // use at least Standard for plan checks so they are not blocked mid-trial.
     if (isInTrial) {
-      // Map feature names to selected feature names
       const selectedFeatureName = FEATURE_NAME_MAP[feature] || feature;
-      
-      // If feature is in selected features, allow access during trial
-      if (selectedFeatures.includes(selectedFeatureName)) {
+      const selectedMatch =
+        normalizedSelected.has(normalizedFeature) ||
+        selectedFeatures.includes(selectedFeatureName) ||
+        selectedFeatures.includes(feature) ||
+        rawSelectedLower.has(String(selectedFeatureName).toLowerCase()) ||
+        rawSelectedLower.has(String(feature).toLowerCase()) ||
+        [...rawSelectedLower].some(
+          (s) =>
+            s.includes(normalizedFeature.replace(/-/g, ' ')) ||
+            normalizedFeature.replace(/-/g, ' ').includes(s)
+        );
+
+      if (selectedMatch) {
         return { eligible: true };
       }
-      
-      // If not in selected features, fall back to plan-based restrictions
+
+      // Effective trial plan: never below standard unless feature is truly starter-only
+      const trialPlan: Plan =
+        plan === 'pro' ? 'pro' : plan === 'standard' ? 'standard' : 'standard';
+
+      // Pro-only features stay locked unless selected or on pro trial
+      if (featureMeta?.isProOnly && trialPlan !== 'pro') {
+        return {
+          eligible: false,
+          reason: 'This feature requires Pro (Busmo Scale) — available after trial on Scale',
+          requiresPro: true,
+        };
+      }
+
+      // For non-pro features: allow during trial if category permits (skip optional toggle gate)
+      if (featureMeta) {
+        const catOk =
+          !featureMeta.requiredCategories ||
+          featureMeta.requiredCategories.length === 0 ||
+          featureMeta.requiredCategories.includes(businessCategory as any);
+        if (catOk && featureMeta.requiredPlans.includes(trialPlan as any)) {
+          return { eligible: true };
+        }
+        // Category-restricted features not for this business still blocked
+        if (!catOk) {
+          return {
+            eligible: false,
+            reason: `This feature is not available for ${businessCategory} businesses`,
+          };
+        }
+      }
+
+      // Unknown feature during trial: allow to avoid hard blocks
+      if (!featureMeta) {
+        return { eligible: true };
+      }
     }
 
-    // Use registry-based access check
-    const enabledFeatures = new Set<string>(
-      selectedFeatures.map((f: string) => normalizeFeatureName(f))
-    );
+    // Use registry-based access check (post-trial / paid)
+    const enabledFeatures = normalizedSelected;
     
     const registryResult = checkRegistryAccess(
       normalizedFeature,

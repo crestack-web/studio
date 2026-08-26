@@ -215,17 +215,38 @@ export function Sidebar() {
       Object.keys(featurePreferences).filter(key => featurePreferences[key])
     );
 
-    // Check feature requirements using registry
-    // requiredFeatures is treated as OR: at least one matching selected feature unlocks the item
+    // Trial users get at least Standard-tier visibility so onboarding is not blocked
+    const planHierarchy = { starter: 1, standard: 2, pro: 3 } as const;
+    const effectivePlan: Plan = isInTrial
+      ? (normalizedPlan === 'pro' ? 'pro' : 'standard')
+      : normalizedPlan;
+
+    // requiredFeatures is OR: any matching selected/enabled feature unlocks the item
     if (requirements.requiredFeatures && requirements.requiredFeatures.length > 0) {
       const normalizedRequired = requirements.requiredFeatures.map(normalizeFeatureName);
       const hasAnySelected = normalizedRequired.some((f) => enabledFeaturesSet.has(f));
 
       if (isInTrial) {
-        // During trial, nav item shows only if user selected a matching feature in onboarding
-        if (!hasAnySelected) return false;
+        // During trial: show if selected in onboarding OR allowed on effective trial plan
+        if (!hasAnySelected) {
+          let anyEligible = false;
+          for (const featureName of requirements.requiredFeatures) {
+            const normalizedFeatureName = normalizeFeatureName(featureName);
+            const access = checkRegistryAccess(
+              normalizedFeatureName,
+              effectivePlan,
+              normalizedCategory,
+              // Pass feature ids so optional gate passes for plan-allowed features
+              new Set([normalizedFeatureName, ...enabledFeaturesSet])
+            );
+            if (access.eligible) {
+              anyEligible = true;
+              break;
+            }
+          }
+          if (!anyEligible) return false;
+        }
       } else {
-        // After trial: allow if any required feature is enabled via preferences OR registry
         let anyEligible = false;
         for (const featureName of requirements.requiredFeatures) {
           const normalizedFeatureName = normalizeFeatureName(featureName);
@@ -235,7 +256,7 @@ export function Sidebar() {
           }
           const access = checkRegistryAccess(
             normalizedFeatureName,
-            normalizedPlan,
+            effectivePlan,
             normalizedCategory,
             enabledFeaturesSet
           );
@@ -248,15 +269,11 @@ export function Sidebar() {
       }
     }
 
-    // During trial, skip plan requirements if feature was selected
-    if (!isInTrial) {
-      // Check plan requirements (only enforced outside trial)
-      if (requirements.requiredPlan) {
-        const planHierarchy = { 'starter': 1, 'standard': 2, 'pro': 3 };
-        const userPlanLevel = planHierarchy[normalizedPlan] || 1;
-        const requiredPlanLevel = planHierarchy[requirements.requiredPlan] || 1;
-        if (userPlanLevel < requiredPlanLevel) return false;
-      }
+    // Plan requirements: use effectivePlan so trial is not blocked as starter
+    if (requirements.requiredPlan) {
+      const userPlanLevel = planHierarchy[effectivePlan] || 1;
+      const requiredPlanLevel = planHierarchy[requirements.requiredPlan] || 1;
+      if (userPlanLevel < requiredPlanLevel) return false;
     }
 
     // Check category requirements

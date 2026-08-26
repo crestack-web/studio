@@ -33,7 +33,7 @@ export const NAV_ITEM_REQUIREMENTS: Record<string, {
     excludedCategories: ['education', 'services'],
   },
   'bank-reconciliation': {
-    requiredPlan: 'pro',
+    requiredPlan: 'standard',
   },
   'money-control': {
     requiredPlan: 'standard',
@@ -85,6 +85,7 @@ export const NAV_ITEM_REQUIREMENTS: Record<string, {
   'expiry-alerts': {
     requiredFeatures: ['Expiry Alerts'],
     requiredCategories: ['grocery', 'pharmacy', 'supermarket', 'restaurant', 'cafe', 'healthcare'],
+    requiredPlan: 'standard',
   },
   'production-tracking': {
     requiredFeatures: ['Production Tracking'],
