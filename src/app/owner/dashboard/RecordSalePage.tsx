@@ -537,8 +537,55 @@ export function RecordSalePage() {
         return;
       }
 
-      // Save sale to Firestore
-      const saleId = await sbAddDoc(`businesses/${businessId}/sales`, { ...saleData, id: crypto.randomUUID() });
+      // Save sale — prefer shared API (service role), fall back to client Supabase
+      let saleId = '';
+      try {
+        const { getSupabase } = await import('@/lib/supabase');
+        const supabase = getSupabase();
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        if (token) {
+          const res = await fetch('/api/sales/record', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              businessId,
+              products: (saleData.products || []).map((p: any) => ({
+                productId: p.productId,
+                name: p.name,
+                price: p.price,
+                costPrice: p.costPrice,
+                quantity: p.quantity,
+              })),
+              total: saleData.totalRevenue || saleData.total || 0,
+              paymentMethod: saleData.paymentMethod || 'cash',
+              paymentBreakdown: saleData.paymentBreakdown,
+              note: saleData.note || '',
+              staffName: saleData.recordedBy?.displayName,
+              staffRole: saleData.recordedBy?.role || 'Owner',
+              staffId: saleData.recordedBy?.staffId || saleData.recordedBy?.uid,
+            }),
+          });
+          const json = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(json.error || `Sale API ${res.status}`);
+          saleId = json.saleId;
+        }
+      } catch (apiErr) {
+        console.warn('[RecordSale] API write failed, client fallback', apiErr);
+        saleId = await sbAddDoc(`businesses/${businessId}/sales`, {
+          ...saleData,
+          id: crypto.randomUUID(),
+        });
+      }
+      if (!saleId) {
+        saleId = await sbAddDoc(`businesses/${businessId}/sales`, {
+          ...saleData,
+          id: crypto.randomUUID(),
+        });
+      }
       const saleRef = { id: saleId };
 
       // Create cash flow entry for the sale

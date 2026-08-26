@@ -229,7 +229,7 @@ class OfflineManager {
   }
 
   private async writeSaleViaApi(sale: OfflineSale, token: string) {
-    const res = await fetch('/api/staff/record-sale', {
+    const res = await fetch('/api/sales/record', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

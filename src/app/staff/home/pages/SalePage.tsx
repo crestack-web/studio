@@ -329,7 +329,7 @@ export function SalePage({
         throw new Error('Session expired. Please sign in again.');
       }
 
-      const res = await fetch('/api/staff/record-sale', {
+      const res = await fetch('/api/sales/record', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
