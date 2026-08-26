@@ -135,6 +135,7 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
   }, [data.selectedCategory, data.selectedFeatures]);
 
   const availableFeatures = CATEGORY_FEATURES[selectedCategory] || CATEGORY_FEATURES["retail"];
+  const categoryMeta = CATEGORIES.find((c) => c.id === selectedCategory);
 
   const getRecommendedPlan = (features: string[]) => {
     const hasPro = features.some(f => PRO_ONLY_FEATURES.includes(f));
@@ -150,6 +151,8 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
     const next = selectedFeatures.includes(feature)
       ? selectedFeatures.filter(f => f !== feature)
       : [...selectedFeatures, feature];
+    // Keep at least one feature selected
+    if (next.length === 0) return;
     setSelectedFeatures(next);
     onChange("selectedFeatures", next);
   };
@@ -162,64 +165,232 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
     onChange("selectedFeatures", defaults);
   };
 
+  const selectAll = () => {
+    setSelectedFeatures(availableFeatures);
+    onChange("selectedFeatures", availableFeatures);
+  };
+
+  const selectEssentials = () => {
+    const essentials = availableFeatures.filter((f) =>
+      ["Sales Recording", "Inventory Tracking", "Expense Management", "Cash Flow Analysis", "Staff Management"].includes(f)
+    );
+    const next = essentials.length ? essentials : availableFeatures.slice(0, 3);
+    setSelectedFeatures(next);
+    onChange("selectedFeatures", next);
+  };
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: "#0A0A0F" }}>Select your business category</span>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 6 }}>
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.id}
-              type="button"
-              onClick={() => handleCategoryChange(cat.id)}
-              style={{
-                padding: "8px 10px", borderRadius: 7, cursor: "pointer",
-                fontSize: 12, fontWeight: 500,
-                color: selectedCategory === cat.id ? "#6B3FE7" : "#555568",
-                background: selectedCategory === cat.id ? "#F3EFFE" : "white",
-                border: selectedCategory === cat.id ? "2px solid #6B3FE7" : "1.5px solid #E8E8F0",
-                textAlign: "left", display: "flex", alignItems: "center", gap: 5,
-                fontFamily: "'DM Sans', sans-serif",
-              }}
-            >
-              <span style={{ fontSize: 14 }}>{cat.icon}</span>
-              <span>{cat.label}</span>
-            </button>
-          ))}
+    <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+      {/* Category selector */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "#0A0A0F", fontFamily: "'Sora', sans-serif" }}>
+            Business category
+          </span>
+          {categoryMeta && (
+            <span style={{ fontSize: 11, color: "#6B3FE7", fontWeight: 600 }}>
+              {categoryMeta.icon} {categoryMeta.label}
+            </span>
+          )}
+        </div>
+        <p style={{ margin: 0, fontSize: 12, color: "#8888A0", lineHeight: 1.45 }}>
+          Choose your niche — we tailor features and your dashboard to match.
+        </p>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(104px, 1fr))",
+            gap: 8,
+          }}
+        >
+          {CATEGORIES.map((cat) => {
+            const active = selectedCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => handleCategoryChange(cat.id)}
+                aria-pressed={active}
+                style={{
+                  padding: "12px 10px",
+                  borderRadius: 12,
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: active ? 700 : 500,
+                  color: active ? "#6B3FE7" : "#555568",
+                  background: active
+                    ? "linear-gradient(180deg, #F3EFFE 0%, #EDE7FE 100%)"
+                    : "#FAFAFC",
+                  border: active ? "2px solid #6B3FE7" : "1.5px solid #E8E8F0",
+                  boxShadow: active ? "0 4px 14px rgba(107,63,231,0.18)" : "none",
+                  textAlign: "center",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 6,
+                  fontFamily: "'DM Sans', sans-serif",
+                  transition: "all 0.18s ease",
+                  minHeight: 72,
+                }}
+              >
+                <span style={{ fontSize: 22, lineHeight: 1 }}>{cat.icon}</span>
+                <span style={{ lineHeight: 1.25 }}>{cat.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <span style={{ fontSize: 14, fontWeight: 600, color: "#0A0A0F" }}>
-          Select features ({selectedFeatures.length} selected)
-        </span>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6, maxHeight: 220, overflowY: "auto", padding: 3 }}>
-          {availableFeatures.map((feature) => (
-            <button
-              key={feature}
-              type="button"
-              onClick={() => toggleFeature(feature)}
-              style={{
-                padding: "8px 10px", borderRadius: 7, cursor: "pointer",
-                fontSize: 12,
-                color: selectedFeatures.includes(feature) ? "#6B3FE7" : "#555568",
-                background: selectedFeatures.includes(feature) ? "#F3EFFE" : "white",
-                border: selectedFeatures.includes(feature) ? "1.5px solid #6B3FE7" : "1px solid #E8E8F0",
-                textAlign: "left", display: "flex", alignItems: "center", gap: 5,
-                fontFamily: "'DM Sans', sans-serif",
-              }}
-            >
-              <span>{selectedFeatures.includes(feature) ? "✓" : "○"}</span>
-              <span>{feature}</span>
-            </button>
-          ))}
+      {/* Feature selector */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "#0A0A0F", fontFamily: "'Sora', sans-serif" }}>
+            Features for your dashboard
+          </span>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#6B3FE7",
+              background: "#F3EFFE",
+              border: "1px solid #D4C6FA",
+              borderRadius: 999,
+              padding: "3px 10px",
+            }}
+          >
+            {selectedFeatures.length} selected
+          </span>
+        </div>
+        <p style={{ margin: 0, fontSize: 12, color: "#8888A0", lineHeight: 1.45 }}>
+          These unlock the matching tools in your sidebar after onboarding. You can change them later in Settings.
+        </p>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={selectEssentials}
+            style={{
+              fontSize: 11, fontWeight: 600, color: "#555568", background: "white",
+              border: "1px solid #E8E8F0", borderRadius: 8, padding: "6px 10px", cursor: "pointer",
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            Essentials only
+          </button>
+          <button
+            type="button"
+            onClick={selectAll}
+            style={{
+              fontSize: 11, fontWeight: 600, color: "#6B3FE7", background: "#F3EFFE",
+              border: "1px solid #D4C6FA", borderRadius: 8, padding: "6px 10px", cursor: "pointer",
+              fontFamily: "'DM Sans', sans-serif",
+            }}
+          >
+            Select all for {categoryMeta?.label || "category"}
+          </button>
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, 1fr)",
+            gap: 8,
+            maxHeight: 240,
+            overflowY: "auto",
+            padding: 4,
+            margin: "-4px",
+            WebkitOverflowScrolling: "touch",
+          }}
+        >
+          {availableFeatures.map((feature) => {
+            const on = selectedFeatures.includes(feature);
+            const isPro = PRO_ONLY_FEATURES.includes(feature);
+            const isStd = STANDARD_OR_PRO_FEATURES.includes(feature);
+            return (
+              <button
+                key={feature}
+                type="button"
+                onClick={() => toggleFeature(feature)}
+                aria-pressed={on}
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: on ? 600 : 500,
+                  color: on ? "#3B1FA0" : "#555568",
+                  background: on ? "#F3EFFE" : "white",
+                  border: on ? "1.5px solid #6B3FE7" : "1.5px solid #E8E8F0",
+                  textAlign: "left",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
+                  fontFamily: "'DM Sans', sans-serif",
+                  transition: "all 0.15s ease",
+                  minHeight: 44,
+                }}
+              >
+                <span
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 6,
+                    flexShrink: 0,
+                    marginTop: 1,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: on ? "white" : "#C4C4D4",
+                    background: on ? "#6B3FE7" : "#F4F4F8",
+                    border: on ? "none" : "1.5px solid #E8E8F0",
+                  }}
+                >
+                  {on ? "✓" : ""}
+                </span>
+                <span style={{ flex: 1, lineHeight: 1.35 }}>
+                  {feature}
+                  {(isPro || isStd) && (
+                    <span
+                      style={{
+                        display: "inline-block",
+                        marginLeft: 6,
+                        fontSize: 9,
+                        fontWeight: 700,
+                        letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                        color: isPro ? "#B45309" : "#6B3FE7",
+                        background: isPro ? "#FEF3C7" : "#F3EFFE",
+                        borderRadius: 4,
+                        padding: "1px 5px",
+                        verticalAlign: "middle",
+                      }}
+                    >
+                      {isPro ? "Pro" : "Std"}
+                    </span>
+                  )}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div style={{ padding: 14, borderRadius: 10, background: "#F3EFFE", border: "1.5px solid #6B3FE7" }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: "#6B3FE7", marginBottom: 4 }}>Recommended Plan</div>
-        <div style={{ fontSize: 16, fontWeight: 700, color: "#0A0A0F", textTransform: "capitalize" }}>{recommendedPlan} Plan</div>
-        <p style={{ fontSize: 12, color: "#555568", margin: "4px 0 0" }}>{planReason}</p>
+      {/* Recommended plan */}
+      <div
+        style={{
+          padding: 14,
+          borderRadius: 12,
+          background: "linear-gradient(135deg, #F3EFFE 0%, #F8F6FF 100%)",
+          border: "1.5px solid #D4C6FA",
+        }}
+      >
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#6B3FE7", marginBottom: 4, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+          Recommended plan
+        </div>
+        <div style={{ fontSize: 16, fontWeight: 800, color: "#0A0A0F", textTransform: "capitalize", fontFamily: "'Sora', sans-serif" }}>
+          {recommendedPlan} Plan
+        </div>
+        <p style={{ fontSize: 12, color: "#555568", margin: "4px 0 0", lineHeight: 1.45 }}>{planReason}</p>
       </div>
     </div>
   );
@@ -230,7 +401,7 @@ function StepThree({ data, onChange, onEdit }: { data: FormState; onChange: (k: 
   if (!analysis) {
     return (
       <div style={{ textAlign: "center", padding: "32px 0" }}>
-        <p style={{ color: "#8888A0", fontSize: 13 }}>Analyzing your business...</p>
+        <p style={{ color: "#8888A0", fontSize: 13 }}>Preparing your dashboard...</p>
       </div>
     );
   }
@@ -239,50 +410,115 @@ function StepThree({ data, onChange, onEdit }: { data: FormState; onChange: (k: 
   if (typeof selectedFeatures === "string") {
     try { selectedFeatures = JSON.parse(selectedFeatures as any); } catch { selectedFeatures = []; }
   }
-  const categoryLabel = CATEGORIES.find(c => c.id === data.selectedCategory)?.label || analysis.businessType;
+  const cat = CATEGORIES.find(c => c.id === data.selectedCategory);
+  const categoryLabel = cat?.label || analysis.businessType;
+  const featureList = (selectedFeatures || analysis.recommendedFeatures || []) as string[];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <h3 style={{ fontSize: 14, fontWeight: 700, color: "#0A0A0F", marginBottom: 3 }}>Your Busmo setup:</h3>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, background: "#F3EFFE", borderRadius: 10, border: "1px solid #E8E8F0" }}>
-        <div>
-          <span style={{ fontSize: 11, fontWeight: 600, color: "#8888A0", textTransform: "uppercase" }}>Business Category</span>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#0A0A0F" }}>{categoryLabel}</div>
+      <h3 style={{ fontSize: 15, fontWeight: 800, color: "#0A0A0F", margin: 0, fontFamily: "'Sora', sans-serif" }}>
+        Your Busmo setup
+      </h3>
+      <p style={{ margin: 0, fontSize: 12, color: "#8888A0", lineHeight: 1.45 }}>
+        These features will appear in your dashboard sidebar after you enter Busmo.
+      </p>
+
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+          padding: 16,
+          background: "linear-gradient(180deg, #F8F6FF 0%, #FFFFFF 100%)",
+          borderRadius: 14,
+          border: "1.5px solid #E8E8F0",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: "#F3EFFE",
+              border: "1.5px solid #D4C6FA",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 22,
+            }}
+          >
+            {cat?.icon || "📦"}
+          </div>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#8888A0", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+              Business category
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#0A0A0F" }}>{categoryLabel}</div>
+          </div>
         </div>
+
         <div style={{ height: 1, background: "#E8E8F0" }} />
+
         <div>
-          <span style={{ fontSize: 11, fontWeight: 600, color: "#8888A0", textTransform: "uppercase" }}>Recommended Plan</span>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "#6B3FE7", textTransform: "capitalize" }}>{analysis.recommendedPlan} Plan</div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "#8888A0", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>
+            Recommended plan
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#6B3FE7", textTransform: "capitalize" }}>
+            {analysis.recommendedPlan} Plan
+          </div>
           {analysis.recommendedPlanReason && (
-            <p style={{ fontSize: 11, color: "#555568", marginTop: 3 }}>{analysis.recommendedPlanReason}</p>
+            <p style={{ fontSize: 12, color: "#555568", margin: "4px 0 0", lineHeight: 1.4 }}>{analysis.recommendedPlanReason}</p>
           )}
         </div>
+
         <div style={{ height: 1, background: "#E8E8F0" }} />
+
         <div>
-          <span style={{ fontSize: 11, fontWeight: 600, color: "#8888A0", textTransform: "uppercase" }}>
-            Selected Features ({selectedFeatures?.length || 0})
-          </span>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
-            {(selectedFeatures || analysis.recommendedFeatures || []).map((feature: string, i: number) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ color: "#1DB954", fontSize: 14 }}>✓</span>
-                <span style={{ fontSize: 12, color: "#0A0A0F" }}>{feature}</span>
-              </div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "#8888A0", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 8 }}>
+            Dashboard features ({featureList.length})
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {featureList.map((feature: string, i: number) => (
+              <span
+                key={i}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "#3B1FA0",
+                  background: "#F3EFFE",
+                  border: "1px solid #D4C6FA",
+                  borderRadius: 999,
+                  padding: "5px 10px",
+                }}
+              >
+                <span style={{ color: "#1DB954" }}>✓</span>
+                {feature}
+              </span>
             ))}
           </div>
         </div>
       </div>
+
       <button
         type="button"
         onClick={onEdit}
         style={{
-          padding: "10px 14px", borderRadius: 7, cursor: "pointer",
-          fontSize: 13, fontWeight: 600, color: "#6B3FE7",
-          background: "white", border: "1px solid #6B3FE7",
+          padding: "11px 14px",
+          borderRadius: 10,
+          cursor: "pointer",
+          fontSize: 13,
+          fontWeight: 600,
+          color: "#6B3FE7",
+          background: "white",
+          border: "1.5px solid #6B3FE7",
           fontFamily: "'DM Sans', sans-serif",
         }}
       >
-        Edit Selections
+        Edit category & features
       </button>
     </div>
   );

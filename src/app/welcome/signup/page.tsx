@@ -207,7 +207,8 @@ export default function BusmoOnboarding() {
                 role: "Owner",
                 businessId: userId,
                 plan: selectedPlan,
-                category: CATEGORIES.find((c) => c.id === data.selectedCategory)?.label || data.businessAnalysis?.businessType || "Retail Shop",
+                category: data.selectedCategory || "retail",
+                categoryLabel: CATEGORIES.find((c) => c.id === data.selectedCategory)?.label || data.businessAnalysis?.businessType || "Retail Shop",
                 country: data.country,
                 createdAt: Timestamp.now(),
                 avatarContent: "👤",
@@ -219,8 +220,8 @@ export default function BusmoOnboarding() {
                 subscriptionStatus: "trial",
                 moCreditsRemaining: selectedPlan === "pro" ? -1 : 2000,
                 businessAnalysis: data.businessAnalysis,
-                selectedCategory: data.selectedCategory,
-                selectedFeatures: data.selectedFeatures,
+                selectedCategory: data.selectedCategory || "retail",
+                selectedFeatures: Array.isArray(data.selectedFeatures) ? data.selectedFeatures : [],
               });
             }
           } catch (e) {
@@ -236,7 +237,8 @@ export default function BusmoOnboarding() {
               await setDoc(businessRef, {
                 ownerId: userId,
                 businessName: data.businessName,
-                category: CATEGORIES.find((c) => c.id === data.selectedCategory)?.label || data.businessAnalysis?.businessType || "Retail Shop",
+                category: data.selectedCategory || "retail",
+                categoryLabel: CATEGORIES.find((c) => c.id === data.selectedCategory)?.label || data.businessAnalysis?.businessType || "Retail Shop",
                 country: data.country,
                 description: data.description || "",
                 plan: "starter",
@@ -248,8 +250,8 @@ export default function BusmoOnboarding() {
                 recommendedFeatures: data.businessAnalysis?.recommendedFeatures || [],
                 operationalNeeds: data.businessAnalysis?.operationalNeeds || [],
                 productTypes: data.businessAnalysis?.productTypes || [],
-                selectedCategory: data.selectedCategory,
-                selectedFeatures: data.selectedFeatures,
+                selectedCategory: data.selectedCategory || "retail",
+                selectedFeatures: Array.isArray(data.selectedFeatures) ? data.selectedFeatures : [],
               });
             }
             businessCreated = true;

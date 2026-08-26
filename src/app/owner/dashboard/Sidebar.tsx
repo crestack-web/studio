@@ -49,8 +49,47 @@ export function Sidebar() {
       'Warehouse Management': 'warehouse-management',
       'Bank Reconciliation': 'bank-reconciliation',
       'Money Control': 'money-control',
+      'Document Templates': 'document-templates',
+      'E-commerce Storefront': 'ecommerce-storefront',
     };
     return nameMap[name] || name.toLowerCase().replace(/\s+/g, '-');
+  };
+
+  /** Map onboarding label or id → canonical category id used by nav filters */
+  const normalizeCategoryId = (raw?: string | null): string => {
+    if (!raw) return 'other';
+    const v = String(raw).trim().toLowerCase();
+    // Already an id
+    const ids = [
+      'retail', 'restaurant', 'grocery', 'fashion', 'electronics', 'manufacturing',
+      'services', 'pharmacy', 'supermarket', 'cafe', 'wholesale', 'distributor',
+      'healthcare', 'education', 'other',
+    ];
+    if (ids.includes(v)) return v;
+    // Labels from older onboarding saves
+    const labelMap: Record<string, string> = {
+      'retail shop': 'retail',
+      'retail store': 'retail',
+      'restaurant': 'restaurant',
+      'grocery store': 'grocery',
+      'fashion': 'fashion',
+      'electronics': 'electronics',
+      'manufacturing': 'manufacturing',
+      'services': 'services',
+      'pharmacy': 'pharmacy',
+      'supermarket': 'supermarket',
+      'cafe': 'cafe',
+      'wholesale': 'wholesale',
+      'distributor': 'distributor',
+      'healthcare': 'healthcare',
+      'education': 'education',
+      'other': 'other',
+      'food service': 'restaurant',
+    };
+    for (const [key, id] of Object.entries(labelMap)) {
+      if (v === key || v.includes(key)) return id;
+    }
+    return 'other';
   };
 
   // Load staff count, category, features, and plan from Firestore
@@ -67,17 +106,20 @@ export function Sidebar() {
         // Get owner's business ID and user data
         const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
         const businessId = ownerDoc.data()?.businessId || 'default';
-        const category = ownerDoc.data()?.category || ownerDoc.data()?.selectedCategory || 'retail';
+        const rawCategory =
+          ownerDoc.data()?.selectedCategory ||
+          ownerDoc.data()?.category ||
+          'retail';
         const features = ownerDoc.data()?.selectedFeatures || [];
         const prefs = ownerDoc.data()?.featurePreferences || {};
         const plan = ownerDoc.data()?.plan || 'starter';
         const subscriptionStatus = ownerDoc.data()?.subscriptionStatus;
         const trialEndDate = ownerDoc.data()?.trialEndDate?.toDate();
         
-        setUserCategory(category.toLowerCase());
+        setUserCategory(normalizeCategoryId(rawCategory));
         // Normalize feature names to registry format (kebab-case) for proper matching
         const normalizedFeatures = Array.isArray(features) 
-          ? features.map(f => normalizeFeatureName(f))
+          ? features.map((f: string) => normalizeFeatureName(f))
           : [];
         setSelectedFeatures(normalizedFeatures);
         setFeaturePreferences(prefs);
@@ -174,26 +216,35 @@ export function Sidebar() {
     );
 
     // Check feature requirements using registry
-    if (requirements.requiredFeatures) {
-      for (const featureName of requirements.requiredFeatures) {
-        // Normalize feature name to registry format
-        const normalizedFeatureName = normalizeFeatureName(featureName);
-        const access = checkRegistryAccess(
-          normalizedFeatureName,
-          normalizedPlan,
-          normalizedCategory,
-          enabledFeaturesSet
-        );
-        
-        // During trial, allow if feature was selected in onboarding
-        if (isInTrial && !enabledFeaturesSet.has(normalizedFeatureName)) {
-          return false;
+    // requiredFeatures is treated as OR: at least one matching selected feature unlocks the item
+    if (requirements.requiredFeatures && requirements.requiredFeatures.length > 0) {
+      const normalizedRequired = requirements.requiredFeatures.map(normalizeFeatureName);
+      const hasAnySelected = normalizedRequired.some((f) => enabledFeaturesSet.has(f));
+
+      if (isInTrial) {
+        // During trial, nav item shows only if user selected a matching feature in onboarding
+        if (!hasAnySelected) return false;
+      } else {
+        // After trial: allow if any required feature is enabled via preferences OR registry
+        let anyEligible = false;
+        for (const featureName of requirements.requiredFeatures) {
+          const normalizedFeatureName = normalizeFeatureName(featureName);
+          if (enabledFeaturesSet.has(normalizedFeatureName)) {
+            anyEligible = true;
+            break;
+          }
+          const access = checkRegistryAccess(
+            normalizedFeatureName,
+            normalizedPlan,
+            normalizedCategory,
+            enabledFeaturesSet
+          );
+          if (access.eligible) {
+            anyEligible = true;
+            break;
+          }
         }
-        
-        // After trial, use registry access check which considers featurePreferences
-        if (!isInTrial && !access.eligible) {
-          return false;
-        }
+        if (!anyEligible) return false;
       }
     }
 
