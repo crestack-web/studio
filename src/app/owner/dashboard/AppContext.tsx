@@ -269,29 +269,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    // Skip TOKEN_REFRESHED so mutations do not wipe the loaded user
+    // Never wipe a fully-loaded user on routine auth events (TOKEN_REFRESHED, USER_UPDATED, etc.)
+    // Only clear state on SIGNED_OUT. For same-user events, refresh profile in the background.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') return;
-      if (session?.user) {
-        setUser((prev) => {
-          if (prev.id && prev.id === session.user.id && prev.businessId) return prev;
-          return {
-            initials: '..', shortName: '…', role: 'Owner', plan: 'Free',
-            id: session.user.id, name: '', email: session.user.email || '',
-            avatarContent: '👤', avatarStyle: { background: '#6B3FE7', color: '#fff' },
-            photoURL: undefined, businessId: undefined,
-          };
-        });
-        ensureFirebaseAuth().catch(() => {});
-        loadUser(session.user.id, session.user.email || '', session.user.user_metadata);
-      } else if (event === 'SIGNED_OUT') {
+      if (event === 'SIGNED_OUT' || !session?.user) {
         setUser({
           initials: '..', shortName: '', role: 'Owner', plan: 'Free', id: '',
           name: '', email: '', avatarContent: '👤',
           avatarStyle: { background: '#6B3FE7', color: '#fff' },
           photoURL: undefined, businessId: undefined,
         });
+        return;
       }
+      const uid = session.user.id;
+      // Keep existing user in UI; only swap to skeleton if this is a different user
+      setUser((prev) => {
+        if (prev.id && prev.id === uid) return prev;
+        return {
+          initials: '..', shortName: '…', role: 'Owner', plan: 'Free',
+          id: uid, name: '', email: session.user.email || '',
+          avatarContent: '👤', avatarStyle: { background: '#6B3FE7', color: '#fff' },
+          photoURL: undefined, businessId: undefined,
+        };
+      });
+      ensureFirebaseAuth().catch(() => {});
+      loadUser(uid, session.user.email || '', session.user.user_metadata);
     });
     return () => subscription.unsubscribe();
   }, [loadUser]);
