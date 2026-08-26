@@ -1,11 +1,22 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { fetchDocs, updateDoc, toDate } from '@/lib/supabase-client-data';
 import { checkFeatureAccess } from '@/lib/featureRestrictions';
-import { AlertTriangle, Calendar, Search, Filter, Trash2, Package, DollarSign, TrendingDown, MessageSquare } from 'lucide-react';
+import {
+  AlertTriangle,
+  Calendar,
+  Search,
+  Filter,
+  Package,
+  DollarSign,
+  TrendingDown,
+  MessageSquare,
+  RefreshCw,
+  Loader2,
+} from 'lucide-react';
 import styles from './ExpiryAlertsPage.module.css';
 
 interface ExpiringProduct {
@@ -20,6 +31,8 @@ interface ExpiringProduct {
   daysUntilExpiry: number;
   location: string;
   supplier?: string;
+  productType?: string;
+  usedInMenus: string[];
 }
 
 export default function ExpiryAlertsPage() {
@@ -30,12 +43,11 @@ export default function ExpiryAlertsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDays, setFilterDays] = useState<number>(30);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedLocation, setSelectedLocation] = useState<string>('all');
+  const [stockFilter, setStockFilter] = useState<string>('all');
   const [isAskingMO, setIsAskingMO] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
   const [actionType, setActionType] = useState<'used' | 'dispose' | null>(null);
 
-  // Check feature access
   useEffect(() => {
     const checkAccess = async () => {
       if (user?.id) {
@@ -48,65 +60,98 @@ export default function ExpiryAlertsPage() {
     checkAccess();
   }, [user]);
 
-  // Load expiring products
-  useEffect(() => {
-    loadExpiringProducts();
-  }, [user?.businessId, filterDays]);
-
-  const loadExpiringProducts = async () => {
+  const loadExpiringProducts = useCallback(async () => {
     try {
       if (!user?.businessId) return;
-      
+
       const rows = await fetchDocs(`businesses/${user.businessId}/products`);
-      
       const now = new Date();
       const filterDate = new Date();
       filterDate.setDate(filterDate.getDate() + filterDays);
-      
+
+      const usageByIngredient: Record<string, string[]> = {};
+      rows.forEach((row) => {
+        const data = row as Record<string, unknown>;
+        const meta =
+          data.metadata && typeof data.metadata === 'object'
+            ? (data.metadata as Record<string, unknown>)
+            : {};
+        const productType = (data.productType || meta.productType) as string | undefined;
+        if (productType === 'ingredient') return;
+        const recipe = Array.isArray(data.recipeIngredients)
+          ? data.recipeIngredients
+          : Array.isArray(meta.recipeIngredients)
+            ? meta.recipeIngredients
+            : [];
+        recipe.forEach((line: any) => {
+          if (!line?.ingredientId) return;
+          if (!usageByIngredient[line.ingredientId]) usageByIngredient[line.ingredientId] = [];
+          const name = String(data.name || 'Menu');
+          if (!usageByIngredient[line.ingredientId].includes(name)) {
+            usageByIngredient[line.ingredientId].push(name);
+          }
+        });
+      });
+
       const products = rows
-        .map(row => {
+        .map((row) => {
           const data = row as Record<string, unknown>;
-          const expiryDate = toDate(data.expiryDate);
-          const daysUntilExpiry = expiryDate 
-            ? Math.ceil((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-            : null;
-          
+          const meta =
+            data.metadata && typeof data.metadata === 'object'
+              ? (data.metadata as Record<string, unknown>)
+              : {};
+          const productType = (data.productType || meta.productType) as string | undefined;
+          if (productType === 'dish') return null;
+
+          const expiryDate = toDate(data.expiryDate || meta.expiryDate);
+          if (!expiryDate) return null;
+
+          const daysUntilExpiry = Math.ceil(
+            (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+          );
+          const qty = Number(data.stock ?? data.stockLevel ?? 0);
+          const unitCost = Number(data.cost ?? data.costPrice ?? data.unitCost ?? 0);
+          const id = String(data.id);
+
           return {
-            id: String(data.id),
+            id,
             name: String(data.name || 'Unknown'),
             category: String(data.category || 'uncategorized'),
-            quantity: Number(data.stock || 0),
-            unit: String(data.unit || 'pieces'),
-            unitCost: Number(data.cost || 0),
-            totalValue: Number(data.stock || 0) * Number(data.cost || 0),
+            quantity: qty,
+            unit: String(
+              data.ingredientUnit || meta.ingredientUnit || data.unit || 'pieces'
+            ),
+            unitCost,
+            totalValue: qty * unitCost,
             expiryDate,
-            daysUntilExpiry: daysUntilExpiry || 0,
-            location: String(data.location || 'main-store'),
-            supplier: data.supplier as string | undefined,
-            productType: data.productType as string | undefined,
-          };
+            daysUntilExpiry,
+            location: String(data.location || meta.location || 'kitchen'),
+            supplier: (data.supplier || meta.supplier) as string | undefined,
+            productType,
+            usedInMenus: usageByIngredient[id] || [],
+          } as ExpiringProduct;
         })
-        .filter(product => {
-          const expiryDate = product.expiryDate;
-          if (!expiryDate) return false;
-          // Skip pure menu dishes — expiry is about stock
-          if ((product as any).productType === 'dish') return false;
-          // Include already expired and those within the window
-          return expiryDate <= filterDate;
-        }) as ExpiringProduct[];
-      
-      // Sort by days until expiry (ascending)
+        .filter((product): product is ExpiringProduct => {
+          if (!product) return false;
+          return product.expiryDate <= filterDate;
+        });
+
       products.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
-      
       setExpiringProducts(products);
     } catch (error) {
       console.error('Failed to load expiring products:', error);
+      showToast('Failed to load expiry alerts');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.businessId, filterDays, showToast]);
 
-  const handleMarkAsSold = async (productId: string) => {
+  useEffect(() => {
+    setIsLoading(true);
+    loadExpiringProducts();
+  }, [loadExpiringProducts]);
+
+  const handleMarkAsUsed = async (productId: string) => {
     if (!confirm('Clear this item from expiry alerts (used / sold)?')) return;
     if (!user?.businessId) return;
     setActionId(productId);
@@ -144,7 +189,7 @@ export default function ExpiryAlertsPage() {
         disposalReason: reason,
         disposedAt: new Date().toISOString(),
       });
-      showToast('Product disposed and stock zeroed');
+      showToast('Disposed and stock zeroed');
       await loadExpiringProducts();
     } catch (error) {
       console.error('Failed to dispose product:', error);
@@ -155,65 +200,51 @@ export default function ExpiryAlertsPage() {
     }
   };
 
-  const filteredProducts = expiringProducts.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         product.category.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
-    const matchesLocation = selectedLocation === 'all' || product.location === selectedLocation;
-    return matchesSearch && matchesCategory && matchesLocation;
+  const filteredProducts = expiringProducts.filter((product) => {
+    const matchesSearch =
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory =
+      selectedCategory === 'all' || product.category === selectedCategory;
+    const matchesStock =
+      stockFilter === 'all' ||
+      (stockFilter === 'ingredients' && product.productType === 'ingredient') ||
+      (stockFilter === 'other' && product.productType !== 'ingredient');
+    return matchesSearch && matchesCategory && matchesStock;
   });
 
   const getExpiryStatus = (daysUntilExpiry: number) => {
-    if (daysUntilExpiry <= 0) return { label: 'Expired', color: 'red' };
-    if (daysUntilExpiry <= 3) return { label: 'Critical', color: 'red' };
-    if (daysUntilExpiry <= 7) return { label: 'Urgent', color: 'orange' };
-    if (daysUntilExpiry <= 14) return { label: 'Warning', color: 'yellow' };
-    return { label: 'Upcoming', color: 'blue' };
+    if (daysUntilExpiry <= 0) return { label: 'Expired', color: 'red' as const };
+    if (daysUntilExpiry <= 3) return { label: 'Critical', color: 'red' as const };
+    if (daysUntilExpiry <= 7) return { label: 'Urgent', color: 'orange' as const };
+    if (daysUntilExpiry <= 14) return { label: 'Warning', color: 'yellow' as const };
+    return { label: 'Upcoming', color: 'blue' as const };
   };
 
-  const calculateTotalValueAtRisk = () => {
-    return expiringProducts.reduce((total, product) => total + product.totalValue, 0);
-  };
+  const totalValueAtRisk = filteredProducts.reduce((t, p) => t + p.totalValue, 0);
+  const criticalCount = filteredProducts.filter((p) => p.daysUntilExpiry <= 3).length;
+  const expiredCount = filteredProducts.filter((p) => p.daysUntilExpiry <= 0).length;
 
-  const getCriticalCount = () => {
-    return expiringProducts.filter(p => p.daysUntilExpiry <= 3).length;
-  };
-
-  const getExpiredCount = () => {
-    return expiringProducts.filter(p => p.daysUntilExpiry <= 0).length;
-  };
-
-  const handleAskMO = async () => {
-    if (expiringProducts.length === 0) {
+  const handleAskMO = () => {
+    if (filteredProducts.length === 0) {
       showToast('No expiring products to analyze');
       return;
     }
-
     setIsAskingMO(true);
-    
-    // Build a detailed question for MO about the expiring products
-    const criticalProducts = expiringProducts.filter(p => p.daysUntilExpiry <= 3);
-    const expiredProducts = expiringProducts.filter(p => p.daysUntilExpiry <= 0);
-    const totalValue = calculateTotalValueAtRisk();
-    
-    let question = `I have ${expiringProducts.length} products expiring soon. `;
-    
-    if (expiredProducts.length > 0) {
-      question += `${expiredProducts.length} have already expired. `;
+    let question = `I have ${filteredProducts.length} stock items expiring soon. `;
+    if (expiredCount > 0) question += `${expiredCount} already expired. `;
+    if (criticalCount > 0) question += `${criticalCount} expire within 3 days. `;
+    question += `Value at risk is ${formatMoney(totalValueAtRisk)}. `;
+    const menuHits = filteredProducts.filter((p) => p.usedInMenus.length > 0).slice(0, 5);
+    if (menuHits.length > 0) {
+      question +=
+        'Linked to menus: ' +
+        menuHits.map((p) => `${p.name} (${p.usedInMenus.join(', ')})`).join('; ') +
+        '. ';
     }
-    
-    if (criticalProducts.length > 0) {
-      question += `${criticalProducts.length} will expire within 3 days. `;
-    }
-    
-    question += `The total value at risk is ${formatMoney(totalValue)}. `;
-    question += `What should I do to minimize losses? Should I offer discounts, bundle them, or take other actions?`;
-    
-    // Navigate to Ask MO with the pre-filled question
-    // Store the question in localStorage for Ask MO to pick up
+    question += 'How should I minimize waste?';
     localStorage.setItem('mo-prefilled-question', question);
     navigateTo('mo');
-    
     setIsAskingMO(false);
   };
 
@@ -228,96 +259,110 @@ export default function ExpiryAlertsPage() {
     );
   }
 
-  const criticalCount = getCriticalCount();
-  const expiredCount = getExpiredCount();
-
   return (
     <div className={styles.wrapper}>
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>Expiry Alerts</h1>
-          <p className={styles.pageDesc}>Track products approaching expiry dates</p>
+          <p className={styles.pageDesc}>Protect stock value and cut waste</p>
+        </div>
+        <div className={styles.headerActions}>
+          <button
+            type="button"
+            className={styles.refreshButton}
+            title="Refresh"
+            onClick={() => {
+              setIsLoading(true);
+              loadExpiringProducts();
+            }}
+          >
+            <RefreshCw size={18} />
+          </button>
         </div>
       </div>
 
-      {/* Summary Cards */}
       <div className={styles.summaryCards}>
         <div className={styles.summaryCard}>
           <Package className={styles.summaryIcon} />
           <div>
-            <p className={styles.summaryLabel}>Expiring Soon</p>
-            <p className={styles.summaryValue}>{expiringProducts.length}</p>
+            <p className={styles.summaryLabel}>In window</p>
+            <p className={styles.summaryValue}>{filteredProducts.length}</p>
           </div>
         </div>
-        
         <div className={styles.summaryCard}>
-          <AlertTriangle className={styles.summaryIcon} style={{ color: criticalCount > 0 ? 'var(--red)' : 'var(--text-3)' }} />
+          <AlertTriangle
+            className={styles.summaryIcon}
+            style={{ color: criticalCount > 0 ? 'var(--red)' : 'var(--text-3)' }}
+          />
           <div>
-            <p className={styles.summaryLabel}>Critical (≤3 days)</p>
+            <p className={styles.summaryLabel}>Critical ≤3d</p>
             <p className={styles.summaryValue}>{criticalCount}</p>
           </div>
         </div>
-        
         <div className={styles.summaryCard}>
-          <TrendingDown className={styles.summaryIcon} style={{ color: expiredCount > 0 ? 'var(--red)' : 'var(--text-3)' }} />
+          <TrendingDown
+            className={styles.summaryIcon}
+            style={{ color: expiredCount > 0 ? 'var(--red)' : 'var(--text-3)' }}
+          />
           <div>
-            <p className={styles.summaryLabel}>Already Expired</p>
+            <p className={styles.summaryLabel}>Expired</p>
             <p className={styles.summaryValue}>{expiredCount}</p>
           </div>
         </div>
-        
         <div className={styles.summaryCard}>
           <DollarSign className={styles.summaryIcon} style={{ color: 'var(--green)' }} />
           <div>
-            <p className={styles.summaryLabel}>Value at Risk</p>
-            <p className={styles.summaryValue}>{formatMoney(calculateTotalValueAtRisk())}</p>
+            <p className={styles.summaryLabel}>Value at risk</p>
+            <p className={styles.summaryValue}>{formatMoney(totalValueAtRisk)}</p>
           </div>
         </div>
       </div>
 
-      {/* Critical Alert Banner */}
       {(criticalCount > 0 || expiredCount > 0) && (
         <div className={styles.alertBanner}>
           <div className={styles.alertBannerContent}>
             <AlertTriangle className={styles.alertBannerIcon} />
-            <div className="flex-1">
-              <h3 className={styles.alertBannerTitle}>Immediate Action Required</h3>
+            <div className={styles.alertBannerBody}>
+              <h3 className={styles.alertBannerTitle}>Action needed</h3>
               <p className={styles.alertBannerText}>
-                {expiredCount > 0 && `${expiredCount} products have expired. `}
-                {criticalCount > 0 && `${criticalCount} products will expire within 3 days. `}
-                Consider discounting or disposing these items immediately.
+                {expiredCount > 0 && `${expiredCount} expired. `}
+                {criticalCount > 0 && `${criticalCount} critical (≤3 days). `}
+                Use in specials, staff meals, or dispose safely.
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={handleAskMO}
             disabled={isAskingMO}
             className={styles.askMOButton}
           >
-            <MessageSquare className="w-4 h-4" />
-            {isAskingMO ? 'Loading...' : 'Ask MO for Recommendations'}
+            {isAskingMO ? (
+              <Loader2 size={16} className={styles.spin} />
+            ) : (
+              <MessageSquare size={16} />
+            )}
+            {isAskingMO ? 'Opening…' : 'Ask MO'}
           </button>
         </div>
       )}
 
-      {/* Filters */}
       <div className={styles.filters}>
         <div className={styles.searchWrapper}>
           <Search className={styles.searchIcon} />
           <input
             type="text"
-            placeholder="Search products..."
+            placeholder="Search stock..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className={styles.searchInput}
           />
         </div>
-        
-        <div className="flex items-center gap-2">
-          <Filter className={styles.searchIcon} />
+        <div className={styles.filterGroup}>
+          <Filter size={16} className={styles.filterIcon} />
           <select
             value={filterDays}
-            onChange={(e) => setFilterDays(parseInt(e.target.value))}
+            onChange={(e) => setFilterDays(parseInt(e.target.value, 10))}
             className={styles.filterSelect}
           >
             <option value={7}>Next 7 days</option>
@@ -327,139 +372,159 @@ export default function ExpiryAlertsPage() {
             <option value={90}>Next 90 days</option>
           </select>
         </div>
-        
+        <select
+          value={stockFilter}
+          onChange={(e) => setStockFilter(e.target.value)}
+          className={styles.filterSelect}
+        >
+          <option value="all">All stock</option>
+          <option value="ingredients">Ingredients</option>
+          <option value="other">Other stock</option>
+        </select>
         <select
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
           className={styles.filterSelect}
         >
-          <option value="all">All Categories</option>
-          <option value="food">Food</option>
-          <option value="beverages">Beverages</option>
+          <option value="all">All categories</option>
+          <option value="vegetables">Vegetables</option>
+          <option value="meat">Meat</option>
           <option value="dairy">Dairy</option>
-          <option value="pharmaceutical">Pharmaceutical</option>
-          <option value="cosmetics">Cosmetics</option>
+          <option value="grains">Grains</option>
+          <option value="spices">Spices</option>
+          <option value="oils">Oils</option>
+          <option value="beverages">Beverages</option>
           <option value="other">Other</option>
         </select>
-        
-        <select
-          value={selectedLocation}
-          onChange={(e) => setSelectedLocation(e.target.value)}
-          className={styles.filterSelect}
-        >
-          <option value="all">All Locations</option>
-          <option value="main-store">Main Store</option>
-          <option value="back-store">Back Store</option>
-          <option value="warehouse">Warehouse</option>
-        </select>
       </div>
 
-      {/* Products Table */}
-      <div className={styles.tableContainer}>
-        <table className={styles.table}>
-          <thead className={styles.tableHead}>
-            <tr>
-              <th className={styles.tableHeader}>Product</th>
-              <th className={styles.tableHeader}>Category</th>
-              <th className={styles.tableHeader}>Quantity</th>
-              <th className={styles.tableHeader}>Value</th>
-              <th className={styles.tableHeader}>Expiry Date</th>
-              <th className={styles.tableHeader}>Days Left</th>
-              <th className={styles.tableHeader}>Location</th>
-              <th className={styles.tableHeader}>Status</th>
-              <th className={styles.tableHeader}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredProducts.map(product => {
-              const status = getExpiryStatus(product.daysUntilExpiry);
-              
-              return (
-                <tr key={product.id} className={`${styles.tableRow} ${
-                  product.daysUntilExpiry <= 0 ? styles.expired :
-                  product.daysUntilExpiry <= 3 ? styles.critical :
-                  product.daysUntilExpiry <= 7 ? styles.warning : ''
-                }`}>
-                  <td className={styles.tableCell}>
-                    <div className={styles.productName}>{product.name}</div>
-                    {product.supplier && (
-                      <div className={styles.productSupplier}>{product.supplier}</div>
-                    )}
-                  </td>
-                  <td className={styles.tableCell} style={{ textTransform: 'capitalize' }}>{product.category}</td>
-                  <td className={styles.tableCell}>
-                    <div className="font-medium">{product.quantity} {product.unit}</div>
-                  </td>
-                  <td className={styles.tableCell}>{formatMoney(product.totalValue)}</td>
-                  <td className={styles.tableCell}>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" style={{ color: 'var(--text-3)' }} />
-                      {product.expiryDate.toLocaleDateString()}
-                    </div>
-                  </td>
-                  <td className={styles.tableCell}>
-                    <span className={`${styles.daysLeft} ${
-                      product.daysUntilExpiry <= 0 ? styles.expired :
-                      product.daysUntilExpiry <= 3 ? styles.critical :
-                      product.daysUntilExpiry <= 7 ? styles.urgent : ''
-                    }`}>
-                      {product.daysUntilExpiry <= 0 ? 'Expired' : `${product.daysUntilExpiry} days`}
-                    </span>
-                  </td>
-                  <td className={styles.tableCell} style={{ textTransform: 'capitalize' }}>{product.location.replace('-', ' ')}</td>
-                  <td className={styles.tableCell}>
-                    <span className={`${styles.statusBadge} ${styles[status.color]}`}>
-                      {status.label}
-                    </span>
-                  </td>
-                  <td className={styles.tableCell}>
-                    <div className={styles.actionButtons}>
-                      <button
-                        onClick={() => handleMarkAsSold(product.id)}
-                        className={`${styles.actionButton} ${styles.sold}`}
-                        title="Mark as used"
-                        disabled={actionId === product.id}
-                      >
-                        {actionId === product.id && actionType === 'used' ? '…' : 'Used'}
-                      </button>
-                      <button
-                        onClick={() => handleDispose(product.id)}
-                        className={`${styles.actionButton} ${styles.dispose}`}
-                        title="Dispose"
-                        disabled={actionId === product.id}
-                      >
-                        {actionId === product.id && actionType === 'dispose' ? '…' : 'Dispose'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        
-        {filteredProducts.length === 0 && (
-          <div className={styles.emptyState}>
-            <Package className={styles.emptyStateIcon} />
-            <p>No expiring products found</p>
-            <p className="text-sm" style={{ color: 'var(--text-3)' }}>Products will appear here when they approach their expiry dates</p>
-          </div>
-        )}
+      <div className={styles.cardsGrid}>
+        {filteredProducts.map((product) => {
+          const status = getExpiryStatus(product.daysUntilExpiry);
+          const busy = actionId === product.id;
+
+          return (
+            <div
+              key={product.id}
+              className={`${styles.expiryCard} ${
+                product.daysUntilExpiry <= 0
+                  ? styles.cardExpired
+                  : product.daysUntilExpiry <= 3
+                    ? styles.cardCritical
+                    : product.daysUntilExpiry <= 7
+                      ? styles.cardWarning
+                      : ''
+              }`}
+            >
+              <div className={styles.cardTop}>
+                <div>
+                  <h3 className={styles.cardName}>{product.name}</h3>
+                  <p className={styles.cardMeta}>
+                    {product.category}
+                    {product.supplier ? ` · ${product.supplier}` : ''}
+                  </p>
+                </div>
+                <span className={`${styles.statusBadge} ${styles[status.color]}`}>
+                  {status.label}
+                </span>
+              </div>
+
+              <div className={styles.cardStats}>
+                <div>
+                  <span className={styles.statLabel}>Qty</span>
+                  <span className={styles.statValue}>
+                    {product.quantity} {product.unit}
+                  </span>
+                </div>
+                <div>
+                  <span className={styles.statLabel}>Value</span>
+                  <span className={styles.statValue}>{formatMoney(product.totalValue)}</span>
+                </div>
+                <div>
+                  <span className={styles.statLabel}>Expires</span>
+                  <span className={styles.statValue}>
+                    <Calendar size={12} className={styles.inlineIcon} />
+                    {product.expiryDate.toLocaleDateString()}
+                  </span>
+                </div>
+                <div>
+                  <span className={styles.statLabel}>Days left</span>
+                  <span
+                    className={`${styles.statValue} ${
+                      product.daysUntilExpiry <= 3 ? styles.dangerText : ''
+                    }`}
+                  >
+                    {product.daysUntilExpiry <= 0
+                      ? 'Expired'
+                      : `${product.daysUntilExpiry}d`}
+                  </span>
+                </div>
+              </div>
+
+              {product.usedInMenus.length > 0 && (
+                <div className={styles.cardExtra}>
+                  <span
+                    className={styles.menuUsage}
+                    title={product.usedInMenus.join(', ')}
+                  >
+                    Used in: {product.usedInMenus.slice(0, 2).join(', ')}
+                    {product.usedInMenus.length > 2
+                      ? ` +${product.usedInMenus.length - 2}`
+                      : ''}
+                  </span>
+                </div>
+              )}
+
+              <div className={styles.cardActions}>
+                <button
+                  type="button"
+                  onClick={() => handleMarkAsUsed(product.id)}
+                  className={`${styles.cardBtn} ${styles.cardBtnSuccess}`}
+                  disabled={busy}
+                >
+                  {busy && actionType === 'used' ? (
+                    <Loader2 size={14} className={styles.spin} />
+                  ) : null}
+                  {busy && actionType === 'used' ? '…' : 'Used'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDispose(product.id)}
+                  className={`${styles.cardBtn} ${styles.cardBtnDanger}`}
+                  disabled={busy}
+                >
+                  {busy && actionType === 'dispose' ? (
+                    <Loader2 size={14} className={styles.spin} />
+                  ) : null}
+                  {busy && actionType === 'dispose' ? '…' : 'Dispose'}
+                </button>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Recommendations */}
-      {expiringProducts.length > 0 && (
+      {filteredProducts.length === 0 && (
+        <div className={styles.emptyState}>
+          <Package className={styles.emptyStateIcon} />
+          <p>No expiring stock in this window</p>
+          <p className={styles.emptyHint}>
+            Items appear when they approach their expiry dates
+          </p>
+        </div>
+      )}
+
+      {filteredProducts.length > 0 && (
         <div className={styles.recommendations}>
-          <h3 className={styles.recommendationsTitle}>Recommendations</h3>
+          <h3 className={styles.recommendationsTitle}>Tips</h3>
           <ul className={styles.recommendationsList}>
-            <li className={styles.recommendationsItem}>• Consider offering discounts on products expiring within 7 days</li>
-            <li className={styles.recommendationsItem}>• Bundle expiring products with popular items to increase sales</li>
-            <li className={styles.recommendationsItem}>• Review ordering patterns to reduce future expiry waste</li>
-            <li className={styles.recommendationsItem}>• Set up automatic reorder points for fast-moving items</li>
+            <li>Feature near-expiry items in specials or staff meals</li>
+            <li>Adjust portions on menus that use critical stock</li>
+            <li>Review reorder points to avoid overstock</li>
+            <li>Dispose only when unsafe — note the reason</li>
           </ul>
         </div>
       )}
     </div>
   );
 }
-
