@@ -81,12 +81,11 @@ export default function MenuManagementPage() {
       setBusinessId(user.businessId);
       return user.businessId;
     }
-    const uid = user?.id;
     try {
-      let authId = uid;
+      let authId: string | undefined = user?.id;
       if (!authId) {
         const { data: { session } } = await getSupabase().auth.getSession();
-        authId = session?.user?.id;
+        authId = session?.user?.id ?? undefined;
       }
       if (!authId) return null;
       const bid = await resolveOwnerScopeBusinessId(authId, user?.businessId);
