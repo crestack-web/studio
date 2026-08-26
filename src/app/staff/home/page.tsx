@@ -29,14 +29,25 @@ function initialsFromName(name: string): string {
 
 /**
  * Resolve the single owner business this staff member belongs to.
- * Source of truth: users/{uid}.businessId, verified against an *active*
- * businesses/{id}/staff/{uid} doc. Staff may only belong to one business.
+ * Priority (invite is Supabase-first):
+ *   1) Auth user_metadata.businessId from invite
+ *   2) Supabase users / staff rows
+ *   3) Firestore users + staff (legacy enrichment only)
+ * Do not clear a valid invite businessId just because Firestore is missing —
+ * that caused "ask owner to re-invite" after password reset.
  */
 async function resolveStaffBusinessId(
-  firestore: ReturnType<typeof initializeFirebase>['firestore'],
+  firestore: ReturnType<typeof initializeFirebase>['firestore'] | null,
   userId: string,
   email: string | null | undefined,
-  metaBusinessId?: string | null
+  meta?: {
+    businessId?: string | null;
+    staffId?: string | null;
+    role?: string | null;
+    permissions?: Permissions | null;
+    mustChangePassword?: boolean;
+    fullName?: string | null;
+  } | string | null
 ): Promise<{
   businessId: string | null;
   businessName: string;
@@ -47,95 +58,181 @@ async function resolveStaffBusinessId(
   mustChange: boolean;
   staffId: string | null;
 }> {
-  let businessId: string | null = null;
+  // Support legacy call signature (metaBusinessId string) and new object form
+  const metaObj =
+    typeof meta === 'string' || meta == null
+      ? { businessId: meta || null }
+      : meta;
+
+  let businessId: string | null = metaObj.businessId ? String(metaObj.businessId) : null;
   let businessName = 'Business';
   let currency = '₦';
-  let role = 'Staff';
-  let displayName: string | null = null;
-  let permissions: Permissions | null = null;
-  let mustChange = false;
-  let staffId: string | null = null;
+  let role = metaObj.role ? String(metaObj.role) : 'Staff';
+  let displayName: string | null = metaObj.fullName || null;
+  let permissions: Permissions | null = metaObj.permissions
+    ? { ...DEFAULT_PERMISSIONS, ...metaObj.permissions }
+    : null;
+  let mustChange = Boolean(metaObj.mustChangePassword);
+  let staffId: string | null = metaObj.staffId ? String(metaObj.staffId) : null;
 
-  const userSnap = await getDoc(doc(firestore, 'users', userId));
-  if (userSnap.exists()) {
-    const data = userSnap.data() || {};
-    const roleLc = String(data.role || '').toLowerCase();
-    // Ignore removed accounts
-    if (roleLc !== 'removed' && data.businessId) {
-      businessId = String(data.businessId);
-    }
-    if (data.role && roleLc !== 'removed') role = String(data.role);
-    displayName = data.displayName || data.fullName || data.name || null;
-    if (data.permissions && typeof data.permissions === 'object') {
-      permissions = { ...DEFAULT_PERMISSIONS, ...data.permissions };
-    }
-    if (data.mustChangePassword === true) mustChange = true;
-    if (data.staffId) staffId = String(data.staffId);
-  }
+  // ── Supabase (primary) ───────────────────────────────────────────────
+  try {
+    const supabase = getSupabase();
+    const { data: sbUser } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
 
-  // Auth metadata only if user doc has no business yet
-  if (!businessId && metaBusinessId) {
-    businessId = String(metaBusinessId);
-  }
-
-  // Verify active staff membership under the claimed business
-  if (businessId) {
-    try {
-      const staffSnap = await getDoc(
-        doc(firestore, 'businesses', businessId, 'staff', userId)
-      );
-      if (staffSnap.exists()) {
-        const sd = staffSnap.data() || {};
-        const status = String(sd.status || 'active').toLowerCase();
-        if (status === 'removed') {
-          // Stale user.businessId — clear so we do not load the wrong business
-          console.warn(
-            '[staff/home] staff status is removed for',
-            businessId,
-            '— clearing scope'
-          );
-          businessId = null;
-        } else {
-          if (sd.role) role = String(sd.role);
-          if (sd.name) displayName = String(sd.name);
-          if (sd.permissions && typeof sd.permissions === 'object') {
-            permissions = { ...DEFAULT_PERMISSIONS, ...sd.permissions };
-          }
-          if (sd.mustChangePassword === true) mustChange = true;
-          if (sd.staffId) staffId = String(sd.staffId);
-          // Prefer staff doc businessId if present (single assignment)
-          if (sd.businessId) businessId = String(sd.businessId);
+    if (sbUser) {
+      const roleLc = String(sbUser.role || '').toLowerCase();
+      if (roleLc !== 'removed') {
+        if (!businessId && (sbUser.businessId || sbUser.business_id)) {
+          businessId = String(sbUser.businessId || sbUser.business_id);
+        }
+        if (sbUser.role) role = String(sbUser.role);
+        displayName =
+          displayName ||
+          sbUser.displayName ||
+          sbUser.display_name ||
+          sbUser.fullName ||
+          sbUser.full_name ||
+          sbUser.name ||
+          null;
+        if (sbUser.permissions && typeof sbUser.permissions === 'object') {
+          permissions = { ...DEFAULT_PERMISSIONS, ...(sbUser.permissions as object) };
+        }
+        if (sbUser.mustChangePassword === true || sbUser.must_change_password === true) {
+          mustChange = true;
+        }
+        if (sbUser.staffId || sbUser.staff_id) {
+          staffId = String(sbUser.staffId || sbUser.staff_id);
         }
       } else {
-        // User points at a business where they are not on the staff roster
-        console.warn(
-          '[staff/home] no staff doc under claimed business',
-          businessId
-        );
         businessId = null;
       }
-    } catch (e) {
-      console.warn('[staff/home] staff doc lookup failed', e);
     }
+
+    let staffRow: any = null;
+    const byUser = await supabase.from('staff').select('*').eq('user_id', userId).limit(5);
+    if (byUser.data?.length) {
+      staffRow =
+        byUser.data.find((r: any) => String(r.status || 'active').toLowerCase() !== 'removed') ||
+        byUser.data[0];
+    }
+    if (!staffRow && email) {
+      const byEmail = await supabase
+        .from('staff')
+        .select('*')
+        .ilike('email', email)
+        .limit(5);
+      if (byEmail.data?.length) {
+        staffRow =
+          byEmail.data.find((r: any) => String(r.status || 'active').toLowerCase() !== 'removed') ||
+          byEmail.data[0];
+      }
+    }
+    if (staffRow) {
+      const st = String(staffRow.status || 'active').toLowerCase();
+      if (st === 'removed') {
+        businessId = null;
+      } else {
+        const rowBiz = staffRow.business_id || staffRow.businessId;
+        if (rowBiz) businessId = String(rowBiz);
+        if (staffRow.role) role = String(staffRow.role);
+        if (staffRow.name) displayName = String(staffRow.name);
+        if (staffRow.permissions && typeof staffRow.permissions === 'object') {
+          permissions = { ...DEFAULT_PERMISSIONS, ...staffRow.permissions };
+        }
+        if (staffRow.staff_id || staffRow.staffId || staffRow.id) {
+          staffId = String(staffRow.staff_id || staffRow.staffId || staffRow.id);
+        }
+      }
+    }
+
+    if (businessId) {
+      const { data: biz } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('id', businessId)
+        .maybeSingle();
+      if (biz) {
+        businessName =
+          biz.businessName || biz.business_name || biz.name || businessName;
+        currency =
+          biz.currency || biz.businessCurrency || biz.default_currency || currency;
+      }
+    }
+  } catch (e) {
+    console.warn('[staff/home] Supabase resolve failed', e);
   }
 
-  if (businessId) {
+  // ── Firestore enrichment only (never revoke invite/metadata businessId) ─
+  if (firestore) {
     try {
-      const bizSnap = await getDoc(doc(firestore, 'businesses', businessId));
-      if (bizSnap.exists()) {
-        const bd = bizSnap.data() || {};
-        businessName =
-          bd.businessName || bd.name || bd.ownerName || businessName;
-        currency =
-          bd.currency || bd.businessCurrency || bd.defaultCurrency || currency;
+      const userSnap = await getDoc(doc(firestore, 'users', userId));
+      if (userSnap.exists()) {
+        const data = userSnap.data() || {};
+        const roleLc = String(data.role || '').toLowerCase();
+        if (roleLc !== 'removed') {
+          if (!businessId && data.businessId) businessId = String(data.businessId);
+          if (data.role) role = String(data.role);
+          displayName =
+            displayName || data.displayName || data.fullName || data.name || null;
+          if (data.permissions && typeof data.permissions === 'object') {
+            permissions = { ...DEFAULT_PERMISSIONS, ...data.permissions };
+          }
+          if (data.mustChangePassword === true) mustChange = true;
+          if (data.staffId) staffId = String(data.staffId);
+        }
       }
     } catch (e) {
-      console.warn('[staff/home] business doc lookup failed', e);
+      console.warn('[staff/home] Firestore users lookup failed', e);
+    }
+
+    if (businessId) {
+      try {
+        const staffSnap = await getDoc(
+          doc(firestore, 'businesses', businessId, 'staff', userId)
+        );
+        if (staffSnap.exists()) {
+          const sd = staffSnap.data() || {};
+          const status = String(sd.status || 'active').toLowerCase();
+          if (status === 'removed' && !metaObj.businessId) {
+            // Explicit removal and no invite metadata — clear
+            businessId = null;
+          } else if (status !== 'removed') {
+            if (sd.role) role = String(sd.role);
+            if (sd.name) displayName = String(sd.name);
+            if (sd.permissions && typeof sd.permissions === 'object') {
+              permissions = { ...DEFAULT_PERMISSIONS, ...sd.permissions };
+            }
+            if (sd.mustChangePassword === true) mustChange = true;
+            if (sd.staffId) staffId = String(sd.staffId);
+            if (sd.businessId) businessId = String(sd.businessId);
+          }
+        }
+        // Missing Firestore staff doc: keep businessId from metadata/Supabase
+      } catch (e) {
+        console.warn('[staff/home] Firestore staff doc lookup failed', e);
+      }
+
+      if (businessId) {
+        try {
+          const bizSnap = await getDoc(doc(firestore, 'businesses', businessId));
+          if (bizSnap.exists()) {
+            const bd = bizSnap.data() || {};
+            businessName =
+              bd.businessName || bd.name || bd.ownerName || businessName;
+            currency =
+              bd.currency || bd.businessCurrency || bd.defaultCurrency || currency;
+          }
+        } catch (e) {
+          console.warn('[staff/home] Firestore business lookup failed', e);
+        }
+      }
     }
   }
-
-  // Do NOT fall back to invitations or other businesses — prevents
-  // cross-business leakage when an email was invited more than once.
 
   return {
     businessId,
