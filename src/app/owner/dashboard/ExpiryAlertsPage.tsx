@@ -81,14 +81,16 @@ export default function ExpiryAlertsPage() {
             daysUntilExpiry: daysUntilExpiry || 0,
             location: String(data.location || 'main-store'),
             supplier: data.supplier as string | undefined,
+            productType: data.productType as string | undefined,
           };
         })
         .filter(product => {
           const expiryDate = product.expiryDate;
           if (!expiryDate) return false;
-          
-          // Only include products expiring within the filter period
-          return expiryDate <= filterDate && expiryDate >= now;
+          // Skip pure menu dishes — expiry is about stock
+          if ((product as any).productType === 'dish') return false;
+          // Include already expired and those within the window
+          return expiryDate <= filterDate;
         }) as ExpiringProduct[];
       
       // Sort by days until expiry (ascending)

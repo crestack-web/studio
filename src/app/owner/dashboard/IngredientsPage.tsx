@@ -92,8 +92,9 @@ export default function IngredientsPage() {
         lastRestocked: toDate(data.createdAt),
         expiryDate: toDate(data.expiryDate),
         active: data.active !== false,
+        productType: data.productType,
         createdAt: toDate(data.createdAt) || new Date(),
-      })).filter((item: any) => item.category !== undefined) as Ingredient[];
+      })).filter((item: any) => item.productType === 'ingredient') as Ingredient[];
       
       setIngredients(items);
     } catch (error) {
