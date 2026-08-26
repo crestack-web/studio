@@ -6,15 +6,6 @@
  */
 
 import { getOfflineSalesService, type OfflineSale } from '@/lib/services/offline-sales-service';
-import { initializeFirebase } from '@/firebase';
-import {
-  collection,
-  addDoc,
-  doc,
-  getDoc,
-  updateDoc,
-  Timestamp,
-} from 'firebase/firestore';
 
 const PRODUCT_CACHE_DB = 'busmo-offline-products';
 const PRODUCT_CACHE_STORE = 'products';
@@ -191,17 +182,35 @@ class OfflineManager {
 
     try {
       const pending = await getOfflineSalesService().getPendingSales(businessId);
-      if (!pending.length) return { synced: 0, failed: 0 };
+      if (!pending.length) {
+        await this.emitPendingCount();
+        return { synced: 0, failed: 0 };
+      }
 
-      const { firestore } = initializeFirebase();
-      if (!firestore) return { synced: 0, failed: pending.length };
+      // Prefer server API (service role) — same path as online staff sales.
+      // Firestore client writes fail under current auth/RLS and left the UI stuck.
+      let token: string | null = null;
+      try {
+        const { getSupabase } = await import('@/lib/supabase');
+        const supabase = getSupabase();
+        const { data } = await supabase.auth.getSession();
+        token = data.session?.access_token || null;
+      } catch (e) {
+        console.warn('[offline] could not read session for sync', e);
+      }
 
       for (const sale of pending) {
         try {
-          await this.writeSaleToFirestore(firestore, sale);
+          if (token) {
+            await this.writeSaleViaApi(sale, token);
+          } else {
+            // Last resort: try client Supabase layer
+            await this.writeSaleViaSupabaseClient(sale);
+          }
           await getOfflineSalesService().markAsSynced(sale.id);
           synced += 1;
         } catch (err: any) {
+          console.error('[offline] sync failed for', sale.id, err);
           failed += 1;
           await getOfflineSalesService().updateSyncAttempt(
             sale.id,
@@ -210,7 +219,6 @@ class OfflineManager {
         }
       }
 
-      // Cleanup synced rows
       await getOfflineSalesService().clearSyncedSales();
       await this.emitPendingCount();
     } finally {
@@ -220,85 +228,81 @@ class OfflineManager {
     return { synced, failed };
   }
 
-  private async writeSaleToFirestore(firestore: any, sale: OfflineSale) {
-    const totalRevenue = sale.totalRevenue;
-    const totalCost = sale.totalCost;
-    const totalProfit = sale.totalProfit;
+  private async writeSaleViaApi(sale: OfflineSale, token: string) {
+    const res = await fetch('/api/staff/record-sale', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        businessId: sale.businessId,
+        products: sale.items.map((i) => ({
+          productId: i.productId,
+          name: i.name,
+          price: i.price,
+          costPrice: i.costPrice,
+          quantity: i.quantity,
+        })),
+        total: sale.totalRevenue,
+        paymentMethod: sale.paymentType || 'cash',
+        paymentMethods: { [sale.paymentType || 'cash']: sale.totalRevenue },
+        staffId: sale.recordedBy.staffId || sale.recordedBy.uid,
+        staffName: sale.recordedBy.displayName,
+        staffRole: sale.recordedBy.role,
+        offlineId: sale.id,
+        note: 'Synced from offline queue',
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(json.error || json.message || `Sync HTTP ${res.status}`);
+    }
+    return json.saleId as string;
+  }
 
-    const saleRef = await addDoc(collection(firestore, 'businesses', sale.businessId, 'sales'), {
-      products: sale.items.map((i) => ({
-        productId: i.productId,
-        name: i.name,
-        price: i.price,
-        costPrice: i.costPrice,
-        quantity: i.quantity,
-        emoji: i.emoji,
-      })),
-      totalRevenue,
-      total: totalRevenue,
-      totalCost,
-      profit: totalProfit,
-      paymentMethod: sale.paymentType,
-      paymentBreakdown: [{ method: sale.paymentType, amount: totalRevenue, received: true }],
-      expectedCash: sale.paymentType === 'cash' ? totalRevenue : 0,
-      expectedBank: ['transfer', 'card', 'pos'].includes(sale.paymentType) ? totalRevenue : 0,
-      note: 'Synced from offline queue',
-      offlineId: sale.id,
-      offlineSyncedAt: Timestamp.now(),
+  private async writeSaleViaSupabaseClient(sale: OfflineSale) {
+    const { addDoc, updateDoc, fetchDoc } = await import('@/lib/supabase-client-data');
+    const products = sale.items.map((i) => ({
+      productId: i.productId,
+      name: i.name,
+      price: i.price,
+      costPrice: i.costPrice,
+      quantity: i.quantity,
+    }));
+    const id = await addDoc(`businesses/${sale.businessId}/sales`, {
+      id: crypto.randomUUID(),
+      products,
+      items: products,
+      total: sale.totalRevenue,
+      totalRevenue: sale.totalRevenue,
+      profit: sale.totalProfit,
+      paymentMethod: sale.paymentType || 'cash',
       businessId: sale.businessId,
-      sourceLocation: 'main_store',
-      sourceLocationName: 'Main Store',
-      recordedBy: sale.recordedBy,
       soldBy: sale.recordedBy.staffId || sale.recordedBy.uid,
       soldByName: sale.recordedBy.displayName,
-      createdAt: Timestamp.fromDate(new Date(sale.createdAt)),
-      recordedAt: Timestamp.now(),
+      recordedBy: sale.recordedBy,
+      note: 'Synced from offline queue',
+      offlineId: sale.id,
       status: 'completed',
+      createdAt: sale.createdAt || new Date().toISOString(),
     });
-
-    // Best-effort stock decrement
     for (const item of sale.items) {
       try {
-        const productRef = doc(
-          firestore,
-          'businesses',
-          sale.businessId,
-          'products',
-          item.productId
-        );
-        const snap = await getDoc(productRef);
-        if (snap.exists()) {
-          const current = Number(snap.data()?.stock ?? 0);
-          await updateDoc(productRef, {
+        const prod = await fetchDoc(`businesses/${sale.businessId}/products`, item.productId);
+        if (prod) {
+          const current = Number((prod as any).stock ?? (prod as any).stock_level ?? 0);
+          await updateDoc(`businesses/${sale.businessId}/products`, item.productId, {
             stock: Math.max(0, current - item.quantity),
-            updatedAt: Timestamp.now(),
           });
         }
       } catch {
-        /* stock can be reconciled later */
+        /* ignore stock */
       }
     }
-
-    // Cash flow for cash sales
-    if (sale.paymentType === 'cash' && totalRevenue > 0) {
-      try {
-        await addDoc(collection(firestore, 'businesses', sale.businessId, 'cashFlow'), {
-          date: Timestamp.now(),
-          moneyIn: totalRevenue,
-          moneyOut: 0,
-          category: 'Sale',
-          description: `Offline sale #${saleRef.id.slice(-6)}`,
-          saleId: saleRef.id,
-          paymentMethod: 'cash',
-          createdAt: Timestamp.now(),
-        });
-      } catch {
-        /* optional */
-      }
-    }
-
-    return saleRef.id;
+    return id;
   }
+
 }
 
 export const offlineManager = new OfflineManager();

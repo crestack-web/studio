@@ -413,13 +413,65 @@ export function SalePage({
       onComplete?.(receiptData);
     } catch (error: any) {
       console.error('[SalePage] Error recording sale:', error);
-      const msg =
+      const msg = String(
         error?.message ||
-        error?.details ||
-        error?.hint ||
-        error?.error_description ||
-        (typeof error === 'string' ? error : 'Failed to record sale. Please try again.');
-      alert(String(msg));
+          error?.details ||
+          error?.hint ||
+          error?.error_description ||
+          (typeof error === 'string' ? error : 'Failed to record sale. Please try again.')
+      );
+      // Network failure while "online" — queue offline so staff is not blocked
+      const isNetwork =
+        msg.toLowerCase().includes('failed to fetch') ||
+        msg.toLowerCase().includes('network') ||
+        error?.name === 'TypeError';
+      if (isNetwork && cart.length > 0) {
+        try {
+          const saleProducts = cart.map((item) => {
+            const product = getProduct(item.productId);
+            return {
+              productId: item.productId,
+              name: product?.name || 'Unknown',
+              price: product?.price || 0,
+              costPrice: product?.costPrice || 0,
+              quantity: item.quantity,
+            };
+          });
+          const total = getTotal();
+          await offlineManager.queueSale({
+            businessId,
+            userId: staffId,
+            items: saleProducts.map((p) => ({
+              productId: p.productId,
+              name: p.name,
+              quantity: p.quantity,
+              price: p.price,
+              costPrice: p.costPrice || 0,
+            })),
+            paymentType: 'cash',
+            totalRevenue: total,
+            totalCost: saleProducts.reduce((s, p) => s + (p.costPrice || 0) * p.quantity, 0),
+            totalProfit: saleProducts.reduce(
+              (s, p) => s + (p.price - (p.costPrice || 0)) * p.quantity,
+              0
+            ),
+            recordedBy: {
+              uid: staffId,
+              email: '',
+              displayName: staffName || 'Staff',
+              role: staffRole || 'Staff',
+              staffId,
+            },
+          });
+          setCart([]);
+          alert('Network error — sale saved offline and will sync when connection is stable.');
+          setSubmitting(false);
+          return;
+        } catch {
+          /* fall through */
+        }
+      }
+      alert(msg);
     } finally {
       setSubmitting(false);
     }

@@ -10,6 +10,10 @@ export function NetworkStatus() {
   const [toast, setToast] = useState<'online' | 'offline' | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [syncResult, setSyncResult] = useState<{
+    synced: number;
+    failed: number;
+  } | null>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -37,8 +41,16 @@ export function NetworkStatus() {
     let cancelled = false;
     (async () => {
       setSyncing(true);
+      setSyncResult(null);
       try {
-        await offlineManager.syncPendingSales();
+        const result = await offlineManager.syncPendingSales();
+        if (!cancelled) {
+          setSyncResult(result);
+          // Auto-hide success/failure banner
+          setTimeout(() => {
+            if (!cancelled) setSyncResult(null);
+          }, 4500);
+        }
       } finally {
         if (!cancelled) setSyncing(false);
       }
@@ -85,7 +97,7 @@ export function NetworkStatus() {
         </div>
       )}
 
-      {status === 'online' && pending > 0 && (
+      {status === 'online' && (pending > 0 || syncResult) && (
         <div
           role="status"
           style={{
@@ -94,7 +106,13 @@ export function NetworkStatus() {
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 10000,
-            background: 'linear-gradient(135deg, #4c1d95 0%, #5717ee 100%)',
+            background: syncResult
+              ? syncResult.failed > 0 && syncResult.synced === 0
+                ? 'linear-gradient(135deg, #b91c1c 0%, #991b1b 100%)'
+                : syncResult.failed > 0
+                  ? 'linear-gradient(135deg, #b45309 0%, #d97706 100%)'
+                  : 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)'
+              : 'linear-gradient(135deg, #4c1d95 0%, #5717ee 100%)',
             color: '#fff',
             padding: '10px 16px',
             borderRadius: 999,
@@ -103,14 +121,20 @@ export function NetworkStatus() {
             gap: 8,
             fontSize: 13,
             fontWeight: 600,
-            boxShadow: '0 8px 24px rgba(87, 23, 238, 0.35)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
           }}
         >
           <CloudUpload size={16} className={syncing ? 'animate-spin' : undefined} />
           <span>
             {syncing
               ? `Syncing ${pending} offline sale${pending === 1 ? '' : 's'}…`
-              : `${pending} offline sale${pending === 1 ? '' : 's'} waiting to sync`}
+              : syncResult
+                ? syncResult.failed > 0 && syncResult.synced === 0
+                  ? `Failed to sync ${syncResult.failed} sale${syncResult.failed === 1 ? '' : 's'}. Will retry.`
+                  : syncResult.failed > 0
+                    ? `Synced ${syncResult.synced}, ${syncResult.failed} failed`
+                    : `Synced ${syncResult.synced} offline sale${syncResult.synced === 1 ? '' : 's'} ✓`
+                : `${pending} offline sale${pending === 1 ? '' : 's'} waiting to sync`}
           </span>
         </div>
       )}
