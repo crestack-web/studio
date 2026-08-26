@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { fetchProducts, recordSale, updateProductStock } from '../services/dataService';
+import { fetchProducts } from '../services/dataService';
 import { fetchDoc } from '@/lib/supabase-client-data';
 import { formatCurrency } from '@/lib/currency';
 import { ReceiptGenerator } from '../../../owner/dashboard/ReceiptGenerator';
 import { offlineManager } from '@/lib/offline/offline-manager';
+import { getSupabase } from '@/lib/supabase';
 
 interface SalePageProps {
   onComplete?: (saleData?: any) => void;
@@ -310,42 +311,60 @@ export function SalePage({
         return;
       }
 
-      // Supabase write path (owner dashboard uses the same tables)
-      const expectedCash = getCashAmount();
-      const expectedBank = getBankAmount();
-      const profit = saleProducts.reduce(
-        (acc, p) => acc + (p.price - (p.costPrice || 0)) * p.quantity,
-        0
-      );
       const primaryMethod =
         paymentMethods.length === 1 ? paymentMethods[0].method : 'split';
-
-      const saleId = await recordSale(undefined, businessId, {
-        products: saleProducts,
-        total,
-        paymentMethod: primaryMethod,
-        paymentMethods: paymentMethods.reduce((acc: Record<string, number>, pm) => {
+      const paymentMethodsMap = paymentMethods.reduce(
+        (acc: Record<string, number>, pm) => {
           acc[pm.method] = (acc[pm.method] || 0) + (pm.amount || 0);
           return acc;
-        }, {}),
-        note: '',
-        soldBy: staffId,
-        soldByName: staffName,
-        recordedBy: {
-          uid: staffId,
-          displayName: staffName,
-          role: staffRole,
-          staffId,
         },
+        {}
+      );
+
+      // Server-side write (service role) — avoids RLS client insert failures
+      const supabase = getSupabase();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        throw new Error('Session expired. Please sign in again.');
+      }
+
+      const res = await fetch('/api/staff/record-sale', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          businessId,
+          products: saleProducts,
+          total,
+          paymentMethod: primaryMethod,
+          paymentMethods: paymentMethodsMap,
+          paymentBreakdown: paymentMethods.map((pm) => ({
+            method: pm.method,
+            amount: pm.amount,
+            received: pm.received !== false,
+          })),
+          staffId,
+          staffName,
+          staffRole,
+        }),
       });
 
-      // Decrement stock in Supabase for each line item
-      for (const item of cart) {
-        try {
-          await updateProductStock(undefined, businessId, item.productId, item.quantity);
-        } catch (stockErr) {
-          console.warn('[SalePage] stock update failed for', item.productId, stockErr);
-        }
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const detail =
+          json.error ||
+          json.message ||
+          json.code ||
+          `Sale failed (${res.status})`;
+        throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+      }
+
+      const saleId = json.saleId || '';
+      if (json.stockErrors?.length) {
+        console.warn('[SalePage] stock update warnings', json.stockErrors);
       }
 
       // Optimistic local stock
@@ -396,9 +415,11 @@ export function SalePage({
       console.error('[SalePage] Error recording sale:', error);
       const msg =
         error?.message ||
+        error?.details ||
+        error?.hint ||
         error?.error_description ||
         (typeof error === 'string' ? error : 'Failed to record sale. Please try again.');
-      alert(msg);
+      alert(String(msg));
     } finally {
       setSubmitting(false);
     }
