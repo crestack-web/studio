@@ -69,13 +69,9 @@
     order: unset;
   }
 
-  /* Checkout sticks within its column only — does not cover products */
   .right {
-    position: sticky;
-    top: 12px;
+    position: relative;
     align-self: start;
-    max-height: calc(100vh - 100px);
-    overflow-y: auto;
   }
 }
 

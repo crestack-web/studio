@@ -1659,13 +1659,32 @@ svg {
 ═══════════════════════════════════════ */
 .rs-lay {
   display: grid;
-  grid-template-columns: 1fr 340px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
   gap: 14px;
+  align-items: start;
+  width: 100%;
+  min-width: 0;
 }
 
+/* Mobile/tablet: stack products ABOVE checkout; both scroll with the page */
 @media (max-width: 900px) {
   .rs-lay {
-    grid-template-columns: 1fr;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+  .rs-lay > *:first-child {
+    order: 1;
+    position: relative;
+    z-index: 1;
+  }
+  .rs-lay > .cit-w {
+    order: 2;
+    position: relative !important; /* not sticky — scrolls with page */
+    bottom: auto !important;
+    top: auto !important;
+    z-index: 1 !important;
+    max-height: none !important;
   }
 }
 
@@ -1766,6 +1785,11 @@ svg {
 .cit-w {
   min-height: 80px;
   margin-bottom: 12px;
+  position: relative;
+  z-index: 1;
+  /* Never pin over the product grid */
+  top: auto;
+  bottom: auto;
 }
 
 .cart-empty {
@@ -2921,15 +2945,11 @@ svg {
 }
 
 @media (max-width: 900px) {
-  .rs-lay {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 12px !important;
-  }
+  /* layout stacking handled above — keep checkout in document flow */
   .cit-w {
-    position: sticky;
-    bottom: calc(var(--botH, 62px) + 8px);
-    z-index: 5;
+    position: relative !important;
+    bottom: auto !important;
+    z-index: 1 !important;
   }
 }
 
@@ -2964,4 +2984,15 @@ svg {
   .topbar .tb-acts span {
     display: none !important;
   }
+}
+
+
+/* Record sale: keep checkout in flow; space above bottom nav */
+#pg-sale {
+  padding-bottom: calc(var(--botH, 62px) + 24px);
+}
+#pg-sale .cit-w {
+  position: relative !important;
+  bottom: auto !important;
+  top: auto !important;
 }
