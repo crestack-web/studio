@@ -39,8 +39,13 @@ import { showDeviceNotification } from '@/lib/deviceNotifications';
 import {
   loadStoredNotifications,
   saveStoredNotifications,
-  defaultNotifications,
 } from './notificationTypes';
+import {
+  loadRealNotifications,
+  persistNotification,
+  markNotificationReadRemote,
+  markAllNotificationsReadRemote,
+} from '@/lib/notifications-service';
 
 // Define AvatarOption type locally since it's not exported from './types'
 type AvatarOption = {
@@ -454,19 +459,58 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch { /* ignore */ }
   }, []);
 
+  // Hydrate from local cache first (no mock seeds), then load real data
   useEffect(() => {
-    let items = loadStoredNotifications();
-    if (items.length === 0) {
-      items = defaultNotifications();
-      saveStoredNotifications(items);
-    }
-    setNotifications(items);
+    const cached = loadStoredNotifications().filter(
+      (n) => !String(n.id).startsWith('seed-')
+    );
+    setNotifications(cached);
     setNotifHydrated(true);
   }, []);
 
+  // Load real notifications when user/business is known
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const real = await loadRealNotifications({
+          userId: user.id,
+          businessId: user.businessId || null,
+        });
+        if (cancelled) return;
+        // Merge: keep any very recent local-only items (e.g. just pushed this session)
+        setNotifications((prev) => {
+          const byId = new Map<string, (typeof prev)[0]>();
+          for (const n of real) byId.set(n.id, n);
+          for (const n of prev) {
+            // keep local items newer than 2 minutes that aren't in server set
+            if (!byId.has(n.id) && Date.now() - n.createdAt < 120_000) {
+              byId.set(n.id, n);
+            }
+          }
+          return Array.from(byId.values())
+            .filter((n) => !String(n.id).startsWith('seed-'))
+            .sort((a, b) => b.createdAt - a.createdAt)
+            .slice(0, 50);
+        });
+      } catch (e) {
+        console.warn('[AppContext] loadRealNotifications', e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.businessId]);
+
   useEffect(() => {
     if (!notifHydrated) return;
-    saveStoredNotifications(notifications);
+    // Never persist seed mocks
+    saveStoredNotifications(
+      notifications.filter((n) => !String(n.id).startsWith('seed-'))
+    );
   }, [notifications, notifHydrated]);
 
   const unreadNotificationCount = notifications.filter((n) => !n.read).length;
@@ -476,11 +520,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const markNotificationRead = useCallback((id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    markNotificationReadRemote(id).catch(() => {});
   }, []);
 
   const markAllNotificationsRead = useCallback(() => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  }, []);
+    if (user?.id) {
+      markAllNotificationsReadRemote({
+        userId: user.id,
+        businessId: user.businessId || null,
+      }).catch(() => {});
+    }
+  }, [user?.id, user?.businessId]);
 
   const dismissNotification = useCallback((id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
@@ -502,16 +553,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
         href: n.href,
         category: n.category,
       };
-      setNotifications((prev) => [item, ...prev].slice(0, 50));
-      // Mirror to device when permission granted
+      setNotifications((prev) =>
+        [item, ...prev.filter((x) => x.id !== item.id)].slice(0, 50)
+      );
       showDeviceNotification({
         title: item.title,
         body: item.body,
         tag: item.id,
         url: '/owner/dashboard',
       }).catch(() => {});
+      if (user?.id) {
+        persistNotification({
+          userId: user.id,
+          businessId: user.businessId || null,
+          notification: item,
+        }).catch(() => {});
+      }
     },
-    []
+    [user?.id, user?.businessId]
   );
 
   // AI Panel state

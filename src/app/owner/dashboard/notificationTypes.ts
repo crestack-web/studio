@@ -35,39 +35,7 @@ export function saveStoredNotifications(items: AppNotification[]) {
   }
 }
 
-/** Seed helpful defaults once when the inbox is empty */
+/** @deprecated Mock seeds removed — use loadRealNotifications from notifications-service */
 export function defaultNotifications(): AppNotification[] {
-  const now = Date.now();
-  return [
-    {
-      id: `seed-tip-${now}`,
-      type: 'info',
-      title: 'Tip: track daily expenses',
-      body: 'Recording expenses the same day keeps profit and cash runway accurate.',
-      createdAt: now - 60_000,
-      read: false,
-      href: 'add-expense',
-      category: 'tip',
-    },
-    {
-      id: `seed-stock-${now}`,
-      type: 'warning',
-      title: 'Check low stock',
-      body: 'Review inventory for items near their threshold before you miss sales.',
-      createdAt: now - 120_000,
-      read: false,
-      href: 'inventory',
-      category: 'stock',
-    },
-    {
-      id: `seed-control-${now}`,
-      type: 'success',
-      title: 'Money Control is ready',
-      body: 'See sales, stock, and cash in one place — even when you are not at the shop.',
-      createdAt: now - 180_000,
-      read: false,
-      href: 'money-control',
-      category: 'system',
-    },
-  ];
+  return [];
 }
