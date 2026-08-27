@@ -142,18 +142,8 @@ async function processInbound(raw: InboundResult): Promise<void> {
     );
 
     const upper = `${groupName} ${statusName}`.toUpperCase();
-    if (upper.includes('DELIVERED') || upper.includes('SEEN') || upper.includes('READ')) {
-      console.log(
-        JSON.stringify({
-          event: 'outbound_delivery_succeeded',
-          messageId,
-          statusGroup: groupName || null,
-          statusName: statusName || null,
-          statusDescription: description || null,
-          toSuffix,
-        })
-      );
-    } else if (
+    // Failures first (REJECTED_NOT_DELIVERED contains substring DELIVERED)
+    if (
       upper.includes('REJECT') ||
       upper.includes('UNDELIVER') ||
       upper.includes('EXPIRED') ||
@@ -163,6 +153,21 @@ async function processInbound(raw: InboundResult): Promise<void> {
       console.log(
         JSON.stringify({
           event: 'outbound_delivery_failed',
+          messageId,
+          statusGroup: groupName || null,
+          statusName: statusName || null,
+          statusDescription: description || null,
+          toSuffix,
+        })
+      );
+    } else if (
+      upper.includes('DELIVERED') ||
+      upper.includes('SEEN') ||
+      (upper.includes('READ') && !upper.includes('UNREAD'))
+    ) {
+      console.log(
+        JSON.stringify({
+          event: 'outbound_delivery_succeeded',
           messageId,
           statusGroup: groupName || null,
           statusName: statusName || null,

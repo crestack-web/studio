@@ -194,8 +194,8 @@ function classifyDelivery(status) {
   const groupName = String(status?.groupName || '');
   const statusName = String(status?.name || '');
   const upper = `${groupName} ${statusName}`.toUpperCase();
-  if (upper.includes('DELIVERED') || upper.includes('SEEN') || upper.includes('READ')) return 'succeeded';
   if (upper.includes('REJECT') || upper.includes('UNDELIVER') || upper.includes('EXPIRED') || upper.includes('FAILED') || upper.includes('ERROR')) return 'failed';
+  if (upper.includes('DELIVERED') || upper.includes('SEEN') || (upper.includes('READ') && !upper.includes('UNREAD'))) return 'succeeded';
   return 'pending';
 }
 assert(classifyDelivery({ groupName: 'DELIVERED', name: 'DELIVERED_TO_HANDSET' }) === 'succeeded', 'delivered class');
