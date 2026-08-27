@@ -109,26 +109,42 @@ const InventoryPage: React.FC = () => {
           return true;
         };
 
-        const productsList: Product[] = productsData.filter(isVisibleProduct).map((data: any) => ({
-          id: data.id,
-          name: data.name || '',
-          sku: data.sku || data.attributes?.sku || '',
-          category: data.category || '',
-          stock: data.stock ?? data.stockLevel ?? data.quantity ?? 0,
-          currentStock: data.stock ?? data.stockLevel ?? data.quantity ?? 0,
-          costPrice: data.cost || data.costPrice || 0,
-          sellingPrice: data.price || data.sellingPrice || 0,
-          unitsSold30d: data.unitsSold30d || 0,
-          totalSalesCount: data.totalSalesCount || 0,
-          lastSaleDate: data.lastSaleDate || '',
-          lastSalePrice: data.lastSalePrice || 0,
-          reorderThreshold: data.lowStockThreshold || data.reorderLevel || 10,
-          suggestedReorder: 0,
-          emoji: data.attributes?.emoji || '',
-          trend: 'flat' as const,
-          movement: [],
-          imageUrl: data.imageUrl || '',
-        }));
+        const productsList: Product[] = productsData.filter(isVisibleProduct).map((data: any) => {
+          const stockQty = Number(
+            data.stock ?? data.stockLevel ?? data.stock_level ?? data.quantity ?? 0
+          ) || 0;
+          const cost = Number(
+            data.cost ?? data.costPrice ?? data.unitCost ?? data.attributes?.cost ?? 0
+          ) || 0;
+          const productType = String(
+            data.productType ||
+              data.product_type ||
+              data.attributes?.productType ||
+              data.type ||
+              ''
+          ).toLowerCase();
+          return {
+            id: data.id,
+            name: data.name || '',
+            sku: data.sku || data.attributes?.sku || '',
+            category: data.category || '',
+            stock: stockQty,
+            currentStock: stockQty,
+            costPrice: cost,
+            sellingPrice: Number(data.price ?? data.sellingPrice ?? 0) || 0,
+            unitsSold30d: data.unitsSold30d || 0,
+            totalSalesCount: data.totalSalesCount || 0,
+            lastSaleDate: data.lastSaleDate || '',
+            lastSalePrice: data.lastSalePrice || 0,
+            reorderThreshold: data.lowStockThreshold || data.reorderLevel || data.reorder_level || 10,
+            suggestedReorder: 0,
+            emoji: data.attributes?.emoji || '',
+            trend: 'flat' as const,
+            movement: [],
+            imageUrl: data.imageUrl || data.image_url || '',
+            productType: productType || undefined,
+          };
+        });
 
         setProducts(productsList);
         

@@ -39,6 +39,8 @@ export interface Product {
   movement: StockMovementEntry[];
   imageUrl?: string;        // product image URL
   lowStockThreshold?: number; // low stock alert threshold
+  /** restaurant: product | dish | ingredient */
+  productType?: string;
 }
 
 export const CATEGORIES = ['All', 'Food & Drink', 'Household', 'Personal Care', 'Snacks', 'Beverages', 'Frozen', 'Electronics'];

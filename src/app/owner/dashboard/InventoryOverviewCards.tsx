@@ -72,15 +72,28 @@ const InventoryOverviewCards: React.FC<InventoryOverviewCardsProps> = ({ product
 
   const stats = getInventoryStats(products);
 
-  // Filter products by type for restaurants
-  const ingredients = products.filter(p => (p as any).productType === 'ingredient');
-  const dishes = products.filter(p => (p as any).productType === 'dish');
-  const regularProducts = products.filter(p => (p as any).productType !== 'ingredient' && (p as any).productType !== 'dish');
+  // Filter products by type for restaurants (productType from DB/metadata)
+  const typeOf = (p: Product) => String((p as any).productType || '').toLowerCase();
+  const isIngredient = (p: Product) =>
+    typeOf(p) === 'ingredient' ||
+    (!typeOf(p) && /ingredient/i.test(p.category || ''));
+  const isDish = (p: Product) => typeOf(p) === 'dish';
 
-  // Calculate restaurant-specific metrics
-  const ingredientsNeedingReorder = ingredients.filter(p => p.stock <= (p.reorderThreshold || 10));
-  const totalIngredientValue = ingredients.reduce((sum, p) => sum + p.costPrice * p.stock, 0);
-  const totalDishValue = dishes.reduce((sum, p) => sum + p.costPrice * p.stock, 0);
+  const ingredients = products.filter(isIngredient);
+  const dishes = products.filter(isDish);
+  const regularProducts = products.filter((p) => !isIngredient(p) && !isDish(p));
+
+  // Calculate restaurant-specific metrics (use currentStock; include ingredient cost in totals)
+  const qty = (p: Product) => Number(p.currentStock ?? p.stock ?? 0) || 0;
+  const cost = (p: Product) => Number(p.costPrice ?? 0) || 0;
+  const ingredientsNeedingReorder = ingredients.filter(
+    (p) => qty(p) <= (p.reorderThreshold || 10)
+  );
+  const totalIngredientValue = ingredients.reduce((sum, p) => sum + cost(p) * qty(p), 0);
+  const totalDishValue = dishes.reduce((sum, p) => sum + cost(p) * qty(p), 0);
+  // Total inventory value must include ingredients + dishes + regular (at cost)
+  const totalInventoryValueAll =
+    products.reduce((sum, p) => sum + cost(p) * qty(p), 0) || stats.invValue;
 
   const potentialProfit = products.reduce(
     (s, p) => s + (p.sellingPrice - p.costPrice) * p.stock,
@@ -166,8 +179,8 @@ const InventoryOverviewCards: React.FC<InventoryOverviewCardsProps> = ({ product
         </svg>
       ),
       label: 'Total Inventory Value',
-      value: formatMoney(stats.invValue),
-      sub: 'All items at cost',
+      value: formatMoney(totalInventoryValueAll),
+      sub: 'All items at cost (incl. ingredients)',
       accent: 'var(--red)',
       accentBg: 'var(--red-bg)',
     },
