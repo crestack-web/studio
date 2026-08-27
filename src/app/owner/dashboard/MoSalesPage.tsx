@@ -282,21 +282,55 @@ export default function MoSalesPage() {
   const moOn = Boolean(connected && overview?.connection?.moEnabled);
 
   if (!businessId) {
+    // User profile may still be resolving businessId after sign-in
+    if (!user?.id || user?.shortName === 'User' || user?.initials === '..') {
+      return (
+        <div className={styles.wrap} role="status" aria-live="polite" aria-busy="true">
+          <div className={styles.loadingState}>
+            <div className={styles.loadingSpinner} aria-hidden="true" />
+            <p className={styles.loadingText}>Loading your business…</p>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className={styles.wrap}>
-        <p className={styles.muted}>Finish setting up your business to use MO Sales.</p>
+        <div className={styles.errorBox}>
+          <p>Finish setting up your business to use MO Sales.</p>
+          <p className={styles.muted}>MO needs a business account before it can sell on WhatsApp.</p>
+          <button type="button" className={styles.btnPrimary} onClick={() => navigateTo('settings' as any)}>
+            Go to settings
+          </button>
+        </div>
       </div>
     );
   }
 
   if (loading) {
     return (
-      <div className={styles.wrap}>
-        <div className={styles.skeletonTitle} />
-        <div className={styles.skeletonGrid}>
-          <div className={styles.skeletonCard} />
-          <div className={styles.skeletonCard} />
-          <div className={styles.skeletonCard} />
+      <div className={styles.wrap} role="status" aria-live="polite" aria-busy="true">
+        <div className={styles.loadingState}>
+          <div className={styles.loadingSpinner} aria-hidden="true" />
+          <p className={styles.loadingText}>Loading MO Sales…</p>
+          <p className={styles.loadingHint}>Fetching connection, conversations and product readiness</p>
+        </div>
+        <div className={styles.skeletonPage} aria-hidden="true">
+          <div className={styles.skeletonHeader}>
+            <div className={styles.skeletonTitle} />
+            <div className={styles.skeletonLine} style={{ width: '70%', maxWidth: 320 }} />
+          </div>
+          <div className={styles.skeletonTabs}>
+            <div className={styles.skeletonPill} />
+            <div className={styles.skeletonPill} />
+            <div className={styles.skeletonPill} />
+          </div>
+          <div className={styles.skeletonBlock} />
+          <div className={styles.skeletonGrid}>
+            <div className={styles.skeletonCard} />
+            <div className={styles.skeletonCard} />
+            <div className={styles.skeletonCard} />
+          </div>
+          <div className={styles.skeletonBlock} />
         </div>
       </div>
     );
@@ -536,7 +570,13 @@ export default function MoSalesPage() {
               ))}
             </div>
             {inboxLoading ? (
-              <p className={styles.muted}>Loading…</p>
+              <div className={styles.listSkeleton} role="status" aria-live="polite" aria-busy="true">
+                <div className={styles.skeletonRow} />
+                <div className={styles.skeletonRow} />
+                <div className={styles.skeletonRow} />
+                <div className={styles.skeletonRow} />
+                <p className={styles.loadingTextSm}>Loading conversations…</p>
+              </div>
             ) : inbox.length === 0 ? (
               <p className={styles.muted}>No conversations yet.</p>
             ) : (
@@ -593,7 +633,12 @@ export default function MoSalesPage() {
                 )}
                 <div className={styles.messages}>
                   {threadLoading ? (
-                    <p className={styles.muted}>Loading messages…</p>
+                    <div className={styles.listSkeleton} role="status" aria-live="polite" aria-busy="true">
+                      <div className={styles.skeletonBubble} />
+                      <div className={`${styles.skeletonBubble} ${styles.skeletonBubbleOut}`} />
+                      <div className={styles.skeletonBubble} />
+                      <p className={styles.loadingTextSm}>Loading messages…</p>
+                    </div>
                   ) : (
                     messages.map((m) => (
                       <div key={m.id} className={m.direction === 'inbound' ? styles.bubbleIn : styles.bubbleOut}>

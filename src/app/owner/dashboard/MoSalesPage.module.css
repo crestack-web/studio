@@ -524,24 +524,150 @@
 
 .skeletonTitle {
   height: 28px;
-  width: 40%;
+  width: 42%;
+  max-width: 220px;
   background: var(--bg-2, #f3f4f6);
   border-radius: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
+  animation: moPulse 1.2s ease-in-out infinite;
 }
 .skeletonGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
+  margin-bottom: 14px;
 }
 .skeletonCard {
   height: 88px;
   background: var(--bg-2, #f3f4f6);
   border-radius: 12px;
+  animation: moPulse 1.2s ease-in-out infinite;
 }
 @media (max-width: 640px) {
   .skeletonGrid { grid-template-columns: 1fr; }
 }
+
+
+/* ── Loading ── */
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 180px;
+  padding: 28px 16px 12px;
+  gap: 8px;
+}
+
+.loadingSpinner {
+  width: 44px;
+  height: 44px;
+  border: 3px solid var(--border, #e5e7eb);
+  border-top-color: var(--purple, #6d28d9);
+  border-radius: 50%;
+  animation: moSpin 0.85s linear infinite;
+  margin-bottom: 4px;
+}
+
+@keyframes moSpin {
+  to { transform: rotate(360deg); }
+}
+
+.loadingText {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.loadingHint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-3);
+  max-width: 280px;
+  line-height: 1.4;
+}
+
+.loadingTextSm {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-3);
+  text-align: center;
+}
+
+.skeletonPage {
+  margin-top: 8px;
+  opacity: 0.85;
+}
+
+.skeletonHeader {
+  margin-bottom: 16px;
+}
+
+.skeletonTabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.skeletonPill {
+  height: 36px;
+  width: 88px;
+  border-radius: 999px;
+  background: var(--bg-2, #f3f4f6);
+  animation: moPulse 1.2s ease-in-out infinite;
+}
+
+.skeletonLine {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--bg-2, #f3f4f6);
+  margin-top: 10px;
+  animation: moPulse 1.2s ease-in-out infinite;
+}
+
+.skeletonBlock {
+  height: 120px;
+  border-radius: 12px;
+  background: var(--bg-2, #f3f4f6);
+  margin-bottom: 14px;
+  animation: moPulse 1.2s ease-in-out infinite;
+}
+
+.listSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0 12px;
+}
+
+.skeletonRow {
+  height: 56px;
+  border-radius: 10px;
+  background: var(--bg-2, #f3f4f6);
+  animation: moPulse 1.2s ease-in-out infinite;
+}
+
+.skeletonBubble {
+  height: 48px;
+  width: 70%;
+  border-radius: 12px;
+  background: var(--bg-2, #f3f4f6);
+  animation: moPulse 1.2s ease-in-out infinite;
+  align-self: flex-start;
+}
+
+.skeletonBubbleOut {
+  width: 55%;
+  align-self: flex-end;
+}
+
+@keyframes moPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
 
 
 /* Mobile responsiveness — prevent bottom clip under nav */
