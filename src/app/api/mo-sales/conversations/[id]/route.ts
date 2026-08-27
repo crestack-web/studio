@@ -7,14 +7,13 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(
   req: NextRequest,
-  ctx: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getAuthUser(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const params = await Promise.resolve(ctx.params);
-    const conversationId = params.id;
+    const { id: conversationId } = await params;
     const businessId = new URL(req.url).searchParams.get('businessId');
     if (!businessId) return NextResponse.json({ error: 'businessId required' }, { status: 400 });
 
@@ -64,14 +63,13 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  ctx: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getAuthUser(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const params = await Promise.resolve(ctx.params);
-    const conversationId = params.id;
+    const { id: conversationId } = await params;
     const body = await req.json().catch(() => ({}));
     const businessId = body.businessId || new URL(req.url).searchParams.get('businessId');
     const agentStatus = body.agentStatus;
