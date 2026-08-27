@@ -24,16 +24,24 @@ export const dynamic = 'force-dynamic';
 
 type InboundResult = {
   from?: string;
+  /** Subscription / multi-channel payloads often use sender instead of from */
+  sender?: string;
   to?: string;
+  /** Messages API style destination (business number) */
+  destination?: string;
   integrationType?: string;
   receivedAt?: string;
   messageId?: string;
   message?: { type?: string; text?: string; caption?: string };
+  /** Some formats put text content under content[] */
+  content?: Array<{ type?: string; text?: string; cleanText?: string }>;
   contact?: { name?: string; phoneNumber?: string };
   status?: unknown;
   doneAt?: string;
   sentAt?: string;
   bulkId?: string;
+  channel?: string;
+  event?: string;
 };
 
 function verifyWebhookSecret(req: NextRequest): boolean {
@@ -53,10 +61,45 @@ function verifyWebhookSecret(req: NextRequest): boolean {
 
 function extractInboundMessages(body: any): InboundResult[] {
   if (!body || typeof body !== 'object') return [];
+
+  // Classic WhatsApp MO + most subscription channel payloads
   if (Array.isArray(body.results)) return body.results as InboundResult[];
   if (body.result) return [body.result as InboundResult];
-  if (body.messageId || body.message) return [body as InboundResult];
+
+  // Rare envelope: { messages: [...] }
+  if (Array.isArray(body.messages)) return body.messages as InboundResult[];
+
+  // Single inbound object
+  if (body.messageId || body.message || body.sender || body.from) {
+    return [body as InboundResult];
+  }
   return [];
+}
+
+/** Normalize field names across Forward-to-HTTP and Subscription formats. */
+function normalizeInboundItem(item: InboundResult): InboundResult {
+  const from =
+    item.from ||
+    item.sender ||
+    item.contact?.phoneNumber ||
+    '';
+  const to = item.to || item.destination || '';
+
+  let message = item.message;
+  if (!message && Array.isArray(item.content) && item.content.length) {
+    const c = item.content[0];
+    message = {
+      type: c.type || 'TEXT',
+      text: c.text || c.cleanText || '',
+    };
+  }
+
+  return {
+    ...item,
+    from: from ? String(from) : item.from,
+    to: to ? String(to) : item.to,
+    message,
+  };
 }
 
 function isStatusOrDeliveryEvent(item: InboundResult): boolean {
@@ -72,7 +115,8 @@ function isStatusOrDeliveryEvent(item: InboundResult): boolean {
   return false;
 }
 
-async function processInbound(item: InboundResult): Promise<void> {
+async function processInbound(raw: InboundResult): Promise<void> {
+  const item = normalizeInboundItem(raw);
   const messageId = String(item.messageId || '').trim();
   if (!messageId) {
     console.log(JSON.stringify({ event: 'webhook_received', skipped: true, reason: 'missing_message_id' }));
@@ -87,6 +131,7 @@ async function processInbound(item: InboundResult): Promise<void> {
   const msgType = String(item.message?.type || '').toUpperCase();
   const text = String(item.message?.text || item.message?.caption || '').trim();
 
+  // Accept TEXT / text; empty type with text body is treated as text
   if (msgType && msgType !== 'TEXT') {
     console.log(JSON.stringify({ event: 'webhook_received', skipped: true, reason: 'unsupported_type', type: msgType, messageId }));
     return;

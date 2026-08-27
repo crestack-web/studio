@@ -124,3 +124,68 @@ assert(shouldReplyAfterClaim({ duplicate: false, moEnabled: true, agentStatus: '
 assert(shouldReplyAfterClaim({ duplicate: true, moEnabled: true, agentStatus: 'ai_active' }) === false, 'duplicate blocks reply');
 
 console.log('\nAll structural tests passed.');
+
+// --- Infobip subscription / classic inbound payload fixtures ---
+function extractInboundMessagesV2(body) {
+  if (!body || typeof body !== 'object') return [];
+  if (Array.isArray(body.results)) return body.results;
+  if (body.result) return [body.result];
+  if (Array.isArray(body.messages)) return body.messages;
+  if (body.messageId || body.message || body.sender || body.from) return [body];
+  return [];
+}
+function normalizeInboundItemV2(item) {
+  const from = item.from || item.sender || item.contact?.phoneNumber || '';
+  const to = item.to || item.destination || '';
+  let message = item.message;
+  if (!message && Array.isArray(item.content) && item.content.length) {
+    const c = item.content[0];
+    message = { type: c.type || 'TEXT', text: c.text || c.cleanText || '' };
+  }
+  return { ...item, from: from ? String(from) : item.from, to: to ? String(to) : item.to, message };
+}
+
+const classicWa = {
+  results: [{
+    from: '2348012345678',
+    to: '447860088970',
+    messageId: 'wamid.CLASSIC',
+    message: { type: 'TEXT', text: 'Hello classic' },
+  }],
+};
+const c0 = normalizeInboundItemV2(extractInboundMessagesV2(classicWa)[0]);
+assert(c0.from === '2348012345678', 'classic from');
+assert(c0.to === '447860088970', 'classic to');
+assert(c0.message.text === 'Hello classic', 'classic text');
+
+const subInbound = {
+  results: [{
+    sender: '2348012345678',
+    to: '447860088970',
+    integrationType: 'WHATSAPP',
+    messageId: 'MxrzgtEdmRtW0g8eQ0diqGA',
+    message: { type: 'text', text: 'Hello subscription' },
+  }],
+};
+const s0 = normalizeInboundItemV2(extractInboundMessagesV2(subInbound)[0]);
+assert(s0.from === '2348012345678', 'subscription sender→from');
+assert(s0.to === '447860088970', 'subscription to');
+assert(String(s0.message.type).toUpperCase() === 'TEXT', 'subscription type text');
+assert(s0.message.text === 'Hello subscription', 'subscription text');
+
+const messagesApi = {
+  results: [{
+    channel: 'WHATSAPP',
+    sender: '2348012345678',
+    destination: '447860088970',
+    messageId: 'MSGAPI1',
+    content: [{ type: 'TEXT', text: 'Hello messages api', cleanText: 'Hello messages api' }],
+    event: 'MO',
+  }],
+};
+const m0 = normalizeInboundItemV2(extractInboundMessagesV2(messagesApi)[0]);
+assert(m0.from === '2348012345678', 'messages-api sender→from');
+assert(m0.to === '447860088970', 'messages-api destination→to');
+assert(m0.message.text.includes('messages api'), 'messages-api content text');
+
+console.log('✓ Infobip subscription/classic payload fixtures passed');
