@@ -127,6 +127,27 @@
 
 .btnPrimary:disabled { opacity: 0.6; cursor: not-allowed; }
 
+.btnWhatsApp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #25D366;
+  color: #fff;
+}
+.btnWhatsApp:hover {
+  background: #1ebe57;
+}
+.btnWhatsApp:disabled {
+  opacity: 0.6;
+}
+.waIcon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+
+
 .btnGhost {
   background: transparent;
   border: 1px solid var(--border, #e5e7eb);
