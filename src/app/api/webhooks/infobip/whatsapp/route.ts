@@ -15,6 +15,7 @@ import {
   updateMessageStatus,
   getRecentMessages,
   getConversationAgentStatus,
+  isMoGloballyEnabled,
 } from '@/lib/services/whatsapp/conversation-store';
 import { generateSalesReply } from '@/lib/services/whatsapp/mo-sales-agent';
 
@@ -166,6 +167,20 @@ async function processInbound(item: InboundResult): Promise<void> {
     messageId,
     businessId: connection.business_id,
   }));
+
+  // Global merchant pause (settings → moEnabled false → metadata.mo_enabled)
+  if (!isMoGloballyEnabled(connection)) {
+    await updateMessageStatus(claim.id, 'skipped', { reason: 'mo_disabled' });
+    console.log(JSON.stringify({
+      event: 'mo_started',
+      skipped: true,
+      reason: 'mo_disabled',
+      conversationId: conversation.id,
+      messageId,
+      businessId: connection.business_id,
+    }));
+    return;
+  }
 
   const agentStatus = await getConversationAgentStatus(conversation.id);
   if (agentStatus === 'human_active') {

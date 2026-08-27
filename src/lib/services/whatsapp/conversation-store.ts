@@ -14,6 +14,7 @@ export type WhatsappConnection = {
   provider: string;
   whatsapp_sender: string;
   status: string;
+  metadata?: Record<string, unknown> | null;
 };
 
 export async function resolveBusinessBySender(
@@ -26,7 +27,7 @@ export async function resolveBusinessBySender(
 
   const { data: exact } = await sb
     .from('whatsapp_connections')
-    .select('id, business_id, provider, whatsapp_sender, status')
+    .select('id, business_id, provider, whatsapp_sender, status, metadata')
     .eq('provider', provider)
     .eq('status', 'active')
     .eq('whatsapp_sender', phone)
@@ -36,13 +37,20 @@ export async function resolveBusinessBySender(
 
   const { data: rows } = await sb
     .from('whatsapp_connections')
-    .select('id, business_id, provider, whatsapp_sender, status')
+    .select('id, business_id, provider, whatsapp_sender, status, metadata')
     .eq('provider', provider)
     .eq('status', 'active');
 
   const match =
     (rows || []).find((r: any) => normalizePhone(r.whatsapp_sender) === phone) || null;
   return match as WhatsappConnection | null;
+}
+
+
+/** Global pause: metadata.mo_enabled === false means merchant paused MO. Default true. */
+export function isMoGloballyEnabled(connection: WhatsappConnection): boolean {
+  const meta = (connection.metadata || {}) as Record<string, unknown>;
+  return meta.mo_enabled !== false;
 }
 
 export async function getOrCreateConversation(params: {

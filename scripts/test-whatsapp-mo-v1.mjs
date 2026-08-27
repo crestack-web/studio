@@ -101,3 +101,26 @@ assert(resolveBusiness(map, '41793026731') === 'biz-A', 'maps sender to business
 assert(resolveBusiness(map, '999') === null, 'unknown sender → no business');
 
 console.log('\nAll structural tests passed.');
+
+
+function isMoGloballyEnabled(connection) {
+  const meta = (connection && connection.metadata) || {};
+  return meta.mo_enabled !== false;
+}
+assert(isMoGloballyEnabled({ metadata: {} }) === true, 'mo defaults enabled');
+assert(isMoGloballyEnabled({ metadata: { mo_enabled: true } }) === true, 'mo_enabled true');
+assert(isMoGloballyEnabled({ metadata: { mo_enabled: false } }) === false, 'mo_enabled false pauses');
+assert(isMoGloballyEnabled({}) === true, 'missing metadata defaults enabled');
+
+function shouldReplyAfterClaim({ duplicate, moEnabled, agentStatus }) {
+  if (duplicate) return false;
+  if (!moEnabled) return false;
+  if (agentStatus === 'human_active') return false;
+  return true;
+}
+assert(shouldReplyAfterClaim({ duplicate: false, moEnabled: true, agentStatus: 'ai_active' }) === true, 'reply path open');
+assert(shouldReplyAfterClaim({ duplicate: false, moEnabled: false, agentStatus: 'ai_active' }) === false, 'global pause blocks reply');
+assert(shouldReplyAfterClaim({ duplicate: false, moEnabled: true, agentStatus: 'human_active' }) === false, 'human takeover blocks reply');
+assert(shouldReplyAfterClaim({ duplicate: true, moEnabled: true, agentStatus: 'ai_active' }) === false, 'duplicate blocks reply');
+
+console.log('\nAll structural tests passed.');
