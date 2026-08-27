@@ -29,15 +29,7 @@ export const ADMIN_ROLES = {
 };
 
 // Map emails to roles
-export const ADMIN_EMAIL_ROLES: Record<string, string> = {
-  'taheeratorganic@gmail.com': 'SUPER_ADMIN',
-  'admin@busmo.io': 'SUPER_ADMIN',
-  'majnuncode@gmail.com': 'SUPER_ADMIN',
-  'sxeedtxheer@gmail.com': 'SUPER_ADMIN',
-  'ahmedusmus@gmail.com': 'SUPER_ADMIN',
-  'majnun@busmo.io': 'SUPER_ADMIN',
-  'victoria@busmo.io': 'SUPPORT_AGENT'
-};
+export { ADMIN_EMAIL_ROLES } from '@/lib/adminEmails';
 
 // Custom hook for admin authentication
 export const useAdminAuth = () => {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
-import { ADMIN_EMAIL_ROLES } from '@/lib/adminAuth';
+import { ADMIN_EMAIL_ROLES } from '@/lib/adminEmails';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

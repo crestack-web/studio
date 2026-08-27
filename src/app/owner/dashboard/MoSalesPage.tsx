@@ -584,7 +584,33 @@ export default function MoSalesPage() {
               )}
             </section>
           ) : (
-            
+            <section className={styles.card}>
+              <div className={styles.rowBetween}>
+                <h2 className={styles.cardTitle}>Recent conversations</h2>
+                <button type="button" className={styles.btnLink} onClick={() => setView('inbox')}>See all</button>
+              </div>
+              <ul className={styles.convoList}>
+                {(overview?.recentConversations || []).map((c) => {
+                  const st = statusLabel(c.agentStatus, styles);
+                  return (
+                    <li key={c.id}>
+                      <button type="button" className={styles.convoRow} onClick={() => { setView('inbox'); openThread(c); }}>
+                        <div className={styles.convoMain}>
+                          <strong>{c.customerName || formatPhone(c.customerPhone)}</strong>
+                          <span className={styles.muted}>{c.lastMessage ? `"${c.lastMessage}"` : 'No messages yet'}</span>
+                        </div>
+                        <div className={styles.convoMeta}>
+                          <span className={styles.time}>{timeAgo(c.lastMessageAt)}</span>
+                          <span className={st.cls}>{st.text}</span>
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+
           <section className={styles.card}>
             <h3 className={styles.cardTitleSm}>MO readiness</h3>
             <ul className={styles.checkList}>
@@ -654,32 +680,6 @@ export default function MoSalesPage() {
             )}
           </section>
 
-<section className={styles.card}>
-              <div className={styles.rowBetween}>
-                <h2 className={styles.cardTitle}>Recent conversations</h2>
-                <button type="button" className={styles.btnLink} onClick={() => setView('inbox')}>See all</button>
-              </div>
-              <ul className={styles.convoList}>
-                {(overview?.recentConversations || []).map((c) => {
-                  const st = statusLabel(c.agentStatus, styles);
-                  return (
-                    <li key={c.id}>
-                      <button type="button" className={styles.convoRow} onClick={() => { setView('inbox'); openThread(c); }}>
-                        <div className={styles.convoMain}>
-                          <strong>{c.customerName || formatPhone(c.customerPhone)}</strong>
-                          <span className={styles.muted}>{c.lastMessage ? `"${c.lastMessage}"` : 'No messages yet'}</span>
-                        </div>
-                        <div className={styles.convoMeta}>
-                          <span className={styles.time}>{timeAgo(c.lastMessageAt)}</span>
-                          <span className={st.cls}>{st.text}</span>
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          )}
         </>
       )}
 
