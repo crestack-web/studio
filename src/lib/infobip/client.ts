@@ -17,6 +17,8 @@ export type SendWhatsAppTextResult = {
   ok: boolean;
   messageId?: string;
   status?: string;
+  statusName?: string;
+  statusDescription?: string;
   raw?: unknown;
   error?: string;
 };
@@ -128,20 +130,51 @@ export async function sendWhatsAppText(
     const messageId =
       (raw as any)?.messageId ||
       (raw as any)?.messages?.[0]?.messageId ||
+      params.messageId ||
       undefined;
 
+    const statusObj =
+      (raw as any)?.status ||
+      (raw as any)?.messages?.[0]?.status ||
+      null;
+    const statusGroup = statusObj?.groupName || null;
+    const statusName = statusObj?.name || null;
+    const statusDescription = statusObj?.description || null;
+    const statusId = statusObj?.id ?? null;
+
+    // HTTP 200 = accepted by Infobip, NOT final WhatsApp delivery
+    console.log(
+      JSON.stringify({
+        event: 'outbound_accepted',
+        messageId,
+        clientMessageId: params.messageId || null,
+        toSuffix: to.slice(-4),
+        fromSuffix: from.slice(-4),
+        httpStatus: res.status,
+        statusGroup,
+        statusName,
+        statusDescription,
+        statusId,
+      })
+    );
+    // Keep legacy event name for existing log filters
     console.log(
       JSON.stringify({
         event: 'whatsapp_send_succeeded',
         messageId,
         toSuffix: to.slice(-4),
+        statusGroup,
+        statusName,
+        note: 'accepted_by_infobip_not_whatsapp_delivery',
       })
     );
 
     return {
       ok: true,
       messageId,
-      status: (raw as any)?.status?.groupName || (raw as any)?.status?.description,
+      status: statusGroup || statusDescription || undefined,
+      statusName: statusName || undefined,
+      statusDescription: statusDescription || undefined,
       raw,
     };
   } catch (e: any) {

@@ -189,3 +189,16 @@ assert(m0.to === '447860088970', 'messages-api destination→to');
 assert(m0.message.text.includes('messages api'), 'messages-api content text');
 
 console.log('✓ Infobip subscription/classic payload fixtures passed');
+
+function classifyDelivery(status) {
+  const groupName = String(status?.groupName || '');
+  const statusName = String(status?.name || '');
+  const upper = `${groupName} ${statusName}`.toUpperCase();
+  if (upper.includes('DELIVERED') || upper.includes('SEEN') || upper.includes('READ')) return 'succeeded';
+  if (upper.includes('REJECT') || upper.includes('UNDELIVER') || upper.includes('EXPIRED') || upper.includes('FAILED') || upper.includes('ERROR')) return 'failed';
+  return 'pending';
+}
+assert(classifyDelivery({ groupName: 'DELIVERED', name: 'DELIVERED_TO_HANDSET' }) === 'succeeded', 'delivered class');
+assert(classifyDelivery({ groupName: 'REJECTED', name: 'REJECTED_NOT_DELIVERED' }) === 'failed', 'rejected class');
+assert(classifyDelivery({ groupName: 'PENDING', name: 'PENDING_ENROUTE' }) === 'pending', 'pending class');
+console.log('✓ delivery status classification fixtures passed');

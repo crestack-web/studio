@@ -124,7 +124,54 @@ async function processInbound(raw: InboundResult): Promise<void> {
   }
 
   if (isStatusOrDeliveryEvent(item)) {
-    console.log(JSON.stringify({ event: 'webhook_received', skipped: true, reason: 'status_event', messageId }));
+    const st = (item.status && typeof item.status === 'object' ? item.status : {}) as Record<string, unknown>;
+    const groupName = String(st.groupName || '');
+    const statusName = String(st.name || '');
+    const description = String(st.description || '');
+    const toSuffix = normalizePhone(String(item.to || '')).slice(-4) || null;
+
+    console.log(
+      JSON.stringify({
+        event: 'outbound_delivery_received',
+        messageId,
+        statusGroup: groupName || null,
+        statusName: statusName || null,
+        statusDescription: description || null,
+        toSuffix,
+      })
+    );
+
+    const upper = `${groupName} ${statusName}`.toUpperCase();
+    if (upper.includes('DELIVERED') || upper.includes('SEEN') || upper.includes('READ')) {
+      console.log(
+        JSON.stringify({
+          event: 'outbound_delivery_succeeded',
+          messageId,
+          statusGroup: groupName || null,
+          statusName: statusName || null,
+          statusDescription: description || null,
+          toSuffix,
+        })
+      );
+    } else if (
+      upper.includes('REJECT') ||
+      upper.includes('UNDELIVER') ||
+      upper.includes('EXPIRED') ||
+      upper.includes('FAILED') ||
+      upper.includes('ERROR')
+    ) {
+      console.log(
+        JSON.stringify({
+          event: 'outbound_delivery_failed',
+          messageId,
+          statusGroup: groupName || null,
+          statusName: statusName || null,
+          statusDescription: description || null,
+          toSuffix,
+        })
+      );
+    }
+    // Never run MO on delivery/status callbacks
     return;
   }
 
