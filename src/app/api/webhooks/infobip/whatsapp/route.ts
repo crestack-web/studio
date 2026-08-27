@@ -1,16 +1,20 @@
 /**
  * Infobip WhatsApp inbound webhook
  * POST /api/webhooks/infobip/whatsapp
+ *
+ * Idempotency: unique claim insert on (provider, provider_message_id) is the source of truth.
+ * Business isolation: business_id only from whatsapp_connections.sender mapping.
  */
 import { NextRequest, NextResponse } from 'next/server';
-import { sendWhatsAppText, normalizePhone } from '@/lib/infobip/client';
+import { sendWhatsAppText, normalizePhone, isInfobipConfigured } from '@/lib/infobip/client';
 import {
   resolveBusinessBySender,
   getOrCreateConversation,
-  isProviderMessageProcessed,
-  insertMessage,
+  claimInboundMessage,
+  insertOutboundMessage,
   updateMessageStatus,
   getRecentMessages,
+  getConversationAgentStatus,
 } from '@/lib/services/whatsapp/conversation-store';
 import { generateSalesReply } from '@/lib/services/whatsapp/mo-sales-agent';
 
@@ -26,6 +30,9 @@ type InboundResult = {
   message?: { type?: string; text?: string; caption?: string };
   contact?: { name?: string; phoneNumber?: string };
   status?: unknown;
+  doneAt?: string;
+  sentAt?: string;
+  bulkId?: string;
 };
 
 function verifyWebhookSecret(req: NextRequest): boolean {
@@ -36,32 +43,54 @@ function verifyWebhookSecret(req: NextRequest): boolean {
     req.headers.get('x-infobip-signature') ||
     req.headers.get('x-webhook-secret') ||
     '';
-  if (header === secret) return true;
-  if (header === `App ${secret}`) return true;
-  if (header === `Bearer ${secret}`) return true;
-  return false;
+  return (
+    header === secret ||
+    header === `App ${secret}` ||
+    header === `Bearer ${secret}`
+  );
 }
 
 function extractInboundMessages(body: any): InboundResult[] {
-  if (!body) return [];
+  if (!body || typeof body !== 'object') return [];
   if (Array.isArray(body.results)) return body.results as InboundResult[];
   if (body.result) return [body.result as InboundResult];
   if (body.messageId || body.message) return [body as InboundResult];
   return [];
 }
 
-async function processInbound(item: InboundResult): Promise<void> {
-  const messageId = item.messageId || '';
-  const msgType = (item.message?.type || '').toUpperCase();
-  const text = item.message?.text || item.message?.caption || '';
+function isStatusOrDeliveryEvent(item: InboundResult): boolean {
+  if (item.status && !item.message) return true;
+  if (item.doneAt && !item.message) return true;
+  if (
+    item.status &&
+    typeof item.status === 'object' &&
+    ('groupName' in (item.status as object) || 'groupId' in (item.status as object))
+  ) {
+    return true;
+  }
+  return false;
+}
 
-  if (!messageId) return;
-  if (item.status && !item.message) return;
-  if (msgType && msgType !== 'TEXT' && !text) {
-    console.log(JSON.stringify({ event: 'webhook_received', skipped: true, reason: 'non_text', messageId, type: msgType }));
+async function processInbound(item: InboundResult): Promise<void> {
+  const messageId = String(item.messageId || '').trim();
+  if (!messageId) {
+    console.log(JSON.stringify({ event: 'webhook_received', skipped: true, reason: 'missing_message_id' }));
     return;
   }
-  if (!text?.trim()) {
+
+  if (isStatusOrDeliveryEvent(item)) {
+    console.log(JSON.stringify({ event: 'webhook_received', skipped: true, reason: 'status_event', messageId }));
+    return;
+  }
+
+  const msgType = String(item.message?.type || '').toUpperCase();
+  const text = String(item.message?.text || item.message?.caption || '').trim();
+
+  if (msgType && msgType !== 'TEXT') {
+    console.log(JSON.stringify({ event: 'webhook_received', skipped: true, reason: 'unsupported_type', type: msgType, messageId }));
+    return;
+  }
+  if (!text) {
     console.log(JSON.stringify({ event: 'webhook_received', skipped: true, reason: 'empty_text', messageId }));
     return;
   }
@@ -75,12 +104,11 @@ async function processInbound(item: InboundResult): Promise<void> {
     type: msgType || 'TEXT',
     fromSuffix: customerPhone.slice(-4),
     toSuffix: businessSender.slice(-4),
+    textLen: text.length,
   }));
 
-  if (!customerPhone || !businessSender) return;
-
-  if (await isProviderMessageProcessed(messageId)) {
-    console.log(JSON.stringify({ event: 'webhook_received', duplicate: true, messageId }));
+  if (!customerPhone || !businessSender) {
+    console.log(JSON.stringify({ event: 'webhook_received', skipped: true, reason: 'missing_phone', messageId }));
     return;
   }
 
@@ -90,6 +118,7 @@ async function processInbound(item: InboundResult): Promise<void> {
       event: 'conversation_resolved',
       error: 'no_business_for_sender',
       senderSuffix: businessSender.slice(-4),
+      messageId,
     }));
     return;
   }
@@ -104,67 +133,102 @@ async function processInbound(item: InboundResult): Promise<void> {
     businessId: connection.business_id,
     conversationId: conversation.id,
     agentStatus: conversation.agent_status,
+    messageId,
   }));
 
-  const inbound = await insertMessage({
+  const claim = await claimInboundMessage({
     conversationId: conversation.id,
     businessId: connection.business_id,
     providerMessageId: messageId,
-    direction: 'inbound',
     messageType: (msgType || 'TEXT').toLowerCase(),
-    messageText: text.trim(),
-    processingStatus: 'received',
+    messageText: text.slice(0, 4000),
     metadata: {
       receivedAt: item.receivedAt,
       integrationType: item.integrationType,
-      contactName: item.contact?.name,
+      contactName: item.contact?.name ? String(item.contact.name).slice(0, 80) : undefined,
     },
   });
 
-  if (inbound.duplicate) {
-    console.log(JSON.stringify({ event: 'message_persisted', duplicate: true, messageId }));
+  if (claim.duplicate) {
+    console.log(JSON.stringify({
+      event: 'message_persisted',
+      duplicate: true,
+      messageId,
+      businessId: connection.business_id,
+    }));
     return;
   }
 
-  console.log(JSON.stringify({ event: 'message_persisted', direction: 'inbound', id: inbound.id, messageId }));
-
-  if (conversation.agent_status === 'human_active') {
-    await updateMessageStatus(inbound.id, 'skipped', { reason: 'human_active' });
-    console.log(JSON.stringify({ event: 'mo_started', skipped: true, reason: 'human_active', conversationId: conversation.id }));
-    return;
-  }
-
-  const history = await getRecentMessages(conversation.id, 12);
-  const reply = await generateSalesReply({
+  console.log(JSON.stringify({
+    event: 'message_persisted',
+    direction: 'inbound',
+    id: claim.id,
+    messageId,
     businessId: connection.business_id,
-    customerMessage: text.trim(),
-    history: history.slice(0, -1),
+  }));
+
+  const agentStatus = await getConversationAgentStatus(conversation.id);
+  if (agentStatus === 'human_active') {
+    await updateMessageStatus(claim.id, 'skipped', { reason: 'human_active' });
+    console.log(JSON.stringify({
+      event: 'mo_started',
+      skipped: true,
+      reason: 'human_active',
+      conversationId: conversation.id,
+      messageId,
+    }));
+    return;
+  }
+
+  if (!isInfobipConfigured()) {
+    await updateMessageStatus(claim.id, 'failed', { error: 'infobip_not_configured' });
+    console.error(JSON.stringify({ event: 'whatsapp_send_failed', error: 'infobip_not_configured' }));
+    return;
+  }
+
+  const history = await getRecentMessages(conversation.id, connection.business_id, 12);
+  const prior = history.slice(0, -1);
+
+  const mo = await generateSalesReply({
+    businessId: connection.business_id,
+    customerMessage: text,
+    history: prior,
   });
 
-  const outbound = await insertMessage({
+  if (!mo.ok) {
+    await updateMessageStatus(claim.id, 'failed', { error: mo.error || 'mo_failed' });
+  } else {
+    await updateMessageStatus(claim.id, 'received', { moOk: true });
+  }
+
+  const replyText = mo.reply;
+  const clientMessageId = `busmo-out-${messageId}`.slice(0, 200);
+
+  const outbound = await insertOutboundMessage({
     conversationId: conversation.id,
     businessId: connection.business_id,
-    direction: 'outbound',
-    messageType: 'text',
-    messageText: reply,
-    processingStatus: 'processing',
-    metadata: { inReplyTo: messageId },
+    clientMessageId,
+    messageText: replyText,
+    metadata: { inReplyTo: messageId, moOk: mo.ok },
   });
 
   const sendResult = await sendWhatsAppText({
     from: businessSender,
     to: customerPhone,
-    text: reply,
+    text: replyText,
+    messageId: clientMessageId,
   });
 
   if (sendResult.ok) {
-    await updateMessageStatus(outbound.id, 'sent', {
-      providerMessageId: sendResult.messageId,
-      infobipStatus: sendResult.status,
-    });
+    await updateMessageStatus(
+      outbound.id,
+      'sent',
+      { infobipStatus: sendResult.status },
+      { setSentAt: true, providerMessageId: sendResult.messageId || clientMessageId }
+    );
   } else {
     await updateMessageStatus(outbound.id, 'failed', {
-      error: sendResult.error,
+      error: sendResult.error || 'send_failed',
     });
   }
 }
@@ -175,9 +239,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await req.json().catch(() => null);
-    const items = extractInboundMessages(body);
+    let body: unknown = null;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ ok: true, processed: 0, note: 'invalid_json' });
+    }
 
+    const items = extractInboundMessages(body);
     if (!items.length) {
       return NextResponse.json({ ok: true, processed: 0 });
     }
@@ -205,9 +274,6 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     service: 'infobip-whatsapp-webhook',
-    configured: Boolean(
-      process.env.INFOBIP_API_KEY &&
-        (process.env.INFOBIP_BASE_URL || process.env.INFOBIP_API_BASE_URL)
-    ),
+    configured: isInfobipConfigured(),
   });
 }
