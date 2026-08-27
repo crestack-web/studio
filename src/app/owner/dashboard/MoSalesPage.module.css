@@ -703,3 +703,64 @@
     max-height: min(50vh, 360px);
   }
 }
+
+
+.betaBanner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(109, 40, 217, 0.2);
+  background: rgba(109, 40, 217, 0.06);
+  font-size: 0.875rem;
+  color: var(--text-2);
+}
+.betaBanner strong {
+  color: var(--text-1);
+  margin-right: 6px;
+}
+
+.pillPaused {
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.testReply {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--bg-2, #f3f4f6);
+  border: 1px solid var(--border, #e5e7eb);
+}
+.testReply strong {
+  display: block;
+  font-size: 0.8rem;
+  margin-bottom: 6px;
+  color: var(--text-3);
+}
+.testReply p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--text-1);
+  white-space: pre-wrap;
+}
+
+/* Stronger "Needs you" in inbox */
+.stYou {
+  background: rgba(239, 68, 68, 0.14) !important;
+  color: #b91c1c !important;
+  font-weight: 800 !important;
+}
+.convoRow:has(.stYou),
+.convoRowActive:has(.stYou) {
+  border-left: 3px solid #ef4444;
+}

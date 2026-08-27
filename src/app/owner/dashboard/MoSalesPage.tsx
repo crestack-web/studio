@@ -88,7 +88,7 @@ function timeAgo(iso: string | null) {
 }
 
 function statusLabel(agentStatus: string, stylesMap: typeof styles) {
-  if (agentStatus === 'human_active') return { text: 'You are handling', cls: stylesMap.stYou };
+  if (agentStatus === 'human_active') return { text: 'Needs you', cls: stylesMap.stYou };
   return { text: 'MO handling', cls: stylesMap.stMo };
 }
 
@@ -136,6 +136,12 @@ export default function MoSalesPage() {
   const [maxDiscount, setMaxDiscount] = useState(0);
   const [allowNegotiate, setAllowNegotiate] = useState(false);
   const [humanHandoff, setHumanHandoff] = useState(true);
+
+  const [betaDismissed, setBetaDismissed] = useState(false);
+  const [testQuestion, setTestQuestion] = useState('Do you have black sneakers?');
+  const [testReply, setTestReply] = useState<string | null>(null);
+  const [testLoading, setTestLoading] = useState(false);
+
 
   const loadOverview = useCallback(async () => {
     if (!businessId) return;
@@ -277,8 +283,33 @@ export default function MoSalesPage() {
     }
   };
 
-  const connected = overview?.connection?.status === 'active';
-  const pending = overview?.connection?.status === 'pending';
+
+  const runTestMo = async () => {
+    if (!businessId || !testQuestion.trim()) return;
+    setTestLoading(true);
+    setTestReply(null);
+    try {
+      const headers = await authHeaders();
+      const res = await fetch('/api/mo-sales/test', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ businessId, message: testQuestion.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Test failed');
+      setTestReply(json.reply || 'No response');
+    } catch (e: any) {
+      setTestReply(null);
+      showToast(e?.message || 'Could not test MO');
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
+  const connStatus = overview?.connection?.status || '';
+  const connected = connStatus === 'active';
+  const pending = connStatus === 'pending';
+  const failed = connStatus === 'failed';
   const moOn = Boolean(connected && overview?.connection?.moEnabled);
 
   if (!businessId) {
@@ -367,9 +398,12 @@ export default function MoSalesPage() {
             </button>
           )}
           {connected && !moOn && (
-            <button type="button" className={styles.btnPrimary} disabled={saving} onClick={() => patchSettings({ moEnabled: true })}>
-              Turn MO On
-            </button>
+            <>
+              <span className={styles.pillPaused}>MO is paused</span>
+              <button type="button" className={styles.btnPrimary} disabled={saving} onClick={() => patchSettings({ moEnabled: true })}>
+                Turn MO on
+              </button>
+            </>
           )}
           {connected && moOn && (
             <button
@@ -387,6 +421,16 @@ export default function MoSalesPage() {
           )}
         </div>
       </header>
+
+      {!betaDismissed && (
+        <div className={styles.betaBanner} role="note">
+          <div>
+            <strong>MO Sales is currently in beta.</strong>
+            <span className={styles.muted}> We&apos;re working closely with a small number of businesses to make MO even better.</span>
+          </div>
+          <button type="button" className={styles.btnGhost} onClick={() => setBetaDismissed(true)}>Dismiss</button>
+        </div>
+      )}
 
       <nav className={styles.tabs} aria-label="MO Sales sections">
         {(['home', 'inbox', 'settings'] as View[]).map((v) => (
@@ -421,11 +465,29 @@ export default function MoSalesPage() {
             )}
             {pending && (
               <>
-                <h2 className={styles.cardTitle}>WhatsApp setup in progress</h2>
+                <h2 className={styles.cardTitle}>Setup in progress</h2>
+                <p className={styles.statusLine}><span className={styles.dotAmber} /> Pending</p>
+                <p className={styles.muted}>We&apos;re connecting your WhatsApp to MO.</p>
                 <p className={styles.muted}>
-                  Number submitted: <strong>{formatPhone(overview?.connection?.sender || '')}</strong>
+                  Number: <strong>{formatPhone(overview?.connection?.sender || '')}</strong>
                 </p>
-                <p className={styles.muted}>Busmo is finishing the connection. You will see Connected when it is live.</p>
+                <p className={styles.muted}>
+                  This usually requires a quick setup on our side. We&apos;ll let you know when MO is ready.
+                  WhatsApp is not connected until status is Active.
+                </p>
+              </>
+            )}
+            {failed && (
+              <>
+                <h2 className={styles.cardTitle}>We couldn&apos;t complete your WhatsApp setup</h2>
+                <p className={styles.statusLine}><span className={styles.dotAmber} /> Failed</p>
+                <p className={styles.muted}>
+                  Please try connecting again or contact support so we can finish setup for you.
+                </p>
+                <button type="button" className={`${styles.btnPrimary} ${styles.btnWhatsApp}`} onClick={() => setConnectOpen(true)}>
+                  <WhatsAppIcon className={styles.waIcon} />
+                  Try again
+                </button>
               </>
             )}
             {connected && (
@@ -522,7 +584,77 @@ export default function MoSalesPage() {
               )}
             </section>
           ) : (
-            <section className={styles.card}>
+            
+          <section className={styles.card}>
+            <h3 className={styles.cardTitleSm}>MO readiness</h3>
+            <ul className={styles.checkList}>
+              <li>{connected ? '✓' : '○'} WhatsApp connection {connected ? 'active' : pending ? 'pending' : 'not connected'}</li>
+              <li>{(overview?.productReadiness.activeProducts || 0) > 0 ? '✓' : '○'} Products available ({overview?.productReadiness.activeProducts || 0})</li>
+              <li>
+                {(overview?.productReadiness.missingPrice || 0) === 0 && (overview?.productReadiness.activeProducts || 0) > 0 ? '✓' : '○'}{' '}
+                {(overview?.productReadiness.missingPrice || 0) === 0
+                  ? 'Products have prices'
+                  : `${overview?.productReadiness.missingPrice} products need prices`}
+              </li>
+              <li>✓ Inventory information available where set on products</li>
+            </ul>
+            {connected && (overview?.productReadiness.missingPrice || 0) > 0 && (
+              <>
+                <p className={styles.muted} style={{ marginTop: 8 }}>
+                  MO isn&apos;t fully ready yet — fix product prices so MO can answer accurately.
+                </p>
+                <button type="button" className={styles.btnLink} onClick={() => navigateTo('inventory' as any)}>
+                  Fix products
+                </button>
+              </>
+            )}
+          </section>
+
+          <section className={styles.card}>
+            <h3 className={styles.cardTitleSm}>MO can</h3>
+            <ul className={styles.checkList}>
+              <li>✓ Answer product questions</li>
+              <li>✓ Check available products</li>
+              <li>✓ Explain prices (when set)</li>
+              <li>✓ Handle common objections</li>
+              <li>✓ Recommend products from your catalog</li>
+              <li>✓ Continue conversations naturally</li>
+              <li>✓ Hand conversations back to you</li>
+            </ul>
+            <p className={styles.muted} style={{ marginTop: 8 }}>
+              MO cannot take payments, create orders, or arrange delivery yet.
+            </p>
+          </section>
+
+          <section className={styles.card}>
+            <h3 className={styles.cardTitleSm}>Test MO</h3>
+            <p className={styles.muted}>
+              See how MO would respond to your customers using your real products.
+              This is a preview — it won&apos;t send a message to anyone.
+            </p>
+            <input
+              className={styles.search}
+              value={testQuestion}
+              onChange={(e) => setTestQuestion(e.target.value)}
+              placeholder="e.g. Do you have black sneakers?"
+            />
+            <button
+              type="button"
+              className={styles.btnPrimary}
+              disabled={testLoading || !testQuestion.trim()}
+              onClick={runTestMo}
+            >
+              {testLoading ? 'Asking MO…' : 'Run test'}
+            </button>
+            {testReply && (
+              <div className={styles.testReply}>
+                <strong>MO says</strong>
+                <p>{testReply}</p>
+              </div>
+            )}
+          </section>
+
+<section className={styles.card}>
               <div className={styles.rowBetween}>
                 <h2 className={styles.cardTitle}>Recent conversations</h2>
                 <button type="button" className={styles.btnLink} onClick={() => setView('inbox')}>See all</button>

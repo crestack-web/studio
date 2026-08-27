@@ -113,11 +113,12 @@ export async function GET(req: NextRequest) {
 
     const connected = Boolean(connection && connection.status === 'active');
     const pending = Boolean(connection && connection.status === 'pending');
+    const failed = Boolean(connection && connection.status === 'failed');
 
     let health: 'healthy' | 'needs_attention' | 'not_connected' = 'not_connected';
     if (connected && moEnabled) health = missingPrice > 0 ? 'needs_attention' : 'healthy';
     else if (connected && !moEnabled) health = 'needs_attention';
-    else if (pending) health = 'needs_attention';
+    else if (pending || failed) health = 'needs_attention';
 
     return NextResponse.json({
       connection: connection
