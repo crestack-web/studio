@@ -9,6 +9,7 @@ export type SendWhatsAppTextParams = {
   from: string;
   to: string;
   text: string;
+  /** Client-supplied message id (Infobip may use for correlation) */
   messageId?: string;
 };
 
@@ -79,7 +80,7 @@ export async function sendWhatsAppText(
     console.log(
       JSON.stringify({
         event: 'whatsapp_send_started',
-        from,
+        fromSuffix: from.slice(-4),
         toSuffix: to.slice(-4),
         textLen: params.text.length,
       })
