@@ -1,6 +1,11 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
+import {
+  launchWhatsAppEmbeddedSignup,
+  mapEmbeddedSignupError,
+  type EmbeddedSignupPublicConfig,
+} from '@/lib/meta/embedded-signup-client';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { getSupabase } from '@/lib/supabase';
@@ -142,6 +147,8 @@ export default function MoSalesPage() {
   const [testReply, setTestReply] = useState<string | null>(null);
   const [testLoading, setTestLoading] = useState(false);
   const [embeddedConfigured, setEmbeddedConfigured] = useState(false);
+  const [embeddedConfig, setEmbeddedConfig] = useState<EmbeddedSignupPublicConfig | null>(null);
+  const [onboardingPhase, setOnboardingPhase] = useState<string | null>(null);
   const [onboardingBusy, setOnboardingBusy] = useState(false);
   const [onboardingHint, setOnboardingHint] = useState<string | null>(null);
 
@@ -168,7 +175,10 @@ export default function MoSalesPage() {
           { headers }
         );
         const stJson = await st.json().catch(() => ({}));
-        if (st.ok) setEmbeddedConfigured(Boolean(stJson?.embeddedSignup?.configured));
+        if (st.ok) {
+          setEmbeddedConfigured(Boolean(stJson?.embeddedSignup?.configured));
+          if (stJson?.embeddedSignup) setEmbeddedConfig(stJson.embeddedSignup as EmbeddedSignupPublicConfig);
+        }
       } catch {
         /* non-fatal */
       }
@@ -880,9 +890,16 @@ export default function MoSalesPage() {
               <li>Verify your phone number</li>
               <li>Give Busmo permission to manage messaging</li>
             </ul>
+            {onboardingPhase && (
+              <p className={styles.muted} role="status" aria-live="polite">
+                <strong>{onboardingPhase}</strong>
+              </p>
+            )}
             {onboardingHint && <p className={styles.muted}>{onboardingHint}</p>}
             <div className={styles.modalActions}>
-              <button type="button" className={styles.btnGhost} onClick={() => setConnectOpen(false)}>Cancel</button>
+              <button type="button" className={styles.btnGhost} onClick={() => setConnectOpen(false)} disabled={onboardingBusy}>
+                Cancel
+              </button>
               <button
                 type="button"
                 className={`${styles.btnPrimary} ${styles.btnWhatsApp}`}
@@ -891,6 +908,7 @@ export default function MoSalesPage() {
                   if (!businessId) return;
                   setOnboardingBusy(true);
                   setOnboardingHint(null);
+                  setOnboardingPhase('Starting secure connection…');
                   try {
                     const headers = await authHeaders();
                     const res = await fetch('/api/mo-sales/whatsapp/onboarding/start', {
@@ -898,37 +916,143 @@ export default function MoSalesPage() {
                       headers,
                       body: JSON.stringify({ businessId }),
                     });
-                    const json = await res.json();
+                    const json = await res.json().catch(() => ({}));
                     if (res.status === 503 || json.error === 'embedded_signup_not_configured') {
+                      setOnboardingPhase(null);
                       setOnboardingHint(
-                        'Meta Embedded Signup is not enabled for Busmo yet. You can request manual beta setup below, or contact support.'
+                        'Meta Embedded Signup is not enabled for Busmo yet (Meta app + configuration ID required). Use manual beta setup below, or contact support.'
                       );
                       return;
                     }
-                    if (!res.ok) throw new Error(json.error || json.message || 'Could not start');
+                    if (!res.ok) throw new Error(json.error || json.message || 'Could not start onboarding');
+
+                    const cfg = (json.config || embeddedConfig) as EmbeddedSignupPublicConfig;
+                    if (!cfg?.metaAppId || !cfg?.metaConfigId) {
+                      setOnboardingPhase(null);
+                      setOnboardingHint('Embedded Signup config incomplete. Contact support.');
+                      return;
+                    }
+
+                    setOnboardingPhase('Opening Meta signup… Complete the steps in the popup.');
+                    let loginResult;
+                    try {
+                      loginResult = await launchWhatsAppEmbeddedSignup(cfg);
+                    } catch (launchErr) {
+                      const mapped = mapEmbeddedSignupError(launchErr);
+                      // User cancelled / closed
+                      await fetch('/api/mo-sales/whatsapp/onboarding/callback', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({ businessId, event: 'CANCEL' }),
+                      }).catch(() => {});
+                      setOnboardingPhase(null);
+                      setOnboardingHint(mapped);
+                      return;
+                    }
+
+                    const session = loginResult.session;
+                    if (session?.event && String(session.event).toUpperCase().includes('CANCEL')) {
+                      await fetch('/api/mo-sales/whatsapp/onboarding/callback', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({ businessId, event: 'CANCEL' }),
+                      });
+                      setOnboardingPhase(null);
+                      setOnboardingHint('Signup cancelled. You can try again when ready.');
+                      return;
+                    }
+
+                    if (!session?.wabaId) {
+                      setOnboardingPhase(null);
+                      setOnboardingHint(
+                        'Meta did not return a WhatsApp Business Account ID. Finish every step in the Meta window (including phone verification), then try again.'
+                      );
+                      return;
+                    }
+
+                    setOnboardingPhase('Registering WhatsApp sender with Infobip…');
+                    const cbRes = await fetch('/api/mo-sales/whatsapp/onboarding/callback', {
+                      method: 'POST',
+                      headers,
+                      body: JSON.stringify({
+                        businessId,
+                        event: 'FINISH',
+                        wabaId: session.wabaId,
+                        phoneNumberId: session.phoneNumberId,
+                        metaBusinessId: session.metaBusinessId,
+                        displayPhoneNumber: session.displayPhoneNumber,
+                        // Auth code is not a long-lived secret; still never log it. Server may ignore.
+                        hasAuthCode: Boolean(loginResult.login?.authResponse?.code),
+                      }),
+                    });
+                    const cbJson = await cbRes.json().catch(() => ({}));
+                    if (cbRes.status === 409 || cbJson.error === 'number_belongs_to_another_business') {
+                      setOnboardingPhase(null);
+                      setOnboardingHint(
+                        'This WhatsApp number is already connected to another Busmo business. Use a different number or contact support.'
+                      );
+                      return;
+                    }
+                    if (!cbRes.ok || cbJson.ok === false) {
+                      setOnboardingPhase(null);
+                      setOnboardingHint(
+                        cbJson.message ||
+                          cbJson.error ||
+                          'Infobip registration failed. Please try again or contact support.'
+                      );
+                      return;
+                    }
+
+                    setOnboardingPhase('Finishing setup… waiting for provider confirmation');
                     setOnboardingHint(
-                      'Connecting WhatsApp… Finish the Meta window when it opens. We will mark you Connected only after the provider confirms the sender.'
+                      cbJson.message ||
+                        'Registration submitted. WhatsApp will show as Connected only after the provider confirms the sender is ready.'
                     );
-                    // Meta FB.login / Embedded Signup requires META app config + FB SDK.
-                    // Until public config is live, surface clear next step without fake success.
-                    if (json.config?.metaAppId && typeof window !== 'undefined') {
-                      showToast('Complete signup in Meta when prompted. Status will update when registration finishes.');
+
+                    // Poll status a few times (does not claim Connected early)
+                    for (let i = 0; i < 5; i++) {
+                      await new Promise((r) => setTimeout(r, 2000));
+                      await loadOverview();
+                      const stRes = await fetch(
+                        `/api/mo-sales/whatsapp/onboarding/status?businessId=${encodeURIComponent(businessId)}`,
+                        { headers }
+                      );
+                      const stJson = await stRes.json().catch(() => ({}));
+                      const os = stJson?.connection?.onboardingStatus;
+                      if (os === 'active') {
+                        setOnboardingPhase('WhatsApp connected');
+                        setOnboardingHint(null);
+                        showToast('WhatsApp connected. You can turn MO on.');
+                        setConnectOpen(false);
+                        break;
+                      }
+                      if (os === 'failed') {
+                        setOnboardingPhase(null);
+                        setOnboardingHint(stJson?.connection?.error || 'Registration failed.');
+                        break;
+                      }
+                      setOnboardingPhase(
+                        os === 'sender_registration_pending'
+                          ? 'Sender registration pending…'
+                          : 'Verifying with provider…'
+                      );
                     }
                     await loadOverview();
                   } catch (e: any) {
-                    setOnboardingHint(e?.message || 'Could not start WhatsApp connection');
+                    setOnboardingPhase(null);
+                    setOnboardingHint(e?.message || 'Could not connect WhatsApp');
                   } finally {
                     setOnboardingBusy(false);
                   }
                 }}
               >
                 <WhatsAppIcon className={styles.waIcon} />
-                {onboardingBusy ? 'Starting…' : 'Continue with Facebook'}
+                {onboardingBusy ? 'Working…' : 'Continue with Facebook'}
               </button>
             </div>
             <hr style={{ border: 'none', borderTop: '1px solid var(--border, #e5e7eb)', margin: '16px 0' }} />
             <p className={styles.muted}>
-              Manual beta setup (operator-assisted trial numbers only):
+              Manual beta setup (operator-assisted trial numbers only, including the Infobip trial sender):
             </p>
             <input
               className={styles.search}

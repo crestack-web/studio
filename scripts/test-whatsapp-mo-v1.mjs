@@ -226,3 +226,22 @@ assert(senderConflict({ business_id: 'A', status: 'active' }, 'A') === false, 's
 assert(senderConflict({ business_id: 'A', status: 'pending' }, 'B') === false, 'pending not conflict');
 
 console.log('✓ onboarding state / multi-tenant isolation fixtures passed');
+
+// Callback validation (mirrors server rules)
+function validateCallbackBody(body) {
+  if (!body || typeof body !== 'object') return { ok: false, error: 'invalid_body' };
+  const event = String(body.event || 'FINISH').toUpperCase();
+  if (['CANCEL', 'CANCELLED', 'USER_CANCELLED'].includes(event)) return { ok: true };
+  const wabaId = String(body.wabaId || body.businessAccountId || '').trim();
+  if (!wabaId) return { ok: false, error: 'wabaId required from Embedded Signup result' };
+  if (wabaId.length > 64 || !/^[0-9A-Za-z._-]+$/.test(wabaId)) {
+    return { ok: false, error: 'invalid_waba_id' };
+  }
+  return { ok: true };
+}
+assert(validateCallbackBody({ event: 'CANCEL' }).ok === true, 'cancel ok');
+assert(validateCallbackBody({ event: 'FINISH' }).ok === false, 'finish without waba rejected');
+assert(validateCallbackBody({ event: 'FINISH', wabaId: '1234567890' }).ok === true, 'finish with waba ok');
+assert(validateCallbackBody({ event: 'FINISH', wabaId: 'bad id!' }).ok === false, 'invalid waba rejected');
+assert(validateCallbackBody(null).ok === false, 'null body rejected');
+console.log('✓ embedded signup callback validation fixtures passed');

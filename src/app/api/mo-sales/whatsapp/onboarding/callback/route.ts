@@ -7,6 +7,18 @@ import { normalizePhone } from '@/lib/infobip/client';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+function validateCallbackBody(body: any): { ok: true } | { ok: false; error: string } {
+  if (!body || typeof body !== 'object') return { ok: false, error: 'invalid_body' };
+  const event = String(body.event || 'FINISH').toUpperCase();
+  if (['CANCEL', 'CANCELLED', 'USER_CANCELLED'].includes(event)) return { ok: true };
+  const wabaId = String(body.wabaId || body.businessAccountId || '').trim();
+  if (!wabaId) return { ok: false, error: 'wabaId required from Embedded Signup result' };
+  if (wabaId.length > 64 || !/^[0-9A-Za-z._-]+$/.test(wabaId)) {
+    return { ok: false, error: 'invalid_waba_id' };
+  }
+  return { ok: true };
+}
+
 /**
  * Process Embedded Signup completion from the authenticated merchant session.
  * Client may pass WABA / phone identifiers returned by Meta JS SDK; ownership is
@@ -24,8 +36,13 @@ export async function POST(req: NextRequest) {
     const access = await assertBusinessAccess(user.id, businessId);
     if (!access.ok) return NextResponse.json({ error: access.reason }, { status: 403 });
 
+    const validation = validateCallbackBody(body);
+    if (!validation.ok) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+
     const event = String(body.event || 'FINISH').toUpperCase();
-    if (event === 'CANCEL' || event === 'CANCELLED') {
+    if (event === 'CANCEL' || event === 'CANCELLED' || event === 'USER_CANCELLED') {
       const admin = getSupabaseAdmin();
       await admin
         .from('whatsapp_connections')
