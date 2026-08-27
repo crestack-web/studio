@@ -130,11 +130,12 @@ async function processInbound(item: InboundResult): Promise<void> {
   });
 
   console.log(JSON.stringify({
-    event: 'conversation_resolved',
+    event: 'business_resolved',
     businessId: connection.business_id,
     conversationId: conversation.id,
     agentStatus: conversation.agent_status,
     messageId,
+    senderSuffix: businessSender.slice(-4),
   }));
 
   const claim = await claimInboundMessage({
@@ -152,7 +153,7 @@ async function processInbound(item: InboundResult): Promise<void> {
 
   if (claim.duplicate) {
     console.log(JSON.stringify({
-      event: 'message_persisted',
+      event: 'message_claimed',
       duplicate: true,
       messageId,
       businessId: connection.business_id,
@@ -161,7 +162,7 @@ async function processInbound(item: InboundResult): Promise<void> {
   }
 
   console.log(JSON.stringify({
-    event: 'message_persisted',
+    event: 'message_claimed',
     direction: 'inbound',
     id: claim.id,
     messageId,
@@ -219,6 +220,8 @@ async function processInbound(item: InboundResult): Promise<void> {
   const replyText = mo.reply;
   const clientMessageId = `busmo-out-${messageId}`.slice(0, 200);
 
+  // Free-form text only for customer-initiated inbound TEXT (opens/resets 24h care window).
+  // Do not use template API here. Outside-window proactive sends are out of scope for V1.
   const outbound = await insertOutboundMessage({
     conversationId: conversation.id,
     businessId: connection.business_id,
