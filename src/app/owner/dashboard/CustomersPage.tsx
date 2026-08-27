@@ -201,132 +201,427 @@ export default function CustomersPage() {
     setShowAddModal(true);
   };
 
+  const handleViewTransactions = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    loadCustomerTransactions(customer.id);
+    setShowTransactionsModal(true);
+  };
+
   const resetForm = () => {
     setFormData({ name: '', email: '', phone: '', address: '', city: '', notes: '' });
   };
 
-  const filteredCustomers = customers.filter(c => {
-    const q = searchQuery.toLowerCase();
+  const filteredCustomers = customers.filter(customer => {
     const matchesSearch =
-      !q ||
-      c.name.toLowerCase().includes(q) ||
-      (c.email || '').toLowerCase().includes(q) ||
-      (c.phone || '').includes(q);
+      customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      customer.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      customer.phone?.includes(searchQuery);
     const matchesStatus =
       filterStatus === 'all' ||
-      (filterStatus === 'active' && c.active) ||
-      (filterStatus === 'inactive' && !c.active);
+      (filterStatus === 'active' && customer.active) ||
+      (filterStatus === 'inactive' && !customer.active);
     return matchesSearch && matchesStatus;
   });
 
+  const calculateTotalRevenue = () =>
+    customers.reduce((total, customer) => total + (customer.totalSpent || 0), 0);
+  const calculateTotalCredit = () =>
+    customers.reduce((total, customer) => total + (customer.creditBalance || 0), 0);
+  const getTopCustomers = () =>
+    [...customers].sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 5);
+
   if (isLoading) {
-    return <div className={styles.page}><div className={styles.loading}>Loading customers...</div></div>;
+    return (
+      <div className={styles.loadingState}>
+        <div className="text-center">
+          <div className={styles.loadingSpinner}></div>
+          <p className={styles.loadingText}>Loading customers...</p>
+        </div>
+      </div>
+    );
   }
 
+  const totalRevenue = calculateTotalRevenue();
+  const totalCredit = calculateTotalCredit();
+  const topCustomers = getTopCustomers();
+
   return (
-    <div className={styles.page}>
-      <div className={styles.header}>
+    <div className={styles.wrapper}>
+      <div className={styles.pageHeader}>
         <div>
-          <h1 className={styles.title}>Customers</h1>
-          <p className={styles.subtitle}>Manage your customer directory</p>
+          <h1 className={styles.pageTitle}>Customer Management</h1>
+          <p className={styles.pageDesc}>Manage your customer relationships and history</p>
         </div>
-        <button className={styles.primaryBtn} onClick={() => { resetForm(); setEditingCustomer(null); setShowAddModal(true); }}>
-          <Plus size={18} /> Add Customer
+        <button
+          onClick={() => {
+            resetForm();
+            setEditingCustomer(null);
+            setShowAddModal(true);
+          }}
+          className={styles.addButton}
+        >
+          <Plus size={20} />
+          Add Customer
         </button>
       </div>
 
-      <div className={styles.toolbar}>
-        <div className={styles.searchBox}>
-          <Search size={16} />
+      <div className={styles.summaryCards}>
+        <div className={styles.summaryCard}>
+          <Users className={styles.summaryIcon} />
+          <div>
+            <p className={styles.summaryLabel}>Total Customers</p>
+            <p className={styles.summaryValue}>{customers.length}</p>
+          </div>
+        </div>
+        <div className={styles.summaryCard}>
+          <DollarSign className={styles.summaryIcon} style={{ color: 'var(--green)' }} />
+          <div>
+            <p className={styles.summaryLabel}>Total Revenue</p>
+            <p className={styles.summaryValue}>{formatMoney(totalRevenue)}</p>
+          </div>
+        </div>
+        <div className={styles.summaryCard}>
+          <TrendingUp className={styles.summaryIcon} style={{ color: 'var(--purple)' }} />
+          <div>
+            <p className={styles.summaryLabel}>Avg. Spend</p>
+            <p className={styles.summaryValue}>
+              {customers.length > 0 ? formatMoney(totalRevenue / customers.length) : formatMoney(0)}
+            </p>
+          </div>
+        </div>
+        <div className={styles.summaryCard}>
+          <DollarSign
+            className={styles.summaryIcon}
+            style={{ color: totalCredit > 0 ? 'var(--amber)' : 'var(--text-3)' }}
+          />
+          <div>
+            <p className={styles.summaryLabel}>Total Credit</p>
+            <p className={styles.summaryValue}>{formatMoney(totalCredit)}</p>
+          </div>
+        </div>
+      </div>
+
+      {topCustomers.length > 0 && (
+        <div className={styles.topCustomers}>
+          <h3 className={styles.topCustomersTitle}>Top Customers by Spend</h3>
+          <div>
+            {topCustomers.map((customer, idx) => (
+              <div key={customer.id} className={styles.topCustomerItem}>
+                <div className="flex items-center gap-3">
+                  <span className={styles.topCustomerRank}>#{idx + 1}</span>
+                  <span className={styles.topCustomerName}>{customer.name}</span>
+                </div>
+                <span className={styles.topCustomerSpend}>{formatMoney(customer.totalSpent)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className={styles.filters}>
+        <div className={styles.searchWrapper}>
+          <Search className={styles.searchIcon} />
           <input
             type="text"
             placeholder="Search customers..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            className={styles.searchInput}
           />
         </div>
-        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className={styles.select}>
-          <option value="all">All status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-        <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className={styles.select}>
-          <option value="recent">Most recent</option>
-          <option value="name">Name</option>
-          <option value="spent">Total spent</option>
-          <option value="purchases">Purchases</option>
+        <div className="flex items-center gap-2">
+          <Filter className={styles.searchIcon} />
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className={styles.filterSelect}
+          >
+            <option value="all">All Status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+        <select
+          value={sortBy}
+          onChange={(e) => {
+            setSortBy(e.target.value as any);
+            const sorted = [...customers];
+            sortCustomers(sorted);
+            setCustomers(sorted);
+          }}
+          className={styles.filterSelect}
+        >
+          <option value="recent">Most Recent</option>
+          <option value="name">Name A-Z</option>
+          <option value="spent">Highest Spent</option>
+          <option value="purchases">Most Purchases</option>
         </select>
       </div>
 
-      {filteredCustomers.length === 0 ? (
-        <div className={styles.empty}>
-          <Users size={40} />
-          <p>No customers yet</p>
-          <button className={styles.primaryBtn} onClick={() => setShowAddModal(true)}>Add your first customer</button>
-        </div>
-      ) : (
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Phone</th>
-                <th>Email</th>
-                <th>Total spent</th>
-                <th>Purchases</th>
-                <th>Credit</th>
-                <th></th>
+      <div className={styles.tableContainer}>
+        <table className={styles.table}>
+          <thead className={styles.tableHead}>
+            <tr>
+              <th className={styles.tableHeader}>Customer</th>
+              <th className={styles.tableHeader}>Contact</th>
+              <th className={styles.tableHeader}>Total Spent</th>
+              <th className={styles.tableHeader}>Purchases</th>
+              <th className={styles.tableHeader}>Credit Balance</th>
+              <th className={styles.tableHeader}>Last Purchase</th>
+              <th className={styles.tableHeader}>Status</th>
+              <th className={styles.tableHeader}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredCustomers.map(customer => (
+              <tr key={customer.id} className={styles.tableRow}>
+                <td className={styles.tableCell}>
+                  <div className={styles.customerName}>{customer.name}</div>
+                  {customer.city && (
+                    <div className={styles.customerCity}>
+                      <MapPin size={12} />
+                      {customer.city}
+                    </div>
+                  )}
+                </td>
+                <td className={styles.tableCell}>
+                  <div className={styles.contactInfo}>
+                    {customer.email && (
+                      <div className={styles.contactItem}>
+                        <Mail size={12} />
+                        {customer.email}
+                      </div>
+                    )}
+                    {customer.phone && (
+                      <div className={styles.contactItem}>
+                        <Phone size={12} />
+                        {customer.phone}
+                      </div>
+                    )}
+                  </div>
+                </td>
+                <td className={styles.tableCell}>
+                  <span className={styles.moneyValue}>{formatMoney(customer.totalSpent)}</span>
+                </td>
+                <td className={styles.tableCell}>{customer.totalPurchases}</td>
+                <td className={styles.tableCell}>
+                  <span className={`${styles.creditValue} ${customer.creditBalance > 0 ? styles.positive : ''}`}>
+                    {formatMoney(customer.creditBalance)}
+                  </span>
+                </td>
+                <td className={styles.tableCell}>
+                  {customer.lastPurchaseDate ? (
+                    <div className={styles.dateCell}>
+                      <Calendar size={12} />
+                      {customer.lastPurchaseDate.toLocaleDateString()}
+                    </div>
+                  ) : (
+                    <span style={{ color: 'var(--text-3)' }}>Never</span>
+                  )}
+                </td>
+                <td className={styles.tableCell}>
+                  <span className={`${styles.statusBadge} ${customer.active ? styles.active : styles.inactive}`}>
+                    {customer.active ? 'Active' : 'Inactive'}
+                  </span>
+                </td>
+                <td className={styles.tableCell}>
+                  <div className={styles.actionButtons}>
+                    <button
+                      onClick={() => handleViewTransactions(customer)}
+                      className={styles.actionButton}
+                      title="View transactions"
+                    >
+                      <Filter size={16} />
+                    </button>
+                    <button onClick={() => handleEdit(customer)} className={styles.actionButton} title="Edit">
+                      <Edit2 size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(customer.id)}
+                      className={`${styles.actionButton} ${styles.danger}`}
+                      title="Delete"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {filteredCustomers.map((c) => (
-                <tr key={c.id}>
-                  <td><strong>{c.name}</strong></td>
-                  <td>{c.phone || '—'}</td>
-                  <td>{c.email || '—'}</td>
-                  <td>{formatMoney(c.totalSpent || 0)}</td>
-                  <td>{c.totalPurchases || 0}</td>
-                  <td>{formatMoney(c.creditBalance || 0)}</td>
-                  <td className={styles.actions}>
-                    <button type="button" onClick={() => handleEdit(c)} title="Edit"><Edit2 size={16} /></button>
-                    <button type="button" onClick={() => handleDelete(c.id)} title="Delete"><Trash2 size={16} /></button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            ))}
+          </tbody>
+        </table>
+
+        {filteredCustomers.length === 0 && (
+          <div className={styles.emptyState}>
+            <Users className={styles.emptyStateIcon} />
+            <p>No customers found</p>
+            <button
+              onClick={() => {
+                resetForm();
+                setEditingCustomer(null);
+                setShowAddModal(true);
+              }}
+              className={styles.emptyStateButton}
+            >
+              Add your first customer
+            </button>
+          </div>
+        )}
+      </div>
+
+      {showAddModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent}>
+            <h2 className={styles.modalTitle}>{editingCustomer ? 'Edit Customer' : 'Add Customer'}</h2>
+            <div className={styles.form}>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Name</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className={styles.formInput}
+                  required
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Email</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className={styles.formInput}
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Phone</label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className={styles.formInput}
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Address</label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  className={styles.formInput}
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>City</label>
+                <input
+                  type="text"
+                  value={formData.city}
+                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  className={styles.formInput}
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Notes</label>
+                <textarea
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  className={styles.formTextarea}
+                  rows={3}
+                  placeholder="Any additional notes about this customer..."
+                />
+              </div>
+            </div>
+            <div className={styles.modalActions}>
+              <button
+                onClick={() => {
+                  setShowAddModal(false);
+                  setEditingCustomer(null);
+                  resetForm();
+                }}
+                className={`${styles.modalButton} ${styles.secondary}`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                className={`${styles.modalButton} ${styles.primary}`}
+                disabled={isSaving}
+              >
+                {isSaving ? 'Saving...' : editingCustomer ? 'Update' : 'Add'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
-      {showAddModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowAddModal(false)}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <h2>{editingCustomer ? 'Edit customer' : 'Add customer'}</h2>
-            <div className={styles.form}>
-              <label>Name *
-                <input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Customer name" />
-              </label>
-              <label>Phone
-                <input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="Phone" />
-              </label>
-              <label>Email
-                <input value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="Email" />
-              </label>
-              <label>Address
-                <input value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} placeholder="Address" />
-              </label>
-              <label>City
-                <input value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} placeholder="City" />
-              </label>
-              <label>Notes
-                <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder="Notes" rows={3} />
-              </label>
-            </div>
-            <div className={styles.modalActions}>
-              <button type="button" className={styles.secondaryBtn} onClick={() => setShowAddModal(false)}>Cancel</button>
-              <button type="button" className={styles.primaryBtn} onClick={handleSave} disabled={isSaving}>
-                {isSaving ? 'Saving...' : editingCustomer ? 'Update' : 'Save'}
+      {showTransactionsModal && selectedCustomer && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent} style={{ maxWidth: '640px' }}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className={styles.modalTitle}>Transaction History</h2>
+              <button
+                onClick={() => {
+                  setShowTransactionsModal(false);
+                  setSelectedCustomer(null);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  color: 'var(--text-3)',
+                }}
+              >
+                ✕
               </button>
+            </div>
+            <div className="mb-4 p-3" style={{ background: 'var(--bg-2)', borderRadius: 'var(--radius-sm)' }}>
+              <p className="font-medium" style={{ color: 'var(--text-1)' }}>
+                {selectedCustomer.name}
+              </p>
+              <p className="text-sm" style={{ color: 'var(--text-3)' }}>
+                Total Spent: {formatMoney(selectedCustomer.totalSpent)}
+              </p>
+              <p className="text-sm" style={{ color: 'var(--text-3)' }}>
+                Credit Balance: {formatMoney(selectedCustomer.creditBalance)}
+              </p>
+            </div>
+            <div className="space-y-2">
+              {transactions.length > 0 ? (
+                transactions.map(transaction => (
+                  <div
+                    key={transaction.id}
+                    className="flex items-center justify-between p-3"
+                    style={{ background: 'var(--bg-2)', borderRadius: 'var(--radius-sm)' }}
+                  >
+                    <div>
+                      <div className="font-medium capitalize" style={{ color: 'var(--text-1)' }}>
+                        {transaction.type}
+                      </div>
+                      <div className="text-sm" style={{ color: 'var(--text-3)' }}>
+                        {transaction.description || transaction.createdAt.toLocaleDateString()}
+                      </div>
+                    </div>
+                    <span
+                      className="font-semibold"
+                      style={{
+                        color:
+                          transaction.type === 'purchase'
+                            ? 'var(--green)'
+                            : transaction.type === 'payment'
+                              ? 'var(--purple)'
+                              : 'var(--amber)',
+                      }}
+                    >
+                      {transaction.type === 'purchase' ? '+' : transaction.type === 'payment' ? '-' : ''}
+                      {formatMoney(transaction.amount)}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8" style={{ color: 'var(--text-3)' }}>
+                  <p>No transactions found</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
