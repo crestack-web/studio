@@ -190,25 +190,38 @@ export async function insertOutboundMessage(params: {
   const sb = getSupabaseAdmin();
   const id = crypto.randomUUID();
   const provider = params.provider || 'infobip';
+  const text = String(params.messageText ?? '');
 
-  const { error } = await sb.from('whatsapp_messages').insert({
+  const row: Record<string, unknown> = {
     id,
     conversation_id: params.conversationId,
     business_id: params.businessId,
     provider,
-    provider_message_id: null,
     direction: 'outbound',
     message_type: 'text',
-    message_text: params.messageText,
+    message_text: text,
     processing_status: 'processing',
     metadata: {
       ...(params.metadata || {}),
       clientMessageId: params.clientMessageId || null,
     },
-    sent_at: null,
-  });
+  };
+  // Omit provider_message_id so PostgREST treats it as SQL NULL (avoid explicit null quirks)
 
-  if (error) throw error;
+  const { error } = await sb.from('whatsapp_messages').insert(row);
+
+  if (error) {
+    console.error(
+      JSON.stringify({
+        event: 'outbound_persist_failed',
+        businessId: params.businessId,
+        conversationId: params.conversationId,
+        error: error.message,
+        code: error.code,
+      })
+    );
+    throw error;
+  }
 
   await sb
     .from('whatsapp_conversations')

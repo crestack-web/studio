@@ -62,6 +62,17 @@ export async function sendWhatsAppText(
   const from = normalizePhone(params.from);
   const to = normalizePhone(params.to);
   if (!from || !to || !params.text?.trim()) {
+    console.error(
+      JSON.stringify({
+        event: 'whatsapp_send_failed',
+        error: 'from, to, and text are required',
+        hasFrom: Boolean(from),
+        hasTo: Boolean(to),
+        textLen: String(params.text || '').length,
+        fromSuffix: from ? from.slice(-4) : null,
+        toSuffix: to ? to.slice(-4) : null,
+      })
+    );
     return { ok: false, error: 'from, to, and text are required' };
   }
 

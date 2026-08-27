@@ -211,25 +211,86 @@ async function processInbound(item: InboundResult): Promise<void> {
     history: prior,
   });
 
-  if (!mo.ok) {
-    await updateMessageStatus(claim.id, 'failed', { error: mo.error || 'mo_failed' });
-  } else {
-    await updateMessageStatus(claim.id, 'received', { moOk: true });
-  }
-
-  const replyText = mo.reply;
+  const replyText = String(mo.reply || '').trim();
   const clientMessageId = `busmo-out-${messageId}`.slice(0, 200);
 
-  // Free-form text only for customer-initiated inbound TEXT (opens/resets 24h care window).
-  // Do not use template API here. Outside-window proactive sends are out of scope for V1.
-  const outbound = await insertOutboundMessage({
-    conversationId: conversation.id,
-    businessId: connection.business_id,
-    clientMessageId,
-    messageText: replyText,
-    metadata: { inReplyTo: messageId, moOk: mo.ok },
-  });
+  console.log(
+    JSON.stringify({
+      event: 'whatsapp_send_prepare',
+      businessId: connection.business_id,
+      inboundId: claim.id,
+      messageId,
+      replyLen: replyText.length,
+      moOk: mo.ok,
+      fromSuffix: businessSender.slice(-4),
+      toSuffix: customerPhone.slice(-4),
+    })
+  );
 
+  try {
+    if (!mo.ok) {
+      await updateMessageStatus(claim.id, 'failed', { error: mo.error || 'mo_failed' });
+    } else {
+      await updateMessageStatus(claim.id, 'received', { moOk: true });
+    }
+  } catch (e: any) {
+    console.error(
+      JSON.stringify({
+        event: 'inbound_status_update_failed',
+        businessId: connection.business_id,
+        inboundId: claim.id,
+        error: e?.message || 'status update failed',
+      })
+    );
+  }
+
+  if (!replyText) {
+    console.error(
+      JSON.stringify({
+        event: 'whatsapp_send_failed',
+        businessId: connection.business_id,
+        inboundId: claim.id,
+        error: 'empty_mo_reply',
+        fromSuffix: businessSender.slice(-4),
+        toSuffix: customerPhone.slice(-4),
+      })
+    );
+    return;
+  }
+
+  // Persist outbound row, but never block the Infobip send if persistence fails.
+  let outboundId: string | null = null;
+  try {
+    const outbound = await insertOutboundMessage({
+      conversationId: conversation.id,
+      businessId: connection.business_id,
+      clientMessageId,
+      messageText: replyText,
+      metadata: { inReplyTo: messageId, moOk: mo.ok },
+    });
+    outboundId = outbound.id;
+    console.log(
+      JSON.stringify({
+        event: 'outbound_persisted',
+        businessId: connection.business_id,
+        inboundId: claim.id,
+        outboundId,
+        replyLen: replyText.length,
+      })
+    );
+  } catch (e: any) {
+    console.error(
+      JSON.stringify({
+        event: 'outbound_persist_failed',
+        businessId: connection.business_id,
+        inboundId: claim.id,
+        error: e?.message || 'outbound persist failed',
+        continuingToSend: true,
+      })
+    );
+  }
+
+  // Free-form text only for customer-initiated inbound TEXT (24h care window).
   const sendResult = await sendWhatsAppText({
     from: businessSender,
     to: customerPhone,
@@ -237,18 +298,33 @@ async function processInbound(item: InboundResult): Promise<void> {
     messageId: clientMessageId,
   });
 
-  if (sendResult.ok) {
-    await updateMessageStatus(
-      outbound.id,
-      'sent',
-      { infobipStatus: sendResult.status },
-      { setSentAt: true, providerMessageId: sendResult.messageId || clientMessageId }
-    );
-  } else {
-    await updateMessageStatus(outbound.id, 'failed', {
-      error: sendResult.error || 'send_failed',
-    });
+  if (outboundId) {
+    if (sendResult.ok) {
+      await updateMessageStatus(
+        outboundId,
+        'sent',
+        { infobipStatus: sendResult.status },
+        { setSentAt: true, providerMessageId: sendResult.messageId || clientMessageId }
+      );
+    } else {
+      await updateMessageStatus(outboundId, 'failed', {
+        error: sendResult.error || 'send_failed',
+      });
+    }
   }
+
+  console.log(
+    JSON.stringify({
+      event: sendResult.ok ? 'whatsapp_send_pipeline_done' : 'whatsapp_send_pipeline_failed',
+      businessId: connection.business_id,
+      inboundId: claim.id,
+      outboundId,
+      fromSuffix: businessSender.slice(-4),
+      toSuffix: customerPhone.slice(-4),
+      replyLen: replyText.length,
+      sendError: sendResult.ok ? undefined : sendResult.error,
+    })
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -274,8 +350,9 @@ export async function POST(req: NextRequest) {
         await processInbound(item);
       } catch (e: any) {
         console.error(JSON.stringify({
-          event: 'webhook_received',
+          event: 'process_inbound_error',
           error: e?.message || 'process failed',
+          stack: typeof e?.stack === 'string' ? e.stack.slice(0, 400) : undefined,
           messageId: item?.messageId,
         }));
       }
