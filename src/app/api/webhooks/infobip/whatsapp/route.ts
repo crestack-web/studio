@@ -328,8 +328,26 @@ async function processInbound(item: InboundResult): Promise<void> {
 }
 
 export async function POST(req: NextRequest) {
+  // First diagnostic — proves the request reached the Next.js route handler.
+  // Must run before auth, JSON parse, validation, DB, or MO.
+  console.log(
+    JSON.stringify({
+      event: 'infobip_webhook_received',
+      method: req.method,
+      timestamp: new Date().toISOString(),
+    })
+  );
+
   try {
     if (!verifyWebhookSecret(req)) {
+      console.error(
+        JSON.stringify({
+          event: 'infobip_webhook_unauthorized',
+          method: req.method,
+          timestamp: new Date().toISOString(),
+          secretConfigured: Boolean(process.env.INFOBIP_WEBHOOK_SECRET?.trim()),
+        })
+      );
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -337,11 +355,23 @@ export async function POST(req: NextRequest) {
     try {
       body = await req.json();
     } catch {
+      console.log(
+        JSON.stringify({
+          event: 'infobip_webhook_invalid_json',
+          timestamp: new Date().toISOString(),
+        })
+      );
       return NextResponse.json({ ok: true, processed: 0, note: 'invalid_json' });
     }
 
     const items = extractInboundMessages(body);
     if (!items.length) {
+      console.log(
+        JSON.stringify({
+          event: 'infobip_webhook_no_inbound_items',
+          timestamp: new Date().toISOString(),
+        })
+      );
       return NextResponse.json({ ok: true, processed: 0 });
     }
 
@@ -360,7 +390,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, processed: items.length });
   } catch (e: any) {
-    console.error(JSON.stringify({ event: 'webhook_received', error: e?.message || 'webhook failed' }));
+    console.error(JSON.stringify({
+      event: 'infobip_webhook_error',
+      error: e?.message || 'webhook failed',
+      timestamp: new Date().toISOString(),
+    }));
     return NextResponse.json({ ok: true, error: 'handled' });
   }
 }
