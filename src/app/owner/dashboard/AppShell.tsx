@@ -85,7 +85,7 @@ const PAGE_COMPONENTS: Record<string, React.ComponentType> = {
   'mo-sales': MoSalesPage,
 };
 
-const FULL_HEIGHT_PAGES = new Set<string>(['mo', 'mo-mobile', 'mo-sales']);
+const FULL_HEIGHT_PAGES = new Set<string>(['mo', 'mo-mobile']);
 
 export function AppShell() {
   const { activePage } = useApp();
