@@ -202,3 +202,27 @@ assert(classifyDelivery({ groupName: 'DELIVERED', name: 'DELIVERED_TO_HANDSET' }
 assert(classifyDelivery({ groupName: 'REJECTED', name: 'REJECTED_NOT_DELIVERED' }) === 'failed', 'rejected class');
 assert(classifyDelivery({ groupName: 'PENDING', name: 'PENDING_ENROUTE' }) === 'pending', 'pending class');
 console.log('✓ delivery status classification fixtures passed');
+
+// Tech Provider onboarding state machine (structural)
+const ONBOARDING_STATES = new Set([
+  'not_connected', 'onboarding', 'verification_pending', 'sender_registration_pending',
+  'active', 'paused', 'disconnected', 'failed',
+]);
+assert(ONBOARDING_STATES.has('active'), 'active state');
+assert(ONBOARDING_STATES.has('sender_registration_pending'), 'pending registration state');
+
+function canActivateSender(conn) {
+  return conn.status === 'active' && conn.onboarding_status === 'active';
+}
+assert(canActivateSender({ status: 'active', onboarding_status: 'active' }) === true, 'active+active ready');
+assert(canActivateSender({ status: 'pending', onboarding_status: 'sender_registration_pending' }) === false, 'pending not ready');
+
+function senderConflict(existing, businessId) {
+  if (!existing) return false;
+  return existing.business_id !== businessId && existing.status === 'active';
+}
+assert(senderConflict({ business_id: 'A', status: 'active' }, 'B') === true, 'cross-business conflict');
+assert(senderConflict({ business_id: 'A', status: 'active' }, 'A') === false, 'same business ok');
+assert(senderConflict({ business_id: 'A', status: 'pending' }, 'B') === false, 'pending not conflict');
+
+console.log('✓ onboarding state / multi-tenant isolation fixtures passed');

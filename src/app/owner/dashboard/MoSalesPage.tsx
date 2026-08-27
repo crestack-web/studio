@@ -141,6 +141,9 @@ export default function MoSalesPage() {
   const [testQuestion, setTestQuestion] = useState('Do you have black sneakers?');
   const [testReply, setTestReply] = useState<string | null>(null);
   const [testLoading, setTestLoading] = useState(false);
+  const [embeddedConfigured, setEmbeddedConfigured] = useState(false);
+  const [onboardingBusy, setOnboardingBusy] = useState(false);
+  const [onboardingHint, setOnboardingHint] = useState<string | null>(null);
 
 
   const loadOverview = useCallback(async () => {
@@ -158,6 +161,16 @@ export default function MoSalesPage() {
         setMaxDiscount(json.connection.settings.maxDiscountPct || 0);
         setAllowNegotiate(!!json.connection.settings.allowNegotiate);
         setHumanHandoff(json.connection.settings.humanHandoff !== false);
+      }
+      try {
+        const st = await fetch(
+          `/api/mo-sales/whatsapp/onboarding/status?businessId=${encodeURIComponent(businessId)}`,
+          { headers }
+        );
+        const stJson = await st.json().catch(() => ({}));
+        if (st.ok) setEmbeddedConfigured(Boolean(stJson?.embeddedSignup?.configured));
+      } catch {
+        /* non-fatal */
       }
     } catch (e: any) {
       setError(e?.message || 'Could not load MO Sales');
@@ -856,9 +869,66 @@ export default function MoSalesPage() {
       {connectOpen && (
         <div className={styles.modalBackdrop} role="dialog" aria-modal="true">
           <div className={styles.modal}>
-            <h2>Connect WhatsApp</h2>
+            <h2>Connect your WhatsApp</h2>
             <p className={styles.muted}>
-              Enter the WhatsApp number customers already use to message your business (with country code).
+              Connect securely through Meta. You will connect your WhatsApp Business account,
+              choose your business, verify your phone number, and give Busmo permission to manage messaging.
+            </p>
+            <ul className={styles.bullets}>
+              <li>Connect your WhatsApp Business account</li>
+              <li>Choose your business</li>
+              <li>Verify your phone number</li>
+              <li>Give Busmo permission to manage messaging</li>
+            </ul>
+            {onboardingHint && <p className={styles.muted}>{onboardingHint}</p>}
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.btnGhost} onClick={() => setConnectOpen(false)}>Cancel</button>
+              <button
+                type="button"
+                className={`${styles.btnPrimary} ${styles.btnWhatsApp}`}
+                disabled={onboardingBusy}
+                onClick={async () => {
+                  if (!businessId) return;
+                  setOnboardingBusy(true);
+                  setOnboardingHint(null);
+                  try {
+                    const headers = await authHeaders();
+                    const res = await fetch('/api/mo-sales/whatsapp/onboarding/start', {
+                      method: 'POST',
+                      headers,
+                      body: JSON.stringify({ businessId }),
+                    });
+                    const json = await res.json();
+                    if (res.status === 503 || json.error === 'embedded_signup_not_configured') {
+                      setOnboardingHint(
+                        'Meta Embedded Signup is not enabled for Busmo yet. You can request manual beta setup below, or contact support.'
+                      );
+                      return;
+                    }
+                    if (!res.ok) throw new Error(json.error || json.message || 'Could not start');
+                    setOnboardingHint(
+                      'Connecting WhatsApp… Finish the Meta window when it opens. We will mark you Connected only after the provider confirms the sender.'
+                    );
+                    // Meta FB.login / Embedded Signup requires META app config + FB SDK.
+                    // Until public config is live, surface clear next step without fake success.
+                    if (json.config?.metaAppId && typeof window !== 'undefined') {
+                      showToast('Complete signup in Meta when prompted. Status will update when registration finishes.');
+                    }
+                    await loadOverview();
+                  } catch (e: any) {
+                    setOnboardingHint(e?.message || 'Could not start WhatsApp connection');
+                  } finally {
+                    setOnboardingBusy(false);
+                  }
+                }}
+              >
+                <WhatsAppIcon className={styles.waIcon} />
+                {onboardingBusy ? 'Starting…' : 'Continue with Facebook'}
+              </button>
+            </div>
+            <hr style={{ border: 'none', borderTop: '1px solid var(--border, #e5e7eb)', margin: '16px 0' }} />
+            <p className={styles.muted}>
+              Manual beta setup (operator-assisted trial numbers only):
             </p>
             <input
               className={styles.search}
@@ -868,9 +938,8 @@ export default function MoSalesPage() {
               inputMode="tel"
             />
             <div className={styles.modalActions}>
-              <button type="button" className={styles.btnGhost} onClick={() => setConnectOpen(false)}>Cancel</button>
-              <button type="button" className={styles.btnPrimary} disabled={saving || !waNumber.trim()} onClick={requestConnect}>
-                Submit number
+              <button type="button" className={styles.btnGhost} disabled={saving || !waNumber.trim()} onClick={requestConnect}>
+                Request manual setup
               </button>
             </div>
           </div>
