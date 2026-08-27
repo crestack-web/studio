@@ -44,15 +44,10 @@ import CustomersPage from './CustomersPage';
 import SuppliersPage from './SuppliersPage';
 import { WarehousePage } from './WarehousePage';
 import { StockTransfersPage } from './StockTransfersPage';
-import { usePageTracking } from '@/hooks/usePageTracking'; // Import the page tracking hook
+import MoSalesPage from './MoSalesPage';
+import { usePageTracking } from '@/hooks/usePageTracking';
 import styles from './AppShell.module.css';
 
-// ═══════════════════════════════════════════
-//  AppShell — composes the full layout
-//  Add new pages to PAGE_MAP below
-// ═══════════════════════════════════════════
-
-/** Component map — render a fresh element per navigation so pages remount cleanly. */
 const PAGE_COMPONENTS: Record<string, React.ComponentType> = {
   home: HomePage,
   sale: RecordSalePage,
@@ -87,19 +82,17 @@ const PAGE_COMPONENTS: Record<string, React.ComponentType> = {
   'supplier-management': SuppliersPage,
   warehouse: WarehousePage,
   'stock-transfers': StockTransfersPage,
+  'mo-sales': MoSalesPage,
 };
 
-const FULL_HEIGHT_PAGES = new Set<string>(['mo', 'mo-mobile']);
+const FULL_HEIGHT_PAGES = new Set<string>(['mo', 'mo-mobile', 'mo-sales']);
 
 export function AppShell() {
   const { activePage } = useApp();
-  const router = typeof window !== 'undefined' ? null : null;
   const isMobileAskMO = activePage === 'mo-mobile';
 
-  // Use the page tracking hook to track user activity
   usePageTracking();
 
-  // MO Sell is a standalone dashboard at mo-sell.store
   useEffect(() => {
     if (activePage === 'mo-sell') {
       window.location.href = 'https://mo-sell.store/';
