@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { initializeFirebase } from '@/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { ADMIN_EMAIL_ROLES } from '@/lib/adminEmails';
+
+export { ADMIN_EMAIL_ROLES };
 
 // Define admin user type with permissions and lastLogin
 export interface AdminUser {
@@ -28,8 +31,6 @@ export const ADMIN_ROLES = {
   }
 };
 
-// Map emails to roles
-export { ADMIN_EMAIL_ROLES } from '@/lib/adminEmails';
 
 // Custom hook for admin authentication
 export const useAdminAuth = () => {
