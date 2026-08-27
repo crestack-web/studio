@@ -1,5 +1,6 @@
 /**
  * WhatsApp conversation + message persistence + idempotency (server-only).
+ * Business resolution is always from whatsapp_connections (sender mapping).
  */
 import 'server-only';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
@@ -23,7 +24,7 @@ export async function resolveBusinessBySender(
   if (!phone) return null;
   const sb = getSupabaseAdmin();
 
-  let { data } = await sb
+  const { data: exact } = await sb
     .from('whatsapp_connections')
     .select('id, business_id, provider, whatsapp_sender, status')
     .eq('provider', provider)
@@ -31,17 +32,17 @@ export async function resolveBusinessBySender(
     .eq('whatsapp_sender', phone)
     .maybeSingle();
 
-  if (!data) {
-    const { data: rows } = await sb
-      .from('whatsapp_connections')
-      .select('id, business_id, provider, whatsapp_sender, status')
-      .eq('provider', provider)
-      .eq('status', 'active');
-    data =
-      (rows || []).find((r: any) => normalizePhone(r.whatsapp_sender) === phone) || null;
-  }
+  if (exact) return exact as WhatsappConnection;
 
-  return data as WhatsappConnection | null;
+  const { data: rows } = await sb
+    .from('whatsapp_connections')
+    .select('id, business_id, provider, whatsapp_sender, status')
+    .eq('provider', provider)
+    .eq('status', 'active');
+
+  const match =
+    (rows || []).find((r: any) => normalizePhone(r.whatsapp_sender) === phone) || null;
+  return match as WhatsappConnection | null;
 }
 
 export async function getOrCreateConversation(params: {
@@ -105,32 +106,79 @@ export async function getOrCreateConversation(params: {
   };
 }
 
-export async function isProviderMessageProcessed(
-  providerMessageId: string,
-  provider = 'infobip'
-): Promise<boolean> {
-  if (!providerMessageId) return false;
+export async function getConversationAgentStatus(
+  conversationId: string
+): Promise<AgentStatus> {
   const sb = getSupabaseAdmin();
   const { data } = await sb
-    .from('whatsapp_messages')
-    .select('id')
-    .eq('provider', provider)
-    .eq('provider_message_id', providerMessageId)
+    .from('whatsapp_conversations')
+    .select('agent_status')
+    .eq('id', conversationId)
     .maybeSingle();
-  return Boolean(data);
+  return ((data?.agent_status as AgentStatus) || 'ai_active');
 }
 
-export async function insertMessage(params: {
+/**
+ * Claim inbound via unique (provider, provider_message_id).
+ * duplicate:true → caller MUST NOT run MO.
+ */
+export async function claimInboundMessage(params: {
+  conversationId: string;
+  businessId: string;
+  providerMessageId: string;
+  provider?: string;
+  messageType?: string;
+  messageText?: string | null;
+  metadata?: Record<string, unknown>;
+}): Promise<{ id: string; duplicate: boolean }> {
+  const sb = getSupabaseAdmin();
+  const id = crypto.randomUUID();
+  const provider = params.provider || 'infobip';
+
+  if (!params.providerMessageId) {
+    throw new Error('providerMessageId required for idempotent claim');
+  }
+
+  const { error } = await sb.from('whatsapp_messages').insert({
+    id,
+    conversation_id: params.conversationId,
+    business_id: params.businessId,
+    provider,
+    provider_message_id: params.providerMessageId,
+    direction: 'inbound',
+    message_type: params.messageType || 'text',
+    message_text: params.messageText ?? null,
+    processing_status: 'processing',
+    metadata: params.metadata || {},
+    sent_at: null,
+  });
+
+  if (error) {
+    if (error.code === '23505' || /duplicate|unique/i.test(error.message || '')) {
+      return { id, duplicate: true };
+    }
+    throw error;
+  }
+
+  await sb
+    .from('whatsapp_conversations')
+    .update({
+      last_message_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', params.conversationId);
+
+  return { id, duplicate: false };
+}
+
+export async function insertOutboundMessage(params: {
   conversationId: string;
   businessId: string;
   provider?: string;
-  providerMessageId?: string | null;
-  direction: 'inbound' | 'outbound';
-  messageType?: string;
-  messageText?: string | null;
-  processingStatus?: string;
+  clientMessageId?: string;
+  messageText: string;
   metadata?: Record<string, unknown>;
-}): Promise<{ id: string; duplicate?: boolean }> {
+}): Promise<{ id: string }> {
   const sb = getSupabaseAdmin();
   const id = crypto.randomUUID();
   const provider = params.provider || 'infobip';
@@ -140,21 +188,19 @@ export async function insertMessage(params: {
     conversation_id: params.conversationId,
     business_id: params.businessId,
     provider,
-    provider_message_id: params.providerMessageId || null,
-    direction: params.direction,
-    message_type: params.messageType || 'text',
-    message_text: params.messageText ?? null,
-    processing_status: params.processingStatus || 'received',
-    metadata: params.metadata || {},
-    sent_at: params.direction === 'outbound' ? new Date().toISOString() : null,
+    provider_message_id: null,
+    direction: 'outbound',
+    message_type: 'text',
+    message_text: params.messageText,
+    processing_status: 'processing',
+    metadata: {
+      ...(params.metadata || {}),
+      clientMessageId: params.clientMessageId || null,
+    },
+    sent_at: null,
   });
 
-  if (error) {
-    if (error.code === '23505' || /duplicate|unique/i.test(error.message)) {
-      return { id, duplicate: true };
-    }
-    throw error;
-  }
+  if (error) throw error;
 
   await sb
     .from('whatsapp_conversations')
@@ -170,10 +216,19 @@ export async function insertMessage(params: {
 export async function updateMessageStatus(
   messageId: string,
   status: string,
-  metadataPatch?: Record<string, unknown>
+  metadataPatch?: Record<string, unknown>,
+  opts?: { setSentAt?: boolean; providerMessageId?: string }
 ) {
   const sb = getSupabaseAdmin();
   const patch: Record<string, unknown> = { processing_status: status };
+
+  if (opts?.setSentAt) {
+    patch.sent_at = new Date().toISOString();
+  }
+  if (opts?.providerMessageId) {
+    patch.provider_message_id = opts.providerMessageId;
+  }
+
   if (metadataPatch) {
     const { data } = await sb
       .from('whatsapp_messages')
@@ -182,11 +237,13 @@ export async function updateMessageStatus(
       .maybeSingle();
     patch.metadata = { ...((data?.metadata as object) || {}), ...metadataPatch };
   }
+
   await sb.from('whatsapp_messages').update(patch).eq('id', messageId);
 }
 
 export async function getRecentMessages(
   conversationId: string,
+  businessId: string,
   limit = 12
 ): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
   const sb = getSupabaseAdmin();
@@ -194,6 +251,7 @@ export async function getRecentMessages(
     .from('whatsapp_messages')
     .select('direction, message_text, created_at')
     .eq('conversation_id', conversationId)
+    .eq('business_id', businessId)
     .order('created_at', { ascending: false })
     .limit(limit);
 
@@ -216,7 +274,7 @@ export async function getBusinessProfile(businessId: string): Promise<{
   const sb = getSupabaseAdmin();
   const { data } = await sb
     .from('businesses')
-    .select('name, description, location, category, currency, metadata')
+    .select('name, description, location, category, currency')
     .eq('id', businessId)
     .maybeSingle();
 
