@@ -4,160 +4,166 @@ import React, { useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
-// Dynamically import components to improve initial load performance
 const DashboardOverview = dynamic(() => import('./DashboardOverview'), { ssr: false });
 const UserManagement = dynamic(() => import('./UserManagement'), { ssr: false });
 const BusinessTimeline = dynamic(() => import('./BusinessTimeline'), { ssr: false });
 const SupportInbox = dynamic(() => import('./SupportInbox'), { ssr: false });
-const FeatureRequests = dynamic(() => import('./FeatureRequests'), { ssr: false });
-const ProductAdoption = dynamic(() => import('./ProductAdoption'), { ssr: false });
 const ChurnDetection = dynamic(() => import('./ChurnDetection'), { ssr: false });
-const AskMOAnalytics = dynamic(() => import('./AskMOAnalytics'), { ssr: false });
-const NotificationCenter = dynamic(() => import('./NotificationCenter'), { ssr: false });
-const AdminTeam = dynamic(() => import('./AdminTeam'), { ssr: false });
-const UserActivityAnalytics = dynamic(() => import('./UserActivityAnalytics'), { ssr: false }); // Added UserActivityAnalytics
-const WaitlistManagement = dynamic(() => import('./WaitlistManagement'), { ssr: false });
 const MoSalesConnections = dynamic(() => import('./MoSalesConnections'), { ssr: false });
+const AdminOperations = dynamic(() => import('./AdminOperations'), { ssr: false });
+const AdminRevenue = dynamic(() => import('./AdminRevenue'), { ssr: false });
 
 interface AdminLayoutProps {
   children?: React.ReactNode;
 }
 
+const TABS: Array<{ id: string; label: string; short: string }> = [
+  { id: 'overview', label: 'Growth', short: 'Growth' },
+  { id: 'users', label: 'Users', short: 'Users' },
+  { id: 'businesses', label: 'Businesses', short: 'Biz' },
+  { id: 'operations', label: 'Operations', short: 'Ops' },
+  { id: 'revenue', label: 'Revenue', short: 'Revenue' },
+  { id: 'churn', label: 'Churn', short: 'Churn' },
+  { id: 'mo-sales', label: 'MO Sales', short: 'MO' },
+  { id: 'support', label: 'Support', short: 'Support' },
+];
+
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('overview');
 
-  const tabs = [
-    { id: 'overview', label: 'Growth', icon: '📊' },
-    { id: 'users', label: 'Users & identity', icon: '👥' },
-    { id: 'businesses', label: 'Businesses', icon: '🏢' },
-    { id: 'churn', label: 'Churn risk', icon: '⚠️' },
-    { id: 'analytics', label: 'Activity', icon: '📈' },
-    { id: 'product-analytics', label: 'Adoption', icon: '🧩' },
-    { id: 'mo-sales', label: 'MO Sales WA', icon: '💬' },
-    { id: 'askmo', label: 'Ask MO', icon: '🤖' },
-    { id: 'support', label: 'Support', icon: '💬' },
-    { id: 'features', label: 'Feature requests', icon: '💡' },
-    { id: 'notifications', label: 'Notifications', icon: '🔔' },
-    { id: 'waitlist', label: 'Waitlist', icon: '📝' },
-    { id: 'team', label: 'Admin team', icon: '👔' },
-  ];
-
   const renderContent = () => {
     switch (activeTab) {
       case 'overview':
-        return <Suspense fallback={<LoadingFallback />}><DashboardOverview /></Suspense>;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <DashboardOverview />
+          </Suspense>
+        );
       case 'users':
-        return <Suspense fallback={<LoadingFallback />}><UserManagement /></Suspense>;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <UserManagement />
+          </Suspense>
+        );
       case 'businesses':
-        return <Suspense fallback={<LoadingFallback />}><BusinessTimeline /></Suspense>;
-      case 'analytics': // Added new case
-        return <Suspense fallback={<LoadingFallback />}><UserActivityAnalytics /></Suspense>;
-      case 'team':
-        return <Suspense fallback={<LoadingFallback />}><AdminTeam /></Suspense>;
-      case 'support':
-        return <Suspense fallback={<LoadingFallback />}><SupportInbox /></Suspense>;
-      case 'features':
-        return <Suspense fallback={<LoadingFallback />}><FeatureRequests /></Suspense>;
-      case 'product-analytics':
-        // Render Product Adoption Analytics component
-        return <Suspense fallback={<LoadingFallback />}><ProductAdoption /></Suspense>;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <BusinessTimeline />
+          </Suspense>
+        );
+      case 'operations':
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <AdminOperations />
+          </Suspense>
+        );
+      case 'revenue':
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <AdminRevenue />
+          </Suspense>
+        );
       case 'churn':
-        return <Suspense fallback={<LoadingFallback />}><ChurnDetection /></Suspense>;
-      case 'askmo':
-        return <Suspense fallback={<LoadingFallback />}><AskMOAnalytics /></Suspense>;
-      case 'notifications':
-        return <Suspense fallback={<LoadingFallback />}><NotificationCenter /></Suspense>;
-      case 'waitlist':
-        return <Suspense fallback={<LoadingFallback />}><WaitlistManagement /></Suspense>;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <ChurnDetection />
+          </Suspense>
+        );
       case 'mo-sales':
-        return <Suspense fallback={<LoadingFallback />}><MoSalesConnections /></Suspense>;
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <MoSalesConnections />
+          </Suspense>
+        );
+      case 'support':
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <SupportInbox />
+          </Suspense>
+        );
       default:
-        return children || <Suspense fallback={<LoadingFallback />}><DashboardOverview /></Suspense>;
+        return (
+          children || (
+            <Suspense fallback={<LoadingFallback />}>
+              <DashboardOverview />
+            </Suspense>
+          )
+        );
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Admin Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center">
-                  <img 
-                    src="/sidebar-logo.png" 
-                    alt="Busmo Logo" 
-                    className="w-8 h-8 object-contain"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.onerror = null;
-                      target.src = "/favicon.png";
-                    }}
-                  />
-                </div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                  Busmo Admin
-                </h1>
-              </div>
-              <span className="hidden sm:block px-3 py-1 bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-800 text-xs font-semibold rounded-full border border-purple-200">
-                Live Supabase · Company intelligence
-              </span>
+    <div className="min-h-screen bg-slate-50">
+      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-2.5 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2">
+            <img
+              src="/sidebar-logo.png"
+              alt="Busmo"
+              className="h-8 w-8 object-contain"
+              onError={(e) => {
+                const t = e.target as HTMLImageElement;
+                t.onerror = null;
+                t.src = '/favicon.png';
+              }}
+            />
+            <div className="min-w-0">
+              <h1 className="truncate text-base font-bold text-slate-900 sm:text-lg">Busmo Admin</h1>
+              <p className="hidden text-[11px] text-slate-500 sm:block">Live Supabase · company intelligence</p>
             </div>
-            <button
-              onClick={() => router.push('/owner/dashboard')}
-              className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-              </svg>
-              Exit Admin
-            </button>
           </div>
+          <button
+            type="button"
+            onClick={() => router.push('/owner/dashboard')}
+            className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 sm:text-sm"
+          >
+            Exit
+          </button>
+        </div>
+
+        {/* Horizontal nav — scrolls on mobile, does not consume vertical space */}
+        <div className="border-t border-slate-100">
+          <nav
+            className="mx-auto max-w-7xl overflow-x-auto px-2 py-2 sm:px-6"
+            style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+            aria-label="Admin sections"
+          >
+            <ul className="flex w-max min-w-full flex-nowrap gap-1.5 sm:gap-2">
+              {TABS.map((tab) => {
+                const active = activeTab === tab.id;
+                return (
+                  <li key={tab.id} className="shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-colors sm:px-3.5 sm:text-sm ${
+                        active
+                          ? 'bg-violet-600 text-white shadow-sm'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                      aria-current={active ? 'page' : undefined}
+                    >
+                      <span className="sm:hidden">{tab.short}</span>
+                      <span className="hidden sm:inline">{tab.label}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar Navigation */}
-          <nav className="lg:w-64 flex-shrink-0">
-            <div className="bg-white rounded-xl border border-gray-200 p-4 sticky top-24">
-              <ul className="space-y-2">
-                {tabs.map((tab) => (
-                  <li key={tab.id}>
-                    <button
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors ${
-                        activeTab === tab.id
-                          ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                          : 'text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      <span className="text-lg">{tab.icon}</span>
-                      <span className="font-medium">{tab.label}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </nav>
-
-          {/* Main Content */}
-          <main className="flex-1">
-            {renderContent()}
-          </main>
-        </div>
-      </div>
+      <main className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-6">{renderContent()}</main>
     </div>
   );
 }
 
-// Loading fallback component
 function LoadingFallback() {
   return (
-    <div className="flex items-center justify-center h-64">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+    <div className="flex h-48 items-center justify-center">
+      <div className="h-9 w-9 animate-spin rounded-full border-2 border-violet-600 border-t-transparent" />
     </div>
   );
 }
