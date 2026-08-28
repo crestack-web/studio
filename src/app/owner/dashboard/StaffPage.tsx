@@ -17,6 +17,8 @@ import { isRestaurantBusiness, getBusinessCategory } from './utils/restaurantHel
 import AttendanceTab from './AttendanceTab';
 import { StaffPayrollSection } from './StaffPayrollSection';
 import { getStaffPermissionsForCategory, defaultStaffPermissions, normalizeBusinessCategory } from '@/lib/staffPermissions';
+import { subscribeOwnerConversations } from '@/lib/teamChat';
+import { initializeFirebase } from '@/firebase';
 
 interface StaffMember {
   id: string;
@@ -257,6 +259,33 @@ export default function StaffPage() {
         const staffList = await fetchDocs(`businesses/${businessId}/staff`);
         if (cancelled) return;
 
+        // Who is clocked in today (no clock-out) → online
+        let onlineIds = new Set<string>();
+        try {
+          const attRows = await fetchDocs(`businesses/${businessId}/attendance`);
+          const startOfDay = new Date();
+          startOfDay.setHours(0, 0, 0, 0);
+          const startMs = startOfDay.getTime();
+          for (const row of attRows as any[]) {
+            const clockIn = row.clockIn || row.checkIn || row.check_in || row.createdAt || row.created_at;
+            const clockOut = row.clockOut || row.checkOut || row.check_out;
+            if (!clockIn || clockOut) continue;
+            const inMs = new Date(clockIn).getTime();
+            if (!Number.isFinite(inMs) || inMs < startMs) continue;
+            const sid = row.staffId || row.staff_id || row.userId || row.user_id;
+            if (sid) onlineIds.add(String(sid));
+            // parse note JSON for staffId
+            if (typeof row.note === 'string' && row.note.startsWith('{')) {
+              try {
+                const n = JSON.parse(row.note);
+                if (n.staffId) onlineIds.add(String(n.staffId));
+              } catch { /* ignore */ }
+            }
+          }
+        } catch (attErr) {
+          console.warn('[StaffPage] attendance online lookup failed', attErr);
+        }
+
         const mapped: StaffMember[] = (staffList as any[])
           .filter((data: any) => {
             const status = String(data.status || 'active').toLowerCase();
@@ -265,9 +294,15 @@ export default function StaffPage() {
           .map((data: any) => {
             const seed = data.staffId || data.id || data.name || '';
             const { bg: avatarBg, color: avatarColor } = getAvatarColors(seed);
+            const id = String(data.id || '');
+            const staffId = String(data.staffId || '');
+            const online =
+              onlineIds.has(id) ||
+              onlineIds.has(staffId) ||
+              Boolean(data.online);
             return {
-              id: data.id,
-              staffId: data.staffId || '',
+              id,
+              staffId,
               name: data.name || '',
               role: data.role || '',
               email: data.email || '',
@@ -276,7 +311,7 @@ export default function StaffPage() {
               initials: getInitials(data.name || ''),
               revenue: data.revenue || 0,
               transactions: data.transactions || 0,
-              online: data.online || false,
+              online,
               permissions: data.permissions || {},
             };
           });
@@ -354,6 +389,33 @@ export default function StaffPage() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+
+  // Live team chat (same store as staff portal)
+  useEffect(() => {
+    const bid = user?.businessId;
+    if (!bid) return;
+    let unsub: (() => void) | undefined;
+    (async () => {
+      try {
+        const { firestore } = initializeFirebase();
+        if (!firestore) return;
+        unsub = subscribeOwnerConversations(firestore, bid, (convos) => {
+          setConversations((prev) => {
+            // Merge so empty local keys are not wiped oddly
+            return { ...prev, ...convos };
+          });
+        });
+      } catch (e) {
+        console.warn('[StaffPage] chat subscribe failed', e);
+      }
+    })();
+    return () => {
+      try {
+        unsub?.();
+      } catch { /* ignore */ }
+    };
+  }, [user?.businessId]);
 
   // Category-aware staff portal permissions
   const [businessCategory, setBusinessCategory] = useState<string>('other');
@@ -1159,6 +1221,9 @@ export default function StaffPage() {
           conversations={conversations}
           setConversations={setConversations}
           initialSelectedChat={selectedChat}
+          businessId={user?.businessId}
+          ownerId={user?.id}
+          ownerName={user?.name || user?.shortName || 'Owner'}
         />
       )}
 

@@ -33,6 +33,9 @@ interface ChatPanelProps {
     React.SetStateAction<{ [key: string]: { id: string; messages: ChatMessage[] } }>
   >;
   initialSelectedChat?: string;
+  businessId?: string | null;
+  ownerId?: string | null;
+  ownerName?: string;
 }
 
 const COMMON_EMOJIS = ['😀', '😂', '👍', '👎', '❤️', '🎉', '🔥', '💯', '🙏', '👋', '✅', '❗', '😊', '🤝', '💪', '👏'];
@@ -76,6 +79,9 @@ export function ChatPanel({
   conversations,
   setConversations,
   initialSelectedChat,
+  businessId,
+  ownerId,
+  ownerName = 'Owner',
 }: ChatPanelProps) {
   const [selectedChat, setSelectedChat] = useState(initialSelectedChat || 'team');
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
@@ -129,7 +135,7 @@ export function ChatPanel({
     setShowEmojiPicker(false);
   };
 
-  const sendMessage = useCallback(() => {
+  const sendMessage = useCallback(async () => {
     const text = messageInput.trim();
     if (!text && !imagePreview && !audioUrl) return;
 
@@ -166,6 +172,33 @@ export function ChatPanel({
       /* ignore */
     }
 
+    // Persist so staff portal receives the message
+    if (businessId) {
+      try {
+        const { initializeFirebase } = await import('@/firebase');
+        const { appendConversationMessage } = await import('@/lib/teamChat');
+        const { firestore } = initializeFirebase();
+        if (firestore) {
+          await appendConversationMessage(firestore, businessId, {
+            conversationKey: selectedChat,
+            message: {
+              id: newMessage.id,
+              senderId: ownerId || 'owner',
+              senderName: ownerName || 'Owner',
+              senderType: 'owner',
+              text: newMessage.text,
+              timestamp: newMessage.timestamp,
+              imageUrl: newMessage.imageUrl,
+              audioUrl: newMessage.audioUrl,
+            },
+            staffIdForDm: selectedChat === 'team' ? undefined : selectedChat,
+          });
+        }
+      } catch (persistErr) {
+        console.error('[ChatPanel] persist message failed', persistErr);
+      }
+    }
+
     setMessageInput('');
     setSelectedImage(null);
     setImagePreview(null);
@@ -176,7 +209,7 @@ export function ChatPanel({
     if (textareaRef.current) {
       textareaRef.current.style.height = '40px';
     }
-  }, [messageInput, imagePreview, audioUrl, selectedChat, setConversations]);
+  }, [messageInput, imagePreview, audioUrl, selectedChat, setConversations, businessId, ownerId, ownerName]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

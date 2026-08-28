@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { SaleRecord, SalesHistoryItem, PageId } from './types';
-import { DAILY_TARGET } from './data';
+import {
+  onSnapshot, DAILY_TARGET } from './data';
 import { LockedPage } from './components/shared';
 import { useLiveClock } from './hooks';
 import { initializeFirebase } from '@/firebase';
@@ -885,7 +886,10 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({ hasAccess, businessI
       }
     }
     loadConversations();
-    return () => { cancelled = true; };
+    const poll = setInterval(() => { if (!cancelled) loadConversations(); }, 6000);
+    return () => {
+      cancelled = true;
+      clearInterval(poll); };
   }, [businessIdProp, staffIdProp]);
 
   const sendMsg = async () => {

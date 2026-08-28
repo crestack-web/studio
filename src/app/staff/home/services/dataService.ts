@@ -451,8 +451,14 @@ export async function clockInAttendance(
     clockIn: now,
     note: notePayload,
     createdAt: now,
+    staffName: staffName || 'Staff',
+    status: 'clocked_in',
   };
-  if (isUuid) payload.userId = staffId;
+  if (isUuid) {
+    payload.userId = staffId;
+    // Also try staffId column when uuid (may match staff table id)
+    payload.staffId = staffId;
+  }
   const id = await addDoc(`businesses/${businessId}/attendance`, payload);
   return id;
 }
