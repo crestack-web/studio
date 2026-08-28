@@ -77,10 +77,24 @@ export function SalePage({
   const [businessCategory, setBusinessCategory] = useState('');
   const [receiptType, setReceiptType] = useState<'supermarket' | 'invoice'>('supermarket');
   const [submitting, setSubmitting] = useState(false);
+  const [saleError, setSaleError] = useState<string | null>(null);
 
   useEffect(() => {
     if (currencyProp) setBusinessCurrency(currencyProp);
   }, [currencyProp]);
+
+  // When exactly one payment method is selected, auto-fill amount to cart total
+  useEffect(() => {
+    const total = cart.reduce((sum, item) => {
+      const product = products.find((p: any) => p.id === item.productId);
+      return sum + (product?.price || 0) * item.quantity;
+    }, 0);
+    setPaymentMethods((prev) => {
+      if (prev.length !== 1) return prev;
+      if (Math.abs((prev[0].amount || 0) - total) < 0.001) return prev;
+      return [{ ...prev[0], amount: total }];
+    });
+  }, [cart, products]);
 
   useEffect(() => {
     if (!businessId) {
@@ -254,10 +268,13 @@ export function SalePage({
     const total = getTotal();
     const totalPayment = getTotalPaymentAmount();
 
-    if (totalPayment < total) {
-      alert('Payment amount must equal total sale amount');
+    if (totalPayment + 0.01 < total) {
+      setSaleError(
+        `Payment (${totalPayment}) is less than total (${total}). Adjust amounts.`
+      );
       return;
     }
+    setSaleError(null);
 
     setSubmitting(true);
     try {
@@ -317,6 +334,36 @@ export function SalePage({
         setCart([]);
         setPaymentMethods([{ method: 'cash', amount: 0, received: true }]);
         alert('Sale saved offline. It will sync when you are back online.');
+        // Show receipt even for offline-queued sales
+        const offlineReceipt: ReceiptData = {
+          businessName: businessName || 'Business',
+          businessAddress,
+          businessPhone,
+          saleNumber: `OFF-${Date.now().toString().slice(-6)}`,
+          date: new Date().toLocaleString('en-US', {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+          }),
+          items: saleProducts.map((p) => ({
+            name: p.name,
+            quantity: p.quantity,
+            price: p.price,
+            total: p.price * p.quantity,
+          })),
+          subtotal: total,
+          amountPaid: totalPayment,
+          outstandingBalance: Math.max(0, total - totalPayment),
+          paymentMethod: primaryMethod,
+          logoUrl: businessLogo,
+          theme: receiptTheme,
+          currency: businessCurrency,
+          soldBy: staffName,
+        };
+        setLastSale(offlineReceipt);
+        setShowPrintDialog(true);
+        setCart([]);
+        setSearchQuery('');
+        setPaymentMethods([{ method: 'cash', amount: 0, received: true }]);
         onComplete?.({ offline: true, total });
         setSubmitting(false);
         return;
@@ -423,7 +470,12 @@ export function SalePage({
       setCart([]);
       setSearchQuery('');
       setPaymentMethods([{ method: 'cash', amount: 0, received: true }]);
-      onComplete?.(receiptData);
+      setSaleError(null);
+      try {
+        onComplete?.(receiptData);
+      } catch (cbErr) {
+        console.warn('[SalePage] onComplete callback error', cbErr);
+      }
     } catch (error: any) {
       console.error('[SalePage] Error recording sale:', error);
       const msg = String(
@@ -433,6 +485,7 @@ export function SalePage({
           error?.error_description ||
           (typeof error === 'string' ? error : 'Failed to record sale. Please try again.')
       );
+      setSaleError(msg);
       // Network failure while "online" — queue offline so staff is not blocked
       const isNetwork =
         msg.toLowerCase().includes('failed to fetch') ||
@@ -771,55 +824,132 @@ export function SalePage({
             <div className="pay-meth">
               <div className="pm-lbl">Payment Methods (Split Payment)</div>
               <div className="pm-split">
-                {paymentMethods.map((pm, index) => (
-                  <div key={index} className="pm-row">
-                    <select
-                      value={pm.method}
-                      onChange={(e) => {
-                        const updated = [...paymentMethods];
-                        updated[index] = {
-                          ...updated[index],
-                          method: e.target.value as PaymentMethod['method'],
-                        };
-                        setPaymentMethods(updated);
-                      }}
-                      className="pm-select"
-                    >
-                      <option value="cash">💵 Cash</option>
-                      <option value="transfer">📱 Transfer</option>
-                      <option value="pos">💳 POS</option>
-                      <option value="credit">📝 Credit</option>
-                    </select>
-                    <input
-                      type="number"
-                      value={pm.amount || ''}
-                      onChange={(e) =>
-                        updatePaymentAmount(
-                          index,
-                          parseFloat(e.target.value) || 0
-                        )
-                      }
-                      placeholder="Amount"
-                      className="pm-input"
-                    />
-                    {paymentMethods.length > 1 && (
-                      <button
-                        type="button"
-                        className="pm-remove"
-                        onClick={() => removePaymentMethod(index)}
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  className="pm-add"
-                  onClick={addPaymentMethod}
+                {/* Owner-style payment method chips */}
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, marginBottom: 4, color: 'var(--t2)' }}>
+                  Payment method
+                </div>
+                <p style={{ fontSize: '0.72rem', color: 'var(--t3)', margin: '0 0 8px' }}>
+                  Tap a method. Amount fills automatically when only one is selected.
+                </p>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: 8,
+                  }}
                 >
-                  + Add Payment Method
-                </button>
+                  {(
+                    [
+                      { id: 'cash', label: 'Cash', icon: '💵' },
+                      { id: 'transfer', label: 'Transfer', icon: '🏦' },
+                      { id: 'pos', label: 'POS', icon: '💳' },
+                      { id: 'credit', label: 'Credit', icon: '📝' },
+                    ] as const
+                  ).map((pm) => {
+                    const active = paymentMethods.some((x) => x.method === pm.id);
+                    const amount =
+                      paymentMethods.find((x) => x.method === pm.id)?.amount || 0;
+                    return (
+                      <div key={pm.id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const total = getTotal();
+                            setPaymentMethods((prev) => {
+                              const exists = prev.some((x) => x.method === pm.id);
+                              if (exists) {
+                                const next = prev.filter((x) => x.method !== pm.id);
+                                if (next.length === 1) {
+                                  return [{ ...next[0], amount: total }];
+                                }
+                                return next.length ? next : [{ method: 'cash', amount: total, received: true }];
+                              }
+                              // Adding
+                              if (prev.length === 0) {
+                                return [{ method: pm.id, amount: total, received: pm.id !== 'credit' }];
+                              }
+                              // Second+ method: leave amount 0 for user to split
+                              return [
+                                ...prev.map((x) => ({ ...x, amount: x.amount || 0 })),
+                                { method: pm.id, amount: 0, received: pm.id !== 'credit' },
+                              ];
+                            });
+                          }}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: 4,
+                            padding: '10px 8px',
+                            borderRadius: 10,
+                            border: active
+                              ? '1.5px solid var(--brand, #16a34a)'
+                              : '1.5px solid var(--bdr, #e2e8f0)',
+                            background: active
+                              ? 'var(--brand-lt, #dcfce7)'
+                              : 'var(--surf, #fff)',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            fontSize: '0.78rem',
+                            color: 'var(--t1, #0f172a)',
+                          }}
+                        >
+                          <span style={{ fontSize: '1.1rem' }}>{pm.icon}</span>
+                          {pm.label}
+                        </button>
+                        {active && (
+                          <input
+                            type="number"
+                            min={0}
+                            value={amount || ''}
+                            onChange={(e) => {
+                              const value =
+                                e.target.value === ''
+                                  ? 0
+                                  : Math.max(0, Number(e.target.value));
+                              setPaymentMethods((prev) =>
+                                prev.map((x) =>
+                                  x.method === pm.id ? { ...x, amount: value } : x
+                                )
+                              );
+                            }}
+                            placeholder="Amount"
+                            style={{
+                              width: '100%',
+                              padding: '8px 10px',
+                              borderRadius: 8,
+                              border: '1.5px solid var(--bdr, #e2e8f0)',
+                              fontSize: '0.85rem',
+                              boxSizing: 'border-box',
+                            }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    marginTop: 8,
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  <span>Paid</span>
+                  <span>
+                    {formatCurrency(getTotalPaymentAmount(), businessCurrency)}
+                    {Math.abs(getTotalPaymentAmount() - getTotal()) > 0.01 ? (
+                      <span style={{ color: 'var(--amber, #d97706)', marginLeft: 6 }}>
+                        (need {formatCurrency(getTotal(), businessCurrency)})
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+              </div>
+
               </div>
               <div className="pm-summary">
                 <div className="pm-row">
@@ -855,6 +985,21 @@ export function SalePage({
               </div>
             </div>
 
+            {saleError && (
+              <div
+                style={{
+                  padding: '10px 12px',
+                  marginBottom: 8,
+                  borderRadius: 8,
+                  background: '#FEF2F2',
+                  border: '1px solid #FECACA',
+                  color: '#B91C1C',
+                  fontSize: '0.8rem',
+                }}
+              >
+                {saleError}
+              </div>
+            )}
             <button
               type="button"
               className="btn bpw"
@@ -877,25 +1022,32 @@ export function SalePage({
         </div>
       </div>
 
-      {showPrintDialog && lastSale && lastSale.items?.length >= 0 && (
+      {showPrintDialog && lastSale && (
         <ReceiptGenerator
           receiptData={{
-            ...lastSale,
-            businessName: lastSale.businessName || 'Business',
-            saleNumber: lastSale.saleNumber || 'REC',
-            date: lastSale.date || new Date().toLocaleString(),
-            items: Array.isArray(lastSale.items) ? lastSale.items : [],
+            businessName: String(lastSale.businessName || businessName || 'Business'),
+            businessAddress: lastSale.businessAddress || businessAddress,
+            businessPhone: lastSale.businessPhone || businessPhone,
+            saleNumber: String(lastSale.saleNumber || 'REC'),
+            date: String(lastSale.date || new Date().toLocaleString()),
+            items: (Array.isArray(lastSale.items) ? lastSale.items : []).map((it) => ({
+              name: String(it?.name || 'Item'),
+              quantity: Number(it?.quantity) || 0,
+              price: Number(it?.price) || 0,
+              total: Number(it?.total) || 0,
+            })),
             subtotal: Number(lastSale.subtotal) || 0,
             amountPaid: Number(lastSale.amountPaid) || 0,
             outstandingBalance: Number(lastSale.outstandingBalance) || 0,
-            paymentMethod: lastSale.paymentMethod || 'cash',
-            currency: lastSale.currency || businessCurrency || '₦',
+            paymentMethod: String(lastSale.paymentMethod || 'cash'),
+            logoUrl: lastSale.logoUrl || businessLogo,
+            theme: lastSale.theme || receiptTheme || null,
+            currency: String(lastSale.currency || businessCurrency || '₦'),
+            soldBy: String(lastSale.soldBy || staffName || 'Staff'),
           }}
           onClose={() => {
             setShowPrintDialog(false);
-            try {
-              onComplete?.();
-            } catch { /* ignore */ }
+            setLastSale(null);
           }}
           isWholesale={
             String(businessCategory || '')

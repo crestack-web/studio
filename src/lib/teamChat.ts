@@ -1,11 +1,12 @@
 /**
- * Shared owner ↔ staff team chat via Supabase
- * (businesses/{businessId}/conversations → chat_conversations)
+ * Shared owner ↔ staff team chat via Supabase.
+ * Primary store: chat_conversations (metadata-first for schema flexibility).
+ * Fallback: chat_messages rows when conversations table rejects writes.
  */
 
+import { getSupabase } from '@/lib/supabase';
 import {
   fetchDocs,
-  fetchDoc,
   addDoc,
   updateDoc,
 } from '@/lib/supabase-client-data';
@@ -71,7 +72,47 @@ function extractParticipants(row: any): string[] {
   return Array.isArray(p) ? p.map(String) : [];
 }
 
-/** Load all owner↔staff + team threads for a business into ChatPanel shape */
+function extractType(row: any): string {
+  return String(row?.type || row?.metadata?.type || '');
+}
+
+async function loadFlatMessages(
+  businessId: string
+): Promise<Record<string, { id: string; messages: TeamChatMessage[] }>> {
+  const out: Record<string, { id: string; messages: TeamChatMessage[] }> = {
+    team: { id: 'team', messages: [] },
+  };
+  try {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('business_id', businessId)
+      .order('created_at', { ascending: true })
+      .limit(500);
+    if (error || !data) return out;
+    for (const row of data) {
+      const meta = (row.metadata && typeof row.metadata === 'object' ? row.metadata : {}) as any;
+      const key = String(meta.conversationKey || row.conversation_id || 'team');
+      const msg = normalizeMessage({
+        id: row.id,
+        senderId: row.sender_id || meta.senderId,
+        senderName: row.sender_name || meta.senderName,
+        senderType: row.sender_type || meta.senderType,
+        text: row.body || row.text || meta.text,
+        timestamp: row.created_at,
+        imageUrl: meta.imageUrl,
+        audioUrl: meta.audioUrl,
+      });
+      if (!out[key]) out[key] = { id: key, messages: [] };
+      out[key].messages.push(msg);
+    }
+  } catch (e) {
+    console.warn('[teamChat] flat messages load failed', e);
+  }
+  return out;
+}
+
 export async function loadOwnerConversations(
   businessId: string
 ): Promise<Record<string, { id: string; messages: TeamChatMessage[] }>> {
@@ -80,21 +121,42 @@ export async function loadOwnerConversations(
   };
   if (!businessId) return out;
 
-  const rows = await fetchDocs(convPath(businessId));
-  for (const row of rows as any[]) {
-    const messages = extractMessages(row);
-    const type = String(row.type || row.metadata?.type || '');
-    if (type === 'team') {
-      out.team = { id: 'team', messages };
-      continue;
+  try {
+    const rows = await fetchDocs(convPath(businessId));
+    for (const row of rows as any[]) {
+      const messages = extractMessages(row);
+      const type = extractType(row);
+      if (type === 'team') {
+        out.team = { id: 'team', messages };
+        continue;
+      }
+      const participants = extractParticipants(row);
+      const staffKey =
+        participants.find((p) => p && p !== 'owner') || participants[0] || row.id;
+      if (staffKey) out[String(staffKey)] = { id: String(staffKey), messages };
     }
-    const participants = extractParticipants(row);
-    const staffKey =
-      participants.find((p) => p && p !== 'owner') || participants[0] || row.id;
-    if (staffKey) {
-      out[String(staffKey)] = { id: String(staffKey), messages };
-    }
+  } catch (e) {
+    console.warn('[teamChat] conversations load failed', e);
   }
+
+  // Merge flat chat_messages (fallback / hybrid)
+  try {
+    const flat = await loadFlatMessages(businessId);
+    for (const [key, thread] of Object.entries(flat)) {
+      if (!out[key] || out[key].messages.length === 0) {
+        out[key] = thread;
+      } else {
+        const ids = new Set(out[key].messages.map((m) => m.id));
+        for (const m of thread.messages) {
+          if (!ids.has(m.id)) out[key].messages.push(m);
+        }
+        out[key].messages.sort((a, b) => a.timestamp - b.timestamp);
+      }
+    }
+  } catch {
+    /* optional */
+  }
+
   return out;
 }
 
@@ -109,85 +171,120 @@ export async function loadStaffConversations(
   };
 }
 
+async function appendFlatMessage(
+  businessId: string,
+  conversationKey: string,
+  message: TeamChatMessage
+) {
+  const supabase = getSupabase();
+  const id = message.id || crypto.randomUUID();
+  const { error } = await supabase.from('chat_messages').insert({
+    id,
+    business_id: businessId,
+    conversation_id: conversationKey,
+    sender_id: message.senderId,
+    sender_name: message.senderName,
+    sender_type: message.senderType,
+    body: message.text,
+    text: message.text,
+    created_at: new Date(message.timestamp || Date.now()).toISOString(),
+    metadata: {
+      conversationKey,
+      senderId: message.senderId,
+      senderName: message.senderName,
+      senderType: message.senderType,
+      text: message.text,
+      imageUrl: message.imageUrl,
+      audioUrl: message.audioUrl,
+    },
+  });
+  if (error) throw error;
+}
+
 export async function appendConversationMessage(
   businessId: string,
   opts: {
-    conversationKey: string; // 'team' or staffId
+    conversationKey: string;
     message: TeamChatMessage;
     staffIdForDm?: string;
   }
 ): Promise<void> {
   const { conversationKey, message } = opts;
   const isTeam = conversationKey === 'team';
-  const rows = (await fetchDocs(convPath(businessId))) as any[];
+  const staffId = opts.staffIdForDm || (!isTeam ? conversationKey : undefined);
 
-  if (isTeam) {
-    const existing = rows.find((r) => String(r.type || r.metadata?.type) === 'team');
+  // Always write flat message (works even if conversations table is limited)
+  try {
+    await appendFlatMessage(
+      businessId,
+      isTeam ? 'team' : String(staffId || conversationKey),
+      message
+    );
+  } catch (e) {
+    console.warn('[teamChat] flat message insert failed', e);
+  }
+
+  // Best-effort conversation document (thread mirror)
+  try {
+    const rows = (await fetchDocs(convPath(businessId))) as any[];
+    if (isTeam) {
+      const existing = rows.find((r) => extractType(r) === 'team');
+      const participants = ['owner', staffId].filter(Boolean) as string[];
+      if (!existing) {
+        const messages = [message];
+        await addDoc(convPath(businessId), {
+          metadata: { type: 'team', participants, messages },
+          updatedAt: new Date().toISOString(),
+        });
+      } else {
+        const messages = [...extractMessages(existing), message];
+        await updateDoc(convPath(businessId), existing.id, {
+          metadata: {
+            type: 'team',
+            participants: extractParticipants(existing).length
+              ? extractParticipants(existing)
+              : participants,
+            messages,
+          },
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      return;
+    }
+
+    const sid = String(staffId || conversationKey);
+    const existing = rows.find((r) => {
+      if (extractType(r) === 'team') return false;
+      return extractParticipants(r).includes(sid);
+    });
+    const participants = [sid, 'owner'];
     if (!existing) {
-      const participants = ['owner', opts.staffIdForDm].filter(Boolean) as string[];
       await addDoc(convPath(businessId), {
-        type: 'team',
-        participants,
-        messages: [message],
-        metadata: { type: 'team', participants, messages: [message] },
+        metadata: { type: 'owner', participants, messages: [message] },
         updatedAt: new Date().toISOString(),
       });
     } else {
-      const prev = extractMessages(existing);
-      const messages = [...prev, message];
-      const participants = extractParticipants(existing);
+      const messages = [...extractMessages(existing), message];
       await updateDoc(convPath(businessId), existing.id, {
-        type: 'team',
-        participants,
-        messages,
-        metadata: { type: 'team', participants, messages },
+        metadata: {
+          type: 'owner',
+          participants: extractParticipants(existing).length
+            ? extractParticipants(existing)
+            : participants,
+          messages,
+        },
         updatedAt: new Date().toISOString(),
       });
     }
-    return;
-  }
-
-  const staffId = opts.staffIdForDm || conversationKey;
-  const existing = rows.find((r) => {
-    const type = String(r.type || r.metadata?.type || '');
-    if (type === 'team') return false;
-    const participants = extractParticipants(r);
-    return participants.includes(String(staffId));
-  });
-
-  if (!existing) {
-    const participants = [staffId, 'owner'];
-    await addDoc(convPath(businessId), {
-      type: 'owner',
-      participants,
-      messages: [message],
-      metadata: { type: 'owner', participants, messages: [message] },
-      updatedAt: new Date().toISOString(),
-    });
-  } else {
-    const prev = extractMessages(existing);
-    const messages = [...prev, message];
-    const participants = extractParticipants(existing).length
-      ? extractParticipants(existing)
-      : [staffId, 'owner'];
-    await updateDoc(convPath(businessId), existing.id, {
-      type: 'owner',
-      participants,
-      messages,
-      metadata: { type: 'owner', participants, messages },
-      updatedAt: new Date().toISOString(),
-    });
+  } catch (e) {
+    console.warn('[teamChat] conversation doc write failed (flat message still saved)', e);
   }
 }
 
-/**
- * Polling-based "subscribe" (Supabase client has no Firestore-style snapshot here).
- * Returns an unsubscribe that clears the interval.
- */
 export function subscribeOwnerConversations(
   businessId: string,
   onData: (convos: Record<string, { id: string; messages: TeamChatMessage[] }>) => void,
-  intervalMs = 4000
+  intervalMs = 3500
 ): () => void {
   let cancelled = false;
   const tick = async () => {
@@ -205,12 +302,4 @@ export function subscribeOwnerConversations(
     cancelled = true;
     clearInterval(id);
   };
-}
-
-/** @deprecated firestore arg ignored — kept for call-site compatibility */
-export async function loadOwnerConversationsLegacy(
-  _firestore: unknown,
-  businessId: string
-) {
-  return loadOwnerConversations(businessId);
 }
