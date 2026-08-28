@@ -107,9 +107,22 @@ export const STAFF_PERMISSION_DEFS: StaffPermissionDef[] = [
   {
     key: 'returns',
     label: 'Returns',
-    description: 'Log product returns with reason',
+    description: 'Log product or order returns with reason',
     icon: '↩️',
     page: 'returns',
+    categories: [
+      'retail',
+      'grocery',
+      'supermarket',
+      'wholesale',
+      'distributor',
+      'electronics',
+      'fashion',
+      'pharmacy',
+      'restaurant',
+      'cafe',
+      'other',
+    ],
   },
   {
     key: 'receive',
@@ -143,6 +156,17 @@ export const STAFF_PERMISSION_DEFS: StaffPermissionDef[] = [
     description: 'Count cash drawer at end of shift',
     icon: '🧮',
     page: 'shift',
+    categories: [
+      'retail',
+      'grocery',
+      'supermarket',
+      'restaurant',
+      'cafe',
+      'pharmacy',
+      'electronics',
+      'fashion',
+      'other',
+    ],
   },
   {
     key: 'expiry',
@@ -155,10 +179,11 @@ export const STAFF_PERMISSION_DEFS: StaffPermissionDef[] = [
   {
     key: 'menu',
     label: 'Menu / floor',
-    description: 'Restaurant menu and order assistance',
+    description: 'Restaurant menu, dishes, and floor orders',
     icon: '🍽️',
     page: 'menu',
     categories: ['restaurant', 'cafe'],
+    defaultOn: true,
   },
   {
     key: 'production',
@@ -247,13 +272,24 @@ export function normalizeBusinessCategory(raw?: string | null): string {
 
 export function getStaffPermissionsForCategory(category?: string | null): StaffPermissionDef[] {
   const cat = normalizeBusinessCategory(category);
-  return STAFF_PERMISSION_DEFS.filter((def) => {
+  const matched = STAFF_PERMISSION_DEFS.filter((def) => {
     if (!def.categories || def.categories.length === 0) return true;
     return def.categories.some((c) => {
       const nc = normalizeBusinessCategory(c);
       return nc === cat || cat.includes(nc) || nc.includes(cat);
     });
   });
+
+  // Restaurant/cafe: ensure menu is present even if category string was noisy
+  if ((cat === 'restaurant' || cat === 'cafe') && !matched.some((d) => d.key === 'menu')) {
+    const menuDef = STAFF_PERMISSION_DEFS.find((d) => d.key === 'menu');
+    if (menuDef) matched.push(menuDef);
+  }
+
+  // Stable order as defined
+  const order = new Map(STAFF_PERMISSION_DEFS.map((d, i) => [d.key, i]));
+  matched.sort((a, b) => (order.get(a.key) ?? 99) - (order.get(b.key) ?? 99));
+  return matched;
 }
 
 /** True when this permission applies to the business category */
@@ -322,13 +358,13 @@ export const ROLES: Record<string, StaffRoleConfig> = {
   Staff: {
     label: 'Staff',
     description: 'General team member — record sales and view basic data',
-    permissions: ['sale', 'atd', 'msg'],
+    permissions: ['sale', 'atd', 'msg', 'menu'],
   },
   Cashier: {
     label: 'Cashier',
     description: 'Front desk — sales, customers, and shift close',
-    permissions: ['sale', 'hist', 'customers', 'shift', 'atd', 'msg'],
-    categories: ['retail', 'grocery', 'supermarket', 'electronics', 'fashion', 'pharmacy', 'other'],
+    permissions: ['sale', 'hist', 'customers', 'shift', 'atd', 'msg', 'menu'],
+    categories: ['retail', 'grocery', 'supermarket', 'electronics', 'fashion', 'pharmacy', 'restaurant', 'cafe', 'other'],
   },
   Seller: {
     label: 'Seller',
@@ -351,6 +387,8 @@ export const ROLES: Record<string, StaffRoleConfig> = {
       'receive',
       'expenses',
       'shift',
+      'menu',
+      'expiry',
     ],
   },
   'Store manager': {

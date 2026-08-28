@@ -160,9 +160,11 @@ export function SalePage({
   const filteredProducts = useMemo(() => {
     if (!searchQuery.trim()) return products;
     const q = searchQuery.toLowerCase();
-    return products.filter(
-      (p) => p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q)
-    );
+    return products.filter((p) => {
+      const name = String(p?.name || '').toLowerCase();
+      const id = String(p?.id || '').toLowerCase();
+      return name.includes(q) || id.includes(q);
+    });
   }, [searchQuery, products]);
 
   const addToCart = (productId: string) => {
@@ -873,18 +875,35 @@ export function SalePage({
         </div>
       </div>
 
-      {showPrintDialog && lastSale && (
+      {showPrintDialog && lastSale && lastSale.items?.length >= 0 && (
         <ReceiptGenerator
-          receiptData={lastSale}
+          receiptData={{
+            ...lastSale,
+            businessName: lastSale.businessName || 'Business',
+            saleNumber: lastSale.saleNumber || 'REC',
+            date: lastSale.date || new Date().toLocaleString(),
+            items: Array.isArray(lastSale.items) ? lastSale.items : [],
+            subtotal: Number(lastSale.subtotal) || 0,
+            amountPaid: Number(lastSale.amountPaid) || 0,
+            outstandingBalance: Number(lastSale.outstandingBalance) || 0,
+            paymentMethod: lastSale.paymentMethod || 'cash',
+            currency: lastSale.currency || businessCurrency || '₦',
+          }}
           onClose={() => {
             setShowPrintDialog(false);
-            onComplete?.();
+            try {
+              onComplete?.();
+            } catch { /* ignore */ }
           }}
           isWholesale={
-            businessCategory.toLowerCase().includes('wholesale') ||
-            businessCategory.toLowerCase().includes('distributor')
+            String(businessCategory || '')
+              .toLowerCase()
+              .includes('wholesale') ||
+            String(businessCategory || '')
+              .toLowerCase()
+              .includes('distributor')
           }
-          receiptType={receiptType}
+          receiptType={receiptType || 'supermarket'}
         />
       )}
     </div>

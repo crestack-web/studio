@@ -68,6 +68,10 @@ export async function fetchProducts(
   businessId?: string
 ): Promise<Product[]> {
   try {
+    if (!businessId) {
+      console.warn('fetchProducts: missing businessId');
+      return [];
+    }
     console.log('Fetching products for businessId:', businessId);
 
     const rawProducts = await fetchDocs<Record<string, any>>(
@@ -95,7 +99,7 @@ export async function fetchProducts(
     return products;
   } catch (error) {
     console.error('Error fetching products:', error);
-    throw error;
+    return [];
   }
 }
 

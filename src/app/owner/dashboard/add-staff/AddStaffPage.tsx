@@ -62,7 +62,12 @@ export default function AddStaffPage() {
           
           const businessDoc = await getDoc(doc(firestore, 'businesses', businessId));
           if (businessDoc.exists()) {
-            const category = businessDoc.data()?.category || 'other';
+            const category = normalizeBusinessCategory(
+              businessDoc.data()?.category ||
+                businessDoc.data()?.businessCategory ||
+                businessDoc.data()?.business_category ||
+                'other'
+            );
             setBusinessType(category);
             
             // Get recommended roles for this business type
@@ -80,15 +85,13 @@ export default function AddStaffPage() {
     fetchBusinessType();
   }, []);
 
-  // Use fixed staff dashboard permissions (not feature registry)
-  // Staff dashboard only has: sale, inv, hist, atd, msg
-  const STAFF_PERMISSIONS = [
-    { key: 'sale', label: '🛒 Sales Recording', icon: 'ShoppingCart' },
-    { key: 'inv', label: '📦 Inventory View', icon: 'Package' },
-    { key: 'hist', label: '📊 History & Reports', icon: 'BarChart3' },
-    { key: 'atd', label: '⏰ Attendance', icon: 'Clock' },
-    { key: 'msg', label: '💬 Messages', icon: 'MessageSquare' },
-  ];
+  // Category-aware permission list (e.g. menu for restaurants)
+  const STAFF_PERMISSIONS = getStaffPermissionsForCategory(businessType).map((d) => ({
+    key: d.key,
+    label: `${d.icon} ${d.label}`,
+    icon: d.icon,
+    description: d.description,
+  }));
 
   // Update permissions when role changes
   useEffect(() => {

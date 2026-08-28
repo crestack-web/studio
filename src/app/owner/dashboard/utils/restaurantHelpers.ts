@@ -27,7 +27,14 @@ export async function isRestaurantBusiness(businessId: string): Promise<boolean>
     if (businessDoc.exists()) {
       const data = businessDoc.data();
       const category = data.category || data.businessCategory || '';
-      return category.toLowerCase() === 'restaurant';
+      const c = String(category).toLowerCase();
+      return (
+        c === 'restaurant' ||
+        c === 'resturant' ||
+        c.includes('restaurant') ||
+        c.includes('resturant') ||
+        c.includes('food')
+      );
     }
     
     return false;

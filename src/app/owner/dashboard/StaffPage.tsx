@@ -364,14 +364,28 @@ export default function StaffPage() {
       try {
         const bid = user?.businessId;
         if (!bid) return;
-        const { data } = await fetchDoc('businesses', bid);
-        if (cancelled || !data) return;
-        const cat = String((data as any).category || (data as any).business_category || (data as any).businessType || 'other');
-        setBusinessCategory(normalizeBusinessCategory(cat));
+        // fetchDoc returns the row (or null), not { data }
+        const row = await fetchDoc<Record<string, any>>('businesses', bid);
+        if (cancelled) return;
+        if (row) {
+          const cat = String(
+            row.category ||
+              row.business_category ||
+              row.businessCategory ||
+              row.businessType ||
+              row.business_type ||
+              row.type ||
+              'other'
+          );
+          setBusinessCategory(normalizeBusinessCategory(cat));
+        } else {
+          const cat = await getBusinessCategory(bid);
+          if (!cancelled && cat) setBusinessCategory(normalizeBusinessCategory(String(cat)));
+        }
       } catch (_) {
         try {
           const cat = await getBusinessCategory(user?.businessId || '');
-          if (!cancelled && cat) setBusinessCategory(String(cat));
+          if (!cancelled && cat) setBusinessCategory(normalizeBusinessCategory(String(cat)));
         } catch (_) {}
       }
     })();
