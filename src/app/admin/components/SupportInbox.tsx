@@ -91,18 +91,35 @@ export default function SupportInbox() {
 
   const sendReply = async () => {
     if (!selectedId || !reply.trim() || sending) return;
+    const text = reply.trim();
     setSending(true);
+    setError(null);
+    // Optimistic bubble so the agent sees feedback immediately
+    const optimisticId = `local-${Date.now()}`;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: optimisticId,
+        sender_role: 'admin',
+        content: text,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+    setReply('');
     try {
       const headers = await adminAuthHeaders();
       const res = await fetch('/api/admin/support/reply', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ ticketId: selectedId, message: reply.trim() }),
+        body: JSON.stringify({ ticketId: selectedId, message: text }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed');
-      setReply('');
-      if (json.messages) setMessages(json.messages);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+        setReply(text);
+        throw new Error(json.error || `Send failed (${res.status})`);
+      }
+      if (json.messages?.length) setMessages(json.messages);
       await loadInbox();
     } catch (e: any) {
       setError(e?.message || 'Send failed');
