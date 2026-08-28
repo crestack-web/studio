@@ -873,7 +873,7 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({ hasAccess, businessI
       }
     }
     loadConversations();
-    const poll = setInterval(() => { if (!cancelled) loadConversations(); }, 6000);
+    const poll = setInterval(() => { if (!cancelled) loadConversations(); }, 3000);
     return () => {
       cancelled = true;
       clearInterval(poll); };
@@ -881,36 +881,40 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({ hasAccess, businessI
 
   const sendMsg = async () => {
     if (!draft.trim() || !businessId || !staffId) return;
-    
+
+    const text = draft.trim();
     const newMessage: ChatMessage = {
       type: 'sent',
-      text: draft.trim(),
+      text,
       timestamp: Date.now(),
       senderName: 'You',
     };
-    
+
+    // Optimistic
+    if (convId === 'owner') {
+      setConvos((prev) => ({ ...prev, owner: [...prev.owner, newMessage] }));
+    } else {
+      setConvos((prev) => ({ ...prev, team: [...prev.team, newMessage] }));
+    }
+    setDraft('');
+
     try {
       const payload: TeamChatMessage = {
         id: `m-${Date.now()}`,
         senderId: staffId,
         senderName: 'Staff',
         senderType: 'staff',
-        text: newMessage.text,
-        timestamp: newMessage.timestamp || Date.now(),
+        text,
+        timestamp: newMessage.timestamp,
       };
       await appendConversationMessage(businessId, {
         conversationKey: convId === 'team' ? 'team' : staffId,
         message: payload,
         staffIdForDm: staffId,
       });
-      if (convId === 'owner') {
-        setConvos((prev) => ({ ...prev, owner: [...prev.owner, newMessage] }));
-      } else {
-        setConvos((prev) => ({ ...prev, team: [...prev.team, newMessage] }));
-      }
-      setDraft('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message:', error);
+      alert(error?.message || 'Failed to send message. Try again.');
     }
   };
 
