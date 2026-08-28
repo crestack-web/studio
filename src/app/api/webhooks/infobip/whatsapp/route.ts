@@ -22,6 +22,14 @@ import { generateSalesReply } from '@/lib/services/whatsapp/mo-sales-agent';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+/** Safe deploy fingerprint — proves which build is handling webhook traffic */
+const WEBHOOK_BUILD_MARKER = 'phone-routing-diagnostic-v2';
+const WEBHOOK_COMMIT =
+  process.env.VERCEL_GIT_COMMIT_SHA ||
+  process.env.GITHUB_SHA ||
+  process.env.COMMIT_SHA ||
+  'unknown';
+
 type InboundResult = {
   from?: string;
   /** Subscription / multi-channel payloads often use sender instead of from */
@@ -521,6 +529,16 @@ async function processInbound(raw: InboundResult): Promise<void> {
 }
 
 export async function POST(req: NextRequest) {
+  // Unmistakable deploy fingerprint — runs for EVERY POST before auth/parse/MO.
+  console.log(
+    JSON.stringify({
+      event: 'infobip_webhook_build_marker',
+      build: WEBHOOK_BUILD_MARKER,
+      commit: WEBHOOK_COMMIT,
+      timestamp: new Date().toISOString(),
+    })
+  );
+
   // First diagnostic — proves the request reached the Next.js route handler.
   // Must run before auth, JSON parse, validation, DB, or MO.
   console.log(
@@ -602,5 +620,7 @@ export async function GET() {
     ok: true,
     service: 'infobip-whatsapp-webhook',
     configured: isInfobipConfigured(),
+    build: WEBHOOK_BUILD_MARKER,
+    commit: WEBHOOK_COMMIT,
   });
 }
