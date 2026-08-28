@@ -18,6 +18,13 @@ import {
   isMoGloballyEnabled,
 } from '@/lib/services/whatsapp/conversation-store';
 import { generateSalesReply } from '@/lib/services/whatsapp/mo-sales-agent';
+import {
+  getAvailableCredits,
+  deductForMoResponse,
+  refundUsageForFailedSend,
+  ensureTrialCredits,
+  MO_CREDITS_PER_RESPONSE,
+} from '@/lib/services/whatsapp/mo-credits';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -375,6 +382,31 @@ async function processInbound(raw: InboundResult): Promise<void> {
     return;
   }
 
+  // Ensure trial wallet once; do not charge yet
+  try {
+    await ensureTrialCredits(connection.business_id);
+  } catch {
+    // non-fatal — deduct path will still enforce balance
+  }
+
+  const availableCredits = await getAvailableCredits(connection.business_id);
+  if (availableCredits < MO_CREDITS_PER_RESPONSE) {
+    await updateMessageStatus(claim.id, 'skipped', {
+      reason: 'insufficient_credits',
+      availableCredits,
+    });
+    console.log(JSON.stringify({
+      event: 'mo_started',
+      skipped: true,
+      reason: 'insufficient_credits',
+      conversationId: conversation.id,
+      messageId,
+      businessId: connection.business_id,
+      availableCredits,
+    }));
+    return;
+  }
+
   if (!isInfobipConfigured()) {
     await updateMessageStatus(claim.id, 'failed', { error: 'infobip_not_configured' });
     console.error(JSON.stringify({ event: 'whatsapp_send_failed', error: 'infobip_not_configured' }));
@@ -469,6 +501,30 @@ async function processInbound(raw: InboundResult): Promise<void> {
     );
   }
 
+  // Atomic credit reservation before outbound send (idempotent on inbound claim id)
+  const creditDeduct = await deductForMoResponse({
+    businessId: connection.business_id,
+    amount: MO_CREDITS_PER_RESPONSE,
+    conversationId: conversation.id,
+    messageId: claim.id,
+    providerMessageId: messageId,
+    description: 'MO automatic response',
+  });
+  if (!creditDeduct.ok) {
+    await updateMessageStatus(claim.id, 'skipped', {
+      reason: 'insufficient_credits',
+      availableCredits: creditDeduct.balance,
+    });
+    console.log(JSON.stringify({
+      event: 'mo_credit_deduct_blocked',
+      businessId: connection.business_id,
+      messageId,
+      balance: creditDeduct.balance,
+      error: creditDeduct.error,
+    }));
+    return;
+  }
+
   // Free-form text only for customer-initiated inbound TEXT (24h care window).
   const sendResult = await sendWhatsAppText({
     from: businessSender,
@@ -482,14 +538,26 @@ async function processInbound(raw: InboundResult): Promise<void> {
       await updateMessageStatus(
         outboundId,
         'sent',
-        { infobipStatus: sendResult.status },
+        { infobipStatus: sendResult.status, creditLedgerId: creditDeduct.ledgerId },
         { setSentAt: true, providerMessageId: sendResult.messageId || clientMessageId }
       );
     } else {
       await updateMessageStatus(outboundId, 'failed', {
         error: sendResult.error || 'send_failed',
       });
+      // Refund reserved credit when Infobip rejects the send
+      await refundUsageForFailedSend({
+        businessId: connection.business_id,
+        messageId: claim.id,
+        reason: 'outbound_send_failed',
+      });
     }
+  } else if (!sendResult.ok) {
+    await refundUsageForFailedSend({
+      businessId: connection.business_id,
+      messageId: claim.id,
+      reason: 'outbound_send_failed',
+    });
   }
 
   console.log(

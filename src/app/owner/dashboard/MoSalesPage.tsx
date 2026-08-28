@@ -11,7 +11,7 @@ import { useCurrency } from './CurrencyContext';
 import { getSupabase } from '@/lib/supabase';
 import styles from './MoSalesPage.module.css';
 
-type View = 'home' | 'inbox' | 'settings';
+type View = 'home' | 'inbox' | 'credits' | 'settings';
 
 type ConvoRow = {
   id: string;
@@ -54,6 +54,11 @@ type Overview = {
   };
   recentConversations: ConvoRow[];
   health: 'healthy' | 'needs_attention' | 'not_connected';
+  credits?: null | {
+    available: number;
+    status: string;
+    trialRemaining: number;
+  };
 };
 
 type Message = {
@@ -61,6 +66,42 @@ type Message = {
   direction: string;
   text: string | null;
   createdAt: string;
+};
+
+type CreditsSummary = {
+  trialCredits: number;
+  trialCreditsUsed: number;
+  trialCreditsRemaining: number;
+  purchasedCredits: number;
+  purchasedCreditsUsed: number;
+  purchasedCreditsRemaining: number;
+  usedCredits: number;
+  availableCredits: number;
+  usageThisMonth: number;
+  usageToday: number;
+  status: string;
+  estimatedResponsesRemaining: number;
+  creditsPerResponse: number;
+  currency: string;
+  packages: Array<{
+    id: string;
+    name: string;
+    credits: number;
+    priceKobo: number;
+    currency: string;
+    description: string | null;
+    priceDisplay: string;
+  }>;
+};
+
+type UsageItem = {
+  id: string;
+  type: string;
+  amount: number;
+  balanceAfter: number;
+  description: string | null;
+  createdAt: string;
+  customerMasked: string | null;
 };
 
 async function authHeaders(): Promise<Record<string, string>> {
@@ -122,7 +163,12 @@ export default function MoSalesPage() {
   const [view, setView] = useState<View>('home');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [overview, setOverview] = useState<Overview | null>(null);
+    const [overview, setOverview] = useState<Overview | null>(null);
+  const [credits, setCredits] = useState<CreditsSummary | null>(null);
+  const [usageItems, setUsageItems] = useState<UsageItem[]>([]);
+  const [creditsLoading, setCreditsLoading] = useState(false);
+  const [buyOpen, setBuyOpen] = useState(false);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
 
   const [inboxFilter, setInboxFilter] = useState<'all' | 'needs_you' | 'mo_handling'>('all');
   const [inboxQ, setInboxQ] = useState('');
@@ -189,7 +235,54 @@ export default function MoSalesPage() {
     }
   }, [businessId]);
 
+  const loadCredits = useCallback(async () => {
+    if (!businessId) return;
+    setCreditsLoading(true);
+    try {
+      const headers = await authHeaders();
+      const [cRes, uRes] = await Promise.all([
+        fetch(`/api/mo-sales/credits?businessId=${encodeURIComponent(businessId)}`, { headers }),
+        fetch(`/api/mo-sales/credits/usage?businessId=${encodeURIComponent(businessId)}&limit=30`, { headers }),
+      ]);
+      const cJson = await cRes.json();
+      const uJson = await uRes.json();
+      if (cRes.ok) setCredits(cJson);
+      if (uRes.ok) setUsageItems(uJson.items || []);
+    } catch {
+      /* keep previous */
+    } finally {
+      setCreditsLoading(false);
+    }
+  }, [businessId]);
+
   useEffect(() => { loadOverview(); }, [loadOverview]);
+  useEffect(() => { if (view === 'credits' || view === 'home') loadCredits(); }, [view, loadCredits]);
+
+  // After Paystack redirect (?moCredits=1&reference=...)
+  useEffect(() => {
+    if (!businessId || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('moCredits') !== '1') return;
+    const reference = params.get('reference') || params.get('trxref');
+    if (!reference) return;
+    (async () => {
+      try {
+        const headers = await authHeaders();
+        await fetch('/api/mo-sales/credits/verify', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ businessId, reference }),
+        });
+        await loadCredits();
+        setView('credits');
+      } catch { /* ignore */ }
+      const url = new URL(window.location.href);
+      url.searchParams.delete('moCredits');
+      url.searchParams.delete('reference');
+      url.searchParams.delete('trxref');
+      window.history.replaceState({}, '', url.pathname + url.search);
+    })();
+  }, [businessId, loadCredits]);
 
   const loadInbox = useCallback(async () => {
     if (!businessId) return;
@@ -456,9 +549,9 @@ export default function MoSalesPage() {
       )}
 
       <nav className={styles.tabs} aria-label="MO Sales sections">
-        {(['home', 'inbox', 'settings'] as View[]).map((v) => (
+        {(['home', 'inbox', 'credits', 'settings'] as View[]).map((v) => (
           <button key={v} type="button" className={view === v ? styles.tabActive : styles.tab} onClick={() => setView(v)}>
-            {v === 'home' ? 'Overview' : v === 'inbox' ? 'Conversations' : 'Settings'}
+            {v === 'home' ? 'Overview' : v === 'inbox' ? 'Conversations' : v === 'credits' ? 'Credits & Usage' : 'Settings'}
             {v === 'inbox' && (overview?.metrics.needsYou || 0) > 0 ? (
               <span className={styles.badge}>{overview?.metrics.needsYou}</span>
             ) : null}
@@ -565,6 +658,34 @@ export default function MoSalesPage() {
               )}
             </div>
           </section>
+
+          {overview?.credits && (
+            <section className={styles.card}>
+              <div className={styles.creditLabel}>MO Credits</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                <div>
+                  <strong style={{ fontSize: '1.25rem' }}>{overview.credits.available.toLocaleString()}</strong>
+                  <span className={styles.muted}> available</span>
+                  {overview.credits.status === 'trial' && (
+                    <span className={styles.muted}> · FREE TRIAL ({overview.credits.trialRemaining} left)</span>
+                  )}
+                  {overview.credits.status === 'empty' && (
+                    <div className={styles.creditWarn} style={{ marginTop: 8 }}>
+                      MO is paused — your credits have finished.
+                    </div>
+                  )}
+                  {(overview.credits.status === 'low' || overview.credits.status === 'critical') && (
+                    <div className={styles.creditWarn} style={{ marginTop: 8 }}>
+                      You’re running low on MO credits.
+                    </div>
+                  )}
+                </div>
+                <button type="button" className={styles.btnPrimary} onClick={() => setView('credits')}>
+                  Credits & Usage
+                </button>
+              </div>
+            </section>
+          )}
 
           <section className={styles.metrics}>
             <div className={styles.metric}>
@@ -810,8 +931,180 @@ export default function MoSalesPage() {
         </section>
       )}
 
+
+      {view === 'credits' && (
+        <section className={styles.creditsSection}>
+          {creditsLoading && !credits ? (
+            <div className={styles.muted}>Loading credits…</div>
+          ) : !credits || (credits.availableCredits === 0 && credits.usedCredits === 0 && credits.trialCredits === 0) ? (
+            <div className={styles.empty}>
+              <h2>Your MO Sales credits are waiting</h2>
+              <p>Start your free MO Sales trial and see how MO handles customer conversations for your business.</p>
+              <button type="button" className={styles.btnPrimary} onClick={() => loadCredits()}>
+                Start free trial
+              </button>
+              <p className={styles.muted} style={{ marginTop: 12 }}>
+                MO Credits are used when MO handles customer conversations automatically. Usage depends on how many customers message you.
+              </p>
+            </div>
+          ) : credits.status === 'empty' && credits.trialCreditsUsed >= credits.trialCredits && credits.purchasedCredits === 0 ? (
+            <div className={styles.empty}>
+              <h2>Your MO Sales trial is complete</h2>
+              <p>MO handled your customer conversations during your trial. Add credits to keep MO responding automatically.</p>
+              <p className={styles.muted}>Trial credits used: {credits.trialCreditsUsed}</p>
+              <button type="button" className={styles.btnPrimary} onClick={() => setBuyOpen(true)}>Buy MO Credits</button>
+              <button type="button" className={styles.btnGhost} style={{ marginLeft: 8 }} onClick={() => setView('inbox')}>View conversations</button>
+            </div>
+          ) : (
+            <>
+              <div className={styles.creditHero}>
+                <div>
+                  <div className={styles.creditLabel}>MO Credits</div>
+                  <div className={styles.creditBalance}>{credits.availableCredits.toLocaleString()}</div>
+                  <div className={styles.muted}>
+                    ≈ {credits.estimatedResponsesRemaining.toLocaleString()} automatic replies remaining
+                    {credits.status === 'trial' ? ' · FREE TRIAL' : ''}
+                  </div>
+                </div>
+                <div className={styles.headerActions}>
+                  <button type="button" className={styles.btnPrimary} onClick={() => setBuyOpen(true)}>Buy Credits</button>
+                  <button type="button" className={styles.btnGhost} onClick={() => loadCredits()}>Refresh</button>
+                </div>
+              </div>
+
+              {(credits.status === 'low' || credits.status === 'critical') && (
+                <div className={styles.creditWarn}>
+                  {credits.status === 'critical'
+                    ? 'MO Sales is almost out of credits.'
+                    : 'You’re running low on MO credits.'}
+                  {' '}
+                  <button type="button" className={styles.linkBtn} onClick={() => setBuyOpen(true)}>Buy Credits</button>
+                </div>
+              )}
+              {credits.status === 'empty' && (
+                <div className={styles.creditWarn}>
+                  MO Sales has stopped responding automatically because your credits are finished.
+                  {' '}
+                  <button type="button" className={styles.linkBtn} onClick={() => setBuyOpen(true)}>Buy Credits</button>
+                </div>
+              )}
+
+              <div className={styles.metrics}>
+                <div className={styles.metric}>
+                  <div className={styles.metricValue}>{credits.availableCredits.toLocaleString()}</div>
+                  <div className={styles.metricSub}>Available</div>
+                </div>
+                <div className={styles.metric}>
+                  <div className={styles.metricValue}>{credits.usageThisMonth.toLocaleString()}</div>
+                  <div className={styles.metricSub}>Used this month</div>
+                </div>
+                <div className={styles.metric}>
+                  <div className={styles.metricValue}>{credits.trialCreditsUsed.toLocaleString()}</div>
+                  <div className={styles.metricSub}>Trial used</div>
+                </div>
+                <div className={styles.metric}>
+                  <div className={styles.metricValue}>{credits.purchasedCredits.toLocaleString()}</div>
+                  <div className={styles.metricSub}>Purchased</div>
+                </div>
+              </div>
+
+              <div className={styles.card}>
+                <h3 className={styles.cardTitle}>How credits work</h3>
+                <p className={styles.muted}>
+                  MO Credits are used when MO handles customer conversations automatically.
+                  Your actual usage depends on how many customers message your business and how often MO responds.
+                  One customer may send several messages.
+                </p>
+                {credits.trialCredits > 0 && (
+                  <p className={styles.muted}>
+                    FREE TRIAL: {credits.trialCreditsRemaining} / {credits.trialCredits} trial credits remaining
+                  </p>
+                )}
+              </div>
+
+              <div className={styles.card}>
+                <h3 className={styles.cardTitle}>Recent usage</h3>
+                {usageItems.length === 0 ? (
+                  <p className={styles.muted}>No usage yet. When MO replies to a customer, it will show up here.</p>
+                ) : (
+                  <div className={styles.usageTable}>
+                    <div className={styles.usageHead}>
+                      <span>Date</span><span>Activity</span><span>Customer</span><span>Credits</span>
+                    </div>
+                    {usageItems.map((u) => (
+                      <div key={u.id} className={styles.usageRow}>
+                        <span>{new Date(u.createdAt).toLocaleDateString()}</span>
+                        <span>{u.type === 'message_usage' ? 'MO response' : u.type === 'trial_grant' ? 'Trial grant' : u.type === 'purchase' ? 'Purchase' : u.type}</span>
+                        <span>{u.customerMasked || '—'}</span>
+                        <span>{u.amount > 0 ? `+${u.amount}` : u.amount}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {buyOpen && (
+            <div className={styles.modalBackdrop} role="dialog" aria-modal="true">
+              <div className={styles.modal}>
+                <h3>Buy MO Credits</h3>
+                <p className={styles.muted}>Pay Busmo — credits are added after payment is verified.</p>
+                <div className={styles.packageList}>
+                  {(credits?.packages || []).map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={styles.packageCard}
+                      disabled={checkoutBusy}
+                      onClick={async () => {
+                        if (!businessId) return;
+                        setCheckoutBusy(true);
+                        try {
+                          const headers = await authHeaders();
+                          const res = await fetch('/api/mo-sales/credits/checkout', {
+                            method: 'POST',
+                            headers,
+                            body: JSON.stringify({ businessId, packageId: p.id }),
+                          });
+                          const json = await res.json();
+                          if (!res.ok) throw new Error(json.error || 'Checkout failed');
+                          if (json.authorizationUrl) {
+                            window.location.href = json.authorizationUrl;
+                          }
+                        } catch (e: any) {
+                          alert(e?.message || 'Could not start payment');
+                        } finally {
+                          setCheckoutBusy(false);
+                        }
+                      }}
+                    >
+                      <strong>{p.name}</strong>
+                      <div>{p.credits.toLocaleString()} credits</div>
+                      <div className={styles.muted}>{p.priceDisplay}</div>
+                      {p.description && <div className={styles.muted}>{p.description}</div>}
+                    </button>
+                  ))}
+                </div>
+                <button type="button" className={styles.btnGhost} onClick={() => setBuyOpen(false)}>Close</button>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
       {view === 'settings' && (
         <section className={styles.settings}>
+          <div className={styles.card}>
+            <p className={styles.muted}>
+              MO Sales uses WhatsApp to automatically answer your customers, recommend products and help turn conversations into sales.
+              You do not need an Infobip account — Busmo operates the messaging infrastructure.
+            </p>
+            <p className={styles.muted}>
+              If you are testing with the shared Busmo demo number, you are in the <strong>Busmo MO Sales Demo / Trial</strong> environment — this is not a permanent number for your business.
+            </p>
+          </div>
+
           <div className={styles.card}>
             <h2 className={styles.cardTitle}>WhatsApp</h2>
             {connected ? (

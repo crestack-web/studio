@@ -317,3 +317,29 @@ const same = resolveInboundPhones({ from: trialSender, to: trialSender });
 assert(same.customerPhone === same.businessSender, 'same-number detected');
 
 console.log('✓ phone routing inbound→outbound fixtures passed');
+
+// --- MO Credits structural rules ---
+const MO_CREDITS_PER_RESPONSE = 1;
+function shouldChargeCredits({ duplicate, moEnabled, agentStatus, availableCredits, moProducedReply }) {
+  if (duplicate) return false;
+  if (!moEnabled) return false;
+  if (agentStatus === 'human_active') return false;
+  if (!moProducedReply) return false;
+  if (availableCredits < MO_CREDITS_PER_RESPONSE) return false;
+  return true;
+}
+assert(shouldChargeCredits({ duplicate: false, moEnabled: true, agentStatus: 'ai_active', availableCredits: 5, moProducedReply: true }) === true, 'charge when MO replies');
+assert(shouldChargeCredits({ duplicate: true, moEnabled: true, agentStatus: 'ai_active', availableCredits: 5, moProducedReply: true }) === false, 'no charge on duplicate');
+assert(shouldChargeCredits({ duplicate: false, moEnabled: false, agentStatus: 'ai_active', availableCredits: 5, moProducedReply: true }) === false, 'no charge when paused');
+assert(shouldChargeCredits({ duplicate: false, moEnabled: true, agentStatus: 'human_active', availableCredits: 5, moProducedReply: true }) === false, 'no charge on human takeover');
+assert(shouldChargeCredits({ duplicate: false, moEnabled: true, agentStatus: 'ai_active', availableCredits: 0, moProducedReply: true }) === false, 'no charge when empty');
+assert(shouldChargeCredits({ duplicate: false, moEnabled: true, agentStatus: 'ai_active', availableCredits: 5, moProducedReply: false }) === false, 'no charge when MO fails');
+
+function availableCredits(wallet) {
+  return Math.max(0, (wallet.trialGranted - wallet.trialUsed) + (wallet.purchased - wallet.purchasedUsed));
+}
+assert(availableCredits({ trialGranted: 100, trialUsed: 10, purchased: 0, purchasedUsed: 0 }) === 90, 'trial remaining');
+assert(availableCredits({ trialGranted: 100, trialUsed: 100, purchased: 1000, purchasedUsed: 50 }) === 950, 'purchased remaining');
+assert(availableCredits({ trialGranted: 100, trialUsed: 100, purchased: 0, purchasedUsed: 0 }) === 0, 'empty after trial');
+
+console.log('✓ MO credits structural rules passed');

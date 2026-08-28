@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { getAuthUser, assertBusinessAccess } from '../_auth';
+import { ensureTrialCredits } from '@/lib/services/whatsapp/mo-credits';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,6 +16,14 @@ export async function GET(req: NextRequest) {
 
     const access = await assertBusinessAccess(user.id, businessId);
     if (!access.ok) return NextResponse.json({ error: access.reason }, { status: 403 });
+
+    // Grant trial once per business (idempotent)
+    let creditSnapshot = null;
+    try {
+      creditSnapshot = await ensureTrialCredits(businessId);
+    } catch {
+      creditSnapshot = null;
+    }
 
     const admin = getSupabaseAdmin();
 
@@ -145,6 +154,13 @@ export async function GET(req: NextRequest) {
       metrics,
       recentConversations,
       health,
+      credits: creditSnapshot
+        ? {
+            available: creditSnapshot.availableCredits,
+            status: creditSnapshot.status,
+            trialRemaining: creditSnapshot.trialCreditsRemaining,
+          }
+        : null,
     });
   } catch (e: any) {
     console.error('[mo-sales/overview]', e?.message);
