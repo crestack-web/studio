@@ -1730,6 +1730,5 @@ const PAYMENT_METHODS = [
   { id: 'cash',     label: 'Cash',     icon: 'M2 6h20a2 2 0 012 2v12a2 2 0 01-2 2H2a2 2 0 01-2-2V8a2 2 0 012-2zM2 10h20' },
   { id: 'transfer', label: 'Transfer', icon: 'M5 2h14a2 2 0 012 2v20a2 2 0 01-2 2H5a2 2 0 01-2-2V4a2 2 0 012-2zM12 18h.01' },
   { id: 'pos',      label: 'POS',      icon: 'M1 4h22v16a2 2 0 01-2 2H3a2 2 0 01-2-2V4zM1 10h22' },
-  { id: 'card',     label: 'Card',     icon: 'M2 5h20a1 1 0 011 1v12a1 1 0 01-1 1H2a1 1 0 01-1-1V6a1 1 0 011-1zM1 10h22' },
   { id: 'credit',   label: 'Credit',   icon: 'M12 2a10 10 0 100 20 10 10 0 000-20zM8 12h8M12 8v8' },
 ];
