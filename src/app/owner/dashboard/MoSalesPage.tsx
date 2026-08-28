@@ -561,6 +561,17 @@ export default function MoSalesPage() {
 
       {view === 'home' && (
         <>
+          {(!connected || (overview?.metrics.conversationsTotal || 0) === 0) && (
+            <section className={styles.heroCard} aria-label="How MO Sales works">
+              <img
+                src="/mo-sales-hero.jpg"
+                alt="MO Sales: MO chats with your customers on WhatsApp, answers questions, shares info and collects orders — just like a real human."
+                className={styles.heroImage}
+                width={1200}
+                height={675}
+              />
+            </section>
+          )}
           <section className={styles.card}>
             {!connected && !pending && (
               <>
