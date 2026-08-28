@@ -1,432 +1,247 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { initializeFirebase } from '@/firebase';
-import { collection, query, orderBy, updateDoc, doc, onSnapshot, limit, where, getDocs } from 'firebase/firestore';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { adminAuthHeaders } from '@/lib/admin/client-auth';
 
-interface SupportMessage {
+type Ticket = {
   id: string;
-  userId: string;
-  userEmail: string;
-  businessId?: string;
-  businessName?: string;
-  message: string;
-  status: 'open' | 'unread' | 'resolved' | 'needs_human';
-  category: string;
+  status: string;
+  needsHuman: boolean;
+  guestEmail: string | null;
+  userId: string | null;
+  businessId: string | null;
+  category: string | null;
+  lastMessage: string | null;
+  subject: string | null;
+  source: string | null;
   createdAt: string;
-  replies: SupportReply[];
-  assignedTo?: string;
-  assignedToName?: string;
-}
+  updatedAt: string;
+  sessionId: string | null;
+};
 
-interface SupportReply {
-  message: string;
-  sender: 'admin' | 'user' | 'mo' | 'system';
-  senderName?: string;
-  createdAt: string;
-}
+type Msg = {
+  id: string;
+  sender_role?: string;
+  senderRole?: string;
+  content: string;
+  created_at?: string;
+  createdAt?: string;
+};
 
 export default function SupportInbox() {
-  const { firestore } = initializeFirebase();
-  const [messages, setMessages] = useState<SupportMessage[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const [reply, setReply] = useState('');
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'open' | 'unread' | 'resolved' | 'needs_human' | 'mine'>('all');
-  const [selectedMessage, setSelectedMessage] = useState<SupportMessage | null>(null);
-  const [replyText, setReplyText] = useState('');
-  const [adminName, setAdminName] = useState('');
-  const [adminEmail, setAdminEmail] = useState('');
-  const [isSupportAdmin, setIsSupportAdmin] = useState(false);
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | 'needs_human' | 'open'>('all');
 
-  useEffect(() => {
-    const stored = localStorage.getItem('admin_user');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        setAdminName(parsed.name || parsed.email || 'Admin');
-        setAdminEmail(parsed.email || '');
-        setIsSupportAdmin(parsed.role === 'Support Admin');
-      } catch {}
+  const loadInbox = useCallback(async () => {
+    try {
+      const headers = await adminAuthHeaders();
+      const res = await fetch('/api/admin/support/inbox', { headers, cache: 'no-store' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed');
+      setTickets(json.tickets || []);
+      setError(null);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to load inbox');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadThread = useCallback(async (ticketId: string) => {
+    try {
+      const headers = await adminAuthHeaders();
+      const res = await fetch(`/api/admin/support/inbox?ticketId=${encodeURIComponent(ticketId)}`, {
+        headers,
+        cache: 'no-store',
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed');
+      setMessages(json.messages || []);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to load thread');
     }
   }, []);
 
   useEffect(() => {
-    const messagesQuery = query(
-      collection(firestore, 'supportMessages'),
-      orderBy('createdAt', 'desc'),
-      limit(100)
-    );
+    loadInbox();
+    const t = setInterval(loadInbox, 5000);
+    return () => clearInterval(t);
+  }, [loadInbox]);
 
-    const unsubscribe = onSnapshot(messagesQuery, (snapshot) => {
-      const messagesList: SupportMessage[] = [];
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        messagesList.push({
-          id: doc.id,
-          userId: data.userId || '',
-          userEmail: data.userEmail || 'Unknown',
-          businessId: data.businessId,
-          businessName: data.businessName,
-          message: data.message || '',
-          status: data.status || 'open',
-          category: data.category || 'general',
-          createdAt: data.createdAt?.toDate().toLocaleString() || 'N/A',
-          replies: (data.replies || []).map((r: any) => ({
-            message: r.message,
-            sender: r.sender,
-            senderName: r.senderName || (r.sender === 'admin' ? 'Admin' : 'User'),
-            createdAt: r.createdAt,
-          })),
-          assignedTo: data.assignedTo,
-          assignedToName: data.assignedToName,
-        });
-      });
-      
-      setMessages(messagesList);
-      setLoading(false);
-    }, (error) => {
-      console.error('Error listening to support messages:', error);
-      setLoading(false);
-    });
+  useEffect(() => {
+    if (!selectedId) return;
+    loadThread(selectedId);
+    const t = setInterval(() => loadThread(selectedId), 3000);
+    return () => clearInterval(t);
+  }, [selectedId, loadThread]);
 
-    return () => unsubscribe();
-  }, [firestore]);
+  const filtered = useMemo(() => {
+    if (filter === 'needs_human') return tickets.filter((t) => t.needsHuman || t.status === 'needs_human');
+    if (filter === 'open') return tickets.filter((t) => t.status !== 'closed' && t.status !== 'resolved');
+    return tickets;
+  }, [tickets, filter]);
 
-  const filteredMessages = useMemo(() => {
-    let result = messages;
-    if (filter === 'mine') {
-      result = messages.filter(msg => msg.assignedTo === adminEmail);
-    } else if (filter !== 'all') {
-      result = messages.filter(msg => msg.status === filter);
-    }
-    return result;
-  }, [messages, filter, adminEmail]);
+  const selected = tickets.find((t) => t.id === selectedId) || null;
 
-  const stats = useMemo(() => ({
-    total: messages.length,
-    unread: messages.filter(m => m.status === 'unread').length,
-    needsHuman: messages.filter(m => m.status === 'needs_human').length,
-    open: messages.filter(m => m.status === 'open').length,
-    resolved: messages.filter(m => m.status === 'resolved').length,
-    mine: messages.filter(m => m.assignedTo === adminEmail).length,
-  }), [messages, adminEmail]);
-
-  const handleAssign = async (messageId: string) => {
-    try {
-      await updateDoc(doc(firestore, 'supportMessages', messageId), {
-        assignedTo: adminEmail,
-        assignedToName: adminName,
-        status: 'open',
-      });
-      if (selectedMessage?.id === messageId) {
-        setSelectedMessage({ ...selectedMessage!, assignedTo: adminEmail, assignedToName: adminName, status: 'open' });
-      }
-    } catch (error) {
-      console.error('Error assigning message:', error);
-    }
-  };
-
-  const handleReply = useCallback(async () => {
-    if (!selectedMessage || !replyText.trim() || sending) return;
+  const sendReply = async () => {
+    if (!selectedId || !reply.trim() || sending) return;
     setSending(true);
-
     try {
-      const newReply: SupportReply = {
-        message: replyText,
-        sender: 'admin',
-        senderName: adminName,
-        createdAt: new Date().toISOString(),
-      };
-
-      const updatedReplies = [...selectedMessage.replies, newReply];
-      
-      await updateDoc(doc(firestore, 'supportMessages', selectedMessage.id), {
-        replies: updatedReplies,
-        status: 'open',
-        assignedTo: selectedMessage.assignedTo || adminEmail,
-        assignedToName: selectedMessage.assignedToName || adminName,
+      const headers = await adminAuthHeaders();
+      const res = await fetch('/api/admin/support/reply', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ticketId: selectedId, message: reply.trim() }),
       });
-
-      setReplyText('');
-      setSelectedMessage({
-        ...selectedMessage,
-        replies: updatedReplies,
-        assignedTo: selectedMessage.assignedTo || adminEmail,
-        assignedToName: selectedMessage.assignedToName || adminName,
-      });
-    } catch (error) {
-      console.error('Error sending reply:', error);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed');
+      setReply('');
+      if (json.messages) setMessages(json.messages);
+      await loadInbox();
+    } catch (e: any) {
+      setError(e?.message || 'Send failed');
     } finally {
       setSending(false);
     }
-  }, [selectedMessage, replyText, sending, adminName, adminEmail, firestore]);
-
-  const handleMarkResolved = async (messageId: string) => {
-    try {
-      await updateDoc(doc(firestore, 'supportMessages', messageId), {
-        status: 'resolved',
-      });
-      if (selectedMessage?.id === messageId) {
-        setSelectedMessage({ ...selectedMessage, status: 'resolved' });
-      }
-    } catch (error) {
-      console.error('Error marking as resolved:', error);
-    }
   };
-
-  const handleMarkUnread = async (messageId: string) => {
-    try {
-      await updateDoc(doc(firestore, 'supportMessages', messageId), {
-        status: 'unread',
-      });
-      if (selectedMessage?.id === messageId) {
-        setSelectedMessage({ ...selectedMessage, status: 'unread' });
-      }
-    } catch (error) {
-      console.error('Error marking as unread:', error);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-      </div>
-    );
-  }
 
   return (
-    <div className="overflow-x-auto">
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-        <h2 className="text-2xl font-bold text-gray-900">Support Inbox</h2>
-        {adminName && (
-          <span className="text-sm text-gray-500">
-            Logged in as <span className="font-medium text-gray-700">{adminName}</span>
-            {isSupportAdmin && <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full text-xs">Support Admin</span>}
-          </span>
-        )}
-      </div>
-      
-      {/* Stats */}
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6 min-w-[300px]">
-        <div className="bg-blue-50 rounded-xl p-3 border border-blue-200">
-          <p className="text-xl font-bold text-blue-700">{stats.total}</p>
-          <p className="text-xs text-blue-600">Total</p>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Support inbox</h2>
+          <p className="text-sm text-slate-500">Live Supabase chat from the welcome MO widget · end-to-end</p>
         </div>
-        <div className="bg-yellow-50 rounded-xl p-3 border border-yellow-200">
-          <p className="text-xl font-bold text-yellow-700">{stats.unread}</p>
-          <p className="text-xs text-yellow-600">Unread</p>
-        </div>
-        <div className="bg-red-50 rounded-xl p-3 border border-red-200">
-          <p className="text-xl font-bold text-red-700">{stats.needsHuman}</p>
-          <p className="text-xs text-red-600">Needs Human</p>
-        </div>
-        <div className="bg-green-50 rounded-xl p-3 border border-green-200">
-          <p className="text-xl font-bold text-green-700">{stats.open}</p>
-          <p className="text-xs text-green-600">Open</p>
-        </div>
-        <div className="bg-gray-50 rounded-xl p-3 border border-gray-200">
-          <p className="text-xl font-bold text-gray-700">{stats.resolved}</p>
-          <p className="text-xs text-gray-600">Resolved</p>
-        </div>
-        <div className="bg-purple-50 rounded-xl p-3 border border-purple-200">
-          <p className="text-xl font-bold text-purple-700">{stats.mine}</p>
-          <p className="text-xs text-purple-600">My Chats</p>
-        </div>
+        <button type="button" onClick={loadInbox} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold">
+          Refresh
+        </button>
       </div>
 
-      {/* Filter */}
-      <div className="flex gap-2 mb-6 flex-wrap min-w-[300px]">
-        {(['all', 'unread', 'needs_human', 'open', 'mine', 'resolved'] as const).map((status) => (
+      <div className="flex flex-wrap gap-2">
+        {(['all', 'needs_human', 'open'] as const).map((f) => (
           <button
-            key={status}
-            onClick={() => setFilter(status)}
-            className={`px-4 py-2 rounded-lg font-medium transition ${
-              filter === status
-                ? 'bg-purple-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            key={f}
+            type="button"
+            onClick={() => setFilter(f)}
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              filter === f ? 'bg-violet-600 text-white' : 'bg-slate-100 text-slate-700'
             }`}
           >
-            {status === 'needs_human' ? 'Needs Human' : status === 'mine' ? 'My Chats' : status.charAt(0).toUpperCase() + status.slice(1)}
+            {f === 'needs_human' ? 'Needs human' : f === 'open' ? 'Open' : 'All'}
           </button>
         ))}
       </div>
 
-      {selectedMessage ? (
-        <div className="min-w-[300px]">
-          <button
-            onClick={() => setSelectedMessage(null)}
-            className="mb-4 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium"
-          >
-            ← Back to Inbox
-          </button>
-          
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
-              <div className="flex-1 min-w-[200px]">
-                <h3 className="text-lg font-semibold text-gray-900">{selectedMessage.userEmail}</h3>
-                {selectedMessage.businessName && (
-                  <p className="text-gray-600">{selectedMessage.businessName}</p>
-                )}
-                <p className="text-sm text-gray-500">{selectedMessage.createdAt}</p>
-                {selectedMessage.assignedToName && (
-                  <p className="text-sm text-purple-600 mt-1">Assigned to: {selectedMessage.assignedToName}</p>
-                )}
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                {(!selectedMessage.assignedTo || selectedMessage.assignedTo !== adminEmail) && (
-                  <button
-                    onClick={() => handleAssign(selectedMessage.id)}
-                    className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-200"
-                  >
-                    Assign to Me
-                  </button>
-                )}
-                <button
-                  onClick={() => handleMarkUnread(selectedMessage.id)}
-                  className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-lg text-sm font-medium hover:bg-yellow-200"
-                >
-                  Mark Unread
-                </button>
-                <button
-                  onClick={() => handleMarkResolved(selectedMessage.id)}
-                  className="px-3 py-1 bg-green-100 text-green-700 rounded-lg text-sm font-medium hover:bg-green-200"
-                >
-                  Mark Resolved
-                </button>
-              </div>
-            </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+      {loading && !tickets.length && <p className="text-sm text-slate-500">Loading…</p>}
 
-            {/* Conversation */}
-            <div className="space-y-4 mb-6">
-              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-semibold text-sm">
-                    U
-                  </div>
-                  <span className="text-sm font-medium text-gray-700">{selectedMessage.userEmail}</span>
-                </div>
-                <p className="text-gray-900">{selectedMessage.message}</p>
-                <p className="text-xs text-gray-500 mt-2">{selectedMessage.createdAt}</p>
-              </div>
-
-              {selectedMessage.replies.map((reply, index) => (
-                <div
-                  key={index}
-                  className={`rounded-lg p-4 border ${
-                    reply.sender === 'admin'
-                      ? 'bg-purple-50 border-purple-200'
-                      : reply.sender === 'mo'
-                      ? 'bg-indigo-50 border-indigo-200'
-                      : 'bg-gray-50 border-gray-200'
-                  }`}
+      <div className="grid gap-4 lg:grid-cols-5">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:col-span-2">
+          <ul className="max-h-[70vh] divide-y divide-slate-100 overflow-auto">
+            {filtered.map((t) => (
+              <li key={t.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(t.id)}
+                  className={`w-full px-3 py-3 text-left hover:bg-violet-50 ${selectedId === t.id ? 'bg-violet-50' : ''}`}
                 >
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm ${
-                      reply.sender === 'admin'
-                        ? 'bg-purple-600 text-white'
-                        : reply.sender === 'mo'
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-blue-100 text-blue-600'
-                    }`}>
-                      {reply.sender === 'admin' ? 'A' : reply.sender === 'mo' ? 'M' : 'U'}
-                    </div>
-                    <span className="text-sm font-medium text-gray-700">
-                      {reply.sender === 'admin'
-                        ? reply.senderName || 'Admin'
-                        : reply.sender === 'mo'
-                        ? 'MO AI'
-                        : selectedMessage.userEmail}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-semibold text-slate-900">
+                      {t.guestEmail || t.userId?.slice(0, 8) || 'Guest'}
                     </span>
+                    {t.needsHuman && (
+                      <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                        HUMAN
+                      </span>
+                    )}
                   </div>
-                  <p className="text-gray-900">{reply.message}</p>
-                  <p className="text-xs text-gray-500 mt-2">{reply.createdAt}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Reply Form */}
-            <div className="border-t border-gray-200 pt-6">
-              <textarea
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                    handleReply();
-                  }
-                }}
-                placeholder="Type your reply... (Ctrl+Enter to send)"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
-                rows={4}
-              />
-              <div className="flex justify-end mt-4">
-                <button
-                  onClick={handleReply}
-                  disabled={!replyText.trim() || sending}
-                  className="px-6 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {sending ? 'Sending...' : 'Send Reply'}
+                  <p className="mt-0.5 truncate text-xs text-slate-500">{t.lastMessage || t.subject || '—'}</p>
+                  <p className="mt-0.5 text-[10px] text-slate-400">
+                    {t.updatedAt ? new Date(t.updatedAt).toLocaleString() : ''}
+                  </p>
                 </button>
-              </div>
-            </div>
-          </div>
+              </li>
+            ))}
+            {!filtered.length && !loading && (
+              <li className="px-3 py-8 text-center text-sm text-slate-500">No conversations yet</li>
+            )}
+          </ul>
         </div>
-      ) : (
-        <div className="space-y-4 min-w-[300px]">
-          {filteredMessages.map((message) => (
-            <div
-              key={message.id}
-              className="bg-white rounded-xl border border-gray-200 p-6 hover:border-purple-300 transition cursor-pointer"
-              onClick={() => setSelectedMessage(message)}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-2 flex-wrap">
-                    <h3 className="font-semibold text-gray-900 truncate">{message.userEmail}</h3>
-                    {message.businessName && (
-                      <span className="text-sm text-gray-600 whitespace-nowrap">• {message.businessName}</span>
-                    )}
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                      message.status === 'unread' ? 'bg-yellow-100 text-yellow-800' :
-                      message.status === 'needs_human' ? 'bg-red-100 text-red-800' :
-                      message.status === 'open' ? 'bg-green-100 text-green-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {message.status === 'needs_human' ? 'Needs Human' : message.status}
-                    </span>
-                    {message.assignedToName && (
-                      <span className="text-xs text-purple-600 whitespace-nowrap">→ {message.assignedToName}</span>
-                    )}
-                  </div>
-                  <p className="text-gray-600 line-clamp-2">{message.message}</p>
-                  <p className="text-sm text-gray-500 mt-2">{message.createdAt}</p>
-                </div>
-                <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                  {message.replies.length > 0 && (
-                    <span className="text-sm text-gray-500">
-                      {message.replies.length} {message.replies.length === 1 ? 'reply' : 'replies'}
-                    </span>
-                  )}
-                  {!message.assignedTo && message.status !== 'resolved' && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleAssign(message.id); }}
-                      className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-xs font-medium hover:bg-purple-200"
-                    >
-                      Assign to Me
-                    </button>
-                  )}
+
+        <div className="flex max-h-[70vh] flex-col rounded-2xl border border-slate-200 bg-white shadow-sm lg:col-span-3">
+          {!selected ? (
+            <div className="flex flex-1 items-center justify-center p-6 text-sm text-slate-500">
+              Select a conversation to reply as a human agent
+            </div>
+          ) : (
+            <>
+              <div className="border-b border-slate-100 px-4 py-3">
+                <div className="font-semibold text-slate-900">{selected.guestEmail || 'Guest visitor'}</div>
+                <div className="text-xs text-slate-500">
+                  {selected.status} · {selected.source || 'widget'} · {selected.id.slice(0, 8)}…
                 </div>
               </div>
-            </div>
-          ))}
-
-          {filteredMessages.length === 0 && (
-            <div className="text-center py-12 text-gray-500">
-              No messages found
-            </div>
+              <div className="flex-1 space-y-2 overflow-y-auto p-4">
+                {messages.map((m) => {
+                  const role = m.sender_role || m.senderRole || '';
+                  const isUser = role === 'user';
+                  const isAdmin = role === 'admin' || role === 'agent';
+                  return (
+                    <div key={m.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+                      <div
+                        className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
+                          isUser
+                            ? 'bg-violet-600 text-white'
+                            : isAdmin
+                              ? 'bg-emerald-50 text-emerald-950 border border-emerald-200'
+                              : 'bg-slate-100 text-slate-800'
+                        }`}
+                      >
+                        <div className="text-[10px] font-semibold uppercase opacity-70 mb-0.5">{role || 'msg'}</div>
+                        {m.content}
+                        <div className="mt-1 text-[10px] opacity-60">
+                          {m.created_at || m.createdAt
+                            ? new Date(String(m.created_at || m.createdAt)).toLocaleString()
+                            : ''}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="border-t border-slate-100 p-3">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    sendReply();
+                  }}
+                  className="flex gap-2"
+                >
+                  <input
+                    value={reply}
+                    onChange={(e) => setReply(e.target.value)}
+                    placeholder="Reply as human agent…"
+                    className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                  />
+                  <button
+                    type="submit"
+                    disabled={sending || !reply.trim()}
+                    className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    Send
+                  </button>
+                </form>
+              </div>
+            </>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
