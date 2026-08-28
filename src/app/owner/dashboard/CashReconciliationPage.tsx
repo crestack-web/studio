@@ -67,7 +67,11 @@ interface StaffData {
   name: string;
 }
 
-const [loading, setLoading] = useState(true);
+export default function CashReconciliationPage() {
+  const { user, showToast, navigateTo } = useApp();
+  const { formatMoney } = useCurrency();
+
+  const [loading, setLoading] = useState(true);
   const [reconciliations, setReconciliations] = useState<CashReconciliation[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [expectedCash, setExpectedCash] = useState(0);
