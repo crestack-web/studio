@@ -8,7 +8,13 @@ import {
   Package,
   History,
   Calendar,
-  MessageSquare,, Users, PackagePlus, Calculator, Undo2, Receipt } from 'lucide-react';
+  MessageSquare,
+  Users,
+  PackagePlus,
+  Calculator,
+  Undo2,
+  Receipt,
+} from 'lucide-react';
 
 interface HomePageProps {
   greeting: string;
