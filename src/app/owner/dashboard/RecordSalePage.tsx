@@ -7,6 +7,7 @@ import { useBranch } from '@/context/BranchContext';
 import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { Product, CartItem, PaymentMethod, PaymentBreakdown, CreditCustomer } from './types';
+import { isIngredientProduct } from '@/lib/saleableProducts';
 import { fetchDocs, addDoc as sbAddDoc, updateDoc as sbUpdateDoc, fetchDoc } from '@/lib/supabase-client-data';
 import { getSupabase } from '@/lib/supabase';
 import { offlineManager } from '@/lib/offline/offline-manager';
@@ -324,15 +325,8 @@ export function RecordSalePage() {
         const status = String((data as any).status || '').toLowerCase();
         if (['inactive', 'archived', 'deleted', 'draft'].includes(status)) continue;
         if ((data as any).active === false) continue;
-        const productType = (data as any).type || (data as any).category || 'product';
-        
-        // For restaurant/cafe businesses, exclude ingredients from saleable products
-        const isRestaurant = currentCategory.toLowerCase().includes('restaurant') || 
-                             currentCategory.toLowerCase().includes('cafe');
-        
-        // For restaurant/cafe businesses, exclude ingredients from saleable products
-        if (isRestaurant && productType.toLowerCase() === 'ingredient') {
-          console.log('Skipping ingredient:', (data as any).name);
+        // Never show ingredients on record sale (food businesses + explicit productType)
+        if (isIngredientProduct(data as any)) {
           continue;
         }
         
@@ -369,6 +363,10 @@ export function RecordSalePage() {
   );
 
   function addToCart(product: Product) {
+    if (isIngredientProduct(product as any)) {
+      showToast('Ingredients cannot be sold. Use dishes or menu items.');
+      return;
+    }
     setCart(prev => {
       const existing = prev.find(i => i.id === product.id);
       if (existing) {

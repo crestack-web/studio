@@ -1,3 +1,4 @@
+import { isIngredientProduct } from '@/lib/saleableProducts';
 /**
  * Staff Data Service
  * Shared data access layer for staff dashboard
@@ -79,9 +80,13 @@ export async function fetchProducts(
     );
     console.log('Products snapshot size:', rawProducts.length);
 
-    const products: Product[] = rawProducts.map((data) => {
-      console.log('Product data:', data.id, data);
-      return {
+    const products: Product[] = [];
+    for (const data of rawProducts) {
+      if (isIngredientProduct(data)) continue;
+      const status = String(data.status || '').toLowerCase();
+      if (['inactive', 'archived', 'deleted', 'draft'].includes(status)) continue;
+      if (data.active === false) continue;
+      products.push({
         id: data.id,
         name: data.name || 'Unnamed Product',
         price: data.price || 0,
@@ -89,13 +94,13 @@ export async function fetchProducts(
         stock: data.stock || data.stockLevel || data.stock_level || 0,
         emoji: data.attributes?.emoji || data.emoji || '📦',
         lowStockThreshold: data.lowStockThreshold || data.reorder_level || 10,
-        active: data.active != null ? data.active : (data.status === 'active'),
+        active: data.active != null ? data.active : data.status === 'active',
         category: data.category,
         imageUrl: data.imageUrl || data.image_url || '',
-      };
-    });
+      } as Product);
+    }
 
-    console.log('Fetched products:', products);
+    console.log('Fetched products (ingredients excluded):', products.length);
     return products;
   } catch (error) {
     console.error('Error fetching products:', error);
