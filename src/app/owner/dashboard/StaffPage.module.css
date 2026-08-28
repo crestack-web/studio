@@ -976,3 +976,90 @@
   }
 }
 
+
+/* ── Staff card actions: centered sheet (mobile-safe) ── */
+.actionSheetOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.actionSheet {
+  width: 100%;
+  max-width: 340px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  max-height: min(80vh, 520px);
+  display: flex;
+  flex-direction: column;
+  animation: modalIn 0.18s ease;
+}
+
+.actionSheetHead {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.actionSheetTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.actionSheetSub {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: var(--text-3);
+}
+
+.actionSheetBody {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 6px 0;
+}
+
+.actionSheetBody .menuItem {
+  padding: 14px 16px;
+  font-size: 0.9rem;
+}
+
+.actionSheetCancel {
+  margin: 0;
+  width: 100%;
+  padding: 14px 16px;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-2);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+/* Hide absolute dropdown on small screens — use sheet instead */
+@media (max-width: 768px) {
+  .menuDropdown {
+    display: none !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .actionSheetOverlay {
+    /* still use centered sheet on desktop for consistency */
+  }
+  .menuDropdown {
+    display: none !important; /* always use centered sheet */
+  }
+}
+

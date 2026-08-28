@@ -821,39 +821,93 @@ export default function StaffPage() {
     setIsSavingPermissions(true);
 
     try {
-      const { businessId: scopedBusinessId, businessName: scopedBusinessName, ownerName: scopedOwnerName, ownerEmail: scopedOwnerEmail, ownerUserId } = await resolveOwnerScope();
-      const currentUserId = ownerUserId;
-      const businessId = scopedBusinessId;
-      const businessName = scopedBusinessName;
-      const ownerName = scopedOwnerName;
-      const ownerEmail = scopedOwnerEmail;
+      const scope = await resolveOwnerScope();
+      const businessId = scope.businessId || user?.businessId || user?.id;
+      if (!businessId) {
+        throw new Error('Business not found');
+      }
 
-      // Update permissions in staff collection
-      await updateDoc(`businesses/${businessId}/staff`, editingStaff.id, {
-        permissions: newStaffPermissions,
-      });
+      const staffKeys = Array.from(
+        new Set(
+          [editingStaff.id, editingStaff.staffId].filter(Boolean).map(String)
+        )
+      );
 
-      // Update permissions in users collection
-      await getSupabase().from('users').update({ permissions: newStaffPermissions }).eq('id', editingStaff.id);
+      let updated = false;
+      let lastErr: any = null;
+      for (const key of staffKeys) {
+        try {
+          await updateDoc(`businesses/${businessId}/staff`, key, {
+            permissions: newStaffPermissions,
+          });
+          updated = true;
+          break;
+        } catch (e) {
+          lastErr = e;
+        }
+      }
 
-      // Send staff role update email notification
-      if (editingStaff.email && ownerEmail) {
+      // Fallback: match by email in staff list and update that row
+      if (!updated) {
+        try {
+          const rows = await fetchDocs(`businesses/${businessId}/staff`);
+          const match = (rows as any[]).find(
+            (r) =>
+              staffKeys.includes(String(r.id)) ||
+              staffKeys.includes(String(r.staffId || r.staff_id || '')) ||
+              (editingStaff.email &&
+                String(r.email || '').toLowerCase() ===
+                  String(editingStaff.email).toLowerCase())
+          );
+          if (match?.id) {
+            await updateDoc(`businesses/${businessId}/staff`, String(match.id), {
+              permissions: newStaffPermissions,
+            });
+            updated = true;
+          }
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+
+      if (!updated) {
+        throw lastErr || new Error('Could not update staff record');
+      }
+
+      // Best-effort users table (id may be auth uid)
+      try {
+        const supabase = getSupabase();
+        for (const key of staffKeys) {
+          await supabase
+            .from('users')
+            .update({ permissions: newStaffPermissions })
+            .eq('id', key);
+        }
+        if (editingStaff.email) {
+          await supabase
+            .from('users')
+            .update({ permissions: newStaffPermissions })
+            .eq('email', editingStaff.email);
+        }
+      } catch (userErr) {
+        console.warn('users permissions update skipped', userErr);
+      }
+
+      if (editingStaff.email && scope.ownerEmail) {
         try {
           await sendStaffRoleUpdatedEmail({
             email: editingStaff.email,
             staffName: editingStaff.name,
-            businessName,
+            businessName: scope.businessName || 'Your business',
             oldRole: editingStaff.role,
             newRole: editingStaff.role,
             updatedDate: new Date().toLocaleDateString(),
           });
-          console.log('Staff role update email sent');
         } catch (emailError) {
           console.error('Failed to send staff role update email:', emailError);
         }
       }
 
-      // Update local state
       setStaffMembers((prev) =>
         prev.map((s) =>
           s.id === editingStaff.id ? { ...s, permissions: newStaffPermissions } : s
@@ -862,11 +916,15 @@ export default function StaffPage() {
 
       setShowEditModal(false);
       setEditingStaff(null);
-      showToast(t('toast.permissionsUpdated'));
-      setIsSavingPermissions(false);
-    } catch (error) {
+      showToast(t('toast.permissionsUpdated') || 'Permissions updated');
+    } catch (error: any) {
       console.error('Error updating permissions:', error);
-      showToast(t('toast.permissionsUpdateFailed'));
+      showToast(
+        error?.message ||
+          t('toast.permissionsUpdateFailed') ||
+          'Failed to update permissions'
+      );
+    } finally {
       setIsSavingPermissions(false);
     }
   };
@@ -1181,9 +1239,11 @@ export default function StaffPage() {
                   </div>
                 </div>
                 <div className={styles.staffActions}>
-                  <div className={styles.menuContainer} ref={menuRef}>
+                  <div className={styles.menuContainer}>
                     <button
+                      type="button"
                       className={styles.menuButton}
+                      aria-label="Staff actions"
                       onClick={() => setActiveMenu(activeMenu === member.id ? null : member.id)}
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={18} height={18}>
@@ -1192,39 +1252,6 @@ export default function StaffPage() {
                         <circle cx="12" cy="19" r="1"/>
                       </svg>
                     </button>
-                    {activeMenu === member.id && (
-                      <div className={styles.menuDropdown}>
-                        <button className={styles.menuItem} onClick={() => { handleEditStaff(member); setActiveMenu(null); }}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                          Edit Permissions
-                        </button>
-                        <button className={styles.menuItem} onClick={() => { handleViewCredentials(member); setActiveMenu(null); }}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-                          View Credentials
-                        </button>
-                        <button className={styles.menuItem} onClick={() => { handleSetTargets(member); setActiveMenu(null); }}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-                          Set Targets
-                        </button>
-                        <button className={styles.menuItem} onClick={() => { handleViewActivities(member); setActiveMenu(null); }}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                          View Activities
-                        </button>
-                        <button className={styles.menuItem} onClick={() => { handleStartChat(member.staffId || member.id); setActiveMenu(null); }}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                          Send Message
-                        </button>
-                        <div className={styles.menuDivider} />
-                        <button className={styles.menuItem} onClick={() => { handleBanStaff(member.id, member.name); setActiveMenu(null); }}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                          Ban Staff
-                        </button>
-                        <button className={`${styles.menuItem} ${styles.dangerItem}`} onClick={() => { handleRemoveStaff(member); setActiveMenu(null); }}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-                          Remove Staff
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -1760,6 +1787,51 @@ export default function StaffPage() {
           </div>
         </div>
       )}
+
+      
+      {/* Staff actions sheet — centered on all breakpoints */}
+      {activeMenu && (() => {
+        const member = staffMembers.find((m) => m.id === activeMenu);
+        if (!member) return null;
+        const close = () => setActiveMenu(null);
+        return (
+          <div className={styles.actionSheetOverlay} onClick={close}>
+            <div className={styles.actionSheet} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.actionSheetHead}>
+                <p className={styles.actionSheetTitle}>{member.name}</p>
+                <p className={styles.actionSheetSub}>{member.role || 'Staff'} · Choose an action</p>
+              </div>
+              <div className={styles.actionSheetBody}>
+                <button type="button" className={styles.menuItem} onClick={() => { handleEditStaff(member); close(); }}>
+                  Edit Permissions
+                </button>
+                <button type="button" className={styles.menuItem} onClick={() => { handleViewCredentials(member); close(); }}>
+                  View Credentials
+                </button>
+                <button type="button" className={styles.menuItem} onClick={() => { handleSetTargets(member); close(); }}>
+                  Set Targets
+                </button>
+                <button type="button" className={styles.menuItem} onClick={() => { handleViewActivities(member); close(); }}>
+                  View Activities
+                </button>
+                <button type="button" className={styles.menuItem} onClick={() => { handleStartChat(member.staffId || member.id); close(); }}>
+                  Send Message
+                </button>
+                <div className={styles.menuDivider} />
+                <button type="button" className={styles.menuItem} onClick={() => { handleBanStaff(member.id, member.name); close(); }}>
+                  Ban Staff
+                </button>
+                <button type="button" className={`${styles.menuItem} ${styles.dangerItem}`} onClick={() => { handleRemoveStaff(member); close(); }}>
+                  Remove Staff
+                </button>
+              </div>
+              <button type="button" className={styles.actionSheetCancel} onClick={close}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Edit Permissions Modal */}
       {showEditModal && editingStaff && (
