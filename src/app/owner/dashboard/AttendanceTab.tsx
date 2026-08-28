@@ -133,16 +133,18 @@ const AttendanceTab: React.FC<AttendanceTabProps> = ({ staffMembers }) => {
         note.staffId ||
         ''
     );
-    const fromStaff =
-      (sid && staffById.get(sid)) ||
-      (record.staffName && staffById.get(String(record.staffName).toLowerCase())) ||
-      (note.staffName && staffById.get(String(note.staffName).toLowerCase()));
+    let fromStaff: StaffMember | undefined;
+    if (sid) fromStaff = staffById.get(sid);
+    if (!fromStaff && record.staffName) {
+      fromStaff = staffById.get(String(record.staffName).toLowerCase());
+    }
+    if (!fromStaff && note.staffName) {
+      fromStaff = staffById.get(String(note.staffName).toLowerCase());
+    }
 
-    const name =
-      record.staffName ||
-      note.staffName ||
-      fromStaff?.name ||
-      '';
+    const name = String(
+      record.staffName || note.staffName || fromStaff?.name || ''
+    ).trim();
     return {
       name: name || 'Staff member',
       role: fromStaff?.role || '',
