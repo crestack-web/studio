@@ -468,3 +468,332 @@
     font-size: 0.85rem;
   }
 }
+
+
+/* ══════════════════════════════════════════
+   STAFF V2 — inventory-style polish
+══════════════════════════════════════════ */
+
+.wrapper {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 4px 2px 24px;
+  min-width: 0;
+}
+
+.pageHeaderV2 {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f5ff 55%, #eef2ff 100%);
+  border: 1px solid #e9e5ff;
+  border-radius: 18px;
+  padding: 18px 18px 16px;
+  box-shadow: 0 10px 30px rgba(88, 28, 135, 0.06);
+  margin-bottom: 16px;
+}
+
+.titleBlock { min-width: 0; flex: 1; }
+
+.eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #7c3aed;
+  margin-bottom: 4px;
+}
+
+.pageHeaderV2 .pageTitle {
+  font-size: clamp(1.25rem, 2.4vw, 1.6rem);
+  letter-spacing: -0.02em;
+  margin: 0 0 4px;
+  color: #0f172a;
+}
+
+.pageHeaderV2 .pageDesc {
+  margin: 0;
+  color: #64748b;
+  max-width: 48ch;
+}
+
+.healthRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.healthBar {
+  width: min(160px, 40vw);
+  height: 8px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.healthFill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #22c55e, #a3e635);
+  transition: width 0.35s ease;
+}
+
+.healthLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.chipNeutral,
+.chipOk,
+.chipSoft {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.chipNeutral {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+.chipOk {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+.chipSoft {
+  background: #f5f3ff;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
+}
+
+.tabNav {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  border-bottom: none;
+  padding: 4px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.tabNav::-webkit-scrollbar { display: none; }
+
+.tabBtn {
+  flex-shrink: 0;
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.tabBtn:hover {
+  background: #fff;
+  color: #6d28d9;
+}
+.tabBtn.active {
+  background: #fff;
+  color: #6d28d9;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), inset 0 0 0 1px #ddd6fe;
+}
+
+.tabCount {
+  background: #7c3aed;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.summaryBar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+@media (min-width: 900px) {
+  .summaryBar {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.summaryItem {
+  min-width: 0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  position: relative;
+  overflow: hidden;
+}
+.summaryItem::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #7c3aed;
+  border-radius: 3px 0 0 3px;
+}
+
+.summaryKicker {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+
+.summaryValue {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: clamp(1.1rem, 2vw, 1.35rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.summaryLabel {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.onlineDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+  flex-shrink: 0;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+}
+
+.searchWrap {
+  position: relative;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.searchInput {
+  width: 100%;
+  height: 40px;
+  padding: 0 36px 0 38px;
+  border-radius: 11px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 0.9rem;
+  outline: none;
+  box-sizing: border-box;
+}
+.searchInput:focus {
+  border-color: #a78bfa;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+}
+
+.searchIcon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.resultCount {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.staffGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.staffCard {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 18px 14px 14px;
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.staffCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  border-color: #ddd6fe;
+}
+
+.emptyState {
+  border-radius: 16px;
+  border: 1px dashed #c4b5fd;
+  background: linear-gradient(180deg, #fff, #faf5ff);
+  padding: 56px 20px;
+}
+
+.emptyStateCompact {
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #fafafa;
+}
+
+@media (max-width: 640px) {
+  .pageHeaderV2 {
+    padding: 14px;
+    border-radius: 14px;
+  }
+  .tabBtn {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+  .tabBtn span:not(.tabCount) {
+    /* keep labels readable */
+  }
+  .staffGrid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+  }
+  .summaryItem {
+    padding: 10px 12px;
+    border-radius: 12px;
+  }
+}

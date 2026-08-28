@@ -847,12 +847,29 @@ export default function StaffPage() {
     transactions: staffMembers.reduce((s, m) => s + (Number(m.transactions) || 0), 0),
   };
 
+  const onlinePct =
+    teamStats.total === 0 ? 0 : Math.round((teamStats.online / teamStats.total) * 100);
+
   return (
     <div className={styles.wrapper}>
-      <div className={styles.pageHeader}>
-        <div>
+      <div className={`${styles.pageHeader} ${styles.pageHeaderV2}`}>
+        <div className={styles.titleBlock}>
+          <div className={styles.eyebrow}>Team & people</div>
           <h2 className={styles.pageTitle}>{t('staff.title')}</h2>
           <p className={styles.pageDesc}>{t('staff.subtitle')}</p>
+          {teamStats.total > 0 && (
+            <div className={styles.healthRow} aria-label="Team status">
+              <div className={styles.healthBar}>
+                <div className={styles.healthFill} style={{ width: `${onlinePct}%` }} />
+              </div>
+              <span className={styles.healthLabel}>{onlinePct}% online now</span>
+              <span className={styles.chipNeutral}>{teamStats.total} staff</span>
+              {teamStats.online > 0 && (
+                <span className={styles.chipOk}>{teamStats.online} active</span>
+              )}
+              <span className={styles.chipSoft}>₦{teamStats.revenue.toLocaleString()} sales</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -946,23 +963,27 @@ export default function StaffPage() {
           <>
             <div className={styles.summaryBar}>
               <div className={styles.summaryItem}>
+                <span className={styles.summaryKicker}>Headcount</span>
                 <span className={styles.summaryValue}>{teamStats.total}</span>
-                <span className={styles.summaryLabel}>Team</span>
+                <span className={styles.summaryLabel}>People on roster</span>
               </div>
               <div className={styles.summaryItem}>
+                <span className={styles.summaryKicker}>Presence</span>
                 <span className={styles.summaryValue}>
                   <span className={styles.onlineDot} />
                   {teamStats.online}
                 </span>
-                <span className={styles.summaryLabel}>Online</span>
+                <span className={styles.summaryLabel}>Online right now</span>
               </div>
               <div className={styles.summaryItem}>
+                <span className={styles.summaryKicker}>Attributed sales</span>
                 <span className={styles.summaryValue}>₦{teamStats.revenue.toLocaleString()}</span>
-                <span className={styles.summaryLabel}>Revenue</span>
+                <span className={styles.summaryLabel}>Team revenue</span>
               </div>
               <div className={styles.summaryItem}>
+                <span className={styles.summaryKicker}>Activity</span>
                 <span className={styles.summaryValue}>{teamStats.transactions}</span>
-                <span className={styles.summaryLabel}>Sales</span>
+                <span className={styles.summaryLabel}>Transactions</span>
               </div>
             </div>
 
