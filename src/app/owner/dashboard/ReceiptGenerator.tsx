@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { useApp } from './AppContext';
-import { useCurrency } from './CurrencyContext';
+import { formatCurrency } from '@/lib/currency';
 import { Printer, FileText, X, Share2, Copy } from 'lucide-react';
 import styles from './ReceiptGenerator.module.css';
 
@@ -48,6 +47,8 @@ export interface ReceiptData {
   theme?: ReceiptTheme | null;
   /** Who recorded / sold this sale (owner or staff name from settings/session) */
   soldBy?: string;
+  /** Display currency symbol or code */
+  currency?: string;
 }
 
 interface ReceiptGeneratorProps {
@@ -100,8 +101,20 @@ export function ReceiptGenerator({
   isWholesale = false,
   receiptType = 'supermarket',
 }: ReceiptGeneratorProps) {
-  const { showToast } = useApp();
-  const { formatMoney } = useCurrency();
+  // Works in owner dashboard and staff portal (no AppContext / CurrencyContext required)
+  const showToast = (message: string) => {
+    try {
+      window.dispatchEvent(new CustomEvent('busmo-toast', { detail: { message } }));
+    } catch { /* ignore */ }
+    console.log('[Receipt]', message);
+  };
+  const formatMoney = (amount: number) => {
+    try {
+      return formatCurrency(Number(amount) || 0, receiptData.currency || '₦');
+    } catch {
+      return `₦${Number(amount || 0).toLocaleString()}`;
+    }
+  };
   const receiptRef = useRef<HTMLDivElement>(null);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);

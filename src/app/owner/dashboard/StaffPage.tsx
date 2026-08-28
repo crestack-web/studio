@@ -16,7 +16,7 @@ import { sendStaffRoleUpdatedEmail, sendStaffRemovedEmail } from '@/services/ema
 import { isRestaurantBusiness, getBusinessCategory } from './utils/restaurantHelpers';
 import AttendanceTab from './AttendanceTab';
 import { StaffPayrollSection } from './StaffPayrollSection';
-import { getStaffPermissionsForCategory, defaultStaffPermissions } from '@/lib/staffPermissions';
+import { getStaffPermissionsForCategory, defaultStaffPermissions, normalizeBusinessCategory } from '@/lib/staffPermissions';
 
 interface StaffMember {
   id: string;
@@ -366,8 +366,8 @@ export default function StaffPage() {
         if (!bid) return;
         const { data } = await fetchDoc('businesses', bid);
         if (cancelled || !data) return;
-        const cat = String((data as any).category || (data as any).business_category || 'other');
-        setBusinessCategory(cat);
+        const cat = String((data as any).category || (data as any).business_category || (data as any).businessType || 'other');
+        setBusinessCategory(normalizeBusinessCategory(cat));
       } catch (_) {
         try {
           const cat = await getBusinessCategory(user?.businessId || '');

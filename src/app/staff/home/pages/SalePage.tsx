@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { fetchProducts } from '../services/dataService';
 import { fetchDoc } from '@/lib/supabase-client-data';
@@ -408,6 +410,8 @@ export function SalePage({
         paymentMethod: primaryMethod,
         logoUrl: businessLogo,
         theme: receiptTheme,
+        currency: businessCurrency,
+        soldBy: staffName,
       };
 
       setLastSale(receiptData);

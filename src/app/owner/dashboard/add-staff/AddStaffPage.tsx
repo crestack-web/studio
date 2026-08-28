@@ -93,7 +93,7 @@ export default function AddStaffPage() {
   // Update permissions when role changes
   useEffect(() => {
     if (role) {
-      const recommendedPermissions = getRecommendedPermissions(role);
+      const recommendedPermissions = getRecommendedPermissions(role, businessType);
       setSelectedPermissions(createPermissionsObject(recommendedPermissions));
     }
   }, [role]);
