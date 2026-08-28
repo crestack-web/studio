@@ -221,3 +221,110 @@ export function mergeStaffPermissions(
   }
   return merged;
 }
+
+// ── Role presets (owner invite UI) ─────────────────────────────
+
+export interface StaffRoleConfig {
+  label: string;
+  description: string;
+  /** Permission keys enabled by default for this role */
+  permissions: StaffPermKey[];
+  /** Business categories this role is recommended for; empty = all */
+  categories?: string[];
+}
+
+export const ROLES: Record<string, StaffRoleConfig> = {
+  Staff: {
+    label: 'Staff',
+    description: 'General team member — record sales and view basic data',
+    permissions: ['sale', 'atd', 'msg'],
+  },
+  Cashier: {
+    label: 'Cashier',
+    description: 'Front desk — sales, customers, and shift close',
+    permissions: ['sale', 'hist', 'customers', 'shift', 'atd', 'msg'],
+    categories: ['retail', 'grocery', 'supermarket', 'electronics', 'fashion', 'pharmacy', 'other'],
+  },
+  Seller: {
+    label: 'Seller',
+    description: 'Sales-focused role with customer and credit tools',
+    permissions: ['sale', 'hist', 'customers', 'credit', 'msg', 'atd'],
+    categories: ['wholesale', 'distributor', 'retail', 'electronics', 'fashion'],
+  },
+  Manager: {
+    label: 'Manager',
+    description: 'Broader access — sales, inventory, expenses, and team tools',
+    permissions: [
+      'sale',
+      'inv',
+      'hist',
+      'atd',
+      'msg',
+      'customers',
+      'credit',
+      'returns',
+      'receive',
+      'expenses',
+      'shift',
+    ],
+  },
+  'Store manager': {
+    label: 'Store manager',
+    description: 'Full floor ops including stock receives and transfers',
+    permissions: [
+      'sale',
+      'inv',
+      'hist',
+      'atd',
+      'msg',
+      'customers',
+      'credit',
+      'returns',
+      'receive',
+      'expenses',
+      'shift',
+      'transfers',
+      'expiry',
+    ],
+    categories: ['retail', 'supermarket', 'grocery', 'wholesale', 'distributor', 'pharmacy'],
+  },
+};
+
+/** Roles recommended for a business category (ids match ROLES keys). */
+export function getRecommendedRoles(category?: string | null): string[] {
+  const cat = normalizeBusinessCategory(category);
+  const ids = Object.keys(ROLES);
+  const matched = ids.filter((id) => {
+    const cfg = ROLES[id];
+    if (!cfg.categories || cfg.categories.length === 0) return true;
+    return cfg.categories.some((c) => c === cat || cat.includes(c) || c.includes(cat));
+  });
+  return matched.length > 0 ? matched : ['Staff'];
+}
+
+/** Permission keys recommended for a role id. */
+export function getRecommendedPermissions(roleId?: string | null): StaffPermKey[] {
+  if (!roleId) return ['sale'];
+  const cfg = ROLES[roleId] || ROLES[String(roleId).trim()];
+  if (cfg?.permissions?.length) return [...cfg.permissions];
+  // Fuzzy match by label
+  const lower = String(roleId).toLowerCase();
+  const found = Object.values(ROLES).find((r) => r.label.toLowerCase() === lower);
+  return found?.permissions ? [...found.permissions] : ['sale', 'atd', 'msg'];
+}
+
+/** Build a full permissions map from a list of enabled keys. */
+export function createPermissionsObject(
+  enabledKeys: Array<StaffPermKey | string> | null | undefined
+): Record<string, boolean> {
+  const enabled = new Set((enabledKeys || []).map(String));
+  const out: Record<string, boolean> = {};
+  for (const d of STAFF_PERMISSION_DEFS) {
+    out[d.key] = enabled.has(d.key);
+  }
+  // Always enable sale if nothing selected
+  if (!Object.values(out).some(Boolean)) {
+    out.sale = true;
+  }
+  return out;
+}
