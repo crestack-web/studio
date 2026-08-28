@@ -549,10 +549,22 @@ export default function MoSalesPage() {
       )}
 
       <nav className={styles.tabs} aria-label="MO Sales sections">
-        {(['home', 'inbox', 'credits', 'settings'] as View[]).map((v) => (
-          <button key={v} type="button" className={view === v ? styles.tabActive : styles.tab} onClick={() => setView(v)}>
-            {v === 'home' ? 'Overview' : v === 'inbox' ? 'Conversations' : v === 'credits' ? 'Credits & Usage' : 'Settings'}
-            {v === 'inbox' && (overview?.metrics.needsYou || 0) > 0 ? (
+        {([
+          { id: 'home' as View, full: 'Overview', short: 'Overview' },
+          { id: 'inbox' as View, full: 'Conversations', short: 'Chats' },
+          { id: 'credits' as View, full: 'Credits & Usage', short: 'Credits' },
+          { id: 'settings' as View, full: 'Settings', short: 'Settings' },
+        ]).map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            className={view === tab.id ? styles.tabActive : styles.tab}
+            onClick={() => setView(tab.id)}
+            aria-label={tab.full}
+          >
+            <span className={styles.tabLabelFull}>{tab.full}</span>
+            <span className={styles.tabLabelShort}>{tab.short}</span>
+            {tab.id === 'inbox' && (overview?.metrics.needsYou || 0) > 0 ? (
               <span className={styles.badge}>{overview?.metrics.needsYou}</span>
             ) : null}
           </button>
