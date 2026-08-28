@@ -38,11 +38,13 @@
   color: var(--purple, #6B3FE7);
   letter-spacing: -0.01em;
   white-space: nowrap;
+  display: inline;
 }
 
 @media (max-width: 360px) {
   .brandName {
-    display: none;
+    display: inline;
+    font-size: 0.88rem;
   }
   .brandLogo {
     width: 28px;
@@ -73,6 +75,7 @@
 @media (max-width: 768px) {
   .hamburger { display: flex; }
   .brand { display: flex; }
+  .brandName { display: inline; }
 }
 
 /* ── Spacer ── */
@@ -402,19 +405,26 @@
     display: flex;
   }
 
-  /* Drop brand wordmark earlier when trial chip is present */
+  /* Keep Busmo name visible; trial chip is already compact on mobile */
   .topbarWithTrial .brandName {
-    display: none;
+    display: inline;
+    font-size: 0.9rem;
   }
 }
 
 @media (max-width: 360px) {
   .brandName {
-    display: none;
+    display: inline;
+    font-size: 0.85rem;
   }
 
   .brandLogo {
     width: 26px;
     height: 26px;
+  }
+
+  .topbarWithTrial .brandName {
+    display: inline;
+    font-size: 0.82rem;
   }
 }
