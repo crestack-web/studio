@@ -47,6 +47,8 @@ interface ReceiptData {
   paymentMethod: string;
   logoUrl?: string;
   theme?: any;
+  currency?: string;
+  soldBy?: string;
 }
 
 export function SalePage({
