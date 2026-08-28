@@ -157,13 +157,17 @@ export const AskMOSupportAgent = () => {
           },
         ]);
       }
-    } catch {
+    } catch (err: any) {
+      console.error('requestHuman failed', err);
+      // Still switch UI to human mode with reassuring message
+      setHumanMode(true);
       setMessages((prev) => [
         ...prev,
         {
-          id: `err-${Date.now()}`,
+          id: `sys-${Date.now()}`,
           role: 'system',
-          content: 'Could not reach support right now. Try WhatsApp or try again.',
+          content:
+            'Ada from Busmo Support will respond here soon. If this is urgent, use WhatsApp below — your message may still appear in our inbox after a refresh.',
           timestamp: new Date().toISOString(),
         },
       ]);

@@ -20,7 +20,6 @@ export default function PricingPage() {
   const [selectedPlan, setSelectedPlan] = useState<BusmoPlan | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [userEmail, setUserEmail] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank_transfer' | 'ussd'>('card');
   const [isPaying, setIsPaying] = useState(false);
 
   // After Paystack redirect: verify and record revenue
@@ -325,8 +324,79 @@ export default function PricingPage() {
 
       {showPaymentModal && selectedPlan && (
         <div
-          className="payment-modal-overlay"
-          onClick={() => setShowPaymentModal(false)}
+          className="pay-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pay-modal-title"
+          onClick={() => !isPaying && setShowPaymentModal(false)}
+        >
+          <div className="pay-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="pay-sheet-top">
+              <h3 id="pay-modal-title">Subscribe</h3>
+              <button
+                type="button"
+                className="pay-close"
+                aria-label="Close"
+                disabled={isPaying}
+                onClick={() => setShowPaymentModal(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="pay-sheet-body">
+              <div className="pay-plan-chip">
+                <span className="pay-plan-name">{selectedPlan.name}</span>
+                <span className="pay-plan-price">
+                  {formatMoney(
+                    mode === 'monthly'
+                      ? selectedPlan.monthlyPrice
+                      : selectedPlan.yearlyPrice
+                  )}
+                  <span className="pay-plan-period">
+                    /{mode === 'monthly' ? 'mo' : 'yr'}
+                  </span>
+                </span>
+              </div>
+
+              <label className="pay-label" htmlFor="payment-email">
+                Email
+              </label>
+              <input
+                id="payment-email"
+                type="email"
+                className="pay-input"
+                placeholder="you@email.com"
+                autoComplete="email"
+                inputMode="email"
+                value={userEmail}
+                onChange={(e) => setUserEmail(e.target.value)}
+                disabled={isPaying}
+              />
+              <p className="pay-hint">Secure checkout with Paystack</p>
+            </div>
+
+            <div className="pay-sheet-actions">
+              <button
+                type="button"
+                className="pay-btn-primary"
+                onClick={handlePayment}
+                disabled={isPaying}
+              >
+                {isPaying ? 'Redirecting…' : 'Pay with Paystack'}
+              </button>
+              <button
+                type="button"
+                className="pay-btn-ghost"
+                onClick={handleStartFreeTrial}
+                disabled={isPaying}
+              >
+                Start 3-day free trial
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
         >
           <div
             className="payment-modal"

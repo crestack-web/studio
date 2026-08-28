@@ -96,10 +96,11 @@ export async function POST(req: NextRequest) {
         senderRole: 'user',
         userId,
       });
+      const agentName = 'Ada from Busmo Support';
       await appendMessage({
         ticketId,
         content:
-          "You're connected to Busmo support. A human agent will reply here shortly. You can keep messaging in this chat.",
+          `${agentName} received your request. A human agent will respond here soon — usually within a few minutes during business hours. You can keep typing in this chat.`,
         senderRole: 'system',
       });
       const messages = await listMessages(ticketId);

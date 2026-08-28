@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       tickets: tickets.map((t: any) => ({
         id: t.id,
         status: t.status,
-        needsHuman: Boolean(t.needs_human),
+        needsHuman: Boolean(t.needs_human) || t.status === 'needs_human',
         guestEmail: t.guest_email,
         userId: t.user_id,
         businessId: t.business_id,
