@@ -330,6 +330,12 @@ export function RecordSalePage() {
           continue;
         }
         
+        const productType =
+          (data as any).productType ||
+          (data as any).product_type ||
+          (data as any).type ||
+          (data as any).metadata?.productType ||
+          'product';
         fetchedProducts.push({
           id: (data as any).id,
           name: (data as any).name || 'Unnamed Product',

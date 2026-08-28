@@ -173,6 +173,26 @@ export default function StaffAccountabilityPage() {
         }
       }
 
+      // Shift closes from staff clock-out (pending cash until reconciled)
+      let shiftCloses: any[] = [];
+      try {
+        const { data: biz } = await getSupabase()
+          .from('businesses')
+          .select('metadata')
+          .eq('id', businessId)
+          .maybeSingle();
+        const meta =
+          biz?.metadata && typeof biz.metadata === 'object' ? (biz.metadata as any) : {};
+        shiftCloses = Array.isArray(meta.shiftCloses) ? meta.shiftCloses : [];
+        shiftCloses = shiftCloses.filter((sc: any) => {
+          const raw = sc.checkOut || sc.createdAt;
+          const ms = raw ? new Date(raw).getTime() : 0;
+          return !ms || ms >= startMs;
+        });
+      } catch (e) {
+        console.warn('[StaffAccountability] shiftCloses', e);
+      }
+
       // saleId → actual cash attributed after reconciliation
       const saleToCashMap = new Map<string, number>();
       const reconciledSaleIds = new Set<string>();
@@ -248,6 +268,45 @@ export default function StaffAccountabilityPage() {
           row.unreconciledCash += cashAmt;
           row.cashSubmitted += 0;
           row.shortages += cashAmt;
+        }
+      }
+
+      // Apply shift-close pending cash when sales weren't fully reconciled yet
+      for (const sc of shiftCloses) {
+        const sid = String(sc.staffId || '');
+        if (!sid) continue;
+        if (!staffMap.has(sid)) {
+          staffMap.set(sid, {
+            staffId: sid,
+            staffName: sc.staffName || 'Staff',
+            salesRecorded: Number(sc.salesCount) || 0,
+            expectedCash: 0,
+            cashSubmitted: 0,
+            bankCollections: Number(sc.bankTotal) || 0,
+            shortages: 0,
+            outstandingPayments: 0,
+            reconciledSales: 0,
+            unreconciledCash: 0,
+          });
+        }
+        const row = staffMap.get(sid);
+        // If shift still pending recon and saleIds not all in reconciled set
+        const scSaleIds: string[] = Array.isArray(sc.saleIds) ? sc.saleIds.map(String) : [];
+        const allReconciled =
+          scSaleIds.length > 0 && scSaleIds.every((id) => reconciledSaleIds.has(id));
+        if (!allReconciled && Number(sc.expectedCash) > 0) {
+          // Prefer sale-level math when we already counted sales; only top-up gaps
+          const alreadyExpected = row.expectedCash || 0;
+          const scExpected = Number(sc.expectedCash) || 0;
+          if (scExpected > alreadyExpected + 0.01) {
+            const gap = scExpected - alreadyExpected;
+            row.expectedCash += gap;
+            row.unreconciledCash += gap;
+            row.shortages += gap;
+          }
+        }
+        if (Number(sc.bankTotal) > 0 && !(row.bankCollections > 0)) {
+          row.bankCollections = Number(sc.bankTotal) || 0;
         }
       }
 

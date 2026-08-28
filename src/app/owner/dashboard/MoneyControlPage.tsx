@@ -332,9 +332,32 @@ export default function MoneyControlPage() {
         return hasCash || hasSplit;
       });
       
-      const unmatchedSales = cashSalesNeedingReconciliation.length - matchedTransactions;
+      let pendingShiftCloses = 0;
+      try {
+        const { data: biz } = await getSupabase()
+          .from('businesses')
+          .select('metadata')
+          .eq('id', resolvedBusinessId)
+          .maybeSingle();
+        const meta =
+          biz?.metadata && typeof biz.metadata === 'object' ? (biz.metadata as any) : {};
+        const closes = Array.isArray(meta.shiftCloses) ? meta.shiftCloses : [];
+        pendingShiftCloses = closes.filter((sc: any) => {
+          if (!sc.pendingCashReconciliation && !(Number(sc.expectedCash) > 0)) return false;
+          const scIds: string[] = Array.isArray(sc.saleIds) ? sc.saleIds.map(String) : [];
+          if (!scIds.length) return Number(sc.expectedCash) > 0;
+          return scIds.some((id: string) => !recSaleIds.has(id));
+        }).length;
+      } catch {
+        /* ignore */
+      }
+
+      const unmatchedSales = Math.max(
+        0,
+        cashSalesNeedingReconciliation.length - matchedTransactions
+      );
       const unmatchedBankTransactions = 0;
-      const pendingReconciliation = Math.max(0, unmatchedSales);
+      const pendingReconciliation = Math.max(0, unmatchedSales, pendingShiftCloses);
       
       let cashShortages = 0;
       let missingTransfers = 0;
