@@ -29,6 +29,8 @@ const TABLE_ALIASES: Record<string, string> = {
   chatConversations: 'chat_conversations',
   chatMessages: 'chat_messages',
   conversations: 'chat_conversations',
+  cashReconciliations: 'cash_reconciliations',
+  cash_reconciliations: 'cash_reconciliations',
   staffPermissions: 'staff_permissions',
   referralCodes: 'referral_codes',
   referralEarnings: 'referral_earnings',
@@ -137,6 +139,7 @@ function tableForCollection(collection: string): string {
 }
 
 const KNOWN_COLUMNS: Record<string, Set<string>> = {
+  cash_reconciliations: new Set(['id','business_id','date','expected_cash','actual_cash','variance','notes','shift','staff_id','metadata','created_at','updated_at']),
   chat_conversations: new Set(['id','business_id','type','participants','messages','metadata','created_at','updated_at']),
   chat_messages: new Set(['id','business_id','conversation_id','sender_id','sender_name','sender_type','body','text','metadata','created_at']),
   products: new Set(['id','business_id','name','description','category','sku','barcode','price','cost','stock_level','reorder_level','unit','image_url','tags','status','metadata','created_at','updated_at']),

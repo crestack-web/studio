@@ -173,22 +173,56 @@ export default function MoneyControlPage() {
       // Sales live in Supabase (same path as Record Sale / Home)
       const salesDocs = await fetchDocs(`businesses/${resolvedBusinessId}/sales`);
       let sales: SaleData[] = (salesDocs || []).map((data: any) => {
-        const breakdown =
+        const meta =
+          data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
+        let breakdown: any[] =
           Array.isArray(data.paymentBreakdown)
             ? data.paymentBreakdown
             : Array.isArray(data.payment_breakdown)
               ? data.payment_breakdown
-              : Array.isArray(data.metadata?.paymentBreakdown)
-                ? data.metadata.paymentBreakdown
+              : Array.isArray(meta.paymentBreakdown)
+                ? meta.paymentBreakdown
                 : [];
+        // paymentMethods map → breakdown rows
+        if ((!breakdown || breakdown.length === 0) && meta.paymentMethods && typeof meta.paymentMethods === 'object') {
+          breakdown = Object.entries(meta.paymentMethods).map(([method, amount]) => ({
+            method,
+            amount: Number(amount) || 0,
+            received: true,
+          }));
+        }
         const totalRevenue =
-          Number(data.totalRevenue ?? data.total ?? data.totalAmount ?? data.total_amount ?? 0) || 0;
+          Number(
+            data.totalRevenue ??
+              data.total_revenue ??
+              data.total ??
+              data.totalAmount ??
+              data.total_amount ??
+              meta.totalRevenue ??
+              meta.total ??
+              0
+          ) || 0;
+        const primary = String(
+          data.paymentMethod || data.payment_method || meta.paymentMethod || ''
+        ).toLowerCase();
+        if ((!breakdown || breakdown.length === 0) && primary && totalRevenue > 0) {
+          if (primary === 'split') {
+            // Unknown split — treat half as cash heuristic only if no detail
+            breakdown = [
+              { method: 'cash', amount: totalRevenue / 2, received: true },
+              { method: 'transfer', amount: totalRevenue / 2, received: true },
+            ];
+          } else {
+            breakdown = [{ method: primary, amount: totalRevenue, received: true }];
+          }
+        }
         return {
           id: data.id,
           ...data,
           totalRevenue,
+          paymentMethod: primary || data.paymentMethod,
           paymentBreakdown: breakdown,
-          createdAt: data.createdAt ?? data.created_at ?? null,
+          createdAt: data.createdAt ?? data.created_at ?? meta.createdAt ?? null,
         } as SaleData;
       });
 

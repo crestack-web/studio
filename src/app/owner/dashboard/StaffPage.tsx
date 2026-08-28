@@ -285,6 +285,47 @@ export default function StaffPage() {
           console.warn('[StaffPage] attendance online lookup failed', attErr);
         }
 
+
+        // Aggregate sales recorded by each staff member (Supabase sales + metadata)
+        const salesStats = new Map<string, { revenue: number; transactions: number }>();
+        try {
+          const saleRows = await fetchDocs(`businesses/${businessId}/sales`);
+          for (const row of saleRows as any[]) {
+            const meta = (row.metadata && typeof row.metadata === 'object' ? row.metadata : {}) as any;
+            const recorded = meta.recordedBy || {};
+            const keys = [
+              meta.soldBy,
+              meta.sold_by,
+              recorded.uid,
+              recorded.staffId,
+              recorded.staff_id,
+              row.soldBy,
+              row.sold_by,
+              row.staffId,
+              row.staff_id,
+              row.userId,
+              row.user_id,
+            ]
+              .filter(Boolean)
+              .map((k: any) => String(k));
+            const total =
+              Number(row.totalRevenue ?? row.total_revenue ?? row.total ?? row.total_amount ?? meta.totalRevenue ?? meta.total ?? 0) || 0;
+            if (!keys.length) continue;
+            // Attribute to all matching keys so staff id or auth uid both resolve
+            const seen = new Set<string>();
+            for (const k of keys) {
+              if (seen.has(k)) continue;
+              seen.add(k);
+              const prev = salesStats.get(k) || { revenue: 0, transactions: 0 };
+              prev.revenue += total;
+              prev.transactions += 1;
+              salesStats.set(k, prev);
+            }
+          }
+        } catch (saleErr) {
+          console.warn('[StaffPage] sales aggregate failed', saleErr);
+        }
+
         const mapped: StaffMember[] = (staffList as any[])
           .filter((data: any) => {
             const status = String(data.status || 'active').toLowerCase();
@@ -299,6 +340,7 @@ export default function StaffPage() {
               onlineIds.has(id) ||
               onlineIds.has(staffId) ||
               Boolean(data.online);
+            const stats = salesStats.get(id) || salesStats.get(staffId) || salesStats.get(String(data.email || '').toLowerCase());
             return {
               id,
               staffId,
@@ -308,8 +350,8 @@ export default function StaffPage() {
               avatarBg,
               avatarColor,
               initials: getInitials(data.name || ''),
-              revenue: data.revenue || 0,
-              transactions: data.transactions || 0,
+              revenue: stats?.revenue ?? (Number(data.revenue) || 0),
+              transactions: stats?.transactions ?? (Number(data.transactions) || 0),
               online,
               permissions: data.permissions || {},
             };

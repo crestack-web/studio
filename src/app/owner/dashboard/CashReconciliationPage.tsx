@@ -7,17 +7,59 @@ import { useCurrency } from './CurrencyContext';
 import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { CashReconciliation, detectShift, Shift } from './types';
-import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, query, where, orderBy, addDoc, Timestamp } from 'firebase/firestore';
+import { fetchDocs, addDoc } from '@/lib/supabase-client-data';
 import styles from './CashReconciliationPage.module.css';
 
 interface SaleData {
   id: string;
   totalRevenue: number;
   paymentBreakdown?: any[];
-  createdAt: Timestamp;
+  createdAt: Date;
   recordedBy?: string;
+  recordedByName?: string;
   shift?: Shift;
+  paymentMethod?: string;
+}
+
+function toDate(v: any): Date {
+  if (!v) return new Date();
+  if (v instanceof Date) return v;
+  if (typeof v?.toDate === 'function') return v.toDate();
+  const d = new Date(v);
+  return Number.isFinite(d.getTime()) ? d : new Date();
+}
+
+/** Cash portion of a sale from breakdown, paymentMethods map, or single cash method */
+function cashAmountFromSale(sale: any, meta: any = {}): number {
+  const breakdown =
+    sale.paymentBreakdown ||
+    meta.paymentBreakdown ||
+    sale.payment_breakdown ||
+    [];
+  if (Array.isArray(breakdown) && breakdown.length > 0) {
+    return breakdown
+      .filter((pb: any) => String(pb.method || '').toLowerCase() === 'cash')
+      .reduce((s: number, pb: any) => s + (Number(pb.amount) || 0), 0);
+  }
+  const methods = sale.paymentMethods || meta.paymentMethods || {};
+  if (methods && typeof methods === 'object' && methods.cash != null) {
+    return Number(methods.cash) || 0;
+  }
+  const method = String(
+    sale.paymentMethod || sale.payment_method || meta.paymentMethod || ''
+  ).toLowerCase();
+  const total =
+    Number(
+      sale.totalRevenue ??
+        sale.total_revenue ??
+        sale.total ??
+        sale.total_amount ??
+        meta.totalRevenue ??
+        meta.total ??
+        0
+    ) || 0;
+  if (method === 'cash') return total;
+  return 0;
 }
 
 interface StaffData {
@@ -25,21 +67,7 @@ interface StaffData {
   name: string;
 }
 
-let firestoreInstance: ReturnType<typeof initializeFirebase>['firestore'] | null = null;
-
-export default function CashReconciliationPage() {
-  const { user, showToast, navigateTo } = useApp();
-  const { t } = useTranslation();
-  const { formatMoney } = useCurrency();
-  const { firestore } = React.useMemo(() => {
-    if (!firestoreInstance) {
-      const initialized = initializeFirebase();
-      firestoreInstance = initialized.firestore;
-    }
-    return { firestore: firestoreInstance };
-  }, []);
-  
-  const [loading, setLoading] = useState(true);
+const [loading, setLoading] = useState(true);
   const [reconciliations, setReconciliations] = useState<CashReconciliation[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [expectedCash, setExpectedCash] = useState(0);
@@ -63,20 +91,21 @@ export default function CashReconciliationPage() {
 
   const loadStaffData = async () => {
     if (!user.businessId) return;
-    
     try {
-      const staffRef = collection(firestore, 'businesses', user.businessId, 'staff');
-      const snapshot = await getDocs(staffRef);
-      
+      const rows = await fetchDocs(`businesses/${user.businessId}/staff`);
       const staff: Record<string, StaffData> = {};
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        staff[doc.id] = {
-          id: doc.id,
-          name: data.name || 'Unknown',
-        };
-      });
-      
+      for (const data of rows as any[]) {
+        const id = String(data.id || '');
+        const name = data.name || 'Unknown';
+        if (id) staff[id] = { id, name };
+        if (data.staffId) staff[String(data.staffId)] = { id: String(data.staffId), name };
+        if (data.userId || data.user_id) {
+          staff[String(data.userId || data.user_id)] = {
+            id: String(data.userId || data.user_id),
+            name,
+          };
+        }
+      }
       setStaffMap(staff);
     } catch (error) {
       console.error('Error loading staff data:', error);
@@ -85,88 +114,135 @@ export default function CashReconciliationPage() {
 
   const loadSalesForShift = async () => {
     if (!user.businessId || !selectedDate) return;
-    
+
     try {
-      const salesRef = collection(firestore, 'businesses', user.businessId, 'sales');
-      
-      // Get start and end of selected date
       const startDate = new Date(selectedDate);
       startDate.setHours(0, 0, 0, 0);
       const endDate = new Date(selectedDate);
       endDate.setHours(23, 59, 59, 999);
-      
-      const q = query(
-        salesRef,
-        where('createdAt', '>=', Timestamp.fromDate(startDate)),
-        where('createdAt', '<=', Timestamp.fromDate(endDate)),
-        orderBy('createdAt', 'desc')
-      );
-      
-      const snapshot = await getDocs(q);
-      
-      const sales: SaleData[] = snapshot.docs.map(doc => {
-        const data = doc.data();
-        const saleDate = data.createdAt?.toDate() || new Date();
-        const detectedShift = detectShift(saleDate);
-        
-        return {
-          id: doc.id,
-          totalRevenue: data.totalRevenue || data.total || 0,
-          paymentBreakdown: data.paymentBreakdown || [],
-          createdAt: data.createdAt || Timestamp.now(),
-          recordedBy: data.recordedBy,
-          shift: detectedShift,
-        };
-      });
-      
-      // Filter sales by selected shift
-      const shiftSales = sales.filter(sale => sale.shift === shift);
+      const startMs = startDate.getTime();
+      const endMs = endDate.getTime();
+
+      const rows = await fetchDocs(`businesses/${user.businessId}/sales`);
+
+      const sales: SaleData[] = (rows as any[])
+        .map((data) => {
+          const meta =
+            data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
+          const saleDate = toDate(
+            data.createdAt || data.created_at || meta.createdAt
+          );
+          const ms = saleDate.getTime();
+          if (ms < startMs || ms > endMs) return null;
+
+          const recordedBy =
+            meta.soldBy ||
+            meta.recordedBy?.uid ||
+            meta.recordedBy?.staffId ||
+            data.soldBy ||
+            data.staffId ||
+            '';
+          const recordedByName =
+            meta.soldByName ||
+            meta.recordedBy?.displayName ||
+            meta.recordedBy?.name ||
+            '';
+
+          const totalRevenue =
+            Number(
+              data.totalRevenue ??
+                data.total_revenue ??
+                data.total ??
+                data.total_amount ??
+                meta.totalRevenue ??
+                meta.total ??
+                0
+            ) || 0;
+
+          const paymentBreakdown =
+            data.paymentBreakdown ||
+            meta.paymentBreakdown ||
+            (meta.paymentMethods
+              ? Object.entries(meta.paymentMethods).map(([method, amount]) => ({
+                  method,
+                  amount: Number(amount) || 0,
+                }))
+              : []);
+
+          // Ensure cash is represented when payment method is cash only
+          let breakdown = Array.isArray(paymentBreakdown) ? [...paymentBreakdown] : [];
+          if (
+            breakdown.length === 0 &&
+            String(data.paymentMethod || data.payment_method || meta.paymentMethod || '').toLowerCase() ===
+              'cash' &&
+            totalRevenue > 0
+          ) {
+            breakdown = [{ method: 'cash', amount: totalRevenue }];
+          }
+
+          return {
+            id: String(data.id),
+            totalRevenue,
+            paymentBreakdown: breakdown,
+            createdAt: saleDate,
+            recordedBy: recordedBy ? String(recordedBy) : undefined,
+            recordedByName: recordedByName ? String(recordedByName) : undefined,
+            shift: detectShift(saleDate),
+            paymentMethod: String(
+              data.paymentMethod || data.payment_method || meta.paymentMethod || ''
+            ),
+          } as SaleData;
+        })
+        .filter(Boolean) as SaleData[];
+
+      const shiftSales = sales.filter((sale) => sale.shift === shift);
+      // Newest first
+      shiftSales.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       setSalesForShift(shiftSales);
-      
-      // Auto-calculate expected cash from sales in this shift
+
       const expectedCashFromSales = shiftSales.reduce((sum, sale) => {
-        const breakdown = sale.paymentBreakdown || [];
-        const cashAmount = breakdown
-          .filter((pb: any) => pb.method === 'cash')
-          .reduce((s: number, pb: any) => s + pb.amount, 0);
-        return sum + cashAmount;
+        const meta = {};
+        return sum + cashAmountFromSale(sale, meta);
       }, 0);
-      
+
       setExpectedCash(expectedCashFromSales);
       setAutoCalculated(true);
-      
     } catch (error) {
       console.error('Error loading sales for shift:', error);
+      setSalesForShift([]);
+      setExpectedCash(0);
     }
   };
 
   const loadReconciliations = async () => {
     if (!user.businessId) return;
-    
+
     setLoading(true);
     try {
-      const reconciliationsRef = collection(firestore, 'businesses', user.businessId, 'cashReconciliations');
-      
-      const q = query(reconciliationsRef, orderBy('date', 'desc'));
-      const snapshot = await getDocs(q);
-      
-      const recs: CashReconciliation[] = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          merchantId: data.merchantId,
-          staffId: data.staffId || user.id,
-          date: data.date?.toDate() || new Date(),
-          expectedCash: data.expectedCash || 0,
-          actualCash: data.actualCash || 0,
-          variance: data.variance || 0,
-          notes: data.notes || '',
-          shift: data.shift || '',
-          reconciledBy: data.reconciledBy || '',
-          reconciledAt: data.reconciledAt?.toDate() || new Date(),
-        };
-      });
-      
+      const rows = await fetchDocs(
+        `businesses/${user.businessId}/cashReconciliations`
+      );
+      const recs: CashReconciliation[] = (rows as any[])
+        .map((data) => {
+          const meta =
+            data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
+          return {
+            id: String(data.id),
+            merchantId: data.merchantId || data.businessId || user.businessId,
+            staffId: data.staffId || meta.staffId || user.id,
+            date: toDate(data.date || meta.date || data.createdAt || data.created_at),
+            expectedCash: Number(data.expectedCash ?? meta.expectedCash ?? 0) || 0,
+            actualCash: Number(data.actualCash ?? meta.actualCash ?? 0) || 0,
+            variance: Number(data.variance ?? meta.variance ?? 0) || 0,
+            notes: data.notes || meta.notes || '',
+            shift: data.shift || meta.shift || '',
+            reconciledBy: data.reconciledBy || meta.reconciledBy || '',
+            reconciledAt: toDate(
+              data.reconciledAt || meta.reconciledAt || data.createdAt || data.created_at
+            ),
+          };
+        })
+        .sort((a, b) => b.date.getTime() - a.date.getTime());
       setReconciliations(recs);
     } catch (error) {
       console.error('Error loading reconciliations:', error);
@@ -185,23 +261,28 @@ export default function CashReconciliationPage() {
     const variance = actualCash - expectedCash;
     
     try {
-      const reconciliationsRef = collection(firestore, 'businesses', user.businessId, 'cashReconciliations');
-      
-      // Link to sales for this shift
-      const saleIds = salesForShift.map(s => s.id);
-      
-      await addDoc(reconciliationsRef, {
+      const saleIds = salesForShift.map((s) => s.id);
+      await addDoc(`businesses/${user.businessId}/cashReconciliations`, {
         merchantId: user.businessId,
-        date: Timestamp.fromDate(new Date(selectedDate)),
+        businessId: user.businessId,
+        date: new Date(selectedDate).toISOString(),
         expectedCash,
         actualCash,
         variance,
         notes,
         shift,
         reconciledBy: user.id,
-        reconciledAt: Timestamp.now(),
-        saleIds, // Link to sales for traceability
+        reconciledAt: new Date().toISOString(),
+        saleIds,
         salesCount: salesForShift.length,
+        metadata: {
+          saleIds,
+          salesCount: salesForShift.length,
+          shift,
+          expectedCash,
+          actualCash,
+          variance,
+        },
       });
       
       showToast('Cash reconciliation saved successfully');
@@ -234,14 +315,17 @@ export default function CashReconciliationPage() {
   );
 
   const SalesRow = ({ sale }: { sale: SaleData }) => {
-    const staffName = sale.recordedBy ? staffMap[sale.recordedBy]?.name : 'Unknown';
-    const cashAmount = (sale.paymentBreakdown || [])
-      .filter((pb: any) => pb.method === 'cash')
-      .reduce((s: number, pb: any) => s + pb.amount, 0);
-    
+    const staffName =
+      sale.recordedByName ||
+      (sale.recordedBy ? staffMap[sale.recordedBy]?.name : '') ||
+      'Staff';
+    const cashAmount = cashAmountFromSale(sale, {});
+
     return (
       <div className={styles.saleRow}>
-        <div className={styles.saleTime}>{sale.createdAt?.toDate()?.toLocaleTimeString()}</div>
+        <div className={styles.saleTime}>
+          {sale.createdAt?.toLocaleTimeString?.() || '—'}
+        </div>
         <div className={styles.saleStaff}>{staffName}</div>
         <div className={styles.saleTotal}>{formatMoney(sale.totalRevenue)}</div>
         <div className={styles.saleCash}>{formatMoney(cashAmount)}</div>
