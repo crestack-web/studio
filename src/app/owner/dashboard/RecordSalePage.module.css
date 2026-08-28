@@ -466,3 +466,142 @@
   color: var(--text-3);
   margin-top: 4px;
 }
+
+
+/* ══════════════════════════════════════════
+   SALE V2 — theme-aware polish
+══════════════════════════════════════════ */
+
+.pageHeaderV2 {
+  background: linear-gradient(
+    135deg,
+    var(--surface) 0%,
+    color-mix(in srgb, var(--purple-lt) 50%, var(--surface)) 60%,
+    color-mix(in srgb, var(--purple-lt) 30%, var(--bg)) 100%
+  );
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 18px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 16px;
+}
+
+.eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--purple-md, var(--purple));
+  margin-bottom: 4px;
+}
+
+.pageHeaderV2 .pageTitle {
+  color: var(--text-1);
+  font-size: clamp(1.2rem, 2.2vw, 1.45rem);
+  letter-spacing: -0.02em;
+}
+
+.pageHeaderV2 .pageDesc {
+  color: var(--text-3);
+}
+
+.customerSection,
+.paymentSection,
+.creditSection {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+  margin-top: 10px;
+}
+
+.customerLabel,
+.paymentLabel,
+.creditLabel {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-1);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.optionalTag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-3);
+  border: 1px solid var(--border);
+}
+
+.customerHint,
+.paymentHint {
+  font-size: 0.78rem;
+  color: var(--text-3);
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
+
+.paymentGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+}
+
+.payMethod {
+  width: 100%;
+  border-radius: 12px !important;
+  border: 1.5px solid var(--border) !important;
+  background: var(--bg) !important;
+  color: var(--text-2) !important;
+  padding: 12px 8px !important;
+  font-weight: 650 !important;
+  transition: border-color 0.15s, background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.payActive {
+  border-color: var(--purple) !important;
+  background: var(--purple-lt) !important;
+  color: var(--purple) !important;
+  box-shadow: 0 0 0 3px var(--purple-glow, rgba(107, 63, 231, 0.15));
+}
+
+.formInput {
+  background: var(--bg) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-1) !important;
+  border-radius: 10px !important;
+}
+
+.productCard {
+  border-radius: 14px !important;
+  border-color: var(--border) !important;
+  background: var(--surface) !important;
+}
+
+.productSelected {
+  border-color: var(--purple) !important;
+  box-shadow: 0 0 0 2px var(--purple-glow, rgba(107, 63, 231, 0.2));
+}
+
+.search {
+  border-radius: 12px !important;
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+
+@media (max-width: 640px) {
+  .paymentGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .pageHeaderV2 {
+    padding: 14px;
+    border-radius: 14px;
+  }
+}

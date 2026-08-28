@@ -245,6 +245,35 @@ export function RecordSalePage() {
             });
           }
           setCreditCustomers(loadedCreditCustomers);
+
+          // Also merge general customers list (optional attach)
+          try {
+            const regularCustomers = await fetchDocs(`businesses/${bId}/customers`, {
+              orderBy: { field: 'created_at', ascending: false },
+            });
+            const merged = [...loadedCreditCustomers];
+            const seen = new Set(merged.map((c) => c.id));
+            for (const data of regularCustomers || []) {
+              const id = String((data as any).id || '');
+              if (!id || seen.has(id)) continue;
+              seen.add(id);
+              merged.push({
+                id,
+                name: (data as any).name || 'Customer',
+                phone: (data as any).phone || '',
+                email: (data as any).email || '',
+                address: (data as any).address || '',
+                currentBalance: Number((data as any).balance || (data as any).currentBalance || 0),
+                totalCreditLimit: Number((data as any).creditLimit || 0) || null,
+                isRegularCustomer: true,
+                createdAt: (data as any).created_at || new Date().toISOString(),
+              } as CreditCustomer);
+            }
+            setCreditCustomers(merged);
+          } catch (_) {
+            /* optional collection */
+          }
+
         } catch (error) {
           console.error('Error loading credit customers:', error);
         }
@@ -505,12 +534,18 @@ export function RecordSalePage() {
           recordedAt: new Date().toISOString(),
         };
 
-      // Only add customer fields if a customer is actually selected (not empty string)
-      if (selectedCustomer && selectedCustomer.trim() !== '' && selectedCustomer !== 'undefined') {
+      // Optional customer attachment (selected or newly entered)
+      if (selectedCustomer && selectedCustomer.trim() && selectedCustomer !== 'undefined') {
         saleData.customerId = selectedCustomer;
-        saleData.customerName = creditCustomers.find(c => c.id === selectedCustomer)?.name || customerName;
-        saleData.customerPhone = creditCustomers.find(c => c.id === selectedCustomer)?.phone || customerPhone;
+        saleData.customerName =
+          creditCustomers.find((c) => c.id === selectedCustomer)?.name || customerName || null;
+        saleData.customerPhone =
+          creditCustomers.find((c) => c.id === selectedCustomer)?.phone || customerPhone || null;
+      } else if (customerName.trim()) {
+        saleData.customerName = customerName.trim();
+        saleData.customerPhone = customerPhone.trim() || null;
       }
+
 
       // Offline path — queue and return early
       if (!offlineManager.isOnline()) {
@@ -1113,8 +1148,9 @@ export function RecordSalePage() {
 
   return (
     <div className={styles.wrapper}>
-      <div className={styles.pageHeader}>
+      <div className={`${styles.pageHeader} ${styles.pageHeaderV2}`}>
         <div>
+          <div className={styles.eyebrow}>Checkout</div>
           <h2 className={styles.pageTitle}>{t('sale.title')}</h2>
           <p className={styles.pageDesc}>{t('sale.subtitle')}</p>
         </div>
@@ -1381,10 +1417,11 @@ export function RecordSalePage() {
               </div>
             )}
 
-      {/* Customer Selection - Show for wholesale/distributor or when credit is used */}
-      {(businessCategory.includes('wholesale') || businessCategory.includes('distributor') || paymentBreakdown.some(pb => pb.method === 'credit')) && (
+      {/* Optional customer — any business can attach a sale to a customer */}
+      {cart.length > 0 && (
         <div className={styles.customerSection}>
-          <div className={styles.customerLabel}>Customer Information (Optional)</div>
+          <div className={styles.customerLabel}>Customer <span className={styles.optionalTag}>Optional</span></div>
+          <p className={styles.customerHint}>Attach this sale to a customer for history and credit tracking. Leave blank for walk-in.</p>
           
           <div className={styles.formGroup}>
             <label className={styles.formLabel}>Select Existing Customer</label>
@@ -1456,9 +1493,10 @@ export function RecordSalePage() {
         </div>
       )}
 
-      {/* Payment method - Allow split payments */}
+      {/* Payment method — include credit; multi-select = split */}
       <div className={styles.paymentSection}>
-        <div className={styles.paymentLabel}>{t('sale.paymentMethod')} - Split Payment</div>
+        <div className={styles.paymentLabel}>{t('sale.paymentMethod')}</div>
+        <p className={styles.paymentHint}>Tap one or more methods. Amounts must add up to the total. Use <strong>Credit</strong> for pay-later sales.</p>
 
         {/* Credit Customer Selection - Show only when credit is selected */}
         {paymentBreakdown.some(pb => pb.method === 'credit') && (
@@ -1689,7 +1727,9 @@ export function RecordSalePage() {
 }
 
 const PAYMENT_METHODS = [
-  { id: 'cash',     label: 'Cash',      icon: 'M2 6h20a2 2 0 012 2v12a2 2 0 01-2 2H2a2 2 0 01-2-2V8a2 2 0 012-2zM2 10h20' },
-  { id: 'transfer', label: 'Transfer',  icon: 'M5 2h14a2 2 0 012 2v20a2 2 0 01-2 2H5a2 2 0 01-2-2V4a2 2 0 012-2zM12 18h.01' },
-  { id: 'pos',      label: 'POS',       icon: 'M1 4h22v16a2 2 0 01-2 2H3a2 2 0 01-2-2V4zM1 10h22' },
+  { id: 'cash',     label: 'Cash',     icon: 'M2 6h20a2 2 0 012 2v12a2 2 0 01-2 2H2a2 2 0 01-2-2V8a2 2 0 012-2zM2 10h20' },
+  { id: 'transfer', label: 'Transfer', icon: 'M5 2h14a2 2 0 012 2v20a2 2 0 01-2 2H5a2 2 0 01-2-2V4a2 2 0 012-2zM12 18h.01' },
+  { id: 'pos',      label: 'POS',      icon: 'M1 4h22v16a2 2 0 01-2 2H3a2 2 0 01-2-2V4zM1 10h22' },
+  { id: 'card',     label: 'Card',     icon: 'M2 5h20a1 1 0 011 1v12a1 1 0 01-1 1H2a1 1 0 01-1-1V6a1 1 0 011-1zM1 10h22' },
+  { id: 'credit',   label: 'Credit',   icon: 'M12 2a10 10 0 100 20 10 10 0 000-20zM8 12h8M12 8v8' },
 ];
