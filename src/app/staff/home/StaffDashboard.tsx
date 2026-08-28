@@ -34,6 +34,7 @@ import {
 } from './pages/ExtraFeaturePages';
 import { useStaffWorkspaceOptional } from './StaffContext';
 import './busmo.css';
+import './sidebar-nav.css';
 import { NetworkStatus, NetworkStatusStyles } from '@/components/app/NetworkStatus';
 
 interface StaffDashboardProps {
