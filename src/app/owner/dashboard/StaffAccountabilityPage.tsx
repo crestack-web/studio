@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
@@ -8,69 +8,208 @@ import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { StaffAccountability } from './types';
 import { fetchDocs } from '@/lib/supabase-client-data';
+import { getSupabase } from '@/lib/supabase';
 import styles from './StaffAccountabilityPage.module.css';
+
+function cashFromSale(sale: any): number {
+  const meta = sale.metadata && typeof sale.metadata === 'object' ? sale.metadata : {};
+  const breakdown =
+    sale.paymentBreakdown ||
+    sale.payment_breakdown ||
+    meta.paymentBreakdown ||
+    meta.paymentMethods ||
+    [];
+  if (Array.isArray(breakdown) && breakdown.length) {
+    return breakdown.reduce((sum: number, pb: any) => {
+      const method = String(pb.method || pb.type || '').toLowerCase();
+      const amt = Number(pb.amount ?? pb.value ?? 0) || 0;
+      if (method === 'cash') return sum + amt;
+      if (method === 'split') return sum + amt * 0.5;
+      return sum;
+    }, 0);
+  }
+  const method = String(
+    sale.paymentMethod || sale.payment_method || meta.paymentMethod || 'cash'
+  ).toLowerCase();
+  const total =
+    Number(
+      sale.totalRevenue ??
+        sale.total_revenue ??
+        sale.total ??
+        sale.total_amount ??
+        meta.totalRevenue ??
+        0
+    ) || 0;
+  if (method === 'cash') return total;
+  if (method === 'split') return total * 0.5;
+  return 0;
+}
+
+function bankFromSale(sale: any): number {
+  const meta = sale.metadata && typeof sale.metadata === 'object' ? sale.metadata : {};
+  const breakdown =
+    sale.paymentBreakdown ||
+    sale.payment_breakdown ||
+    meta.paymentBreakdown ||
+    meta.paymentMethods ||
+    [];
+  if (Array.isArray(breakdown) && breakdown.length) {
+    return breakdown.reduce((sum: number, pb: any) => {
+      const method = String(pb.method || pb.type || '').toLowerCase();
+      const amt = Number(pb.amount ?? pb.value ?? 0) || 0;
+      if (method === 'transfer' || method === 'pos' || method === 'card') return sum + amt;
+      if (method === 'split') return sum + amt * 0.5;
+      return sum;
+    }, 0);
+  }
+  const method = String(
+    sale.paymentMethod || sale.payment_method || meta.paymentMethod || ''
+  ).toLowerCase();
+  const total =
+    Number(
+      sale.totalRevenue ??
+        sale.total_revenue ??
+        sale.total ??
+        sale.total_amount ??
+        0
+    ) || 0;
+  if (['transfer', 'pos', 'card'].includes(method)) return total;
+  if (method === 'split') return total * 0.5;
+  return 0;
+}
+
+function creditFromSale(sale: any): number {
+  const method = String(
+    sale.paymentMethod || sale.payment_method || sale.metadata?.paymentMethod || ''
+  ).toLowerCase();
+  if (method !== 'credit') return 0;
+  return (
+    Number(sale.totalRevenue ?? sale.total_revenue ?? sale.total ?? sale.total_amount ?? 0) || 0
+  );
+}
+
+function staffFromSale(sale: any): { id: string; name: string } {
+  const meta = sale.metadata && typeof sale.metadata === 'object' ? sale.metadata : {};
+  const recorded = meta.recordedBy || sale.recordedBy || {};
+  const id = String(
+    meta.soldBy ||
+      recorded.uid ||
+      recorded.staffId ||
+      sale.soldBy ||
+      sale.staffId ||
+      sale.user_id ||
+      'unknown'
+  );
+  const name = String(
+    meta.soldByName ||
+      recorded.displayName ||
+      recorded.name ||
+      sale.soldByName ||
+      sale.staffName ||
+      'Staff'
+  );
+  return { id, name };
+}
 
 export default function StaffAccountabilityPage() {
   const { user, showToast, navigateTo } = useApp();
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();
-  
+
   const [loading, setLoading] = useState(true);
   const [accountabilityData, setAccountabilityData] = useState<StaffAccountability[]>([]);
-  const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'quarter' | 'all'>('month');
+  const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'quarter' | 'all'>(
+    'month'
+  );
 
-  useEffect(() => {
-    loadAccountabilityData();
-  }, [selectedPeriod, user.businessId]);
+  const businessId = String(user?.businessId || user?.id || '').trim();
 
-  const loadAccountabilityData = async () => {
-    if (!user.businessId) return;
-    
+  const loadAccountabilityData = useCallback(async () => {
+    if (!businessId) return;
+
     setLoading(true);
     try {
       let startDate = new Date();
-      if (selectedPeriod === 'week') {
-        startDate.setDate(startDate.getDate() - 7);
-      } else if (selectedPeriod === 'month') {
-        startDate.setMonth(startDate.getMonth() - 1);
-      } else if (selectedPeriod === 'quarter') {
-        startDate.setMonth(startDate.getMonth() - 3);
-      } else {
-        startDate.setFullYear(startDate.getFullYear() - 1);
-      }
-      
-      const sales = await fetchDocs(`businesses/${user.businessId}/sales`, {
-        filters: [{ field: 'createdAt', op: '>=', value: startDate.toISOString() }],
-        orderBy: { field: 'createdAt', ascending: false },
+      if (selectedPeriod === 'week') startDate.setDate(startDate.getDate() - 7);
+      else if (selectedPeriod === 'month') startDate.setMonth(startDate.getMonth() - 1);
+      else if (selectedPeriod === 'quarter') startDate.setMonth(startDate.getMonth() - 3);
+      else startDate.setFullYear(startDate.getFullYear() - 1);
+      const startMs = startDate.getTime();
+
+      const salesRaw = await fetchDocs(`businesses/${businessId}/sales`, {
+        orderBy: { field: 'created_at', ascending: false },
+        limit: 500,
       });
-      
-      // Load cash reconciliation data
-      const reconciliations = await fetchDocs(`businesses/${user.businessId}/cashReconciliations`, {
-        filters: [{ field: 'date', op: '>=', value: startDate.toISOString() }],
-        orderBy: { field: 'date', ascending: false },
+      const sales = (salesRaw as any[]).filter((s) => {
+        const raw = s.createdAt || s.created_at;
+        const ms = raw ? new Date(raw).getTime() : 0;
+        return !ms || ms >= startMs;
       });
-      
-      // Create a map of saleId to actual cash submitted from reconciliations
-      const saleToCashMap = new Map<string, number>();
-      reconciliations.forEach((rec: any) => {
-        const saleIds = rec.saleIds || [];
-        const actualCash = rec.actualCash || 0;
-        // Distribute actual cash proportionally across sales in this reconciliation
-        if (saleIds.length > 0 && actualCash > 0) {
-          const cashPerSale = actualCash / saleIds.length;
-          saleIds.forEach((saleId: string) => {
-            saleToCashMap.set(saleId, (saleToCashMap.get(saleId) || 0) + cashPerSale);
-          });
+
+      // Load reconciliations from same API as cash recon save
+      let reconciliations: any[] = [];
+      try {
+        const supabase = getSupabase();
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        if (token) {
+          const res = await fetch(
+            `/api/cash-reconciliation?businessId=${encodeURIComponent(businessId)}`,
+            { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' }
+          );
+          const json = await res.json().catch(() => ({}));
+          if (res.ok) reconciliations = json.reconciliations || [];
         }
-      });
-      
-      // Group sales by staff member
+      } catch (e) {
+        console.warn('[StaffAccountability] recon load', e);
+      }
+      if (!reconciliations.length) {
+        try {
+          reconciliations = (await fetchDocs(
+            `businesses/${businessId}/cashReconciliations`
+          )) as any[];
+        } catch {
+          reconciliations = [];
+        }
+      }
+
+      // saleId → actual cash attributed after reconciliation
+      const saleToCashMap = new Map<string, number>();
+      const reconciledSaleIds = new Set<string>();
+      // staffId → shortage recorded on recon variance (negative only)
+      const staffShortageFromRecon = new Map<string, number>();
+
+      for (const rec of reconciliations) {
+        const meta =
+          rec.metadata && typeof rec.metadata === 'object' ? rec.metadata : {};
+        const saleIds: string[] = rec.saleIds || meta.saleIds || rec.sale_ids || [];
+        const actualCash =
+          Number(rec.actualCash ?? meta.actualCash ?? rec.actual_cash ?? 0) || 0;
+        const expectedCash =
+          Number(rec.expectedCash ?? meta.expectedCash ?? rec.expected_cash ?? 0) || 0;
+        const variance =
+          Number(rec.variance ?? meta.variance ?? actualCash - expectedCash) || 0;
+
+        if (Array.isArray(saleIds) && saleIds.length > 0) {
+          // Distribute actual cash across sales (clears shortage when actual matches)
+          const perSale = actualCash / saleIds.length;
+          for (const sid of saleIds) {
+            if (!sid) continue;
+            reconciledSaleIds.add(String(sid));
+            saleToCashMap.set(String(sid), (saleToCashMap.get(String(sid)) || 0) + perSale);
+          }
+        }
+
+        // Attribute residual shortage to staff on those sales after distribution
+        if (variance < 0 && saleIds.length) {
+          // shortage already reflected as expected - actual per sale
+        }
+      }
+
       const staffMap = new Map<string, any>();
-      
-      sales.forEach((sale: any) => {
-        const staffId = sale.recordedBy?.uid || 'unknown';
-        const staffName = sale.recordedBy?.displayName || 'Unknown';
-        
+
+      for (const sale of sales) {
+        const { id: staffId, name: staffName } = staffFromSale(sale);
         if (!staffMap.has(staffId)) {
           staffMap.set(staffId, {
             staffId,
@@ -81,193 +220,164 @@ export default function StaffAccountabilityPage() {
             bankCollections: 0,
             shortages: 0,
             outstandingPayments: 0,
+            reconciledSales: 0,
+            unreconciledCash: 0,
           });
         }
-        
-        const staffData = staffMap.get(staffId);
-        staffData.salesRecorded += 1;
-        
-        // Calculate expected cash and bank from payment breakdown
-        const breakdown = sale.paymentBreakdown || [];
-        const cashAmount = breakdown.filter((pb: any) => pb.method === 'cash').reduce((sum: number, pb: any) => sum + pb.amount, 0);
-        const bankAmount = breakdown.filter((pb: any) => ['transfer', 'pos', 'card'].includes(pb.method)).reduce((sum: number, pb: any) => sum + pb.amount, 0);
-        
-        staffData.expectedCash += cashAmount;
-        staffData.bankCollections += bankAmount;
-        
-        // Get actual cash submitted from reconciliation data
-        const actualCashForSale = saleToCashMap.get(sale.id) || 0;
-        staffData.cashSubmitted += actualCashForSale;
-        
-        // Calculate shortages
-        staffData.shortages += Math.max(0, cashAmount - actualCashForSale);
-        
-        // Calculate outstanding payments (credit sales)
-        const creditAmount = breakdown.filter((pb: any) => pb.method === 'credit').reduce((sum: number, pb: any) => sum + pb.amount, 0);
-        staffData.outstandingPayments += creditAmount;
-      });
-      
-      // Convert to StaffAccountability format
-      const accountabilityData: StaffAccountability[] = Array.from(staffMap.values()).map(staff => {
-        const reconciliationRate = staff.expectedCash > 0 
-          ? ((staff.cashSubmitted / staff.expectedCash) * 100)
-          : 100;
-        
-        return {
-          staffId: staff.staffId,
-          staffName: staff.staffName,
-          period: {
-            start: startDate,
-            end: new Date(),
-          },
-          salesRecorded: staff.salesRecorded,
-          expectedCash: staff.expectedCash,
-          cashSubmitted: staff.cashSubmitted,
-          bankCollections: staff.bankCollections,
-          shortages: staff.shortages,
-          outstandingPayments: staff.outstandingPayments,
-          reconciliationRate,
-        };
-      });
-      
+        const row = staffMap.get(staffId);
+        row.salesRecorded += 1;
+
+        const cashAmt = cashFromSale(sale);
+        const bankAmt = bankFromSale(sale);
+        const creditAmt = creditFromSale(sale);
+
+        row.expectedCash += cashAmt;
+        row.bankCollections += bankAmt;
+        row.outstandingPayments += creditAmt;
+
+        const saleId = String(sale.id);
+        if (reconciledSaleIds.has(saleId)) {
+          row.reconciledSales += 1;
+          // Submitted cash comes from reconciliation allocation
+          const submitted = saleToCashMap.get(saleId) || 0;
+          row.cashSubmitted += submitted;
+          // Shortage only if expected cash for this sale exceeds allocated actual
+          row.shortages += Math.max(0, cashAmt - submitted);
+        } else if (cashAmt > 0) {
+          // Unreconciled cash sale → full amount still outstanding as shortage risk
+          row.unreconciledCash += cashAmt;
+          row.cashSubmitted += 0;
+          row.shortages += cashAmt;
+        }
+      }
+
+      const accountabilityData: StaffAccountability[] = Array.from(staffMap.values())
+        .filter((s) => s.staffId !== 'unknown' || s.salesRecorded > 0)
+        .map((staff) => {
+          const reconciliationRate =
+            staff.expectedCash > 0
+              ? Math.min(100, (staff.cashSubmitted / staff.expectedCash) * 100)
+              : staff.unreconciledCash > 0
+                ? 0
+                : 100;
+
+          return {
+            staffId: staff.staffId,
+            staffName: staff.staffName,
+            period: {
+              start: startDate,
+              end: new Date(),
+            },
+            salesRecorded: staff.salesRecorded,
+            expectedCash: staff.expectedCash,
+            cashSubmitted: staff.cashSubmitted,
+            bankCollections: staff.bankCollections,
+            shortages: staff.shortages,
+            outstandingPayments: staff.outstandingPayments,
+            reconciliationRate,
+          } as StaffAccountability;
+        })
+        .sort((a, b) => (b.shortages || 0) - (a.shortages || 0));
+
       setAccountabilityData(accountabilityData);
     } catch (error) {
       console.error('Error loading accountability data:', error);
-      showToast('Failed to load accountability data');
+      showToast('Failed to load staff accountability');
     } finally {
       setLoading(false);
     }
-  };
+  }, [businessId, selectedPeriod, showToast]);
 
-  const AccountabilityCard = ({ data }: { data: StaffAccountability }) => (
-    <div className={styles.accountabilityCard}>
-      <div className={styles.cardHeader}>
-        <div className={styles.staffName}>{data.staffName}</div>
-        <div className={styles.reconciliationRate}>
-          <span className={styles.rateLabel}>Reconciliation Rate</span>
-          <span className={`${styles.rateValue} ${data.reconciliationRate >= 95 ? styles.excellent : data.reconciliationRate >= 80 ? styles.good : styles.poor}`}>
-            {data.reconciliationRate.toFixed(1)}%
-          </span>
-        </div>
-      </div>
-      
-      <div className={styles.cardStats}>
-        <div className={styles.stat}>
-          <div className={styles.statLabel}>Sales Recorded</div>
-          <div className={styles.statValue}>{data.salesRecorded}</div>
-        </div>
-        <div className={styles.stat}>
-          <div className={styles.statLabel}>Expected Cash</div>
-          <div className={styles.statValue}>{formatMoney(data.expectedCash)}</div>
-        </div>
-        <div className={styles.stat}>
-          <div className={styles.statLabel}>Cash Submitted</div>
-          <div className={styles.statValue}>{formatMoney(data.cashSubmitted)}</div>
-        </div>
-        <div className={styles.stat}>
-          <div className={styles.statLabel}>Bank Collections</div>
-          <div className={styles.statValue}>{formatMoney(data.bankCollections)}</div>
-        </div>
-      </div>
-      
-      <div className={styles.cardAlerts}>
-        {data.shortages > 0 && (
-          <div className={styles.alert}>
-            <span className={styles.alertIcon}>⚠️</span>
-            <span className={styles.alertText}>Shortages: {formatMoney(data.shortages)}</span>
-          </div>
-        )}
-        {data.outstandingPayments > 0 && (
-          <div className={styles.alert}>
-            <span className={styles.alertIcon}>📝</span>
-            <span className={styles.alertText}>Outstanding: {formatMoney(data.outstandingPayments)}</span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  useEffect(() => {
+    loadAccountabilityData();
+  }, [loadAccountabilityData]);
 
   return (
     <div className={styles.page}>
       <div className={styles.header}>
         <div>
           <h1 className={styles.pageTitle}>Staff Accountability</h1>
-          <p className={styles.pageDesc}>Track staff performance and cash reconciliation rates</p>
+          <p className={styles.pageDesc}>
+            Cash expected vs reconciled by staff. Shortages clear when a shift is reconciled.
+          </p>
         </div>
-        <Button variant="subtle" onClick={() => navigateTo('money-control')}>← Back to Money Control</Button>
+        <div className={styles.periodSelector}>
+          {(['week', 'month', 'quarter', 'all'] as const).map((p) => (
+            <button
+              key={p}
+              type="button"
+              className={`${styles.periodBtn} ${selectedPeriod === p ? styles.active : ''}`}
+              onClick={() => setSelectedPeriod(p)}
+            >
+              {p === 'all' ? 'All' : p.charAt(0).toUpperCase() + p.slice(1)}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className={styles.content}>
-        {/* Period Selector */}
+      {loading ? (
+        <div className={styles.loading}>Loading accountability…</div>
+      ) : accountabilityData.length === 0 ? (
         <Card>
-          <div className={styles.periodSelector}>
-            {(['week', 'month', 'quarter', 'all'] as const).map((period) => (
-              <button
-                key={period}
-                className={`${styles.periodBtn} ${selectedPeriod === period ? styles.active : ''}`}
-                onClick={() => setSelectedPeriod(period)}
-              >
-                {period.charAt(0).toUpperCase() + period.slice(1)}
-              </button>
-            ))}
+          <div className={styles.empty}>
+            No staff sales in this period. Record sales and run cash reconciliation to see
+            shortages.
+          </div>
+          <div style={{ padding: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Button variant="primary" onClick={() => navigateTo('cash-reconciliation')}>
+              Cash reconciliation
+            </Button>
+            <Button variant="secondary" onClick={() => loadAccountabilityData()}>
+              Refresh
+            </Button>
           </div>
         </Card>
-
-        {/* Accountability Cards */}
-        {loading ? (
-          <div className={styles.loading}>Loading…</div>
-        ) : accountabilityData.length === 0 ? (
-          <Card>
-            <div className={styles.empty}>No accountability data available</div>
-          </Card>
-        ) : (
-          <div className={styles.accountabilityGrid}>
-            {accountabilityData.map((data, index) => (
-              <AccountabilityCard key={index} data={data} />
-            ))}
-          </div>
-        )}
-
-        {/* Summary Stats */}
-        {!loading && accountabilityData.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardIcon bg="var(--purple-lt)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth={2}>
-                  <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                </svg>
-              </CardIcon>
-              Summary
-            </CardHeader>
-            
-            <div className={styles.summaryStats}>
-              <div className={styles.summaryStat}>
-                <div className={styles.summaryLabel}>Total Staff</div>
-                <div className={styles.summaryValue}>{accountabilityData.length}</div>
-              </div>
-              <div className={styles.summaryStat}>
-                <div className={styles.summaryLabel}>Total Sales</div>
-                <div className={styles.summaryValue}>
-                  {accountabilityData.reduce((sum, data) => sum + data.salesRecorded, 0)}
+      ) : (
+        <div className={styles.list}>
+          {accountabilityData.map((row) => (
+            <Card key={row.staffId} className={styles.staffCard}>
+              <div className={styles.staffHead}>
+                <div>
+                  <div className={styles.staffName}>{row.staffName}</div>
+                  <div className={styles.staffMeta}>
+                    {row.salesRecorded} sale{row.salesRecorded === 1 ? '' : 's'} ·{' '}
+                    {(row.reconciliationRate || 0).toFixed(0)}% reconciled
+                  </div>
+                </div>
+                <div
+                  className={`${styles.shortageBadge} ${
+                    (row.shortages || 0) > 0 ? styles.shortageBad : styles.shortageOk
+                  }`}
+                >
+                  {(row.shortages || 0) > 0
+                    ? `Shortage ${formatMoney(row.shortages || 0)}`
+                    : 'Clear'}
                 </div>
               </div>
-              <div className={styles.summaryStat}>
-                <div className={styles.summaryLabel}>Total Shortages</div>
-                <div className={`${styles.summaryValue} ${styles.negative}`}>
-                  {formatMoney(accountabilityData.reduce((sum, data) => sum + data.shortages, 0))}
+              <div className={styles.metrics}>
+                <div>
+                  <div className={styles.metricLabel}>Expected cash</div>
+                  <div className={styles.metricValue}>{formatMoney(row.expectedCash || 0)}</div>
+                </div>
+                <div>
+                  <div className={styles.metricLabel}>Cash submitted</div>
+                  <div className={styles.metricValue}>{formatMoney(row.cashSubmitted || 0)}</div>
+                </div>
+                <div>
+                  <div className={styles.metricLabel}>Bank / transfer</div>
+                  <div className={styles.metricValue}>{formatMoney(row.bankCollections || 0)}</div>
+                </div>
+                <div>
+                  <div className={styles.metricLabel}>Credit outstanding</div>
+                  <div className={styles.metricValue}>
+                    {formatMoney(row.outstandingPayments || 0)}
+                  </div>
                 </div>
               </div>
-              <div className={styles.summaryStat}>
-                <div className={styles.summaryLabel}>Avg Reconciliation Rate</div>
-                <div className={styles.summaryValue}>
-                  {(accountabilityData.reduce((sum, data) => sum + data.reconciliationRate, 0) / accountabilityData.length).toFixed(1)}%
-                </div>
-              </div>
-            </div>
-          </Card>
-        )}
-      </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
-

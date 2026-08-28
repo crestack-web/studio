@@ -268,10 +268,56 @@ export default function CashReconciliationPage() {
     }
   };
 
+  const dateKey = (d: Date | string) => {
+    try {
+      const x = d instanceof Date ? d : new Date(d);
+      if (Number.isNaN(x.getTime())) return String(d).slice(0, 10);
+      // Use local date to match type=date input
+      const y = x.getFullYear();
+      const m = String(x.getMonth() + 1).padStart(2, '0');
+      const day = String(x.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    } catch {
+      return String(d).slice(0, 10);
+    }
+  };
+
+  const existingShiftRecon = reconciliations.find(
+    (r) =>
+      dateKey(r.date) === selectedDate &&
+      String(r.shift || '').toLowerCase() === String(shift).toLowerCase()
+  );
+
   const handleReconcile = async () => {
     const businessId = resolveBusinessId();
     if (!businessId) {
       showToast('Business ID not found');
+      return;
+    }
+
+    // One reconciliation per date+shift unless there is still unreconciled cash
+    if (existingShiftRecon) {
+      const priorExpected = Number(existingShiftRecon.expectedCash) || 0;
+      const priorActual = Number(existingShiftRecon.actualCash) || 0;
+      // If current expected cash is already covered by a prior recon for this shift, block
+      if (expectedCash <= 0 || (priorExpected > 0 && salesForShift.length === 0)) {
+        showToast('This shift is already reconciled. No unreconciled cash left.');
+        return;
+      }
+      // If expected matches prior (same sales set) and nothing new, block
+      if (
+        Math.abs(priorExpected - expectedCash) < 0.01 &&
+        salesForShift.length > 0
+      ) {
+        showToast(
+          'This shift was already reconciled. Change the date/shift, or wait for new cash sales.'
+        );
+        return;
+      }
+    }
+
+    if (salesForShift.length === 0 && expectedCash <= 0) {
+      showToast('No cash sales to reconcile for this shift.');
       return;
     }
 
@@ -295,7 +341,7 @@ export default function CashReconciliationPage() {
         },
         body: JSON.stringify({
           businessId,
-          date: new Date(selectedDate).toISOString(),
+          date: new Date(selectedDate + 'T12:00:00').toISOString(),
           expectedCash,
           actualCash,
           variance,
@@ -303,6 +349,7 @@ export default function CashReconciliationPage() {
           shift,
           saleIds,
           salesCount: salesForShift.length,
+          allowDuplicateShift: false,
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -310,13 +357,17 @@ export default function CashReconciliationPage() {
         throw new Error(json.error || json.message || `Save failed (${res.status})`);
       }
 
-      showToast('Cash reconciliation saved successfully');
+      showToast(
+        variance < 0
+          ? `Reconciled with ${Math.abs(variance).toLocaleString()} shortage recorded`
+          : 'Cash reconciliation saved successfully'
+      );
       setExpectedCash(0);
       setActualCash(0);
       setNotes('');
       setAutoCalculated(false);
-      loadReconciliations();
-      loadSalesForShift();
+      await loadReconciliations();
+      await loadSalesForShift();
     } catch (error: any) {
       console.error('Error saving reconciliation:', error);
       showToast(error?.message || 'Failed to save reconciliation');
@@ -453,8 +504,43 @@ export default function CashReconciliationPage() {
               />
             </div>
 
-            <Button variant="primary" onClick={handleReconcile} className={styles.submitBtn}>
-              Save Reconciliation
+            {existingShiftRecon && (
+              <div
+                style={{
+                  marginBottom: 12,
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  background: 'var(--purple-lt, #f5f3ff)',
+                  border: '1px solid var(--border)',
+                  fontSize: '0.82rem',
+                  color: 'var(--text-2)',
+                  lineHeight: 1.4,
+                }}
+              >
+                <strong>Shift already reconciled</strong>
+                <div style={{ marginTop: 4 }}>
+                  Expected {formatMoney(existingShiftRecon.expectedCash)} · Actual{' '}
+                  {formatMoney(existingShiftRecon.actualCash)} · Variance{' '}
+                  {formatMoney(existingShiftRecon.variance)}
+                </div>
+                <div style={{ marginTop: 4, color: 'var(--text-3)' }}>
+                  Only new unreconciled cash for this shift can be saved again.
+                </div>
+              </div>
+            )}
+            <Button
+              variant="primary"
+              onClick={handleReconcile}
+              className={styles.submitBtn}
+              disabled={
+                !!existingShiftRecon &&
+                Math.abs(Number(existingShiftRecon.expectedCash) - Number(expectedCash)) < 0.01
+              }
+            >
+              {existingShiftRecon &&
+              Math.abs(Number(existingShiftRecon.expectedCash) - Number(expectedCash)) < 0.01
+                ? 'Shift already reconciled'
+                : 'Save Reconciliation'}
             </Button>
           </div>
         </Card>

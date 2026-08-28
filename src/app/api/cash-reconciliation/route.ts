@@ -181,6 +181,34 @@ export async function POST(req: NextRequest) {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
+    // Block duplicate reconciliation for same calendar date + shift
+    // unless allowDuplicateShift is true (not used by UI currently)
+    if (!body.allowDuplicateShift) {
+      const day = String(date).slice(0, 10);
+      const { data: existingRows } = await supabase
+        .from('cash_reconciliations')
+        .select('id, date, shift, metadata, expected_cash, actual_cash')
+        .eq('business_id', businessId)
+        .limit(100);
+      const dup = (existingRows || []).find((r: any) => {
+        const rDay = String(r.date || r.metadata?.date || '').slice(0, 10);
+        const rShift = String(r.shift || r.metadata?.shift || '').toLowerCase();
+        return rDay === day && rShift === shift.toLowerCase();
+      });
+      if (dup) {
+        const priorExpected = Number(dup.expected_cash ?? dup.metadata?.expectedCash ?? 0) || 0;
+        if (Math.abs(priorExpected - expectedCash) < 0.01) {
+          return NextResponse.json(
+            {
+              error:
+                'This shift is already reconciled. Only new unreconciled cash can be reconciled again.',
+            },
+            { status: 409 }
+          );
+        }
+      }
+    }
+
     const metadata = {
       type: 'cash_reconciliation',
       merchantId: businessId,
