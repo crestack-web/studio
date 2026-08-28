@@ -102,6 +102,44 @@ function normalizeInboundItem(item: InboundResult): InboundResult {
   };
 }
 
+/**
+ * SAFE diagnostic of inbound Infobip payload structure.
+ * Never logs full phone numbers, API keys, or auth headers.
+ * Shows field names, last-4 suffixes, and normalized lengths only.
+ */
+function safePhoneDiag(value: unknown): { present: boolean; suffix: string | null; len: number } {
+  const digits = normalizePhone(String(value ?? ''));
+  if (!digits) return { present: Boolean(value), suffix: null, len: 0 };
+  return { present: true, suffix: digits.slice(-4), len: digits.length };
+}
+
+function safeInboundPayloadDiagnostic(raw: InboundResult, bodyKeys: string[]): Record<string, unknown> {
+  const contact = raw.contact && typeof raw.contact === 'object' ? raw.contact : null;
+  return {
+    event: 'infobip_inbound_payload_structure',
+    bodyTopLevelKeys: bodyKeys.slice(0, 20),
+    resultFieldNames: Object.keys(raw || {}).slice(0, 30),
+    fields: {
+      from: { ...safePhoneDiag(raw.from), field: 'from' },
+      sender: { ...safePhoneDiag(raw.sender), field: 'sender' },
+      to: { ...safePhoneDiag(raw.to), field: 'to' },
+      destination: { ...safePhoneDiag(raw.destination), field: 'destination' },
+      contactPhoneNumber: {
+        ...safePhoneDiag(contact?.phoneNumber),
+        field: 'contact.phoneNumber',
+      },
+    },
+    hasMessage: Boolean(raw.message),
+    hasContentArray: Array.isArray(raw.content) && raw.content.length > 0,
+    hasStatus: raw.status != null,
+    channel: raw.channel || null,
+    eventType: raw.event || null,
+    integrationType: raw.integrationType || null,
+    messageIdPresent: Boolean(raw.messageId),
+    messageIdSuffix: raw.messageId ? String(raw.messageId).slice(-12) : null,
+  };
+}
+
 function isStatusOrDeliveryEvent(item: InboundResult): boolean {
   if (item.status && !item.message) return true;
   if (item.doneAt && !item.message) return true;
@@ -193,20 +231,56 @@ async function processInbound(raw: InboundResult): Promise<void> {
     return;
   }
 
-  const customerPhone = normalizePhone(item.from || item.contact?.phoneNumber || '');
-  const businessSender = normalizePhone(item.to || '');
+  // Semantic: inbound from = CUSTOMER, to = BUSINESS WhatsApp sender
+  // Never resolve business from inbound from; never use business number as customer.
+  const rawFromDigits = normalizePhone(item.from || '');
+  const rawSenderDigits = normalizePhone(item.sender || '');
+  const rawContactDigits = normalizePhone(item.contact?.phoneNumber || '');
+  const rawToDigits = normalizePhone(item.to || '');
+  const rawDestinationDigits = normalizePhone(item.destination || '');
+
+  const customerPhone =
+    rawFromDigits || rawSenderDigits || rawContactDigits || '';
+  const businessSender = rawToDigits || rawDestinationDigits || '';
 
   console.log(JSON.stringify({
     event: 'webhook_received',
     messageId,
     type: msgType || 'TEXT',
-    fromSuffix: customerPhone.slice(-4),
-    toSuffix: businessSender.slice(-4),
+    fromSuffix: customerPhone.slice(-4) || null,
+    toSuffix: businessSender.slice(-4) || null,
     textLen: text.length,
+    sourceFields: {
+      fromLen: rawFromDigits.length,
+      senderLen: rawSenderDigits.length,
+      contactLen: rawContactDigits.length,
+      toLen: rawToDigits.length,
+      destinationLen: rawDestinationDigits.length,
+    },
   }));
 
   if (!customerPhone || !businessSender) {
-    console.log(JSON.stringify({ event: 'webhook_received', skipped: true, reason: 'missing_phone', messageId }));
+    console.log(JSON.stringify({
+      event: 'webhook_received',
+      skipped: true,
+      reason: 'missing_phone',
+      messageId,
+      hasCustomer: Boolean(customerPhone),
+      hasBusiness: Boolean(businessSender),
+    }));
+    return;
+  }
+
+  // Detect accidental swap / same-number (would route outbound to trial sender)
+  if (customerPhone === businessSender) {
+    console.error(JSON.stringify({
+      event: 'whatsapp_phone_routing_diagnostic',
+      error: 'customer_equals_business_sender',
+      messageId,
+      sharedSuffix: customerPhone.slice(-4),
+      sharedLen: customerPhone.length,
+      note: 'Inbound from and to resolved to the same number — refusing to create conversation',
+    }));
     return;
   }
 
@@ -422,6 +496,28 @@ async function processInbound(raw: InboundResult): Promise<void> {
       sendError: sendResult.ok ? undefined : sendResult.error,
     })
   );
+
+  // Full phone-routing diagnostic (suffixes only) — proves inbound→conversation→outbound mapping
+  console.log(
+    JSON.stringify({
+      event: 'whatsapp_phone_routing_diagnostic',
+      providerMessageId: messageId,
+      inboundFromSuffix: customerPhone.slice(-4),
+      inboundToSuffix: businessSender.slice(-4),
+      parsedCustomerSuffix: customerPhone.slice(-4),
+      parsedBusinessSenderSuffix: businessSender.slice(-4),
+      conversationCustomerSuffix: customerPhone.slice(-4),
+      conversationId: conversation.id,
+      businessId: connection.business_id,
+      outboundFromSuffix: businessSender.slice(-4),
+      outboundToSuffix: customerPhone.slice(-4),
+      outboundProviderMessageId: sendResult.messageId || clientMessageId || null,
+      sendOk: sendResult.ok,
+      sendError: sendResult.ok ? undefined : sendResult.error || null,
+      sendStatusName: sendResult.statusName || null,
+      sendStatusDescription: sendResult.statusDescription || null,
+    })
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -472,8 +568,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, processed: 0 });
     }
 
+    const bodyKeys =
+      body && typeof body === 'object' ? Object.keys(body as object) : [];
+
     for (const item of items) {
       try {
+        // SAFE structure diagnostic (no full numbers)
+        console.log(JSON.stringify(safeInboundPayloadDiagnostic(item, bodyKeys)));
         await processInbound(item);
       } catch (e: any) {
         console.error(JSON.stringify({

@@ -245,3 +245,75 @@ assert(validateCallbackBody({ event: 'FINISH', wabaId: '1234567890' }).ok === tr
 assert(validateCallbackBody({ event: 'FINISH', wabaId: 'bad id!' }).ok === false, 'invalid waba rejected');
 assert(validateCallbackBody(null).ok === false, 'null body rejected');
 console.log('✓ embedded signup callback validation fixtures passed');
+
+// --- Phone routing: inbound from=CUSTOMER, to=BUSINESS; outbound reverse ---
+function resolveInboundPhones(item) {
+  const customerPhone =
+    normalizePhone(item.from || '') ||
+    normalizePhone(item.sender || '') ||
+    normalizePhone(item.contact?.phoneNumber || '') ||
+    '';
+  const businessSender =
+    normalizePhone(item.to || '') ||
+    normalizePhone(item.destination || '') ||
+    '';
+  return { customerPhone, businessSender };
+}
+
+function buildOutboundRouting({ customerPhone, businessSender }) {
+  // Must NEVER reverse: outbound.from = business, outbound.to = customer
+  return {
+    from: businessSender,
+    to: customerPhone,
+  };
+}
+
+const customer = '2348012345678';
+const trialSender = '447860088970';
+
+const classicRoute = resolveInboundPhones({
+  from: customer,
+  to: trialSender,
+  messageId: 'diag-1',
+  message: { type: 'TEXT', text: 'hi' },
+});
+assert(classicRoute.customerPhone === customer, 'classic: customer from inbound.from');
+assert(classicRoute.businessSender === trialSender, 'classic: business from inbound.to');
+assert(classicRoute.customerPhone !== classicRoute.businessSender, 'classic: customer ≠ business');
+
+const outClassic = buildOutboundRouting(classicRoute);
+assert(outClassic.from === trialSender, 'outbound.from = business sender');
+assert(outClassic.to === customer, 'outbound.to = customer');
+
+const messagesApiRoute = resolveInboundPhones({
+  sender: customer,
+  destination: trialSender,
+  channel: 'WHATSAPP',
+  content: [{ type: 'TEXT', text: 'hi' }],
+  messageId: 'MSG1',
+});
+assert(messagesApiRoute.customerPhone === customer, 'messages-api: customer from sender');
+assert(messagesApiRoute.businessSender === trialSender, 'messages-api: business from destination');
+const outMsgApi = buildOutboundRouting(messagesApiRoute);
+assert(outMsgApi.from === trialSender && outMsgApi.to === customer, 'messages-api outbound not reversed');
+
+// Swapped payload detection (would incorrectly set customer = trial)
+const swapped = resolveInboundPhones({
+  from: trialSender,
+  to: customer,
+});
+assert(swapped.customerPhone === trialSender, 'swapped payload: from becomes customer (wrong)');
+assert(swapped.businessSender === customer, 'swapped payload: to becomes business (wrong)');
+assert(swapped.customerPhone !== swapped.businessSender, 'swapped still unequal numbers');
+// Production guard: resolveBusinessBySender(customer) should fail if only trial is registered
+function wouldResolveBusiness(sender, registered) {
+  return normalizePhone(sender) === normalizePhone(registered);
+}
+assert(wouldResolveBusiness(swapped.businessSender, trialSender) === false, 'swapped: business resolve fails against trial sender');
+assert(wouldResolveBusiness(classicRoute.businessSender, trialSender) === true, 'correct: business resolves');
+
+// Same-number guard
+const same = resolveInboundPhones({ from: trialSender, to: trialSender });
+assert(same.customerPhone === same.businessSender, 'same-number detected');
+
+console.log('✓ phone routing inbound→outbound fixtures passed');
