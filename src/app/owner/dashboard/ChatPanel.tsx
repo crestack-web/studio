@@ -38,8 +38,6 @@ interface ChatPanelProps {
   ownerName?: string;
 }
 
-const COMMON_EMOJIS = ['😀', '😂', '👍', '👎', '❤️', '🎉', '🔥', '💯', '🙏', '👋', '✅', '❗', '😊', '🤝', '💪', '👏'];
-
 function formatTime(ts: number) {
   try {
     return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -86,18 +84,10 @@ export function ChatPanel({
   const [selectedChat, setSelectedChat] = useState(initialSelectedChat || 'team');
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
   const [messageInput, setMessageInput] = useState('');
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [sending, setSending] = useState(false);
   const [listQuery, setListQuery] = useState('');
+  const [sendError, setSendError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -110,13 +100,6 @@ export function ChatPanel({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [conversations, selectedChat]);
-
-  useEffect(() => {
-    return () => {
-      if (recordingIntervalRef.current) clearInterval(recordingIntervalRef.current);
-      if (audioUrl) URL.revokeObjectURL(audioUrl);
-    };
-  }, [audioUrl]);
 
   const ensureConversation = useCallback(
     (id: string) => {
@@ -132,25 +115,102 @@ export function ChatPanel({
     ensureConversation(id);
     setSelectedChat(id);
     setMobileChatOpen(true);
-    setShowEmojiPicker(false);
+    setSendError(null);
   };
+
+  const currentMessages = conversations[selectedChat]?.messages || [];
+
+  const selectedMeta = useMemo(() => {
+    if (selectedChat === 'team') {
+      const online = staffMembers.filter((s) => s.online).length;
+      return {
+        name: 'Team channel',
+        sub: online > 0 ? `${online} online · Everyone` : 'Everyone on your team',
+        initials: '👥',
+        color: 'linear-gradient(135deg, #6B3FE7, #8B5CF6)',
+        online: online > 0,
+      };
+    }
+    const m = staffMembers.find((s) => s.id === selectedChat);
+    return {
+      name: m?.name || 'Staff',
+      sub: m?.online ? `${m.role || 'Staff'} · Online` : m?.role || 'Staff',
+      initials: m?.initials || 'ST',
+      color: m?.avatarColor || '#6B3FE7',
+      online: !!m?.online,
+    };
+  }, [selectedChat, staffMembers]);
+
+  const threads = useMemo(() => {
+    const teamMsgs = conversations.team?.messages || [];
+    const teamLast = teamMsgs[teamMsgs.length - 1];
+    const items: Array<{
+      id: string;
+      name: string;
+      initials: string;
+      color: string;
+      online: boolean;
+      preview: string;
+      time: number;
+      unread: number;
+      isTeam?: boolean;
+    }> = [
+      {
+        id: 'team',
+        name: 'Team channel',
+        initials: '👥',
+        color: 'linear-gradient(135deg, #6B3FE7, #8B5CF6)',
+        online: staffMembers.some((s) => s.online),
+        preview: teamLast?.text || 'Broadcast to every staff member',
+        time: teamLast?.timestamp || 0,
+        unread: 0,
+        isTeam: true,
+      },
+    ];
+
+    const q = listQuery.trim().toLowerCase();
+    for (const m of staffMembers) {
+      if (q && !m.name.toLowerCase().includes(q) && !m.role.toLowerCase().includes(q)) {
+        continue;
+      }
+      const msgs = conversations[m.id]?.messages || [];
+      const last = msgs[msgs.length - 1];
+      items.push({
+        id: m.id,
+        name: m.name,
+        initials: m.initials,
+        color: m.avatarColor,
+        online: m.online,
+        preview: last?.text || 'No messages yet — say hello',
+        time: last?.timestamp || 0,
+        unread: 0,
+      });
+    }
+
+    // Sort DMs by latest activity (team stays first)
+    const team = items[0];
+    const rest = items.slice(1).sort((a, b) => (b.time || 0) - (a.time || 0));
+    return [team, ...rest];
+  }, [staffMembers, conversations, listQuery]);
 
   const sendMessage = useCallback(async () => {
     const text = messageInput.trim();
-    if (!text && !imagePreview && !audioUrl) return;
+    if (!text || sending) return;
+    if (!businessId) {
+      setSendError('Business not loaded. Refresh and try again.');
+      return;
+    }
 
     const newMessage: ChatMessage = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      senderId: 'owner',
-      senderName: 'You',
+      id: `m-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      senderId: ownerId || 'owner',
+      senderName: ownerName || 'Owner',
       senderType: 'owner',
-      text: text || (imagePreview ? '📷 Photo' : audioUrl ? '🎤 Voice note' : ''),
+      text,
       timestamp: Date.now(),
-      imageUrl: imagePreview || undefined,
-      audioUrl: audioUrl || undefined,
-      read: false,
     };
 
+    // Optimistic UI
     setConversations((prev) => {
       const existing = prev[selectedChat] || { id: selectedChat, messages: [] };
       return {
@@ -161,264 +221,166 @@ export function ChatPanel({
         },
       };
     });
-
-    try {
-      window.dispatchEvent(
-        new CustomEvent('owner-chat-message', {
-          detail: { conversationId: selectedChat, message: newMessage },
-        })
-      );
-    } catch {
-      /* ignore */
-    }
-
-    // Persist so staff portal receives the message
-    if (businessId) {
-      try {
-        const { appendConversationMessage } = await import('@/lib/teamChat');
-        await appendConversationMessage(businessId, {
-          conversationKey: selectedChat,
-          message: {
-            id: newMessage.id,
-            senderId: ownerId || 'owner',
-            senderName: ownerName || 'Owner',
-            senderType: 'owner',
-            text: newMessage.text,
-            timestamp: newMessage.timestamp,
-            imageUrl: newMessage.imageUrl,
-            audioUrl: newMessage.audioUrl,
-          },
-          staffIdForDm: selectedChat === 'team' ? undefined : selectedChat,
-        });
-      } catch (persistErr) {
-        console.error('[ChatPanel] persist message failed', persistErr);
-      }
-    }
-
     setMessageInput('');
-    setSelectedImage(null);
-    setImagePreview(null);
-    setAudioBlob(null);
-    if (audioUrl) URL.revokeObjectURL(audioUrl);
-    setAudioUrl(null);
-    setShowEmojiPicker(false);
-    if (textareaRef.current) {
-      textareaRef.current.style.height = '40px';
-    }
-  }, [messageInput, imagePreview, audioUrl, selectedChat, setConversations, businessId, ownerId, ownerName]);
+    setSendError(null);
+    setSending(true);
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setSelectedImage(file);
-    const reader = new FileReader();
-    reader.onload = () => setImagePreview(String(reader.result || ''));
-    reader.readAsDataURL(file);
-  };
-
-  const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = recorder;
-      const chunks: BlobPart[] = [];
-      recorder.ondataavailable = (ev) => {
-        if (ev.data.size > 0) chunks.push(ev.data);
-      };
-      recorder.onstop = () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        setAudioBlob(blob);
-        setAudioUrl(URL.createObjectURL(blob));
-      };
-      recorder.start();
-      setIsRecording(true);
-      setRecordingTime(0);
-      recordingIntervalRef.current = setInterval(() => {
-        setRecordingTime((t) => t + 1);
-      }, 1000);
-    } catch (err) {
-      console.error('Mic access failed', err);
+      const { appendConversationMessage } = await import('@/lib/teamChat');
+      await appendConversationMessage(businessId, {
+        conversationKey: selectedChat === 'team' ? 'team' : selectedChat,
+        message: {
+          id: newMessage.id,
+          senderId: newMessage.senderId,
+          senderName: newMessage.senderName,
+          senderType: 'owner',
+          text: newMessage.text,
+          timestamp: newMessage.timestamp,
+        },
+        staffIdForDm: selectedChat === 'team' ? undefined : selectedChat,
+      });
+    } catch (e: any) {
+      console.error('[ChatPanel] send failed', e);
+      setSendError(e?.message || 'Message failed to send. Check connection.');
+    } finally {
+      setSending(false);
+      requestAnimationFrame(() => textareaRef.current?.focus());
     }
-  };
+  }, [
+    messageInput,
+    sending,
+    businessId,
+    ownerId,
+    ownerName,
+    selectedChat,
+    setConversations,
+  ]);
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      if (recordingIntervalRef.current) {
-        clearInterval(recordingIntervalRef.current);
-        recordingIntervalRef.current = null;
-      }
-    }
-  };
-
-  const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      sendMessage();
+      void sendMessage();
     }
   };
-
-  const autoGrow = (el: HTMLTextAreaElement) => {
-    el.style.height = '40px';
-    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
-  };
-
-  const filteredStaff = useMemo(() => {
-    const q = listQuery.trim().toLowerCase();
-    if (!q) return staffMembers;
-    return staffMembers.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) ||
-        (s.role || '').toLowerCase().includes(q)
-    );
-  }, [staffMembers, listQuery]);
-
-  const messages = conversations[selectedChat]?.messages || [];
-
-  const selectedMeta = useMemo(() => {
-    if (selectedChat === 'team') {
-      return {
-        name: 'Team Chat',
-        sub: `${staffMembers.length} member${staffMembers.length === 1 ? '' : 's'}`,
-        color: 'var(--teal, #0d9488)',
-        initials: '👥',
-        online: staffMembers.some((s) => s.online),
-      };
-    }
-    const s = staffMembers.find((m) => m.id === selectedChat);
-    return {
-      name: s?.name || 'Staff',
-      sub: s?.online ? 'Online' : s?.role || 'Staff',
-      color: s?.avatarColor || 'var(--purple)',
-      initials: s?.initials || 'ST',
-      online: !!s?.online,
-    };
-  }, [selectedChat, staffMembers]);
-
-  const canSend = Boolean(messageInput.trim() || imagePreview || audioUrl);
 
   const renderMessages = () => {
-    if (messages.length === 0) {
+    if (!currentMessages.length) {
       return (
-        <div className={styles.emptyMessages}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} width={40} height={40} style={{ opacity: 0.35 }}>
-            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-          </svg>
-          <p>No messages yet. Say hello to your team.</p>
+        <div className={styles.emptyThread}>
+          <div className={styles.emptyIcon}>💬</div>
+          <p className={styles.emptyTitle}>
+            {selectedChat === 'team' ? 'Start a team update' : `Message ${selectedMeta.name}`}
+          </p>
+          <p className={styles.emptyHint}>
+            {selectedChat === 'team'
+              ? 'Everyone on staff will see messages here.'
+              : 'Direct messages stay between you and this staff member.'}
+          </p>
         </div>
       );
     }
 
     let lastDay = '';
-    return messages.map((msg) => {
-      const dk = dayKey(msg.timestamp);
-      const showDay = dk !== lastDay;
-      lastDay = dk;
-      const isOwn = msg.senderType === 'owner';
+    return currentMessages.map((msg) => {
+      const day = dayKey(msg.timestamp);
+      const showDay = day !== lastDay;
+      lastDay = day;
+      const mine = msg.senderType === 'owner';
       return (
         <React.Fragment key={msg.id}>
-          {showDay && <div className={styles.dayDivider}>{dayLabel(msg.timestamp)}</div>}
-          <div className={`${styles.msgRow} ${isOwn ? styles.msgRowOwn : styles.msgRowOther}`}>
-            {!isOwn && selectedChat === 'team' && (
-              <span className={styles.msgSender}>{msg.senderName}</span>
+          {showDay && <div className={styles.dayChip}>{dayLabel(msg.timestamp)}</div>}
+          <div className={`${styles.bubbleRow} ${mine ? styles.mine : styles.theirs}`}>
+            {!mine && (
+              <div
+                className={styles.msgAvatar}
+                style={{
+                  background:
+                    staffMembers.find((s) => s.id === msg.senderId)?.avatarColor ||
+                    '#94a3b8',
+                }}
+              >
+                {(msg.senderName || 'S').slice(0, 2).toUpperCase()}
+              </div>
             )}
-            <div className={`${styles.bubble} ${isOwn ? styles.bubbleOwn : styles.bubbleOther}`}>
-              {msg.imageUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={msg.imageUrl} alt="" className={styles.msgImage} />
+            <div className={`${styles.bubble} ${mine ? styles.bubbleMine : styles.bubbleTheirs}`}>
+              {!mine && selectedChat === 'team' && (
+                <div className={styles.bubbleName}>{msg.senderName}</div>
               )}
-              {msg.audioUrl && (
-                <audio controls src={msg.audioUrl} style={{ maxWidth: '100%', marginBottom: 4 }} />
-              )}
-              {msg.text && !(msg.imageUrl && msg.text === '📷 Photo') && !(msg.audioUrl && msg.text === '🎤 Voice note') && (
-                <span>{msg.text}</span>
-              )}
+              <div className={styles.bubbleText}>{msg.text}</div>
+              <div className={styles.bubbleMeta}>{formatTime(msg.timestamp)}</div>
             </div>
-            <span className={styles.msgTime}>{formatTime(msg.timestamp)}</span>
           </div>
         </React.Fragment>
       );
     });
   };
 
-  const teamLast = conversations.team?.messages?.[conversations.team.messages.length - 1];
-
   return (
-    <div className={`${styles.chatContainer} ${mobileChatOpen ? styles.mobileChatOpen : ''}`}>
-      {/* Conversation list */}
-      <aside className={styles.sidebar} aria-label="Conversations">
-        <div className={styles.sidebarHeader}>
-          <h3 className={styles.sidebarTitle}>Messages</h3>
-          <div className={styles.searchWrap}>
-            <svg className={styles.searchIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              className={styles.searchInput}
-              type="search"
-              placeholder="Search team…"
-              value={listQuery}
-              onChange={(e) => setListQuery(e.target.value)}
-              aria-label="Search conversations"
-            />
+    <div className={styles.shell}>
+      {/* Sidebar / conversation list */}
+      <aside className={`${styles.sidebar} ${mobileChatOpen ? styles.sidebarHiddenMobile : ''}`}>
+        <div className={styles.sideHeader}>
+          <div>
+            <h3 className={styles.sideTitle}>Team chat</h3>
+            <p className={styles.sideSub}>Owner ↔ staff in real time</p>
           </div>
         </div>
-        <div className={styles.sidebarContent}>
-          <button
-            type="button"
-            className={`${styles.convoItem} ${selectedChat === 'team' ? styles.convoItemActive : ''}`}
-            onClick={() => openChat('team')}
-          >
-            <div className={styles.avatar} style={{ background: 'var(--teal, #0d9488)' }}>
-              👥
-            </div>
-            <div className={styles.convoMeta}>
-              <div className={styles.convoNameRow}>
-                <span className={styles.convoName}>Team Chat</span>
-                {teamLast && (
-                  <span className={styles.convoTime}>{formatListTime(teamLast.timestamp)}</span>
-                )}
-              </div>
-              <div className={styles.convoPreview}>
-                {teamLast?.text || 'Group conversation with all staff'}
-              </div>
-            </div>
-          </button>
 
-          {filteredStaff.map((staff) => {
-            const last = conversations[staff.id]?.messages?.[conversations[staff.id].messages.length - 1];
+        <div className={styles.searchWrap}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.3-4.3" />
+          </svg>
+          <input
+            className={styles.searchInput}
+            placeholder="Search staff…"
+            value={listQuery}
+            onChange={(e) => setListQuery(e.target.value)}
+          />
+        </div>
+
+        <div className={styles.threadList}>
+          {threads.map((th) => {
+            const active = selectedChat === th.id;
             return (
               <button
-                key={staff.id}
+                key={th.id}
                 type="button"
-                className={`${styles.convoItem} ${selectedChat === staff.id ? styles.convoItemActive : ''}`}
-                onClick={() => openChat(staff.id)}
+                className={`${styles.threadItem} ${active ? styles.threadActive : ''} ${
+                  th.isTeam ? styles.threadTeam : ''
+                }`}
+                onClick={() => openChat(th.id)}
               >
-                <div className={styles.avatar} style={{ background: staff.avatarColor || 'var(--purple)' }}>
-                  {staff.initials}
-                  {staff.online && <span className={styles.onlineDot} title="Online" />}
+                <div
+                  className={styles.threadAvatar}
+                  style={{ background: th.color }}
+                >
+                  {th.initials}
+                  {th.online && th.id !== 'team' && <span className={styles.onlineDot} />}
                 </div>
-                <div className={styles.convoMeta}>
-                  <div className={styles.convoNameRow}>
-                    <span className={styles.convoName}>{staff.name}</span>
-                    {last && (
-                      <span className={styles.convoTime}>{formatListTime(last.timestamp)}</span>
+                <div className={styles.threadBody}>
+                  <div className={styles.threadTop}>
+                    <span className={styles.threadName}>{th.name}</span>
+                    {th.time > 0 && (
+                      <span className={styles.threadTime}>{formatListTime(th.time)}</span>
                     )}
                   </div>
-                  <div className={styles.convoPreview}>{last?.text || staff.role || 'No messages yet'}</div>
+                  <div className={styles.threadPreview}>{th.preview}</div>
                 </div>
               </button>
             );
           })}
+          {staffMembers.length === 0 && (
+            <div className={styles.noStaff}>
+              Add staff members to start direct chats. Team channel still works for broadcasts.
+            </div>
+          )}
         </div>
       </aside>
 
-      {/* Chat thread */}
-      <section className={styles.chatArea} aria-label="Chat">
-        <div className={styles.chatHeader}>
+      {/* Main thread */}
+      <section className={`${styles.main} ${mobileChatOpen ? styles.mainOpenMobile : ''}`}>
+        <header className={styles.chatHeader}>
           <button
             type="button"
             className={styles.backBtn}
@@ -429,132 +391,60 @@ export function ChatPanel({
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </button>
-          <div className={styles.avatar} style={{ background: selectedMeta.color, width: 40, height: 40, fontSize: '0.8rem' }}>
+          <div
+            className={styles.headerAvatar}
+            style={{ background: selectedMeta.color }}
+          >
             {selectedMeta.initials}
-            {selectedMeta.online && selectedChat !== 'team' && <span className={styles.onlineDot} />}
+            {selectedMeta.online && selectedChat !== 'team' && (
+              <span className={styles.onlineDot} />
+            )}
           </div>
           <div className={styles.headerInfo}>
             <p className={styles.headerName}>{selectedMeta.name}</p>
             <p className={styles.headerSub}>{selectedMeta.sub}</p>
           </div>
-        </div>
+        </header>
 
-        <div className={styles.messagesContainer}>
+        <div className={styles.messages}>
           {renderMessages()}
           <div ref={messagesEndRef} />
         </div>
 
-        <div className={styles.inputArea}>
-          {(imagePreview || audioUrl) && (
-            <div className={styles.previewBar}>
-              {imagePreview && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={imagePreview} alt="Preview" className={styles.previewImg} />
-              )}
-              {audioUrl && (
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-2)' }}>
-                  🎤 Voice note {recordingTime > 0 ? `(${recordingTime}s)` : ''}
-                </span>
-              )}
-              <button
-                type="button"
-                className={styles.previewClear}
-                onClick={() => {
-                  setSelectedImage(null);
-                  setImagePreview(null);
-                  setAudioBlob(null);
-                  if (audioUrl) URL.revokeObjectURL(audioUrl);
-                  setAudioUrl(null);
-                }}
-                aria-label="Remove attachment"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-
-          <div className={styles.composerWrap}>
-            {showEmojiPicker && (
-              <div className={styles.emojiPicker} role="listbox" aria-label="Emojis">
-                {COMMON_EMOJIS.map((emoji) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    className={styles.emojiBtn}
-                    onClick={() => {
-                      setMessageInput((v) => v + emoji);
-                      setShowEmojiPicker(false);
-                      textareaRef.current?.focus();
-                    }}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className={styles.composer}>
-              <button
-                type="button"
-                className={styles.iconBtn}
-                onClick={() => setShowEmojiPicker((v) => !v)}
-                aria-label="Emoji"
-              >
-                😊
-              </button>
-              <button
-                type="button"
-                className={styles.iconBtn}
-                onClick={() => fileInputRef.current?.click()}
-                aria-label="Attach image"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <path d="M21 15l-5-5L5 21" />
+        <div className={styles.composer}>
+          {sendError && <div className={styles.sendError}>{sendError}</div>}
+          <div className={styles.composerRow}>
+            <textarea
+              ref={textareaRef}
+              className={styles.composerInput}
+              placeholder={
+                selectedChat === 'team'
+                  ? 'Message the whole team…'
+                  : `Message ${selectedMeta.name}…`
+              }
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              onKeyDown={onKeyDown}
+              rows={1}
+              disabled={sending}
+            />
+            <button
+              type="button"
+              className={styles.sendBtn}
+              onClick={() => void sendMessage()}
+              disabled={sending || !messageInput.trim()}
+              aria-label="Send message"
+            >
+              {sending ? (
+                <span className={styles.sendSpinner} />
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
                 </svg>
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                hidden
-                onChange={handleImageSelect}
-              />
-              <textarea
-                ref={textareaRef}
-                className={styles.composerInput}
-                placeholder={selectedChat === 'team' ? 'Message the team…' : 'Type a message…'}
-                value={messageInput}
-                onChange={(e) => {
-                  setMessageInput(e.target.value);
-                  autoGrow(e.target);
-                }}
-                onKeyDown={handleKey}
-                rows={1}
-              />
-              <button
-                type="button"
-                className={`${styles.iconBtn} ${isRecording ? styles.iconBtnActive : ''}`}
-                onClick={isRecording ? stopRecording : startRecording}
-                aria-label={isRecording ? 'Stop recording' : 'Record voice note'}
-              >
-                {isRecording ? '⏹' : '🎤'}
-              </button>
-              <button
-                type="button"
-                className={styles.sendBtn}
-                onClick={sendMessage}
-                disabled={!canSend}
-                aria-label="Send message"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="22" y1="2" x2="11" y2="13" />
-                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                </svg>
-              </button>
-            </div>
+              )}
+            </button>
           </div>
+          <p className={styles.composerHint}>Enter to send · Shift+Enter for new line</p>
         </div>
       </section>
     </div>

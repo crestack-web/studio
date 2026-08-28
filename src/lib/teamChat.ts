@@ -165,8 +165,29 @@ export async function loadStaffConversations(
   staffId: string
 ): Promise<{ owner: TeamChatMessage[]; team: TeamChatMessage[] }> {
   const all = await loadOwnerConversations(businessId);
+  // Merge DM threads keyed by auth uid, staff code, or any participant match
+  const ownerMsgs: TeamChatMessage[] = [];
+  const seen = new Set<string>();
+  const pushAll = (msgs: TeamChatMessage[] | undefined) => {
+    if (!msgs) return;
+    for (const m of msgs) {
+      if (seen.has(m.id)) continue;
+      seen.add(m.id);
+      ownerMsgs.push(m);
+    }
+  };
+  pushAll(all[staffId]?.messages);
+  for (const [key, thread] of Object.entries(all)) {
+    if (key === 'team') continue;
+    if (key === staffId) continue;
+    // Include threads that look related (same prefix / contained id)
+    if (staffId && (key.includes(staffId) || staffId.includes(key))) {
+      pushAll(thread.messages);
+    }
+  }
+  ownerMsgs.sort((a, b) => a.timestamp - b.timestamp);
   return {
-    owner: all[staffId]?.messages || [],
+    owner: ownerMsgs,
     team: all.team?.messages || [],
   };
 }

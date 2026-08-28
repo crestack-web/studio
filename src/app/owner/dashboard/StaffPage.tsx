@@ -1210,7 +1210,7 @@ export default function StaffPage() {
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
                           View Activities
                         </button>
-                        <button className={styles.menuItem} onClick={() => { handleStartChat(member.id); setActiveMenu(null); }}>
+                        <button className={styles.menuItem} onClick={() => { handleStartChat(member.staffId || member.id); setActiveMenu(null); }}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width={16} height={16}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
                           Send Message
                         </button>
@@ -1253,7 +1253,11 @@ export default function StaffPage() {
       {/* Chat Tab */}
       {activeTab === 'chat' && (
         <ChatPanel
-          staffMembers={staffMembers}
+          staffMembers={staffMembers.map((m) => ({
+            ...m,
+            // Prefer staffId (auth uid / invite id) so DMs match the staff portal key
+            id: m.staffId || m.id,
+          }))}
           conversations={conversations}
           setConversations={setConversations}
           initialSelectedChat={selectedChat}
