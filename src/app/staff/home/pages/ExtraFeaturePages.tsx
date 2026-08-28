@@ -379,13 +379,127 @@ export function ProductionPage({ hasAccess, businessId, staffId, staffName }: Ba
   );
 }
 
-export function MenuAssistPage({ hasAccess }: BaseProps) {
+export function MenuAssistPage({ hasAccess, businessId }: BaseProps) {
+  const [items, setItems] = useState<any[]>([]);
+  const [q, setQ] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!hasAccess || !businessId) {
+      setLoading(false);
+      return;
+    }
+    (async () => {
+      setLoading(true);
+      try {
+        const docs = await fetchDocs(`businesses/${businessId}/products`);
+        const dishes = (docs || [])
+          .map((data: any) => {
+            const meta = data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
+            const productType = data.productType || meta.productType || data.type || '';
+            const dishCategory = data.dishCategory || meta.dishCategory || data.category;
+            const isDish =
+              productType === 'dish' ||
+              (!!dishCategory && productType !== 'ingredient' && productType !== 'product');
+            if (!isDish || productType === 'ingredient') return null;
+            return {
+              id: data.id,
+              name: data.name || 'Unnamed',
+              category: dishCategory || data.category || 'Other',
+              price: Number(data.price ?? data.sellingPrice ?? 0),
+              quantity: Number(data.stock ?? data.stockLevel ?? data.quantity ?? 0),
+              unit: data.unit || meta.unit || data.portionUnit || meta.portionUnit || 'portion',
+              available: data.active !== false && String(data.status || 'active').toLowerCase() !== 'inactive',
+              lowStockThreshold: Number(data.lowStockThreshold ?? data.reorderLevel ?? 5),
+              preparationTime: Number(data.preparationTime || meta.preparationTime || 0),
+            };
+          })
+          .filter(Boolean) as any[];
+        setItems(dishes);
+      } catch {
+        setItems([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [hasAccess, businessId]);
+
   if (!hasAccess) return <LockedPage pageName="Menu" />;
+
+  const filtered = items.filter(
+    (i) =>
+      !q ||
+      i.name.toLowerCase().includes(q.toLowerCase()) ||
+      String(i.category || '').toLowerCase().includes(q.toLowerCase())
+  );
+
+  const qtyColor = (item: any) => {
+    if (!item.available || item.quantity <= 0) return 'var(--red, #dc2626)';
+    if (item.quantity <= item.lowStockThreshold) return 'var(--amber, #d97706)';
+    return 'var(--brand, #16a34a)';
+  };
+
+  const qtyLabel = (item: any) => {
+    if (!item.available) return 'Unavailable';
+    if (item.quantity <= 0) return `0 ${item.unit} left`;
+    return `${item.quantity} ${item.unit}${item.quantity === 1 ? '' : 's'} available`;
+  };
+
   return (
-    <Shell title="Menu / floor" subtitle="Use Record Sale for dish sales. Coordinate with kitchen via Messages.">
-      <p style={{ color: 'var(--t3)', lineHeight: 1.5 }}>
-        Floor staff: take orders in <strong>Record Sale</strong> using menu products. For table notes or modifiers, add them in the sale note
-        field. Kitchen coordination stays in team Messages until a full ticket queue ships.
+    <Shell
+      title="Menu / floor"
+      subtitle="Live portion counts for dishes. Sell from Record Sale; quantities update when the owner sets stock."
+    >
+      <input
+        style={field}
+        placeholder="Search menu item or category…"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+      />
+      {loading ? (
+        <p style={{ color: 'var(--t3)' }}>Loading menu…</p>
+      ) : filtered.length === 0 ? (
+        <p style={{ color: 'var(--t3)' }}>
+          No menu dishes yet. Owner can add them under Menu Management with portion quantity and unit.
+        </p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {filtered.map((item) => (
+            <div
+              key={item.id}
+              style={{
+                padding: 12,
+                borderRadius: 12,
+                border: '1px solid var(--bdr, #e2e8f0)',
+                background: 'var(--surf, #fff)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 12,
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 700 }}>{item.name}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--t3)' }}>
+                  {item.category}
+                  {item.price > 0 ? ` · ${Number(item.price).toLocaleString()}` : ''}
+                  {item.preparationTime > 0 ? ` · ${item.preparationTime} min` : ''}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ fontWeight: 800, fontSize: '0.9rem', color: qtyColor(item) }}>
+                  {qtyLabel(item)}
+                </div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--t3)', marginTop: 2 }}>
+                  Unit: {item.unit}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <p style={{ marginTop: 16, fontSize: '0.8rem', color: 'var(--t3)', lineHeight: 1.45 }}>
+        Take orders in <strong>Record Sale</strong>. Low or zero portion counts mean check with kitchen before promising the dish.
       </p>
     </Shell>
   );
