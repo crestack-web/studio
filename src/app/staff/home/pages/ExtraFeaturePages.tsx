@@ -78,6 +78,71 @@ function isSameLocalDay(iso: unknown, day: string) {
   return local === day;
 }
 
+/** Persist staff shift close using only columns that exist on cash_reconciliations. */
+async function saveStaffShiftClose(opts: {
+  businessId: string;
+  staffId?: string | null;
+  staffName?: string;
+  day: string;
+  expected: number;
+  actual: number;
+  variance: number;
+  note: string;
+  cashSalesCount: number;
+}): Promise<string> {
+  const {
+    businessId,
+    staffId,
+    staffName,
+    day,
+    expected,
+    actual,
+    variance,
+    note,
+    cashSalesCount,
+  } = opts;
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const metadata = {
+    type: 'staff_shift_close',
+    source: 'staff_shift_close',
+    expectedCash: expected,
+    actualCash: actual,
+    variance,
+    notes: note.trim() || '',
+    shift: `staff-${staffId || 'unknown'}-${day}`,
+    date: day,
+    staffId: staffId || null,
+    staffName: staffName || null,
+    cashSalesCount,
+    salesCount: cashSalesCount,
+    submittedAt: now,
+    reconciledAt: now,
+  };
+
+  // Preferred path: client data layer (now metadata-only for this table)
+  try {
+    await sbAddDoc(`businesses/${businessId}/cash_reconciliations`, {
+      id,
+      metadata,
+      created_at: now,
+    });
+    return id;
+  } catch (firstErr: any) {
+    // Direct slim insert (same shape as owner API fallback)
+    const supabase = getSupabase();
+    const slim = {
+      id,
+      business_id: businessId,
+      metadata,
+      created_at: now,
+    };
+    const { error } = await supabase.from('cash_reconciliations').insert(slim);
+    if (!error) return id;
+    throw new Error(error.message || firstErr?.message || 'Failed to save shift close');
+  }
+}
+
 export function CustomersPage({ hasAccess, businessId }: BaseProps) {
   const [rows, setRows] = useState<any[]>([]);
   const [q, setQ] = useState('');
@@ -340,11 +405,17 @@ export function ShiftClosePage({ hasAccess, businessId, staffId, staffName }: Ba
       const recons = await fetchDocs(`businesses/${businessId}/cash_reconciliations`).catch(() => []);
       const mine = (recons || [])
         .filter((r: any) => {
-          if (staffId && String(r.staff_id || r.staffId || '') === String(staffId)) return true;
-          if (String(r.date || '').slice(0, 10) === day) return true;
-          return isSameLocalDay(r.created_at || r.createdAt, day);
+          const sid = String(r.staffId || r.staff_id || '');
+          if (staffId && sid === String(staffId)) return true;
+          if (String(r.source || '') === 'staff_shift_close' && isSameLocalDay(r.created_at || r.createdAt || r.date, day))
+            return true;
+          if (String(r.shift || '').includes('staff-') && isSameLocalDay(r.created_at || r.createdAt || r.date, day))
+            return true;
+          return false;
         })
-        .sort((a: any, b: any) => String(b.created_at || b.createdAt || '').localeCompare(String(a.created_at || a.createdAt || '')))
+        .sort((a: any, b: any) =>
+          String(b.created_at || b.createdAt || '').localeCompare(String(a.created_at || a.createdAt || ''))
+        )
         .slice(0, 8);
       setHistory(mine);
     } catch (e: any) {
@@ -383,48 +454,47 @@ export function ShiftClosePage({ hasAccess, businessId, staffId, staffName }: Ba
     setSubmitting(true);
     setError(null);
     setSaved(false);
-    const payload = {
-      id: crypto.randomUUID(),
-      date: day,
-      expected_cash: expected,
-      actual_cash: actual,
-      variance,
-      notes: note.trim() || null,
-      shift: `staff-close-${day}`,
-      staff_id: staffId || null,
-      staffId: staffId || null,
-      staffName: staffName || null,
-      metadata: {
-        staffName: staffName || null,
-        staffId: staffId || null,
-        cashSalesCount,
-        source: 'staff_shift_close',
-        submittedAt: new Date().toISOString(),
-      },
-      created_at: new Date().toISOString(),
-    };
 
     try {
-      await sbAddDoc(`businesses/${businessId}/cash_reconciliations`, payload);
+      await saveStaffShiftClose({
+        businessId,
+        staffId,
+        staffName,
+        day,
+        expected,
+        actual,
+        variance,
+        note,
+        cashSalesCount,
+      });
       setCounted('');
       setNote('');
       setExpectedOverride('');
       setSaved(true);
+      setError(null);
       await load();
       setTimeout(() => setSaved(false), 4000);
     } catch (e: any) {
-      // Fallback: still record locally so staff is not blocked if table RLS fails
       try {
         const key = `busmo_shift_close_${businessId}`;
         const prev = JSON.parse(localStorage.getItem(key) || '[]');
-        const entry = { ...payload, offline: true };
+        const entry = {
+          id: crypto.randomUUID(),
+          expectedCash: expected,
+          actualCash: actual,
+          variance,
+          notes: note.trim(),
+          date: day,
+          staffId,
+          offline: true,
+          created_at: new Date().toISOString(),
+        };
         localStorage.setItem(key, JSON.stringify([entry, ...(Array.isArray(prev) ? prev : [])].slice(0, 20)));
         setHistory((h) => [entry, ...h].slice(0, 8));
         setCounted('');
         setNote('');
         setSaved(true);
-        setError(`Saved on this device. Server: ${e?.message || 'failed'}`);
-        setTimeout(() => setSaved(false), 4000);
+        setError(`Could not reach server (${e?.message || 'error'}). Saved on this device only.`);
       } catch {
         setError(e?.message || 'Failed to submit shift close');
       }
@@ -538,8 +608,10 @@ export function ShiftClosePage({ hasAccess, businessId, staffId, staffName }: Ba
             {submitting ? 'Submitting…' : 'Submit shift close'}
           </button>
 
-          {saved && (
-            <p style={{ color: 'var(--brand)', marginTop: 10, fontWeight: 600 }}>Shift close submitted for owner review.</p>
+          {saved && !error && (
+            <p style={{ color: 'var(--brand)', marginTop: 10, fontWeight: 600 }}>
+              Shift close submitted for owner review.
+            </p>
           )}
           {error && (
             <p style={{ color: 'var(--red, #dc2626)', marginTop: 10, fontSize: '0.85rem' }}>{error}</p>
@@ -550,8 +622,8 @@ export function ShiftClosePage({ hasAccess, businessId, staffId, staffName }: Ba
               <h3 style={{ fontSize: '0.95rem', fontWeight: 800, margin: '0 0 10px' }}>Recent submissions</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {history.map((h) => {
-                  const exp = Number(h.expected_cash ?? h.expectedCash ?? 0);
-                  const act = Number(h.actual_cash ?? h.actualCash ?? 0);
+                  const exp = Number(h.expectedCash ?? h.expected_cash ?? 0);
+                  const act = Number(h.actualCash ?? h.actual_cash ?? 0);
                   const varn = Number(h.variance ?? act - exp);
                   return (
                     <div
@@ -575,7 +647,7 @@ export function ShiftClosePage({ hasAccess, businessId, staffId, staffName }: Ba
                         Expected {exp.toLocaleString()} · Counted {act.toLocaleString()}
                         {h.offline ? ' · device only' : ''}
                       </div>
-                      {h.notes && <div style={{ marginTop: 4 }}>{h.notes}</div>}
+                      {(h.notes || h.note) && <div style={{ marginTop: 4 }}>{h.notes || h.note}</div>}
                     </div>
                   );
                 })}
