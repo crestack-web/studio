@@ -7,6 +7,7 @@ import { initializeFirebase } from '@/firebase';
 import { getFirestore, doc, getDoc, collection, getDocs, query, where, Timestamp, addDoc, updateDoc } from 'firebase/firestore';
 import { fetchProducts, fetchRecentSales, getStaffBusinessId, fetchAttendance, clockInAttendance, clockOutAttendance } from './services/dataService';
 import { getSupabase } from '@/lib/supabase';
+import chatStyles from './TeamChat.module.css';
 
 /* ═══════════════════════════════════════
    INVENTORY PAGE
@@ -824,6 +825,7 @@ interface Conversation {
 
 export const MessagesPage: React.FC<MessagesPageProps> = ({ hasAccess, businessId: businessIdProp, staffId: staffIdProp }) => {
   const [convId, setConvId] = useState<ConvId>('owner');
+  const [mobileThreadOpen, setMobileThreadOpen] = useState(false);
   const [convos, setConvos] = useState<Conversations>({ owner: [], team: [] });
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
@@ -993,97 +995,134 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({ hasAccess, businessI
     return date.toLocaleDateString();
   };
 
+  const openConv = (id: ConvId) => {
+    setConvId(id);
+    setMobileThreadOpen(true);
+  };
+
+  const title = convId === 'owner' ? ownerName : 'Team chat';
+  const subtitle = convId === 'owner' ? 'Direct with business owner' : 'Everyone on your team';
+
   return (
     <div className="pg act full" id="pg-messages">
-      <div className="phd">
+      <div className="phd" style={{ marginBottom: 12 }}>
         <h2>Messages</h2>
-        <p>Communicate directly with the business owner and your team.</p>
+        <p>Clean chat with the owner and your team.</p>
       </div>
-      <div className="msg-lay">
-        {/* Sidebar */}
-        <div className="msg-sidebar">
-          <div className="msg-sb-hd">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-            </svg>
-            Conversations
-          </div>
-          <div className="conv-list">
-            <div className={`conv-item${convId === 'owner' ? ' act' : ''}`} onClick={() => setConvId('owner')}>
-              <div className="conv-av" style={{ background: 'var(--purple)' }}>
-                {ownerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-              </div>
-              <div className="conv-info">
-                <div className="conv-nm">{ownerName}</div>
-                <div className="conv-prev">{convos.owner.length > 0 ? convos.owner[convos.owner.length - 1].text.substring(0, 30) + '...' : 'No messages yet'}</div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                <div className="conv-time">{convos.owner.length > 0 ? formatTime(convos.owner[convos.owner.length - 1].timestamp) : ''}</div>
-                {convos.owner.length > 0 && <div className="conv-dot"/>}
-              </div>
-            </div>
-            <div className={`conv-item${convId === 'team' ? ' act' : ''}`} onClick={() => setConvId('team')}>
-              <div className="conv-av" style={{ background: 'var(--teal)' }}>TM</div>
-              <div className="conv-info">
-                <div className="conv-nm">Team Chat</div>
-                <div className="conv-prev">{convos.team.length > 0 ? convos.team[convos.team.length - 1].text.substring(0, 30) + '...' : 'No messages yet'}</div>
-              </div>
-              <div className="conv-time">{convos.team.length > 0 ? formatTime(convos.team[convos.team.length - 1].timestamp) : ''}</div>
-            </div>
-          </div>
-        </div>
 
-        {/* Main chat */}
-        <div className="msg-main">
-          <div className="msg-hd">
-            <div
-              className="conv-av"
-              style={{ width:28, height:28, borderRadius:'50%', background: convId === 'owner' ? 'var(--purple)' : 'var(--teal)', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'.7rem', fontWeight:700, flexShrink:0 }}
+      <div className={`${chatStyles.wrap} ${mobileThreadOpen ? chatStyles.openThread : ''}`}>
+        <aside className={chatStyles.list}>
+          <div className={chatStyles.listHead}>
+            <h2>Conversations</h2>
+            <p>Owner · Team</p>
+          </div>
+          <button
+            type="button"
+            className={`${chatStyles.convo} ${convId === 'owner' ? chatStyles.convoActive : ''}`}
+            onClick={() => openConv('owner')}
+          >
+            <div className={`${chatStyles.av} ${chatStyles.avOwner}`}>BO</div>
+            <div className={chatStyles.meta}>
+              <div className={chatStyles.name}>{ownerName}</div>
+              <div className={chatStyles.prev}>
+                {convos.owner.length
+                  ? convos.owner[convos.owner.length - 1].text
+                  : 'Message the business owner'}
+              </div>
+            </div>
+          </button>
+          <button
+            type="button"
+            className={`${chatStyles.convo} ${convId === 'team' ? chatStyles.convoActive : ''}`}
+            onClick={() => openConv('team')}
+          >
+            <div className={`${chatStyles.av} ${chatStyles.avTeam}`}>👥</div>
+            <div className={chatStyles.meta}>
+              <div className={chatStyles.name}>Team chat</div>
+              <div className={chatStyles.prev}>
+                {convos.team.length
+                  ? convos.team[convos.team.length - 1].text
+                  : 'Group conversation'}
+              </div>
+            </div>
+          </button>
+        </aside>
+
+        <section className={chatStyles.thread}>
+          <div className={chatStyles.threadHead}>
+            <button
+              type="button"
+              className={chatStyles.back}
+              onClick={() => setMobileThreadOpen(false)}
+              aria-label="Back"
             >
-              {convId === 'owner' ? ownerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'TM'}
+              ←
+            </button>
+            <div className={`${chatStyles.av} ${convId === 'owner' ? chatStyles.avOwner : chatStyles.avTeam}`}>
+              {convId === 'owner' ? 'BO' : '👥'}
             </div>
             <div>
-              <div className="msg-hd-nm">{convId === 'owner' ? ownerName : 'Team Chat'}</div>
-              <div className="msg-hd-sub">{convId === 'owner' ? 'Business Owner' : `${teamMembers.length} members`}</div>
+              <h3>{title}</h3>
+              <span>{subtitle}</span>
             </div>
           </div>
 
-          <div className="msg-body" ref={bodyRef}>
+          <div className={chatStyles.body} ref={bodyRef}>
             {msgs.length === 0 ? (
-              <div style={{ textAlign: 'center', color: 'var(--t3)', padding: '40px 20px' }}>
-                <p>No messages yet. Start the conversation!</p>
-              </div>
+              <div className={chatStyles.empty}>No messages yet. Say hello to start the conversation.</div>
             ) : (
-              msgs.map((m, i) => (
-                <div key={i} className={`bubble ${m.type}`}>
-                  <div className="bub">{m.text}</div>
-                  <div className="bub-time">{m.type === 'recv' ? (m.senderName || 'Today') : 'You · Today'}</div>
-                </div>
-              ))
+              msgs.map((m, i) => {
+                const mine = m.type === 'sent';
+                return (
+                  <div
+                    key={i}
+                    className={`${chatStyles.row} ${mine ? chatStyles.rowMine : chatStyles.rowTheirs}`}
+                  >
+                    <div
+                      className={`${chatStyles.bubble} ${mine ? chatStyles.bubbleMine : chatStyles.bubbleTheirs}`}
+                    >
+                      {!mine && (
+                        <span className={chatStyles.who}>
+                          {m.senderName || (m.fromOwner ? ownerName : 'Team')}
+                        </span>
+                      )}
+                      {m.text}
+                      <span className={chatStyles.time}>
+                        {mine ? 'You · ' : ''}
+                        {formatTime(m.timestamp || Date.now())}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
 
-          <div className="msg-inp-row">
+          <div className={chatStyles.composer}>
             <input
               type="text"
-              className="msg-inp"
-              placeholder="Type a message…"
+              className={chatStyles.input}
+              placeholder={convId === 'owner' ? 'Message owner…' : 'Message team…'}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && sendMsg()}
             />
-            <button className="msg-send" onClick={sendMsg} aria-label="Send">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="22" y1="2" x2="11" y2="13"/>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-              </svg>
+            <button
+              type="button"
+              className={chatStyles.send}
+              onClick={sendMsg}
+              disabled={!draft.trim()}
+              aria-label="Send"
+            >
+              ➤
             </button>
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );
 };
+
 
 /* ═══════════════════════════════════════
    SETTINGS PAGE
