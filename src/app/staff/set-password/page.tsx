@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
+import { STAFF_BRAND_LOGO_URL, STAFF_BRAND_NAME } from '@/lib/staffBrand';
 import { updateDoc } from '@/lib/supabase-client-data';
 
 export default function StaffSetPasswordPage() {
@@ -13,6 +14,17 @@ export default function StaffSetPasswordPage() {
   const [email, setEmail] = useState('');
 
   useEffect(() => {
+    try {
+      let link = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      link.type = 'image/png';
+      link.href = STAFF_BRAND_LOGO_URL;
+      document.title = `${STAFF_BRAND_NAME} — Set password`;
+    } catch { /* ignore */ }
     (async () => {
       if (!isSupabaseConfigured()) {
         setError('Authentication is not configured.');

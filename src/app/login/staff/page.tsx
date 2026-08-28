@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getSupabase, isSupabaseConfigured, getSupabaseConfigErrorMessage } from "@/lib/supabase";
+import { STAFF_BRAND_LOGO_URL, STAFF_BRAND_NAME } from "@/lib/staffBrand";
 import { initializeFirebase } from "@/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { ensureFirebaseAuth } from "@/lib/ensure-firebase-auth";
@@ -9,21 +10,19 @@ import { ensureFirebaseAuth } from "@/lib/ensure-firebase-auth";
 // ── Staff Logo ────────────────────────────────
 function StaffLogo({ size = 32 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
-      <rect width="40" height="40" rx="12" fill="#16A34A" />
-      <text
-        x="50%"
-        y="50%"
-        textAnchor="middle"
-        dominantBaseline="central"
-        fontFamily="'Sora', sans-serif"
-        fontWeight="bold"
-        fontSize={size * 0.45}
-        fill="white"
-      >
-        S
-      </text>
-    </svg>
+    <img
+      src={STAFF_BRAND_LOGO_URL}
+      alt={STAFF_BRAND_NAME}
+      width={size}
+      height={size}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 12,
+        objectFit: 'cover',
+        display: 'block',
+      }}
+    />
   );
 }
 
@@ -151,6 +150,18 @@ export default function StaffLogin() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let link = document.querySelector("link[rel='icon']") as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.head.appendChild(link);
+    }
+    link.type = 'image/png';
+    link.href = STAFF_BRAND_LOGO_URL;
+    document.title = `${STAFF_BRAND_NAME} Staff Login`;
+  }, []);
 
   const valid = email.trim().length > 5 && email.includes('@') && password.length >= 6;
 

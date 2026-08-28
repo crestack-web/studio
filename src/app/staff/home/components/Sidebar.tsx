@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import type { PageId, Permissions } from '../types';
 import { STAFF_PERMISSION_DEFS } from '@/lib/staffPermissions';
+import { STAFF_BRAND_LOGO_URL, STAFF_BRAND_NAME, STAFF_BRAND_SUBTITLE } from '@/lib/staffBrand';
 
 interface SidebarProps {
   page: PageId;
@@ -94,8 +95,8 @@ export function Sidebar({ page, onChangePage, permissions, open = false }: Sideb
         <div className="logo-w">
           <div className="logo-ic">
             <img
-              src="/sidebar-logo.png"
-              alt="Busmo Logo"
+              src={STAFF_BRAND_LOGO_URL}
+              alt={STAFF_BRAND_NAME}
               style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '9px' }}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
@@ -105,8 +106,8 @@ export function Sidebar({ page, onChangePage, permissions, open = false }: Sideb
             />
           </div>
           <div className="logo-txt">
-            <span>Busmo</span>
-            <span className="logo-sub">Staff Portal</span>
+            <span>{STAFF_BRAND_NAME}</span>
+            <span className="logo-sub">{STAFF_BRAND_SUBTITLE}</span>
           </div>
         </div>
       </div>
