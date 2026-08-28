@@ -56,9 +56,10 @@
   border: none;
   outline: none;
   background: transparent;
-  font-size: 0.85rem;
+  font-size: 16px;
   color: var(--text-1, #0f172a);
   min-width: 0;
+  -webkit-text-size-adjust: 100%;
 }
 
 .threadList {
@@ -380,11 +381,13 @@
   border-radius: 12px;
   border: 1.5px solid var(--border, #e2e8f0);
   background: var(--bg, #f8fafc);
-  font-size: 0.9rem;
+  /* 16px minimum prevents iOS Safari zoom on focus */
+  font-size: 16px;
   color: var(--text-1, #0f172a);
   outline: none;
   font-family: inherit;
   line-height: 1.35;
+  -webkit-text-size-adjust: 100%;
 }
 
 .composerInput:focus {

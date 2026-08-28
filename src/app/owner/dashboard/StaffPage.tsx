@@ -1763,199 +1763,65 @@ export default function StaffPage() {
 
       {/* Edit Permissions Modal */}
       {showEditModal && editingStaff && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '20px',
-        }} onClick={() => setShowEditModal(false)}>
-          <div style={{
-            background: 'var(--surface)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border)',
-            boxShadow: 'var(--shadow-lg)',
-            width: '100%',
-            maxWidth: '480px',
-            maxHeight: '90vh',
-            overflow: 'auto',
-            animation: 'modalIn 0.2s ease',
-          }} onClick={(e) => e.stopPropagation()}>
-            {/* Modal Header */}
-            <div style={{
-              padding: '20px 24px',
-              borderBottom: '1px solid var(--border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px',
-            }}>
-              <div>
-                <h3 style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: '1.1rem',
-                  fontWeight: 700,
-                  color: 'var(--text-1)',
-                  margin: 0,
-                }}>Edit Permissions</h3>
-                <p style={{
-                  fontSize: '0.75rem',
-                  color: 'var(--text-3)',
-                  margin: '4px 0 0 0',
-                }}>Manage access for {editingStaff.name}</p>
+        <div className={styles.editOverlay} onClick={() => setShowEditModal(false)}>
+          <div className={styles.editSheet} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.editHeader}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <h3 className={styles.editTitle}>Edit permissions</h3>
+                <p className={styles.editSub}>{editingStaff.name}</p>
               </div>
               <button
+                type="button"
+                className={styles.editClose}
                 onClick={() => setShowEditModal(false)}
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: 'var(--bg)',
-                  color: 'var(--text-2)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1.2rem',
-                  transition: 'all 0.2s',
-                }}
+                aria-label="Close"
               >
                 ✕
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div style={{ padding: '24px' }}>
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{
-                  display: 'block',
-                  fontWeight: 600,
-                  fontSize: '0.8rem',
-                  color: 'var(--text-2)',
-                  marginBottom: '12px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.03em',
-                }}>
-                  Permissions
-                </label>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: '12px',
-                }}>
-                  {availablePermissions.map((perm) => (
-                    <label key={perm.key} style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '10px 12px',
-                      background: 'var(--bg)',
-                      borderRadius: 'var(--rsm)',
-                      border: '1.5px solid var(--border)',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                    }} onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--purple)';
-                    }} onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'var(--border)';
-                    }}>
-                      <input
-                        type="checkbox"
-                        checked={newStaffPermissions[perm.key as keyof typeof newStaffPermissions]}
-                        onChange={(e) => setNewStaffPermissions({
+            <div className={styles.editBody}>
+              <span className={styles.editSectionLabel}>Access</span>
+              <div className={styles.editPermGrid}>
+                {availablePermissions.map((perm) => (
+                  <label key={perm.key} className={styles.editPermItem}>
+                    <input
+                      type="checkbox"
+                      checked={!!newStaffPermissions[perm.key as keyof typeof newStaffPermissions]}
+                      onChange={(e) =>
+                        setNewStaffPermissions({
                           ...newStaffPermissions,
                           [perm.key]: e.target.checked,
-                        })}
-                        style={{
-                          width: '18px',
-                          height: '18px',
-                          cursor: 'pointer',
-                        }}
-                      />
-                      <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                        <span style={{ fontSize: '0.85rem', color: 'var(--text-1)', fontWeight: 600 }}>{perm.label}</span>
-                        {perm.description ? (
-                          <span style={{ fontSize: '0.72rem', color: 'var(--text-3)', lineHeight: 1.3 }}>{perm.description}</span>
-                        ) : null}
-                      </span>
-                    </label>
-                  ))}
-                </div>
+                        })
+                      }
+                    />
+                    <span style={{ minWidth: 0 }}>
+                      <span className={styles.editPermLabel}>{perm.label}</span>
+                      {perm.description ? (
+                        <div className={styles.editPermDesc}>{perm.description}</div>
+                      ) : null}
+                    </span>
+                  </label>
+                ))}
               </div>
             </div>
 
-            {/* Modal Footer */}
-            <div style={{
-              padding: '16px 24px',
-              borderTop: '1px solid var(--border)',
-              background: 'var(--bg)',
-              display: 'flex',
-              gap: '10px',
-              borderRadius: '0 0 var(--radius-lg) var(--radius-lg)',
-            }}>
+            <div className={styles.editFooter}>
               <button
+                type="button"
+                className={styles.editBtn}
                 onClick={() => setShowEditModal(false)}
-                style={{
-                  flex: 1,
-                  padding: '12px 20px',
-                  borderRadius: '8px',
-                  border: '1.5px solid var(--border)',
-                  background: 'var(--surface)',
-                  color: 'var(--text-2)',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'var(--bg)';
-                  e.currentTarget.style.borderColor = 'var(--text-3)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'var(--surface)';
-                  e.currentTarget.style.borderColor = 'var(--border)';
-                }}
               >
                 Cancel
               </button>
               <button
+                type="button"
+                className={`${styles.editBtn} ${styles.editBtnPrimary}`}
                 onClick={handleSavePermissions}
                 disabled={isSavingPermissions}
-                style={{
-                  flex: 1,
-                  padding: '12px 20px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: isSavingPermissions ? 'var(--purple-dark)' : 'var(--purple)',
-                  color: '#fff',
-                  fontWeight: 600,
-                  fontSize: '0.85rem',
-                  cursor: isSavingPermissions ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s',
-                  boxShadow: '0 2px 8px rgba(124, 58, 237, 0.25)',
-                  opacity: isSavingPermissions ? 0.7 : 1,
-                }}
-                onMouseEnter={(e) => {
-                  if (!isSavingPermissions) {
-                    e.currentTarget.style.background = 'var(--purple-dark)';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(124, 58, 237, 0.35)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isSavingPermissions) {
-                    e.currentTarget.style.background = 'var(--purple)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(124, 58, 237, 0.25)';
-                  }
-                }}
+                style={{ opacity: isSavingPermissions ? 0.7 : 1 }}
               >
-                {isSavingPermissions ? 'Saving...' : 'Save Changes'}
+                {isSavingPermissions ? 'Saving…' : 'Save'}
               </button>
             </div>
           </div>
