@@ -8,8 +8,7 @@ import {
   Package,
   History,
   Calendar,
-  MessageSquare,
-} from 'lucide-react';
+  MessageSquare,, Users, PackagePlus, Calculator, Undo2, Receipt } from 'lucide-react';
 
 interface HomePageProps {
   greeting: string;
@@ -60,6 +59,46 @@ const QUICK_ACTIONS: QuickAction[] = [
     icon: <Package size={24} />,
   },
   {
+    permKey: 'customers',
+    page: 'customers',
+    label: 'Customers',
+    bg: 'var(--purple-bg)',
+    stroke: 'var(--purple)',
+    icon: <Users size={24} />,
+  },
+  {
+    permKey: 'receive',
+    page: 'receive',
+    label: 'Receive Stock',
+    bg: 'var(--teal-bg)',
+    stroke: 'var(--teal)',
+    icon: <PackagePlus size={24} />,
+  },
+  {
+    permKey: 'returns',
+    page: 'returns',
+    label: 'Returns',
+    bg: 'var(--amber-bg)',
+    stroke: 'var(--amber)',
+    icon: <Undo2 size={24} />,
+  },
+  {
+    permKey: 'expenses',
+    page: 'expenses',
+    label: 'Expense',
+    bg: 'var(--blue-bg)',
+    stroke: 'var(--blue)',
+    icon: <Receipt size={24} />,
+  },
+  {
+    permKey: 'shift',
+    page: 'shift',
+    label: 'Shift Close',
+    bg: 'var(--brand-lt)',
+    stroke: 'var(--brand)',
+    icon: <Calculator size={24} />,
+  },
+  {
     permKey: 'hist',
     page: 'hist',
     label: 'Sale History',
@@ -91,6 +130,16 @@ const PERM_LABELS: Array<{ key: keyof Permissions; label: string; color: string 
   { key: 'hist', label: 'Sale History', color: 'var(--blue)' },
   { key: 'atd', label: 'Attendance', color: 'var(--teal)' },
   { key: 'msg', label: 'Messages', color: 'var(--purple)' },
+  { key: 'customers', label: 'Customers', color: 'var(--purple)' },
+  { key: 'credit', label: 'Credit', color: 'var(--amber)' },
+  { key: 'returns', label: 'Returns', color: 'var(--red, #dc2626)' },
+  { key: 'receive', label: 'Receive stock', color: 'var(--teal)' },
+  { key: 'expenses', label: 'Expenses', color: 'var(--blue)' },
+  { key: 'shift', label: 'Shift close', color: 'var(--brand)' },
+  { key: 'expiry', label: 'Expiry', color: 'var(--amber)' },
+  { key: 'production', label: 'Production', color: 'var(--blue)' },
+  { key: 'menu', label: 'Menu', color: 'var(--purple)' },
+  { key: 'transfers', label: 'Transfers', color: 'var(--teal)' },
 ];
 
 export const HomePage: React.FC<HomePageProps> = ({

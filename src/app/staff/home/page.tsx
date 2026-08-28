@@ -18,6 +18,16 @@ const DEFAULT_PERMISSIONS: Permissions = {
   atd: false,
   msg: false,
   earn: false,
+  customers: false,
+  credit: false,
+  returns: false,
+  receive: false,
+  expenses: false,
+  shift: false,
+  expiry: false,
+  production: false,
+  menu: false,
+  transfers: false,
 };
 
 function initialsFromName(name: string): string {

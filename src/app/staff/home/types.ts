@@ -1,4 +1,21 @@
-export type PageId = 'home' | 'sale' | 'inv' | 'hist' | 'atd' | 'msg' | 'settings';
+export type PageId =
+  | 'home'
+  | 'sale'
+  | 'inv'
+  | 'hist'
+  | 'atd'
+  | 'msg'
+  | 'settings'
+  | 'customers'
+  | 'credit'
+  | 'returns'
+  | 'receive'
+  | 'expenses'
+  | 'shift'
+  | 'expiry'
+  | 'production'
+  | 'menu'
+  | 'transfers';
 
 export interface Permissions {
   sale: boolean;
@@ -7,6 +24,17 @@ export interface Permissions {
   atd: boolean;
   msg: boolean;
   earn: boolean;
+  customers?: boolean;
+  credit?: boolean;
+  returns?: boolean;
+  receive?: boolean;
+  expenses?: boolean;
+  shift?: boolean;
+  expiry?: boolean;
+  production?: boolean;
+  menu?: boolean;
+  transfers?: boolean;
+  [key: string]: boolean | undefined;
 }
 
 export interface StaffUser {
@@ -15,7 +43,6 @@ export interface StaffUser {
   name: string;
   firstName?: string;
   role: string;
-  /** Owner business id — always set after bootstrap */
   businessId?: string;
 }
 

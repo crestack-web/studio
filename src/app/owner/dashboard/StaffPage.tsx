@@ -16,6 +16,7 @@ import { sendStaffRoleUpdatedEmail, sendStaffRemovedEmail } from '@/services/ema
 import { isRestaurantBusiness, getBusinessCategory } from './utils/restaurantHelpers';
 import AttendanceTab from './AttendanceTab';
 import { StaffPayrollSection } from './StaffPayrollSection';
+import { getStaffPermissionsForCategory, defaultStaffPermissions } from '@/lib/staffPermissions';
 
 interface StaffMember {
   id: string;
@@ -213,7 +214,7 @@ export default function StaffPage() {
     atd: false,
     msg: false,
   });
-  const [availablePermissions, setAvailablePermissions] = useState<Array<{key: string, label: string, icon: string}>>([]);
+  const [availablePermissions, setAvailablePermissions] = useState<Array<{key: string, label: string, icon: string, description?: string}>>([]);
   const [targetRevenue, setTargetRevenue] = useState(0);
   const [targetTransactions, setTargetTransactions] = useState(0);
   const [targetPeriod, setTargetPeriod] = useState<'daily' | 'weekly' | 'monthly'>('monthly');
@@ -354,29 +355,43 @@ export default function StaffPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Use fixed staff dashboard permissions (not feature registry)
-  // Staff dashboard only has: sale, inv, hist, atd, msg
-  const STAFF_PERMISSIONS = [
-    { key: 'sale', label: '🛒 Sales Recording', icon: 'ShoppingCart' },
-    { key: 'inv', label: '📦 Inventory View', icon: 'Package' },
-    { key: 'hist', label: '📊 History & Reports', icon: 'BarChart3' },
-    { key: 'atd', label: '⏰ Attendance', icon: 'Clock' },
-    { key: 'msg', label: '💬 Messages', icon: 'MessageSquare' },
-  ];
-  
-  // Initialize available permissions with fixed staff dashboard permissions
+  // Category-aware staff portal permissions
+  const [businessCategory, setBusinessCategory] = useState<string>('other');
+
   useEffect(() => {
-    setAvailablePermissions(STAFF_PERMISSIONS);
-    
-    // Initialize permissions object with all available permissions set to false
-    const initialPermissions: Record<string, boolean> = {};
-    STAFF_PERMISSIONS.forEach(perm => {
-      initialPermissions[perm.key] = false;
-    });
-    // Always enable sales by default
-    initialPermissions['sale'] = true;
-    setNewStaffPermissions(initialPermissions);
-  }, []);
+    let cancelled = false;
+    (async () => {
+      try {
+        const bid = user?.businessId;
+        if (!bid) return;
+        const { data } = await fetchDoc('businesses', bid);
+        if (cancelled || !data) return;
+        const cat = String((data as any).category || (data as any).business_category || 'other');
+        setBusinessCategory(cat);
+      } catch (_) {
+        try {
+          const cat = await getBusinessCategory(user?.businessId || '');
+          if (!cancelled && cat) setBusinessCategory(String(cat));
+        } catch (_) {}
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.businessId]);
+
+  useEffect(() => {
+    const defs = getStaffPermissionsForCategory(businessCategory);
+    setAvailablePermissions(
+      defs.map((d) => ({
+        key: d.key,
+        label: `${d.icon} ${d.label}`,
+        icon: d.icon,
+        description: d.description,
+      }))
+    );
+    setNewStaffPermissions(defaultStaffPermissions(businessCategory));
+  }, [businessCategory]);
 
   const initializeConversations = () => {
     const initialConvos: { [key: string]: { id: string; messages: ChatMessage[] } } = {
@@ -1475,6 +1490,9 @@ export default function StaffPage() {
                   letterSpacing: '0.03em',
                 }}>
                   Permissions
+                  <span style={{ marginLeft: 8, fontSize: '0.72rem', fontWeight: 600, color: 'var(--purple)' }}>
+                    ({businessCategory || 'all'} relevant)
+                  </span>
                 </label>
                 <div style={{
                   display: 'grid',
@@ -1510,7 +1528,12 @@ export default function StaffPage() {
                           cursor: 'pointer',
                         }}
                       />
-                      <span style={{ fontSize: '0.85rem', color: 'var(--text-1)' }}>{perm.label}</span>
+                      <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-1)', fontWeight: 600 }}>{perm.label}</span>
+                        {perm.description ? (
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-3)', lineHeight: 1.3 }}>{perm.description}</span>
+                        ) : null}
+                      </span>
                     </label>
                   ))}
                 </div>
@@ -1735,7 +1758,12 @@ export default function StaffPage() {
                           cursor: 'pointer',
                         }}
                       />
-                      <span style={{ fontSize: '0.85rem', color: 'var(--text-1)' }}>{perm.label}</span>
+                      <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-1)', fontWeight: 600 }}>{perm.label}</span>
+                        {perm.description ? (
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-3)', lineHeight: 1.3 }}>{perm.description}</span>
+                        ) : null}
+                      </span>
                     </label>
                   ))}
                 </div>

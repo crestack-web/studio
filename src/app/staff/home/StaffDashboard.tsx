@@ -20,6 +20,18 @@ import {
   MessagesPage,
   SettingsPage,
 } from './OtherPages';
+import {
+  CustomersPage,
+  CreditPage,
+  ReturnsPage,
+  ReceiveStockPage,
+  ExpensesPage,
+  ShiftClosePage,
+  ExpiryPage,
+  ProductionPage,
+  MenuAssistPage,
+  TransfersPage,
+} from './pages/ExtraFeaturePages';
 import { useStaffWorkspaceOptional } from './StaffContext';
 import './busmo.css';
 import { NetworkStatus, NetworkStatusStyles } from '@/components/app/NetworkStatus';
@@ -242,6 +254,37 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
               businessId={businessId}
               staffId={staff.id}
             />
+          )}
+
+          {page === 'customers' && (
+            <CustomersPage hasAccess={!!permissions.customers} businessId={businessId} staffId={staff.id} staffName={staff.name} />
+          )}
+          {page === 'credit' && (
+            <CreditPage hasAccess={!!permissions.credit} businessId={businessId} staffId={staff.id} staffName={staff.name} />
+          )}
+          {page === 'returns' && (
+            <ReturnsPage hasAccess={!!permissions.returns} businessId={businessId} staffId={staff.id} staffName={staff.name} />
+          )}
+          {page === 'receive' && (
+            <ReceiveStockPage hasAccess={!!permissions.receive} businessId={businessId} staffId={staff.id} staffName={staff.name} />
+          )}
+          {page === 'expenses' && (
+            <ExpensesPage hasAccess={!!permissions.expenses} businessId={businessId} staffId={staff.id} staffName={staff.name} />
+          )}
+          {page === 'shift' && (
+            <ShiftClosePage hasAccess={!!permissions.shift} businessId={businessId} staffId={staff.id} staffName={staff.name} />
+          )}
+          {page === 'expiry' && (
+            <ExpiryPage hasAccess={!!permissions.expiry} businessId={businessId} staffId={staff.id} staffName={staff.name} />
+          )}
+          {page === 'production' && (
+            <ProductionPage hasAccess={!!permissions.production} businessId={businessId} staffId={staff.id} staffName={staff.name} />
+          )}
+          {page === 'menu' && (
+            <MenuAssistPage hasAccess={!!permissions.menu} businessId={businessId} staffId={staff.id} staffName={staff.name} />
+          )}
+          {page === 'transfers' && (
+            <TransfersPage hasAccess={!!permissions.transfers} businessId={businessId} staffId={staff.id} staffName={staff.name} />
           )}
           {page === 'settings' && (
             <SettingsPage

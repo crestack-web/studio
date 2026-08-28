@@ -1,241 +1,223 @@
 /**
- * Staff Permission System
- * Maps business types and roles to recommended permissions
+ * Staff portal capabilities — category-aware for owner invite / edit permissions
+ * and for staff dashboard navigation.
  */
 
-export interface PermissionConfig {
-  key: string;
+export type StaffPermKey =
+  | 'sale'
+  | 'inv'
+  | 'hist'
+  | 'atd'
+  | 'msg'
+  | 'customers'
+  | 'credit'
+  | 'returns'
+  | 'receive'
+  | 'expenses'
+  | 'shift'
+  | 'expiry'
+  | 'production'
+  | 'menu'
+  | 'transfers';
+
+export type StaffPageId =
+  | 'home'
+  | 'sale'
+  | 'inv'
+  | 'hist'
+  | 'atd'
+  | 'msg'
+  | 'settings'
+  | 'customers'
+  | 'credit'
+  | 'returns'
+  | 'receive'
+  | 'expenses'
+  | 'shift'
+  | 'expiry'
+  | 'production'
+  | 'menu'
+  | 'transfers';
+
+export interface StaffPermissionDef {
+  key: StaffPermKey;
   label: string;
   description: string;
-  category: 'sales' | 'inventory' | 'reporting' | 'management' | 'financial';
+  icon: string;
+  page: StaffPageId;
+  /** Empty = all categories */
+  categories?: string[];
+  defaultOn?: boolean;
 }
 
-export interface RoleConfig {
-  label: string;
-  description: string;
-  recommendedPermissions: string[];
-}
+const ALL = undefined;
 
-export interface BusinessTypeConfig {
-  label: string;
-  recommendedRoles: string[];
-  criticalPermissions: string[];
-}
-
-// All available permissions mapped to actual staff portal pages
-// These must match the staff dashboard types.ts exactly
-export const PERMISSIONS: Record<string, PermissionConfig> = {
-  sale: {
+export const STAFF_PERMISSION_DEFS: StaffPermissionDef[] = [
+  {
     key: 'sale',
-    label: 'Sales Recording',
-    description: 'Record sales and process transactions',
-    category: 'sales',
+    label: 'Record sales',
+    description: 'Checkout, payments, optional customer',
+    icon: '🛒',
+    page: 'sale',
+    defaultOn: true,
   },
-  inv: {
+  {
     key: 'inv',
-    label: 'Inventory View',
-    description: 'View products and stock levels',
-    category: 'inventory',
+    label: 'View inventory',
+    description: 'Search products and stock levels',
+    icon: '📦',
+    page: 'inv',
   },
-  hist: {
+  {
     key: 'hist',
-    label: 'History & Reports',
-    description: 'View sales history and reports',
-    category: 'reporting',
+    label: 'Sale history',
+    description: 'See recent sales and reprints',
+    icon: '📊',
+    page: 'hist',
   },
-  atd: {
+  {
     key: 'atd',
     label: 'Attendance',
-    description: 'Clock in/out and track shifts',
-    category: 'management',
+    description: 'Clock in and out of shifts',
+    icon: '⏰',
+    page: 'atd',
   },
-  msg: {
+  {
     key: 'msg',
     label: 'Messages',
     description: 'Chat with owner and team',
-    category: 'management',
+    icon: '💬',
+    page: 'msg',
   },
-};
+  {
+    key: 'customers',
+    label: 'Customers',
+    description: 'Look up and attach customers to sales',
+    icon: '👤',
+    page: 'customers',
+  },
+  {
+    key: 'credit',
+    label: 'Credit sales',
+    description: 'Pay-later sales and balances',
+    icon: '💳',
+    page: 'credit',
+    categories: ['wholesale', 'distributor', 'retail', 'electronics', 'fashion', 'grocery', 'supermarket', 'other'],
+  },
+  {
+    key: 'returns',
+    label: 'Returns',
+    description: 'Log product returns with reason',
+    icon: '↩️',
+    page: 'returns',
+  },
+  {
+    key: 'receive',
+    label: 'Receive stock',
+    description: 'Log inbound deliveries',
+    icon: '📥',
+    page: 'receive',
+    categories: [
+      'retail',
+      'grocery',
+      'supermarket',
+      'wholesale',
+      'distributor',
+      'pharmacy',
+      'electronics',
+      'fashion',
+      'manufacturing',
+      'other',
+    ],
+  },
+  {
+    key: 'expenses',
+    label: 'Record expenses',
+    description: 'Log petty cash and small expenses',
+    icon: '🧾',
+    page: 'expenses',
+  },
+  {
+    key: 'shift',
+    label: 'Shift close',
+    description: 'Count cash drawer at end of shift',
+    icon: '🧮',
+    page: 'shift',
+  },
+  {
+    key: 'expiry',
+    label: 'Expiry checks',
+    description: 'Near-expiry and batch tasks',
+    icon: '⚠️',
+    page: 'expiry',
+    categories: ['grocery', 'supermarket', 'pharmacy', 'restaurant', 'cafe'],
+  },
+  {
+    key: 'menu',
+    label: 'Menu / floor',
+    description: 'Restaurant menu and order assistance',
+    icon: '🍽️',
+    page: 'menu',
+    categories: ['restaurant', 'cafe'],
+  },
+  {
+    key: 'production',
+    label: 'Production',
+    description: 'Log production runs and materials',
+    icon: '🏭',
+    page: 'production',
+    categories: ['manufacturing'],
+  },
+  {
+    key: 'transfers',
+    label: 'Stock transfers',
+    description: 'Move stock between locations',
+    icon: '🔀',
+    page: 'transfers',
+    categories: ['retail', 'wholesale', 'distributor', 'supermarket', 'grocery', 'manufacturing', 'other'],
+  },
+];
 
-// Role configurations with recommended permissions and business-specific use cases
-export const ROLES: Record<string, RoleConfig> = {
-  cashier: {
-    label: 'Cashier',
-    description: 'Processes sales at the register and handles payments. Best for retail stores, restaurants, and pharmacies.',
-    recommendedPermissions: ['sale', 'hist', 'atd', 'msg'],
-  },
-  sales_associate: {
-    label: 'Sales Associate',
-    description: 'Assists customers, processes sales, and checks inventory. Best for retail, fashion, and electronics stores.',
-    recommendedPermissions: ['sale', 'hist', 'inv', 'atd', 'msg'],
-  },
-  inventory_manager: {
-    label: 'Inventory Manager',
-    description: 'Manages stock levels, products, and suppliers. Essential for retail, grocery, and manufacturing.',
-    recommendedPermissions: ['inv', 'hist', 'atd', 'msg'],
-  },
-  store_manager: {
-    label: 'Store Manager',
-    description: 'Oversees daily operations, sales, inventory, and team. Suitable for all business types.',
-    recommendedPermissions: ['sale', 'inv', 'hist', 'atd', 'msg'],
-  },
-  accountant: {
-    label: 'Accountant',
-    description: 'Views sales history and reports for financial tracking. Critical for all businesses.',
-    recommendedPermissions: ['hist', 'inv', 'atd'],
-  },
-  supervisor: {
-    label: 'Supervisor',
-    description: 'Supervises operations, reviews sales history, and manages team communication.',
-    recommendedPermissions: ['sale', 'inv', 'hist', 'atd', 'msg'],
-  },
-  warehouse_staff: {
-    label: 'Warehouse Staff',
-    description: 'Handles stock, inventory, and attendance tracking. Essential for wholesale and manufacturing.',
-    recommendedPermissions: ['inv', 'hist', 'atd', 'msg'],
-  },
-  customer_service: {
-    label: 'Customer Service',
-    description: 'Handles customer inquiries and communicates with the team.',
-    recommendedPermissions: ['hist', 'msg', 'inv'],
-  },
-  assistant_manager: {
-    label: 'Assistant Manager',
-    description: 'Assists with operations, sales, inventory, and team management.',
-    recommendedPermissions: ['sale', 'inv', 'hist', 'atd', 'msg'],
-  },
-  general_staff: {
-    label: 'General Staff',
-    description: 'Basic access to sales, attendance, and team chat.',
-    recommendedPermissions: ['sale', 'hist', 'atd', 'msg'],
-  },
-  chef: {
-    label: 'Chef/Kitchen Staff',
-    description: 'Manages ingredients, kitchen stock, and shift attendance.',
-    recommendedPermissions: ['inv', 'hist', 'atd', 'msg'],
-  },
-  waiter: {
-    label: 'Waiter/Server',
-    description: 'Takes orders, records sales, and clocks in/out.',
-    recommendedPermissions: ['sale', 'hist', 'atd', 'msg'],
-  },
-  bartender: {
-    label: 'Bartender',
-    description: 'Handles sales, inventory checks, and shift tracking.',
-    recommendedPermissions: ['sale', 'inv', 'hist', 'atd', 'msg'],
-  },
-  delivery_staff: {
-    label: 'Delivery Staff',
-    description: 'Records deliveries, views history, and tracks shifts.',
-    recommendedPermissions: ['sale', 'hist', 'atd', 'msg'],
-  },
-};
-
-// Business type configurations with recommended roles and critical permissions
-export const BUSINESS_TYPES: Record<string, BusinessTypeConfig> = {
-  retail: {
-    label: 'Retail Store',
-    recommendedRoles: ['cashier', 'sales_associate', 'inventory_manager', 'store_manager', 'supervisor'],
-    criticalPermissions: ['sale', 'inv', 'hist'],
-  },
-  restaurant: {
-    label: 'Restaurant/Food Service',
-    recommendedRoles: ['cashier', 'chef', 'waiter', 'bartender', 'delivery_staff', 'inventory_manager', 'store_manager'],
-    criticalPermissions: ['sale', 'inv', 'hist'],
-  },
-  pharmacy: {
-    label: 'Pharmacy',
-    recommendedRoles: ['cashier', 'inventory_manager', 'store_manager', 'accountant'],
-    criticalPermissions: ['sale', 'inv', 'hist'],
-  },
-  grocery: {
-    label: 'Grocery Store',
-    recommendedRoles: ['cashier', 'sales_associate', 'inventory_manager', 'store_manager', 'warehouse_staff'],
-    criticalPermissions: ['sale', 'inv', 'hist'],
-  },
-  fashion: {
-    label: 'Fashion/Clothing Store',
-    recommendedRoles: ['sales_associate', 'inventory_manager', 'store_manager', 'customer_service'],
-    criticalPermissions: ['sale', 'inv', 'hist'],
-  },
-  electronics: {
-    label: 'Electronics Store',
-    recommendedRoles: ['sales_associate', 'inventory_manager', 'store_manager', 'customer_service'],
-    criticalPermissions: ['sale', 'inv', 'hist'],
-  },
-  manufacturing: {
-    label: 'Manufacturing',
-    recommendedRoles: ['inventory_manager', 'warehouse_staff', 'store_manager', 'accountant'],
-    criticalPermissions: ['inv', 'hist'],
-  },
-  services: {
-    label: 'Service Business',
-    recommendedRoles: ['customer_service', 'store_manager', 'accountant'],
-    criticalPermissions: ['sale', 'hist'],
-  },
-  wholesale: {
-    label: 'Wholesale/Distribution',
-    recommendedRoles: ['inventory_manager', 'warehouse_staff', 'store_manager', 'accountant'],
-    criticalPermissions: ['inv', 'hist'],
-  },
-  other: {
-    label: 'Other',
-    recommendedRoles: ['cashier', 'sales_associate', 'store_manager'],
-    criticalPermissions: ['sale', 'hist', 'inv'],
-  },
-};
-
-/**
- * Get recommended permissions for a specific role
- */
-export function getRecommendedPermissions(role: string): string[] {
-  return ROLES[role]?.recommendedPermissions || ROLES.general_staff.recommendedPermissions;
+export function normalizeBusinessCategory(raw?: string | null): string {
+  return String(raw || 'other')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '_');
 }
 
-/**
- * Get recommended roles for a specific business type
- */
-export function getRecommendedRoles(businessType: string): string[] {
-  return BUSINESS_TYPES[businessType]?.recommendedRoles || BUSINESS_TYPES.other.recommendedRoles;
-}
-
-/**
- * Get critical permissions for a specific business type
- */
-export function getCriticalPermissions(businessType: string): string[] {
-  return BUSINESS_TYPES[businessType]?.criticalPermissions || BUSINESS_TYPES.other.criticalPermissions;
-}
-
-/**
- * Get all available roles
- */
-export function getAllRoles(): Array<{ id: string; config: RoleConfig }> {
-  return Object.entries(ROLES).map(([id, config]) => ({ id, config }));
-}
-
-/**
- * Get all available permissions grouped by category
- */
-export function getPermissionsByCategory(): Record<string, PermissionConfig[]> {
-  const grouped: Record<string, PermissionConfig[]> = {};
-  
-  Object.entries(PERMISSIONS).forEach(([key, config]) => {
-    if (!grouped[config.category]) {
-      grouped[config.category] = [];
-    }
-    grouped[config.category].push({ ...config, key } as any);
+export function getStaffPermissionsForCategory(category?: string | null): StaffPermissionDef[] {
+  const cat = normalizeBusinessCategory(category);
+  return STAFF_PERMISSION_DEFS.filter((def) => {
+    if (!def.categories || def.categories.length === 0) return true;
+    return def.categories.some((c) => c === cat || cat.includes(c) || c.includes(cat));
   });
-  
-  return grouped;
 }
 
-/**
- * Create default permissions object from permission list
- */
-export function createPermissionsObject(permissionList: string[]): Record<string, boolean> {
-  const permissions: Record<string, boolean> = {};
-  Object.keys(PERMISSIONS).forEach(key => {
-    permissions[key] = permissionList.includes(key);
-  });
-  return permissions;
+export function defaultStaffPermissions(category?: string | null): Record<string, boolean> {
+  const defs = getStaffPermissionsForCategory(category);
+  const out: Record<string, boolean> = {};
+  for (const d of STAFF_PERMISSION_DEFS) {
+    out[d.key] = false;
+  }
+  for (const d of defs) {
+    out[d.key] = Boolean(d.defaultOn);
+  }
+  // Always allow attendance & messages defaults off unless owner turns on — sale on
+  out.sale = true;
+  return out;
+}
+
+export type StaffPermissionsMap = Record<StaffPermKey, boolean> & Record<string, boolean>;
+
+export function mergeStaffPermissions(
+  stored: Record<string, boolean> | null | undefined,
+  category?: string | null
+): StaffPermissionsMap {
+  const base = defaultStaffPermissions(category);
+  const merged = { ...base, ...(stored || {}) } as StaffPermissionsMap;
+  // Ensure core keys exist
+  for (const d of STAFF_PERMISSION_DEFS) {
+    if (typeof merged[d.key] !== 'boolean') merged[d.key] = false;
+  }
+  return merged;
 }
