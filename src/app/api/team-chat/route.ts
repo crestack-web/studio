@@ -9,6 +9,56 @@ function conversationId(businessId: string, key: string) {
   return `busmo-team:${businessId}:${k}`;
 }
 
+async function ensureTeamConversation(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  opts: {
+    conversationId: string;
+    businessId: string;
+    userId: string;
+    conversationKey: string;
+  }
+) {
+  const { conversationId, businessId, userId, conversationKey } = opts;
+  const title =
+    conversationKey === 'team'
+      ? 'Team channel'
+      : `Staff chat (${conversationKey.slice(0, 8)})`;
+
+  // Already exists?
+  const { data: existing } = await supabase
+    .from('mo_conversations')
+    .select('id')
+    .eq('id', conversationId)
+    .maybeSingle();
+  if (existing?.id) return;
+
+  const row: Record<string, unknown> = {
+    id: conversationId,
+    business_id: businessId,
+    user_id: userId,
+    title,
+  };
+
+  let { error } = await supabase.from('mo_conversations').insert(row);
+  if (error) {
+    // Unique race — ok
+    if (String(error.code) === '23505' || /duplicate|unique/i.test(error.message || '')) {
+      return;
+    }
+    // Retry minimal columns
+    console.warn('[team-chat] mo_conversations insert failed, retry minimal', error.message);
+    const { error: e2 } = await supabase.from('mo_conversations').insert({
+      id: conversationId,
+      business_id: businessId,
+      user_id: userId,
+    });
+    if (e2 && String(e2.code) !== '23505' && !/duplicate|unique/i.test(e2.message || '')) {
+      throw e2;
+    }
+  }
+}
+
+
 async function assertMember(
   supabase: ReturnType<typeof getSupabaseAdmin>,
   user: { id: string; user_metadata?: any; email?: string | null },
@@ -212,6 +262,14 @@ export async function POST(req: NextRequest) {
     const cid = conversationId(businessId, conversationKey);
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
+
+    // FK: mo_messages.conversation_id → mo_conversations.id
+    await ensureTeamConversation(supabase, {
+      conversationId: cid,
+      businessId,
+      userId: userData.user.id,
+      conversationKey,
+    });
 
     const row = {
       id,
