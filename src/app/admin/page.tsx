@@ -1,6 +1,6 @@
-import { isAdminEmail } from '@/lib/adminEmails';
 'use client';
 
+import { isAdminEmail } from '@/lib/adminEmails';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { requireAdmin } from '@/lib/adminAuth';
