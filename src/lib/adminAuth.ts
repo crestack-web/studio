@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { initializeFirebase } from '@/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { ADMIN_EMAIL_ROLES } from '@/lib/adminEmails';
+import { ADMIN_EMAIL_ROLES, ADMIN_EMAILS, isAdminEmail, getAdminRole } from '@/lib/adminEmails';
 
-export { ADMIN_EMAIL_ROLES };
+export { ADMIN_EMAIL_ROLES, ADMIN_EMAILS, isAdminEmail, getAdminRole };
 
 // Define admin user type with permissions and lastLogin
 export interface AdminUser {
@@ -67,19 +67,11 @@ export const useAdminAuth = () => {
           const parsedUser = JSON.parse(storedUser);
           
           // Verify email is still in whitelist
-          const ADMIN_EMAILS = [
-            'taheeratorganic@gmail.com',
-            'admin@busmo.io',
-            'majnuncode@gmail.com',
-            'sxeedtxheer@gmail.com',
-            'ahmedusmus@gmail.com',
-            'majnun@busmo.io',
-            'victoria@busmo.io'
-          ];
+          // whitelist from @/lib/adminEmails (ADMIN_EMAILS)
           
-          if (ADMIN_EMAILS.includes(parsedUser.email)) {
+          if (isAdminEmail(parsedUser.email)) {
             // Assign role based on email
-            const roleKey = ADMIN_EMAIL_ROLES[parsedUser.email] || 'SUPER_ADMIN';
+            const roleKey = getAdminRole(parsedUser.email) || 'SUPER_ADMIN';
             const roleConfig = ADMIN_ROLES[roleKey as keyof typeof ADMIN_ROLES];
             
             // Update user with role and permissions
@@ -118,18 +110,10 @@ export const useAdminAuth = () => {
   const login = async (email: string, password: string) => {
     try {
       // Admin email whitelist - only these emails can access admin panel
-      const ADMIN_EMAILS = [
-        'taheeratorganic@gmail.com',
-        'admin@busmo.io',
-        'majnuncode@gmail.com',
-        'sxeedtxheer@gmail.com',
-        'ahmedusmus@gmail.com',
-        'majnun@busmo.io',
-        'victoria@busmo.io'
-      ];
+      // whitelist from @/lib/adminEmails (ADMIN_EMAILS)
       
       // Check if email is in the hardcoded super admin whitelist
-      const isSuperAdmin = ADMIN_EMAILS.includes(email);
+      const isSuperAdmin = isAdminEmail(email);
       
       // If not in whitelist, check Firestore adminUsers for support_admin
       if (!isSuperAdmin) {
@@ -229,16 +213,8 @@ export const checkIsAdmin = async (): Promise<boolean> => {
     if (parsedUser.role === 'Administrator' || parsedUser.role === 'Support Admin') {
       // For super admins, verify email is still in whitelist
       if (parsedUser.role === 'Administrator') {
-        const ADMIN_EMAILS = [
-          'taheeratorganic@gmail.com',
-          'admin@busmo.io',
-          'majnuncode@gmail.com',
-          'sxeedtxheer@gmail.com',
-          'ahmedusmus@gmail.com',
-          'majnun@busmo.io',
-          'victoria@busmo.io'
-        ];
-        return ADMIN_EMAILS.includes(parsedUser.email);
+        // whitelist from @/lib/adminEmails (ADMIN_EMAILS)
+        return isAdminEmail(parsedUser.email);
       }
       // Support admins are already validated via Firestore in AdminTeam
       return true;

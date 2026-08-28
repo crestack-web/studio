@@ -1,3 +1,4 @@
+import { isAdminEmail } from '@/lib/adminEmails';
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -19,15 +20,7 @@ export default function AdminDashboard() {
       } catch (error) {
         console.error('Admin access denied:', error);
         // Check if current user email is whitelisted
-        const ADMIN_EMAILS = [
-          'taheeratorganic@gmail.com',
-          'admin@busmo.io',
-          'majnuncode@gmail.com',
-          'sxeedtxheer@gmail.com',
-          'ahmedusmus@gmail.com',
-          'majnun@busmo.io',
-          'victoria@busmo.io'
-        ];
+        // ADMIN_EMAILS imported from @/lib/adminEmails
         
         // For whitelisted users, allow access even without admin session
         // This connects the admin route with user accounts
@@ -35,7 +28,7 @@ export default function AdminDashboard() {
         if (userEmail) {
           try {
             const parsed = JSON.parse(userEmail);
-            if (ADMIN_EMAILS.includes(parsed.email)) {
+            if (isAdminEmail(parsed.email)) {
               setAuthorized(true);
               return;
             }

@@ -1,37 +1,39 @@
 import { NextResponse } from 'next/server';
 import { sendTransactionalEmail } from '@/services/email/brevo-service';
+import {
+  ADMIN_EMAIL_ROLES,
+  isAdminEmail,
+  getAdminRole,
+} from '@/lib/adminEmails';
 
-const ADMIN_EMAILS = [
-  'taheeratorganic@gmail.com',
-  'admin@busmo.io',
-  'majnuncode@gmail.com',
-  'sxeedtxheer@gmail.com',
-  'ahmedusmus@gmail.com',
-  'majnun@busmo.io',
-  'victoria@busmo.io'
-];
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-interface OTPRequest {
-  email: string;
-}
-
-interface OTPVerify {
-  email: string;
-  otp: string;
-}
-
-// Store OTPs temporarily (in production, use Redis or similar)
+// In-memory OTP store (10 min). Prefer Redis in multi-instance production.
 const otpStore = new Map<string, { otp: string; expires: number; email: string }>();
+
+function normalizeEmail(email: string) {
+  return String(email || '').toLowerCase().trim();
+}
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { email, otp } = body;
+    const body = await request.json().catch(() => ({}));
+    const emailRaw = String(body.email || '');
+    const email = normalizeEmail(emailRaw);
+    const otp = body.otp ? String(body.otp).trim() : '';
 
-    // Verify OTP if provided
+    // ── Verify OTP ────────────────────────────────────────────
     if (otp) {
+      if (!email) {
+        return NextResponse.json(
+          { success: false, error: 'Email is required' },
+          { status: 400 }
+        );
+      }
+
       const stored = otpStore.get(email);
-      
+
       if (!stored) {
         return NextResponse.json(
           { success: false, error: 'OTP not found or expired' },
@@ -54,16 +56,20 @@ export async function POST(request: Request) {
         );
       }
 
-      // OTP is valid - clean up and return success
       otpStore.delete(email);
-      
-      // Generate admin session token
+
+      const role = getAdminRole(email);
+      const permissions =
+        role === 'SUPER_ADMIN'
+          ? ['all', 'read_support', 'write_support', 'read_users', 'write_users']
+          : ['support_view', 'support_reply', 'support_status'];
+
       const sessionToken = Buffer.from(
         JSON.stringify({
           email,
-          role: 'Administrator',
-          permissions: ['read_support', 'write_support', 'read_users', 'write_users'],
-          lastLogin: new Date().toISOString()
+          role,
+          permissions,
+          lastLogin: new Date().toISOString(),
         })
       ).toString('base64');
 
@@ -73,13 +79,13 @@ export async function POST(request: Request) {
         sessionToken,
         user: {
           email,
-          role: 'Administrator',
-          permissions: ['read_support', 'write_support', 'read_users', 'write_users']
-        }
+          role,
+          permissions,
+        },
       });
     }
 
-    // Request OTP
+    // ── Request OTP (send via Resend) ─────────────────────────
     if (!email) {
       return NextResponse.json(
         { success: false, error: 'Email is required' },
@@ -87,22 +93,21 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if email is whitelisted
-    if (!ADMIN_EMAILS.includes(email.toLowerCase())) {
+    if (!isAdminEmail(email)) {
       return NextResponse.json(
-        { success: false, error: 'Your account does not have admin access. Please contact support if you believe this is an error.' },
+        {
+          success: false,
+          error:
+            'Your account does not have admin access. Please contact support if you believe this is an error.',
+        },
         { status: 403 }
       );
     }
 
-    // Generate 6-digit OTP
     const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expires = Date.now() + (10 * 60 * 1000); // 10 minutes
-
-    // Store OTP
+    const expires = Date.now() + 10 * 60 * 1000;
     otpStore.set(email, { otp: generatedOtp, expires, email });
 
-    // Send OTP via email
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -125,48 +130,78 @@ export async function POST(request: Request) {
         <div class="container">
           <div class="content">
             <h2>Admin Login Verification</h2>
-            <p>You requested to access the Busmo Admin Dashboard. Use the following OTP to complete your login:</p>
-            
+            <p>You requested access to the Busmo Admin Dashboard. Use this one-time code to confirm your email:</p>
             <div class="otp-box">
               <div style="font-size: 14px; opacity: 0.9; margin-bottom: 10px;">Your One-Time Password</div>
               <div class="otp-code">${generatedOtp}</div>
               <div style="font-size: 12px; opacity: 0.8;">Valid for 10 minutes</div>
             </div>
-
             <div class="warning-box">
-              <h3>⚠️ Security Notice</h3>
-              <p style="margin: 8px 0; color: #555; font-size: 14px;">
-                If you did not request this OTP, please ignore this email. Your account security is important to us.
-              </p>
+              <h3>Security notice</h3>
+              <p style="margin:0;">If you did not request this code, ignore this email. Never share your OTP.</p>
             </div>
-
-            <p style="color: #6B7280; font-size: 14px; margin-top: 30px;">
-              This code will expire in 10 minutes. Do not share it with anyone.
-            </p>
           </div>
           <div class="footer">
-            <p>&copy; 2026 Busmo. Built for African commerce</p>
+            <p>Busmo Admin · sent via Resend</p>
           </div>
         </div>
       </body>
       </html>
     `;
 
-    await sendTransactionalEmail({
-      to: [{ email, name: 'Admin User' }],
-      subject: 'Your Admin Login OTP - Busmo',
-      htmlContent
-    });
+    try {
+      const result = await sendTransactionalEmail({
+        to: [{ email, name: 'Busmo Admin' }],
+        subject: 'Your Busmo Admin login code',
+        htmlContent,
+        sender: {
+          name: 'Busmo Admin',
+          email: (process.env.EMAIL_FROM || process.env.RESEND_FROM || 'support@busmo.io')
+            .replace(/^.*</, '')
+            .replace(/>.*$/, '')
+            .trim() || 'support@busmo.io',
+        },
+      });
 
-    return NextResponse.json({
-      success: true,
-      message: 'OTP sent successfully to your email'
-    });
+      console.log(
+        JSON.stringify({
+          event: 'admin_otp_sent',
+          emailSuffix: email.slice(-12),
+          role: ADMIN_EMAIL_ROLES[email],
+          resendId: result?.id || null,
+        })
+      );
 
-  } catch (error) {
-    console.error('Error in OTP admin login:', error);
+      return NextResponse.json({
+        success: true,
+        message: 'OTP sent to your email via Resend',
+        // Never return OTP in production responses
+      });
+    } catch (sendErr: any) {
+      otpStore.delete(email);
+      console.error(
+        JSON.stringify({
+          event: 'admin_otp_send_failed',
+          error: sendErr?.message || 'send failed',
+        })
+      );
+      const missingKey =
+        String(sendErr?.message || '').includes('RESEND_API_KEY') ||
+        String(sendErr?.message || '').includes('Resend is not configured');
+      return NextResponse.json(
+        {
+          success: false,
+          error: missingKey
+            ? 'Email service not configured (RESEND_API_KEY). Contact engineering.'
+            : 'Failed to send OTP email. Please try again.',
+        },
+        { status: 502 }
+      );
+    }
+  } catch (e: any) {
+    console.error('[admin/auth/otp]', e?.message || e);
     return NextResponse.json(
-      { success: false, error: 'An error occurred. Please try again.' },
+      { success: false, error: 'OTP request failed' },
       { status: 500 }
     );
   }
