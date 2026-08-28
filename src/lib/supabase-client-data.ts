@@ -203,20 +203,24 @@ function toRow(tableName: string, data: Record<string, unknown>): Record<string,
   }
   if (tableName === 'cash_reconciliations') {
     const expected = Number(
-      data.expected_amount ?? data.expectedCash ?? data.expected_cash ?? row.expected_amount ?? 0
+      data.expected_amount ?? data.expectedCash ?? data.expected_cash ??
+      metadata.expectedCash ?? metadata.expected_cash ?? metadata.expectedAmount ??
+      row.expected_amount ?? 0
     ) || 0;
     const counted = Number(
-      data.counted_amount ?? data.actualCash ?? data.actual_cash ?? data.counted ?? row.counted_amount ?? 0
+      data.counted_amount ?? data.actualCash ?? data.actual_cash ?? data.counted ??
+      metadata.actualCash ?? metadata.actual_cash ?? metadata.countedAmount ?? metadata.counted ??
+      row.counted_amount ?? 0
     ) || 0;
     const difference = Number(
-      data.difference ?? data.variance ?? (counted - expected)
+      data.difference ?? data.variance ?? metadata.difference ?? metadata.variance ?? (counted - expected)
     ) || 0;
     row.expected_amount = expected;
     row.counted_amount = counted;
     row.difference = difference;
-    const noteVal = data.note ?? data.notes ?? row.note;
+    const noteVal = data.note ?? data.notes ?? metadata.notes ?? metadata.note ?? row.note;
     if (noteVal != null && noteVal !== '') row.note = String(noteVal);
-    const by = data.reconciled_by ?? data.reconciledBy ?? data.staffId ?? data.staff_id;
+    const by = data.reconciled_by ?? data.reconciledBy ?? data.staffId ?? data.staff_id ?? metadata.staffId;
     if (by != null && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(by))) {
       row.reconciled_by = String(by);
     } else {
