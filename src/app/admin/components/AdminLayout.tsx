@@ -28,19 +28,19 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const [activeTab, setActiveTab] = useState('overview');
 
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: '📊' },
-    { id: 'users', label: 'Users', icon: '👥' },
+    { id: 'overview', label: 'Growth', icon: '📊' },
+    { id: 'users', label: 'Users & identity', icon: '👥' },
     { id: 'businesses', label: 'Businesses', icon: '🏢' },
-    { id: 'analytics', label: 'Activity Analytics', icon: '📈' }, // Updated label
-    { id: 'team', label: 'Admin Team', icon: '👔' },
-    { id: 'support', label: 'Support', icon: '💬' },
-    { id: 'features', label: 'Feature Requests', icon: '💡' },
-    { id: 'product-analytics', label: 'Product Adoption Analytics', icon: '📈', 'aria-label': 'View Product Adoption Analytics' },
-    { id: 'churn', label: 'Churn Detection', icon: '⚠️' },
+    { id: 'churn', label: 'Churn risk', icon: '⚠️' },
+    { id: 'analytics', label: 'Activity', icon: '📈' },
+    { id: 'product-analytics', label: 'Adoption', icon: '🧩' },
+    { id: 'mo-sales', label: 'MO Sales WA', icon: '💬' },
     { id: 'askmo', label: 'Ask MO', icon: '🤖' },
+    { id: 'support', label: 'Support', icon: '💬' },
+    { id: 'features', label: 'Feature requests', icon: '💡' },
     { id: 'notifications', label: 'Notifications', icon: '🔔' },
     { id: 'waitlist', label: 'Waitlist', icon: '📝' },
-    { id: 'mo-sales', label: 'MO Sales WA', icon: '💬' },
+    { id: 'team', label: 'Admin team', icon: '👔' },
   ];
 
   const renderContent = () => {
@@ -102,7 +102,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                 </h1>
               </div>
               <span className="hidden sm:block px-3 py-1 bg-gradient-to-r from-purple-100 to-indigo-100 text-purple-800 text-xs font-semibold rounded-full border border-purple-200">
-                Founder Dashboard
+                Live Supabase · Company intelligence
               </span>
             </div>
             <button
