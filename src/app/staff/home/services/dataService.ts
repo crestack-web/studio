@@ -217,24 +217,107 @@ export async function fetchRecentSales(
       }
     );
 
-    const sales: Sale[] = rawSales.map((data) => ({
-      id: data.id,
-      products: data.products || data.items || [],
-      total: data.totalRevenue ?? data.total_revenue ?? data.total ?? 0,
-      profit: data.profit || 0,
-      paymentMethod: data.paymentMethod || data.payment_method || 'cash',
-      note: data.notes || data.note || '',
-      soldBy: data.soldBy || 'unknown',
-      soldByName: data.soldByName || 'Unknown',
-      businessId: data.businessId || data.business_id,
-      createdAt: data.createdAt || data.created_at || '',
-    }));
+    const sales: Sale[] = rawSales.map((data) => {
+      const meta =
+        data.metadata && typeof data.metadata === 'object' ? (data.metadata as any) : {};
+      const recorded = meta.recordedBy || {};
+      return {
+        id: data.id,
+        products: data.products || data.items || meta.products || meta.items || [],
+        total:
+          data.totalRevenue ??
+          data.total_revenue ??
+          data.total ??
+          data.total_amount ??
+          meta.totalRevenue ??
+          meta.total ??
+          0,
+        profit: data.profit ?? meta.profit ?? 0,
+        paymentMethod:
+          data.paymentMethod ||
+          data.payment_method ||
+          meta.paymentMethod ||
+          'cash',
+        note: data.notes || data.note || meta.notes || '',
+        soldBy:
+          meta.soldBy ||
+          recorded.uid ||
+          recorded.staffId ||
+          data.soldBy ||
+          data.user_id ||
+          'unknown',
+        soldByName:
+          meta.soldByName ||
+          recorded.displayName ||
+          data.soldByName ||
+          'Unknown',
+        businessId: data.businessId || data.business_id,
+        createdAt: data.createdAt || data.created_at || '',
+      };
+    });
 
     return sales;
   } catch (error) {
     console.error('Error fetching sales:', error);
     throw error;
   }
+}
+
+
+/** Match a sale row to a staff member (auth uid, staffId, or soldBy fields). */
+export function saleBelongsToStaff(data: Record<string, any>, staffId?: string | null): boolean {
+  if (!staffId) return true;
+  const sid = String(staffId);
+  const meta =
+    data.metadata && typeof data.metadata === 'object' ? (data.metadata as any) : {};
+  const recorded = meta.recordedBy || meta.recorded_by || {};
+  const candidates = [
+    meta.soldBy,
+    meta.sold_by,
+    meta.staffId,
+    meta.staff_id,
+    recorded.uid,
+    recorded.staffId,
+    recorded.staff_id,
+    recorded.id,
+    data.soldBy,
+    data.sold_by,
+    data.staffId,
+    data.staff_id,
+    data.userId,
+    data.user_id,
+    data.createdBy,
+    data.created_by,
+  ];
+  return candidates.some((c) => c != null && String(c) === sid);
+}
+
+export function saleTotalAmount(data: Record<string, any>): number {
+  const meta =
+    data.metadata && typeof data.metadata === 'object' ? (data.metadata as any) : {};
+  return (
+    Number(
+      data.totalRevenue ??
+        data.total_revenue ??
+        data.total ??
+        data.total_amount ??
+        data.totalAmount ??
+        meta.totalRevenue ??
+        meta.total ??
+        0
+    ) || 0
+  );
+}
+
+export function saleCreatedMs(data: Record<string, any>): number {
+  const meta =
+    data.metadata && typeof data.metadata === 'object' ? (data.metadata as any) : {};
+  const raw = data.createdAt || data.created_at || meta.createdAt || meta.created_at;
+  if (!raw) return 0;
+  if (typeof raw === 'number') return raw;
+  if (typeof raw?.toDate === 'function') return raw.toDate().getTime();
+  const n = Date.parse(String(raw));
+  return Number.isFinite(n) ? n : 0;
 }
 
 /**
@@ -244,74 +327,74 @@ export async function fetchTodaysSales(
   db?: any,
   businessId?: string,
   staffId?: string
-): Promise<{ sales: number; profit: number; transactions: number }> {
+): Promise<{ sales: number; profit: number; transactions: number; itemsSold: number }> {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStart = today.toISOString();
-
-    const filters: QueryFilter[] = [
-      { field: 'created_at', op: '>=', value: todayStart },
-    ];
-
-    if (staffId) {
-      filters.push({
-        field: 'metadata',
-        op: 'like',
-        value: `%"staffId":"${staffId}"%`,
-      });
+    if (!businessId) {
+      return { sales: 0, profit: 0, transactions: 0, itemsSold: 0 };
     }
 
-    const rawSales = await fetchDocs<Record<string, any>>(
-      `businesses/${businessId}/sales`,
-      { filters }
-    );
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const startMs = today.getTime();
+    // Slightly earlier ISO for timezone edge (UTC vs local)
+    const todayStartIso = new Date(startMs - 12 * 60 * 60 * 1000).toISOString();
+
+    let rawSales: Record<string, any>[] = [];
+    try {
+      rawSales = await fetchDocs<Record<string, any>>(
+        `businesses/${businessId}/sales`,
+        {
+          filters: [{ field: 'created_at', op: '>=', value: todayStartIso }],
+          orderBy: { field: 'created_at', ascending: false },
+          limit: 300,
+        }
+      );
+    } catch {
+      rawSales = [];
+    }
+
+    // Fallback: recent sales if date filter returned nothing (index / column issues)
+    if (!rawSales.length) {
+      rawSales = await fetchDocs<Record<string, any>>(
+        `businesses/${businessId}/sales`,
+        {
+          orderBy: { field: 'created_at', ascending: false },
+          limit: 150,
+        }
+      );
+    }
 
     let sales = 0;
     let profit = 0;
     let transactions = 0;
+    let itemsSold = 0;
 
     for (const data of rawSales) {
-      sales += data.totalRevenue ?? data.total_revenue ?? data.total ?? 0;
-      profit += data.profit || 0;
+      const created = saleCreatedMs(data);
+      // Skip rows outside today; require a timestamp
+      if (!created || created < startMs) continue;
+      if (!saleBelongsToStaff(data, staffId)) continue;
+
+      const total = saleTotalAmount(data);
+      const meta =
+        data.metadata && typeof data.metadata === 'object' ? (data.metadata as any) : {};
+      sales += total;
+      profit += Number(data.profit ?? meta.profit ?? 0) || 0;
       transactions += 1;
+
+      const items = data.items || data.products || meta.items || meta.products || [];
+      if (Array.isArray(items)) {
+        itemsSold += items.reduce(
+          (s: number, it: any) => s + (Number(it.quantity || it.qty) || 0),
+          0
+        );
+      }
     }
 
-    return { sales, profit, transactions };
+    return { sales, profit, transactions, itemsSold };
   } catch (error) {
     console.error('Error fetching today\'s sales:', error);
-    return { sales: 0, profit: 0, transactions: 0 };
-  }
-}
-
-// ═══════════════════════════════════════════
-//  Business Services
-// ═══════════════════════════════════════════
-
-/**
- * Fetch business information
- */
-export async function fetchBusiness(
-  db?: any,
-  businessId?: string
-): Promise<Business | null> {
-  try {
-    const data = await fetchDoc<Record<string, any>>(
-      'businesses',
-      businessId!
-    );
-
-    if (!data) return null;
-
-    return {
-      id: data.id,
-      businessName: data.businessName || data.business_name || 'Unnamed Business',
-      ownerId: data.ownerId || data.owner_id || '',
-      staff: data.staff || [],
-    };
-  } catch (error) {
-    console.error('Error fetching business:', error);
-    return null;
+    return { sales: 0, profit: 0, transactions: 0, itemsSold: 0 };
   }
 }
 

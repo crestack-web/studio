@@ -197,6 +197,9 @@ export const HomePage: React.FC<HomePageProps> = ({
         if (cancelled) return;
         setSalesTotal(todayData.sales);
         setTransactions(todayData.transactions);
+        if (typeof todayData.itemsSold === 'number') {
+          setItemsSold(todayData.itemsSold);
+        }
 
         const products = await fetchProducts(undefined, businessId);
         if (cancelled) return;
@@ -220,18 +223,23 @@ export const HomePage: React.FC<HomePageProps> = ({
           const created = sale.createdAt ? new Date(sale.createdAt).getTime() : 0;
           if (created && created < startMs) continue;
 
-          const recordedUid =
-            (sale as any).soldBy ||
-            (sale as any).recordedBy?.uid ||
-            (sale as any).recordedBy?.staffId;
-          if (staffId && recordedUid && recordedUid !== staffId) continue;
+          // Match auth uid or staff code stored on the sale
+          const recordedUid = String((sale as any).soldBy || '');
+          if (staffId && recordedUid && recordedUid !== 'unknown') {
+            if (recordedUid !== String(staffId)) continue;
+          } else if (staffId && !recordedUid) {
+            continue;
+          }
 
           const total = Number(sale.total) || 0;
           const method = String(sale.paymentMethod || 'cash').toLowerCase();
-          if (method === 'cash') cashTotal += total;
+          if (method === 'cash' || method === 'credit') cashTotal += total;
           else if (method === 'transfer' || method === 'pos' || method === 'card')
             bankTotal += total;
-          else cashTotal += total;
+          else if (method === 'split') {
+            cashTotal += total / 2;
+            bankTotal += total / 2;
+          } else cashTotal += total;
 
           const prods = sale.products || [];
           for (const p of prods) {
@@ -241,7 +249,8 @@ export const HomePage: React.FC<HomePageProps> = ({
 
         setCashInCounter(cashTotal);
         setBankPayments(bankTotal);
-        setItemsSold(units);
+        // Prefer itemsSold from today aggregate when available
+        if (units > 0) setItemsSold(units);
       } catch (error) {
         console.error('Error loading dashboard data:', error);
         onToast('⚠️ Failed to load dashboard data');
