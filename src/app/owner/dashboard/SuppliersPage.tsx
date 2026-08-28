@@ -227,40 +227,93 @@ export default function SuppliersPage() {
         .eq('id', currentUserId)
         .maybeSingle();
 
-      const category =
-        ownerData?.category || ownerData?.selectedCategory || 'retail';
-      const features = ownerData?.selectedFeatures || [];
-      const prefs = ownerData?.featurePreferences || {};
-      const plan = ownerData?.plan || 'starter';
-      const subscriptionStatus = ownerData?.subscriptionStatus;
-      const trialEndDate = ownerData?.trialEndDate
-        ? new Date(ownerData.trialEndDate)
-        : undefined;
+      const category = String(
+        ownerData?.category ||
+          ownerData?.selectedCategory ||
+          ownerData?.selected_category ||
+          ownerData?.businessType ||
+          ownerData?.business_type ||
+          'retail'
+      );
+      const features =
+        ownerData?.selectedFeatures ||
+        ownerData?.selected_features ||
+        [];
+      const prefs =
+        ownerData?.featurePreferences ||
+        ownerData?.feature_preferences ||
+        {};
+      const plan = String(ownerData?.plan || 'starter').toLowerCase();
+      const subscriptionStatus = String(
+        ownerData?.subscriptionStatus ||
+          ownerData?.subscription_status ||
+          ''
+      ).toLowerCase();
+      const trialEndRaw =
+        ownerData?.trialEndDate || ownerData?.trial_end_date;
+      const trialEndDate = trialEndRaw ? new Date(trialEndRaw) : undefined;
+      const lifetimeAccess =
+        ownerData?.lifetimeAccess === true ||
+        ownerData?.lifetime_access === true;
+
+      if (lifetimeAccess) {
+        setHasAccess(true);
+        setAccessReason('');
+        return;
+      }
 
       const now = new Date();
       const inTrial =
-        subscriptionStatus === 'trial' && trialEndDate && trialEndDate > now;
+        (subscriptionStatus === 'trial' || subscriptionStatus === 'trialing') &&
+        (!trialEndDate || !Number.isFinite(trialEndDate.getTime()) || trialEndDate > now);
 
       const normalizeFeatureName = (name: string): string => {
         const nameMap: Record<string, string> = {
           'Supplier Management': 'supplier-management',
+          supplierManagement: 'supplier-management',
+          supplier_management: 'supplier-management',
+          Suppliers: 'supplier-management',
+          suppliers: 'supplier-management',
         };
-        return nameMap[name] || name.toLowerCase().replace(/\s+/g, '-');
+        const raw = String(name || '').trim();
+        if (nameMap[raw]) return nameMap[raw];
+        return raw.toLowerCase().replace(/\s+/g, '-');
       };
 
-      const normalizedFeatures = Array.isArray(features)
-        ? features.map((f: string) => normalizeFeatureName(f))
-        : [];
+      const enabledFeaturesSet = new Set<string>();
 
-      const enabledFeaturesSet = new Set(
-        inTrial
-          ? normalizedFeatures
-          : Object.keys(prefs).filter((key) => prefs[key])
+      // Onboarding selections
+      if (Array.isArray(features)) {
+        for (const f of features) {
+          enabledFeaturesSet.add(normalizeFeatureName(String(f)));
+        }
+      }
+
+      // Settings toggles (true = on). Normalize keys so labels and ids match.
+      const prefEntries = prefs && typeof prefs === 'object' ? Object.entries(prefs) : [];
+      for (const [key, value] of prefEntries) {
+        if (value) enabledFeaturesSet.add(normalizeFeatureName(String(key)));
+      }
+
+      const featureId = 'supplier-management';
+      const explicitlyDisabled = prefEntries.some(
+        ([key, value]) =>
+          normalizeFeatureName(String(key)) === featureId && value === false
       );
 
+      // Trial: unlock plan-allowed optional features (same approach as Sidebar).
+      // No preferences configured yet: do not treat missing toggle as "off".
+      if (!explicitlyDisabled && (inTrial || prefEntries.length === 0)) {
+        enabledFeaturesSet.add(featureId);
+      }
+
+      const effectivePlan = (
+        inTrial ? (plan === 'pro' ? 'pro' : 'standard') : plan
+      ) as Plan;
+
       const accessResult = checkFeatureAccess(
-        'supplier-management',
-        plan as Plan,
+        featureId,
+        effectivePlan,
         category.toLowerCase() as BusinessCategory,
         enabledFeaturesSet
       );
@@ -270,6 +323,9 @@ export default function SuppliersPage() {
         setAccessReason(
           accessResult.reason || 'This feature is not available for your plan'
         );
+      } else {
+        setHasAccess(true);
+        setAccessReason('');
       }
     } catch (error) {
       console.error('Error checking supplier access:', error);
