@@ -7,7 +7,8 @@ import { useCurrency } from './CurrencyContext';
 import { Card, CardHeader, CardIcon } from './Card';
 import { Button } from './Button';
 import { CashReconciliation, detectShift, Shift } from './types';
-import { fetchDocs, addDoc } from '@/lib/supabase-client-data';
+import { fetchDocs } from '@/lib/supabase-client-data';
+import { getSupabase } from '@/lib/supabase';
 import styles from './CashReconciliationPage.module.css';
 
 interface SaleData {
@@ -82,10 +83,13 @@ export default function CashReconciliationPage() {
   const [staffMap, setStaffMap] = useState<Record<string, StaffData>>({});
   const [autoCalculated, setAutoCalculated] = useState(false);
 
+  const resolveBusinessId = () =>
+    String(user.businessId || user.id || '').trim();
+
   useEffect(() => {
     loadReconciliations();
     loadStaffData();
-  }, [user.businessId]);
+  }, [user.businessId, user.id]);
 
   useEffect(() => {
     if (selectedDate && shift) {
@@ -94,9 +98,9 @@ export default function CashReconciliationPage() {
   }, [selectedDate, shift, user.businessId]);
 
   const loadStaffData = async () => {
-    if (!user.businessId) return;
+    if (!resolveBusinessId()) return;
     try {
-      const rows = await fetchDocs(`businesses/${user.businessId}/staff`);
+      const rows = await fetchDocs(`businesses/${resolveBusinessId()}/staff`);
       const staff: Record<string, StaffData> = {};
       for (const data of rows as any[]) {
         const id = String(data.id || '');
@@ -117,7 +121,7 @@ export default function CashReconciliationPage() {
   };
 
   const loadSalesForShift = async () => {
-    if (!user.businessId || !selectedDate) return;
+    if (!resolveBusinessId() || !selectedDate) return;
 
     try {
       const startDate = new Date(selectedDate);
@@ -127,7 +131,7 @@ export default function CashReconciliationPage() {
       const startMs = startDate.getTime();
       const endMs = endDate.getTime();
 
-      const rows = await fetchDocs(`businesses/${user.businessId}/sales`);
+      const rows = await fetchDocs(`businesses/${resolveBusinessId()}/sales`);
 
       const sales: SaleData[] = (rows as any[])
         .map((data) => {
@@ -219,34 +223,42 @@ export default function CashReconciliationPage() {
   };
 
   const loadReconciliations = async () => {
-    if (!user.businessId) return;
+    const businessId = resolveBusinessId();
+    if (!businessId) return;
 
     setLoading(true);
     try {
-      const rows = await fetchDocs(
-        `businesses/${user.businessId}/cashReconciliations`
+      const supabase = getSupabase();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        setReconciliations([]);
+        return;
+      }
+      const res = await fetch(
+        `/api/cash-reconciliation?businessId=${encodeURIComponent(businessId)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        }
       );
-      const recs: CashReconciliation[] = (rows as any[])
-        .map((data) => {
-          const meta =
-            data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
-          return {
-            id: String(data.id),
-            merchantId: data.merchantId || data.businessId || user.businessId,
-            staffId: data.staffId || meta.staffId || user.id,
-            date: toDate(data.date || meta.date || data.createdAt || data.created_at),
-            expectedCash: Number(data.expectedCash ?? meta.expectedCash ?? 0) || 0,
-            actualCash: Number(data.actualCash ?? meta.actualCash ?? 0) || 0,
-            variance: Number(data.variance ?? meta.variance ?? 0) || 0,
-            notes: data.notes || meta.notes || '',
-            shift: data.shift || meta.shift || '',
-            reconciledBy: data.reconciledBy || meta.reconciledBy || '',
-            reconciledAt: toDate(
-              data.reconciledAt || meta.reconciledAt || data.createdAt || data.created_at
-            ),
-          };
-        })
-        .sort((a, b) => b.date.getTime() - a.date.getTime());
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error || 'Failed to load reconciliations');
+      }
+      const recs: CashReconciliation[] = (json.reconciliations || []).map((data: any) => ({
+        id: String(data.id),
+        merchantId: data.merchantId || businessId,
+        staffId: data.staffId || user.id,
+        date: toDate(data.date),
+        expectedCash: Number(data.expectedCash) || 0,
+        actualCash: Number(data.actualCash) || 0,
+        variance: Number(data.variance) || 0,
+        notes: data.notes || '',
+        shift: data.shift || '',
+        reconciledBy: data.reconciledBy || '',
+        reconciledAt: toDate(data.reconciledAt || data.date),
+      }));
       setReconciliations(recs);
     } catch (error) {
       console.error('Error loading reconciliations:', error);
@@ -257,48 +269,57 @@ export default function CashReconciliationPage() {
   };
 
   const handleReconcile = async () => {
-    if (!user.businessId) {
+    const businessId = resolveBusinessId();
+    if (!businessId) {
       showToast('Business ID not found');
       return;
     }
 
     const variance = actualCash - expectedCash;
-    
+
     try {
+      const supabase = getSupabase();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        showToast('Session expired. Please sign in again.');
+        return;
+      }
+
       const saleIds = salesForShift.map((s) => s.id);
-      await addDoc(`businesses/${user.businessId}/cashReconciliations`, {
-        merchantId: user.businessId,
-        businessId: user.businessId,
-        date: new Date(selectedDate).toISOString(),
-        expectedCash,
-        actualCash,
-        variance,
-        notes,
-        shift,
-        reconciledBy: user.id,
-        reconciledAt: new Date().toISOString(),
-        saleIds,
-        salesCount: salesForShift.length,
-        metadata: {
-          saleIds,
-          salesCount: salesForShift.length,
-          shift,
+      const res = await fetch('/api/cash-reconciliation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          businessId,
+          date: new Date(selectedDate).toISOString(),
           expectedCash,
           actualCash,
           variance,
-        },
+          notes,
+          shift,
+          saleIds,
+          salesCount: salesForShift.length,
+        }),
       });
-      
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error || json.message || `Save failed (${res.status})`);
+      }
+
       showToast('Cash reconciliation saved successfully');
       setExpectedCash(0);
       setActualCash(0);
       setNotes('');
       setAutoCalculated(false);
       loadReconciliations();
-      loadSalesForShift(); // Reload sales to clear
-    } catch (error) {
+      loadSalesForShift();
+    } catch (error: any) {
       console.error('Error saving reconciliation:', error);
-      showToast('Failed to save reconciliation');
+      showToast(error?.message || 'Failed to save reconciliation');
     }
   };
 
