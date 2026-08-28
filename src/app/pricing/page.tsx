@@ -322,6 +322,9 @@ export default function PricingPage() {
         <Footer onNavigate={handleNavigate} />
       </LangProvider>
 
+      
+
+
       {showPaymentModal && selectedPlan && (
         <div
           className="pay-overlay"
@@ -392,98 +395,6 @@ export default function PricingPage() {
                 disabled={isPaying}
               >
                 Start 3-day free trial
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-        >
-          <div
-            className="payment-modal"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="payment-modal-header">
-              <h3>Complete your purchase</h3>
-              <button
-                type="button"
-                className="close-modal"
-                onClick={() => setShowPaymentModal(false)}
-              >
-                ✕
-              </button>
-            </div>
-            <div className="payment-modal-body">
-              <div className="selected-plan-info">
-                <div className="plan-name">{selectedPlan.name}</div>
-                <div className="plan-price">
-                  {formatMoney(
-                    mode === 'monthly'
-                      ? selectedPlan.monthlyPrice
-                      : selectedPlan.yearlyPrice
-                  )}{' '}
-                  / {mode === 'monthly' ? 'month' : 'year'}
-                </div>
-                <div className="payment-gateway">Paying with Paystack</div>
-              </div>
-              <div className="email-input-group">
-                <label htmlFor="payment-email">Email address</label>
-                <input
-                  id="payment-email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={userEmail}
-                  onChange={(e) => setUserEmail(e.target.value)}
-                />
-              </div>
-              <div className="payment-method-group">
-                <label>Payment method</label>
-                <div className="payment-method-options">
-                  {(
-                    [
-                      ['card', '💳', 'Card'],
-                      ['bank_transfer', '🏦', 'Bank Transfer'],
-                      ['ussd', '📱', 'USSD'],
-                    ] as const
-                  ).map(([id, icon, label]) => (
-                    <button
-                      key={id}
-                      type="button"
-                      className={`payment-method-option ${
-                        paymentMethod === id ? 'active' : ''
-                      }`}
-                      onClick={() => setPaymentMethod(id)}
-                    >
-                      <span className="payment-method-icon">{icon}</span>
-                      <span className="payment-method-label">{label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="payment-modal-footer">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setShowPaymentModal(false)}
-                disabled={isPaying}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-trial"
-                onClick={handleStartFreeTrial}
-                disabled={isPaying}
-              >
-                🎁 Start 3-day free trial
-              </button>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={handlePayment}
-                disabled={isPaying}
-              >
-                {isPaying ? 'Redirecting…' : 'Proceed to payment'}
               </button>
             </div>
           </div>
