@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
-import { initializeFirebase } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { updateDoc } from '@/lib/supabase-client-data';
 
 export default function StaffSetPasswordPage() {
   const [password, setPassword] = useState('');
@@ -66,20 +65,15 @@ export default function StaffSetPasswordPage() {
       if (updateErr) throw updateErr;
 
       try {
-        const { firestore } = initializeFirebase();
-        if (firestore) {
-          await updateDoc(doc(firestore, 'users', user.id), {
+        await updateDoc('users', user.id, { mustChangePassword: false });
+        const businessId = user.user_metadata?.businessId;
+        if (businessId) {
+          await updateDoc(`businesses/${businessId}/staff`, user.id, {
             mustChangePassword: false,
           });
-          const businessId = user.user_metadata?.businessId;
-          if (businessId) {
-            await updateDoc(doc(firestore, 'businesses', businessId, 'staff', user.id), {
-              mustChangePassword: false,
-            });
-          }
         }
       } catch (fsErr) {
-        console.warn('Firestore mustChangePassword clear failed', fsErr);
+        console.warn('Supabase mustChangePassword clear failed', fsErr);
       }
 
       window.location.href = '/staff/home';

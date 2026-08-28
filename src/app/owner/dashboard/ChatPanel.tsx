@@ -175,25 +175,21 @@ export function ChatPanel({
     // Persist so staff portal receives the message
     if (businessId) {
       try {
-        const { initializeFirebase } = await import('@/firebase');
         const { appendConversationMessage } = await import('@/lib/teamChat');
-        const { firestore } = initializeFirebase();
-        if (firestore) {
-          await appendConversationMessage(firestore, businessId, {
-            conversationKey: selectedChat,
-            message: {
-              id: newMessage.id,
-              senderId: ownerId || 'owner',
-              senderName: ownerName || 'Owner',
-              senderType: 'owner',
-              text: newMessage.text,
-              timestamp: newMessage.timestamp,
-              imageUrl: newMessage.imageUrl,
-              audioUrl: newMessage.audioUrl,
-            },
-            staffIdForDm: selectedChat === 'team' ? undefined : selectedChat,
-          });
-        }
+        await appendConversationMessage(businessId, {
+          conversationKey: selectedChat,
+          message: {
+            id: newMessage.id,
+            senderId: ownerId || 'owner',
+            senderName: ownerName || 'Owner',
+            senderType: 'owner',
+            text: newMessage.text,
+            timestamp: newMessage.timestamp,
+            imageUrl: newMessage.imageUrl,
+            audioUrl: newMessage.audioUrl,
+          },
+          staffIdForDm: selectedChat === 'team' ? undefined : selectedChat,
+        });
       } catch (persistErr) {
         console.error('[ChatPanel] persist message failed', persistErr);
       }

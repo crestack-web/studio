@@ -18,7 +18,6 @@ import AttendanceTab from './AttendanceTab';
 import { StaffPayrollSection } from './StaffPayrollSection';
 import { getStaffPermissionsForCategory, defaultStaffPermissions, normalizeBusinessCategory } from '@/lib/staffPermissions';
 import { subscribeOwnerConversations } from '@/lib/teamChat';
-import { initializeFirebase } from '@/firebase';
 
 interface StaffMember {
   id: string;
@@ -398,13 +397,8 @@ export default function StaffPage() {
     let unsub: (() => void) | undefined;
     (async () => {
       try {
-        const { firestore } = initializeFirebase();
-        if (!firestore) return;
-        unsub = subscribeOwnerConversations(firestore, bid, (convos) => {
-          setConversations((prev) => {
-            // Merge so empty local keys are not wiped oddly
-            return { ...prev, ...convos };
-          });
+        unsub = subscribeOwnerConversations(bid, (convos) => {
+          setConversations((prev) => ({ ...prev, ...convos }));
         });
       } catch (e) {
         console.warn('[StaffPage] chat subscribe failed', e);

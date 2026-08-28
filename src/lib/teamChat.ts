@@ -1,21 +1,14 @@
 /**
- * Shared owner ↔ staff team chat (Firestore).
- * Staff portal and owner Staff → Chat both use businesses/{id}/conversations.
+ * Shared owner ↔ staff team chat via Supabase
+ * (businesses/{businessId}/conversations → chat_conversations)
  */
 
 import {
-  collection,
-  query,
-  where,
-  getDocs,
+  fetchDocs,
+  fetchDoc,
   addDoc,
   updateDoc,
-  doc,
-  Timestamp,
-  onSnapshot,
-  type Firestore,
-  type Unsubscribe,
-} from 'firebase/firestore';
+} from '@/lib/supabase-client-data';
 
 export type ChatSenderType = 'owner' | 'staff';
 
@@ -30,10 +23,18 @@ export interface TeamChatMessage {
   audioUrl?: string;
 }
 
-function asMillis(ts: any): number {
+function asMillis(ts: unknown): number {
   if (typeof ts === 'number' && Number.isFinite(ts)) return ts;
-  if (ts?.toMillis) return ts.toMillis();
-  if (ts?.seconds) return ts.seconds * 1000;
+  if (ts && typeof ts === 'object' && 'toMillis' in (ts as object)) {
+    try {
+      return (ts as { toMillis: () => number }).toMillis();
+    } catch {
+      /* ignore */
+    }
+  }
+  if (ts && typeof ts === 'object' && 'seconds' in (ts as object)) {
+    return Number((ts as { seconds: number }).seconds) * 1000;
+  }
   const n = Date.parse(String(ts || ''));
   return Number.isFinite(n) ? n : Date.now();
 }
@@ -43,7 +44,8 @@ export function normalizeMessage(raw: any): TeamChatMessage {
     id: String(raw?.id || `m-${raw?.timestamp || Date.now()}`),
     senderId: String(raw?.senderId || raw?.sender_id || ''),
     senderName: String(raw?.senderName || raw?.sender_name || 'User'),
-    senderType: raw?.senderType === 'owner' || raw?.sender_type === 'owner' ? 'owner' : 'staff',
+    senderType:
+      raw?.senderType === 'owner' || raw?.sender_type === 'owner' ? 'owner' : 'staff',
     text: String(raw?.text || raw?.body || ''),
     timestamp: asMillis(raw?.timestamp || raw?.createdAt || raw?.created_at),
     imageUrl: raw?.imageUrl || raw?.image_url,
@@ -51,9 +53,26 @@ export function normalizeMessage(raw: any): TeamChatMessage {
   };
 }
 
+function convPath(businessId: string) {
+  return `businesses/${businessId}/conversations`;
+}
+
+function extractMessages(row: any): TeamChatMessage[] {
+  let msgs = row?.messages;
+  if (!msgs && row?.metadata && typeof row.metadata === 'object') {
+    msgs = (row.metadata as any).messages;
+  }
+  if (!Array.isArray(msgs)) return [];
+  return msgs.map(normalizeMessage).sort((a, b) => a.timestamp - b.timestamp);
+}
+
+function extractParticipants(row: any): string[] {
+  const p = row?.participants ?? row?.metadata?.participants;
+  return Array.isArray(p) ? p.map(String) : [];
+}
+
 /** Load all owner↔staff + team threads for a business into ChatPanel shape */
 export async function loadOwnerConversations(
-  firestore: Firestore,
   businessId: string
 ): Promise<Record<string, { id: string; messages: TeamChatMessage[] }>> {
   const out: Record<string, { id: string; messages: TeamChatMessage[] }> = {
@@ -61,32 +80,36 @@ export async function loadOwnerConversations(
   };
   if (!businessId) return out;
 
-  const snap = await getDocs(collection(firestore, 'businesses', businessId, 'conversations'));
-  snap.forEach((d) => {
-    const data = d.data() || {};
-    const messages = Array.isArray(data.messages)
-      ? data.messages.map(normalizeMessage).sort((a, b) => a.timestamp - b.timestamp)
-      : [];
-    const type = String(data.type || '');
+  const rows = await fetchDocs(convPath(businessId));
+  for (const row of rows as any[]) {
+    const messages = extractMessages(row);
+    const type = String(row.type || row.metadata?.type || '');
     if (type === 'team') {
       out.team = { id: 'team', messages };
-      return;
+      continue;
     }
-    // DM with staff: key by staff participant id (not owner)
-    const participants: string[] = Array.isArray(data.participants) ? data.participants.map(String) : [];
+    const participants = extractParticipants(row);
     const staffKey =
-      participants.find((p) => p && p !== 'owner' && p !== data.ownerId) ||
-      participants[0] ||
-      d.id;
+      participants.find((p) => p && p !== 'owner') || participants[0] || row.id;
     if (staffKey) {
-      out[staffKey] = { id: staffKey, messages };
+      out[String(staffKey)] = { id: String(staffKey), messages };
     }
-  });
+  }
   return out;
 }
 
+export async function loadStaffConversations(
+  businessId: string,
+  staffId: string
+): Promise<{ owner: TeamChatMessage[]; team: TeamChatMessage[] }> {
+  const all = await loadOwnerConversations(businessId);
+  return {
+    owner: all[staffId]?.messages || [],
+    team: all.team?.messages || [],
+  };
+}
+
 export async function appendConversationMessage(
-  firestore: Firestore,
   businessId: string,
   opts: {
     conversationKey: string; // 'team' or staffId
@@ -96,86 +119,98 @@ export async function appendConversationMessage(
 ): Promise<void> {
   const { conversationKey, message } = opts;
   const isTeam = conversationKey === 'team';
+  const rows = (await fetchDocs(convPath(businessId))) as any[];
 
   if (isTeam) {
-    const q = query(
-      collection(firestore, 'businesses', businessId, 'conversations'),
-      where('type', '==', 'team')
-    );
-    const snap = await getDocs(q);
-    if (snap.empty) {
-      await addDoc(collection(firestore, 'businesses', businessId, 'conversations'), {
+    const existing = rows.find((r) => String(r.type || r.metadata?.type) === 'team');
+    if (!existing) {
+      const participants = ['owner', opts.staffIdForDm].filter(Boolean) as string[];
+      await addDoc(convPath(businessId), {
         type: 'team',
-        participants: ['owner', opts.staffIdForDm].filter(Boolean),
+        participants,
         messages: [message],
-        updatedAt: Timestamp.now(),
+        metadata: { type: 'team', participants, messages: [message] },
+        updatedAt: new Date().toISOString(),
       });
     } else {
-      const ref = snap.docs[0].ref;
-      const existing = snap.docs[0].data().messages || [];
-      await updateDoc(ref, {
-        messages: [...existing, message],
-        updatedAt: Timestamp.now(),
+      const prev = extractMessages(existing);
+      const messages = [...prev, message];
+      const participants = extractParticipants(existing);
+      await updateDoc(convPath(businessId), existing.id, {
+        type: 'team',
+        participants,
+        messages,
+        metadata: { type: 'team', participants, messages },
+        updatedAt: new Date().toISOString(),
       });
     }
     return;
   }
 
-  // Owner ↔ staff DM
   const staffId = opts.staffIdForDm || conversationKey;
-  const q = query(
-    collection(firestore, 'businesses', businessId, 'conversations'),
-    where('type', '==', 'owner'),
-    where('participants', 'array-contains', staffId)
-  );
-  const snap = await getDocs(q);
-  if (snap.empty) {
-    await addDoc(collection(firestore, 'businesses', businessId, 'conversations'), {
+  const existing = rows.find((r) => {
+    const type = String(r.type || r.metadata?.type || '');
+    if (type === 'team') return false;
+    const participants = extractParticipants(r);
+    return participants.includes(String(staffId));
+  });
+
+  if (!existing) {
+    const participants = [staffId, 'owner'];
+    await addDoc(convPath(businessId), {
       type: 'owner',
-      participants: [staffId, 'owner'],
+      participants,
       messages: [message],
-      updatedAt: Timestamp.now(),
+      metadata: { type: 'owner', participants, messages: [message] },
+      updatedAt: new Date().toISOString(),
     });
   } else {
-    const ref = snap.docs[0].ref;
-    const existing = snap.docs[0].data().messages || [];
-    await updateDoc(ref, {
-      messages: [...existing, message],
-      updatedAt: Timestamp.now(),
+    const prev = extractMessages(existing);
+    const messages = [...prev, message];
+    const participants = extractParticipants(existing).length
+      ? extractParticipants(existing)
+      : [staffId, 'owner'];
+    await updateDoc(convPath(businessId), existing.id, {
+      type: 'owner',
+      participants,
+      messages,
+      metadata: { type: 'owner', participants, messages },
+      updatedAt: new Date().toISOString(),
     });
   }
 }
 
-/** Live subscribe to all conversations for a business */
+/**
+ * Polling-based "subscribe" (Supabase client has no Firestore-style snapshot here).
+ * Returns an unsubscribe that clears the interval.
+ */
 export function subscribeOwnerConversations(
-  firestore: Firestore,
   businessId: string,
-  onData: (convos: Record<string, { id: string; messages: TeamChatMessage[] }>) => void
-): Unsubscribe {
-  return onSnapshot(
-    collection(firestore, 'businesses', businessId, 'conversations'),
-    (snap) => {
-      const out: Record<string, { id: string; messages: TeamChatMessage[] }> = {
-        team: { id: 'team', messages: [] },
-      };
-      snap.forEach((d) => {
-        const data = d.data() || {};
-        const messages = Array.isArray(data.messages)
-          ? data.messages.map(normalizeMessage).sort((a, b) => a.timestamp - b.timestamp)
-          : [];
-        if (String(data.type) === 'team') {
-          out.team = { id: 'team', messages };
-          return;
-        }
-        const participants: string[] = Array.isArray(data.participants)
-          ? data.participants.map(String)
-          : [];
-        const staffKey =
-          participants.find((p) => p && p !== 'owner') || participants[0] || d.id;
-        if (staffKey) out[staffKey] = { id: staffKey, messages };
-      });
-      onData(out);
-    },
-    (err) => console.error('[teamChat] subscribe', err)
-  );
+  onData: (convos: Record<string, { id: string; messages: TeamChatMessage[] }>) => void,
+  intervalMs = 4000
+): () => void {
+  let cancelled = false;
+  const tick = async () => {
+    if (cancelled || !businessId) return;
+    try {
+      const data = await loadOwnerConversations(businessId);
+      if (!cancelled) onData(data);
+    } catch (e) {
+      console.error('[teamChat] poll failed', e);
+    }
+  };
+  void tick();
+  const id = setInterval(tick, intervalMs);
+  return () => {
+    cancelled = true;
+    clearInterval(id);
+  };
+}
+
+/** @deprecated firestore arg ignored — kept for call-site compatibility */
+export async function loadOwnerConversationsLegacy(
+  _firestore: unknown,
+  businessId: string
+) {
+  return loadOwnerConversations(businessId);
 }

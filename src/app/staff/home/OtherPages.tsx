@@ -3,8 +3,12 @@ import type { SaleRecord, SalesHistoryItem, PageId } from './types';
 import { DAILY_TARGET } from './data';
 import { LockedPage } from './components/shared';
 import { useLiveClock } from './hooks';
-import { initializeFirebase } from '@/firebase';
-import { getFirestore, doc, getDoc, collection, getDocs, query, where, Timestamp, addDoc, updateDoc } from 'firebase/firestore';
+import { fetchDoc, fetchDocs } from '@/lib/supabase-client-data';
+import {
+  loadStaffConversations,
+  appendConversationMessage,
+  type TeamChatMessage,
+} from '@/lib/teamChat';
 import { fetchProducts, fetchRecentSales, getStaffBusinessId, fetchAttendance, clockInAttendance, clockOutAttendance } from './services/dataService';
 import { getSupabase } from '@/lib/supabase';
 import chatStyles from './TeamChat.module.css';
@@ -20,11 +24,6 @@ interface InventoryPageProps {
   staffName?: string;
 }
 
-
-function staffDb() {
-  const { firestore } = initializeFirebase();
-  return firestore;
-}
 
 export const InventoryPage: React.FC<InventoryPageProps> = ({
   hasAccess,
@@ -845,39 +844,28 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({ hasAccess, businessI
     let cancelled = false;
     async function loadConversations() {
       try {
-        const { firestore } = initializeFirebase();
-        if (!firestore) return;
-        const ownerConvQuery = query(
-          collection(firestore, 'businesses', businessIdProp, 'conversations'),
-          where('type', '==', 'owner'),
-          where('participants', 'array-contains', staffIdProp)
-        );
-        const ownerConvSnapshot = await getDocs(ownerConvQuery);
-        let ownerMessages: ChatMessage[] = [];
-        if (!ownerConvSnapshot.empty) {
-          ownerMessages = ownerConvSnapshot.docs[0].data().messages || [];
-        }
-        const teamConvQuery = query(
-          collection(firestore, 'businesses', businessIdProp, 'conversations'),
-          where('type', '==', 'team')
-        );
-        const teamConvSnapshot = await getDocs(teamConvQuery);
-        let teamMessages: ChatMessage[] = [];
-        if (!teamConvSnapshot.empty) {
-          teamMessages = teamConvSnapshot.docs[0].data().messages || [];
-        }
+        const data = await loadStaffConversations(businessIdProp, staffIdProp);
         if (cancelled) return;
-        setConvos({ owner: ownerMessages, team: teamMessages });
-        const businessDoc = await getDoc(doc(firestore, 'businesses', businessIdProp));
-        if (!cancelled && businessDoc.exists()) {
-          const businessData = businessDoc.data();
-          setOwnerName(businessData.ownerName || businessData.businessName || 'Business Owner');
+        const mapMsg = (m: TeamChatMessage): ChatMessage => ({
+          type: m.senderType === 'staff' && m.senderId === staffIdProp ? 'sent' : 'recv',
+          text: m.text,
+          timestamp: m.timestamp,
+          fromOwner: m.senderType === 'owner',
+          senderName: m.senderName,
+        });
+        setConvos({
+          owner: (data.owner || []).map(mapMsg),
+          team: (data.team || []).map(mapMsg),
+        });
+
+        const business = await fetchDoc<Record<string, any>>('businesses', businessIdProp);
+        if (!cancelled && business) {
+          setOwnerName(
+            business.ownerName || business.businessName || business.business_name || 'Business Owner'
+          );
         }
-        const staffQuery = query(collection(firestore, 'businesses', businessIdProp, 'staff'));
-        const staffSnapshot = await getDocs(staffQuery);
-        if (!cancelled) {
-          setTeamMembers(staffSnapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-        }
+        const staffList = await fetchDocs(`businesses/${businessIdProp}/staff`);
+        if (!cancelled) setTeamMembers(staffList || []);
       } catch (error) {
         console.error('Error loading conversations:', error);
       } finally {
@@ -902,65 +890,24 @@ export const MessagesPage: React.FC<MessagesPageProps> = ({ hasAccess, businessI
     };
     
     try {
-      const { firestore } = initializeFirebase();
-      
+      const payload: TeamChatMessage = {
+        id: `m-${Date.now()}`,
+        senderId: staffId,
+        senderName: 'Staff',
+        senderType: 'staff',
+        text: newMessage.text,
+        timestamp: newMessage.timestamp || Date.now(),
+      };
+      await appendConversationMessage(businessId, {
+        conversationKey: convId === 'team' ? 'team' : staffId,
+        message: payload,
+        staffIdForDm: staffId,
+      });
       if (convId === 'owner') {
-        // Find or create owner conversation
-        const ownerConvQuery = query(
-          collection(firestore, 'businesses', businessId, 'conversations'),
-          where('type', '==', 'owner'),
-          where('participants', 'array-contains', staffId)
-        );
-        const ownerConvSnapshot = await getDocs(ownerConvQuery);
-        
-        const updatedMessages = [...convos.owner, newMessage];
-        
-        if (ownerConvSnapshot.empty) {
-          // Create new conversation
-          await addDoc(collection(firestore, 'businesses', businessId, 'conversations'), {
-            type: 'owner',
-            participants: [staffId],
-            messages: updatedMessages,
-            updatedAt: Timestamp.now(),
-          });
-        } else {
-          // Update existing conversation
-          await updateDoc(doc(firestore, 'businesses', businessId, 'conversations', ownerConvSnapshot.docs[0].id), {
-            messages: updatedMessages,
-            updatedAt: Timestamp.now(),
-          });
-        }
-        
-        setConvos(prev => ({ ...prev, owner: updatedMessages }));
+        setConvos((prev) => ({ ...prev, owner: [...prev.owner, newMessage] }));
       } else {
-        // Team conversation
-        const teamConvQuery = query(
-          collection(firestore, 'businesses', businessId, 'conversations'),
-          where('type', '==', 'team')
-        );
-        const teamConvSnapshot = await getDocs(teamConvQuery);
-        
-        const updatedMessages = [...convos.team, newMessage];
-        
-        if (teamConvSnapshot.empty) {
-          // Create new team conversation
-          await addDoc(collection(firestore, 'businesses', businessId, 'conversations'), {
-            type: 'team',
-            participants: teamMembers.map(m => m.id),
-            messages: updatedMessages,
-            updatedAt: Timestamp.now(),
-          });
-        } else {
-          // Update existing conversation
-          await updateDoc(doc(firestore, 'businesses', businessId, 'conversations', teamConvSnapshot.docs[0].id), {
-            messages: updatedMessages,
-            updatedAt: Timestamp.now(),
-          });
-        }
-        
-        setConvos(prev => ({ ...prev, team: updatedMessages }));
+        setConvos((prev) => ({ ...prev, team: [...prev.team, newMessage] }));
       }
-      
       setDraft('');
     } catch (error) {
       console.error('Error sending message:', error);

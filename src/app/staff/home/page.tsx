@@ -2,13 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { fetchDoc, fetchDocs } from '@/lib/supabase-client-data';
 import { StaffDashboard } from './StaffDashboard';
 import { StaffProvider, type StaffWorkspace } from './StaffContext';
 import type { Permissions, StaffUser } from './types';
 import { getSupabase } from '@/lib/supabase';
-import { ensureFirebaseAuth } from '@/lib/ensure-firebase-auth';
-import { initializeFirebase } from '@/firebase';
+
 import './busmo.css';
 
 const DEFAULT_PERMISSIONS: Permissions = {
@@ -47,7 +46,6 @@ function initialsFromName(name: string): string {
  * that caused "ask owner to re-invite" after password reset.
  */
 async function resolveStaffBusinessId(
-  firestore: ReturnType<typeof initializeFirebase>['firestore'] | null,
   userId: string,
   email: string | null | undefined,
   meta?: {
@@ -177,72 +175,87 @@ async function resolveStaffBusinessId(
     console.warn('[staff/home] Supabase resolve failed', e);
   }
 
-  // ── Firestore enrichment only (never revoke invite/metadata businessId) ─
-  if (firestore) {
+  // ── Supabase enrichment (users / staff / business) ─
+  try {
+    const userRow = await fetchDoc<Record<string, any>>('users', userId);
+    if (userRow) {
+      const roleLc = String(userRow.role || '').toLowerCase();
+      if (roleLc !== 'removed') {
+        if (!businessId && (userRow.businessId || userRow.business_id)) {
+          businessId = String(userRow.businessId || userRow.business_id);
+        }
+        if (userRow.role) role = String(userRow.role);
+        displayName =
+          displayName ||
+          userRow.displayName ||
+          userRow.fullName ||
+          userRow.name ||
+          null;
+        if (userRow.permissions && typeof userRow.permissions === 'object') {
+          permissions = { ...DEFAULT_PERMISSIONS, ...userRow.permissions };
+        }
+        if (userRow.mustChangePassword === true) mustChange = true;
+        if (userRow.staffId) staffId = String(userRow.staffId);
+      }
+    }
+  } catch (e) {
+    console.warn('[staff/home] Supabase users lookup failed', e);
+  }
+
+  if (businessId) {
     try {
-      const userSnap = await getDoc(doc(firestore, 'users', userId));
-      if (userSnap.exists()) {
-        const data = userSnap.data() || {};
-        const roleLc = String(data.role || '').toLowerCase();
-        if (roleLc !== 'removed') {
-          if (!businessId && data.businessId) businessId = String(data.businessId);
-          if (data.role) role = String(data.role);
-          displayName =
-            displayName || data.displayName || data.fullName || data.name || null;
-          if (data.permissions && typeof data.permissions === 'object') {
-            permissions = { ...DEFAULT_PERMISSIONS, ...data.permissions };
+      // Prefer staff row keyed by auth uid
+      let staffRow =
+        (await fetchDoc<Record<string, any>>(
+          `businesses/${businessId}/staff`,
+          userId
+        )) || null;
+      if (!staffRow && email) {
+        const list = await fetchDocs(`businesses/${businessId}/staff`);
+        staffRow =
+          (list as any[]).find(
+            (r) =>
+              String(r.email || '').toLowerCase() === String(email).toLowerCase() ||
+              String(r.id) === userId ||
+              String(r.staffId) === userId
+          ) || null;
+      }
+      if (staffRow) {
+        const status = String(staffRow.status || 'active').toLowerCase();
+        if (status === 'removed' && !metaObj.businessId) {
+          businessId = null;
+        } else if (status !== 'removed') {
+          if (staffRow.role) role = String(staffRow.role);
+          if (staffRow.name) displayName = String(staffRow.name);
+          if (staffRow.permissions && typeof staffRow.permissions === 'object') {
+            permissions = { ...DEFAULT_PERMISSIONS, ...staffRow.permissions };
           }
-          if (data.mustChangePassword === true) mustChange = true;
-          if (data.staffId) staffId = String(data.staffId);
+          if (staffRow.mustChangePassword === true) mustChange = true;
+          if (staffRow.staffId) staffId = String(staffRow.staffId);
+          if (staffRow.businessId || staffRow.business_id) {
+            businessId = String(staffRow.businessId || staffRow.business_id);
+          }
         }
       }
     } catch (e) {
-      console.warn('[staff/home] Firestore users lookup failed', e);
+      console.warn('[staff/home] Supabase staff lookup failed', e);
     }
 
     if (businessId) {
       try {
-        const staffSnap = await getDoc(
-          doc(firestore, 'businesses', businessId, 'staff', userId)
-        );
-        if (staffSnap.exists()) {
-          const sd = staffSnap.data() || {};
-          const status = String(sd.status || 'active').toLowerCase();
-          if (status === 'removed' && !metaObj.businessId) {
-            // Explicit removal and no invite metadata — clear
-            businessId = null;
-          } else if (status !== 'removed') {
-            if (sd.role) role = String(sd.role);
-            if (sd.name) displayName = String(sd.name);
-            if (sd.permissions && typeof sd.permissions === 'object') {
-              permissions = { ...DEFAULT_PERMISSIONS, ...sd.permissions };
-            }
-            if (sd.mustChangePassword === true) mustChange = true;
-            if (sd.staffId) staffId = String(sd.staffId);
-            if (sd.businessId) businessId = String(sd.businessId);
-          }
+        const biz = await fetchDoc<Record<string, any>>('businesses', businessId);
+        if (biz) {
+          businessName =
+            biz.businessName || biz.business_name || biz.name || biz.ownerName || businessName;
+          currency =
+            biz.currency || biz.businessCurrency || biz.defaultCurrency || currency;
         }
-        // Missing Firestore staff doc: keep businessId from metadata/Supabase
       } catch (e) {
-        console.warn('[staff/home] Firestore staff doc lookup failed', e);
-      }
-
-      if (businessId) {
-        try {
-          const bizSnap = await getDoc(doc(firestore, 'businesses', businessId));
-          if (bizSnap.exists()) {
-            const bd = bizSnap.data() || {};
-            businessName =
-              bd.businessName || bd.name || bd.ownerName || businessName;
-            currency =
-              bd.currency || bd.businessCurrency || bd.defaultCurrency || currency;
-          }
-        } catch (e) {
-          console.warn('[staff/home] Firestore business lookup failed', e);
-        }
+        console.warn('[staff/home] Supabase business lookup failed', e);
       }
     }
   }
+
 
   return {
     businessId,
@@ -300,17 +313,7 @@ export default function StaffHomePage() {
           meta.must_change_password === 'true';
 
         // Best-effort Firebase link for legacy Firestore reads (not required)
-        await ensureFirebaseAuth().catch(() => false);
-        let firestore = null as ReturnType<typeof initializeFirebase>['firestore'] | null;
-        try {
-          firestore = initializeFirebase().firestore;
-        } catch {
-          firestore = null;
-        }
-
-        const resolved = await resolveStaffBusinessId(
-          firestore,
-          user.id,
+                const resolved = await resolveStaffBusinessId(user.id,
           user.email,
           {
             businessId: meta.businessId || null,
