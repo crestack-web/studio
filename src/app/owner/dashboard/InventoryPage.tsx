@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Product } from './inventoryData';
+import { Product, getInventoryStats, getLowStockProducts } from './inventoryData';
 import InventoryOverviewCards from './InventoryOverviewCards';
 import InventoryTable from './InventoryTable';
 import LowStockPanel from './LowStockPanel';
@@ -685,13 +685,40 @@ const InventoryPage: React.FC = () => {
     );
   }
 
+  const invStats = getInventoryStats(products);
+  const lowCount = getLowStockProducts(products).length;
+  const healthyPct =
+    products.length === 0
+      ? 0
+      : Math.round(
+          ((products.length - (invStats.outOfStock || 0) - (invStats.lowStock || 0)) /
+            products.length) *
+            100
+        );
+
   return (
     <div className="inv-page">
       {/* ── Page Header ── */}
-      <div className="inv-page-header">
+      <div className="inv-page-header inv-page-header--v2">
         <div className="inv-page-title-wrap">
+          <div className="inv-eyebrow">Stock control</div>
           <h1 className="inv-page-title">{t('inventory.title')}</h1>
           <p className="inv-page-sub">{t('inventory.subtitle')}</p>
+          {products.length > 0 && (
+            <div className="inv-health-row" aria-label="Inventory health">
+              <div className="inv-health-bar">
+                <div className="inv-health-fill" style={{ width: `${Math.max(0, Math.min(100, healthyPct))}%` }} />
+              </div>
+              <span className="inv-health-label">{healthyPct}% healthy stock</span>
+              {lowCount > 0 && (
+                <span className="inv-chip inv-chip-warn">{lowCount} low</span>
+              )}
+              {(invStats.outOfStock || 0) > 0 && (
+                <span className="inv-chip inv-chip-danger">{invStats.outOfStock} out</span>
+              )}
+              <span className="inv-chip inv-chip-neutral">{products.length} SKUs</span>
+            </div>
+          )}
         </div>
         <div className="inv-header-actions">
           {(isProUser && branches.length > 1) || businessCategory.includes('retail') || businessCategory.includes('wholesale') || businessCategory.includes('distributor') ? (
