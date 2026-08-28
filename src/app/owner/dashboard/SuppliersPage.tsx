@@ -296,14 +296,22 @@ export default function SuppliersPage() {
       }
 
       const featureId = 'supplier-management';
-      const explicitlyDisabled = prefEntries.some(
-        ([key, value]) =>
-          normalizeFeatureName(String(key)) === featureId && value === false
+      const prefForFeature = prefEntries.find(
+        ([key]) => normalizeFeatureName(String(key)) === featureId
       );
+      const explicitlyDisabled = prefForFeature != null && prefForFeature[1] === false;
+      const explicitlyEnabled = prefForFeature != null && prefForFeature[1] === true;
 
-      // Trial: unlock plan-allowed optional features (same approach as Sidebar).
-      // No preferences configured yet: do not treat missing toggle as "off".
-      if (!explicitlyDisabled && (inTrial || prefEntries.length === 0)) {
+      // Onboarding selection always counts as enabled for this feature.
+      // Preference key missing ≠ off (only an explicit false in settings turns it off).
+      // Trial unlocks plan-allowed optional features so setup is not blocked.
+      if (
+        !explicitlyDisabled &&
+        (explicitlyEnabled ||
+          inTrial ||
+          prefForFeature == null ||
+          enabledFeaturesSet.has(featureId))
+      ) {
         enabledFeaturesSet.add(featureId);
       }
 
@@ -320,9 +328,12 @@ export default function SuppliersPage() {
 
       if (!accessResult.eligible) {
         setHasAccess(false);
-        setAccessReason(
-          accessResult.reason || 'This feature is not available for your plan'
-        );
+        // Friendlier copy when the only issue is settings opt-out vs plan/category
+        const reason =
+          accessResult.reason === 'This feature is not enabled in your settings'
+            ? 'Supplier Management is turned off in Settings. Enable it under feature preferences to manage suppliers.'
+            : accessResult.reason || 'This feature is not available for your plan';
+        setAccessReason(reason);
       } else {
         setHasAccess(true);
         setAccessReason('');
