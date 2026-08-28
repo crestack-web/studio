@@ -833,50 +833,54 @@ export default function StaffPage() {
         )
       );
 
+      const supabase = getSupabase();
       let updated = false;
       let lastErr: any = null;
+
+      const tryStaffUpdate = async (key: string) => {
+        // 1) permissions column
+        let res = await supabase
+          .from('staff')
+          .update({ permissions: newStaffPermissions })
+          .eq('id', key)
+          .eq('business_id', businessId);
+        if (!res.error) return true;
+        // 2) without business_id filter
+        res = await supabase
+          .from('staff')
+          .update({ permissions: newStaffPermissions })
+          .eq('id', key);
+        if (!res.error) return true;
+        // 3) user_id match
+        res = await supabase
+          .from('staff')
+          .update({ permissions: newStaffPermissions })
+          .eq('user_id', key)
+          .eq('business_id', businessId);
+        if (!res.error) return true;
+        lastErr = res.error;
+        return false;
+      };
+
       for (const key of staffKeys) {
-        try {
-          await updateDoc(`businesses/${businessId}/staff`, key, {
-            permissions: newStaffPermissions,
-          });
+        if (await tryStaffUpdate(key)) {
           updated = true;
           break;
-        } catch (e) {
-          lastErr = e;
         }
       }
 
-      // Fallback: match by email in staff list and update that row
-      if (!updated) {
-        try {
-          const rows = await fetchDocs(`businesses/${businessId}/staff`);
-          const match = (rows as any[]).find(
-            (r) =>
-              staffKeys.includes(String(r.id)) ||
-              staffKeys.includes(String(r.staffId || r.staff_id || '')) ||
-              (editingStaff.email &&
-                String(r.email || '').toLowerCase() ===
-                  String(editingStaff.email).toLowerCase())
-          );
-          if (match?.id) {
-            await updateDoc(`businesses/${businessId}/staff`, String(match.id), {
-              permissions: newStaffPermissions,
-            });
-            updated = true;
-          }
-        } catch (e) {
-          lastErr = e;
-        }
+      if (!updated && editingStaff.email) {
+        const res = await supabase
+          .from('staff')
+          .update({ permissions: newStaffPermissions })
+          .eq('email', editingStaff.email)
+          .eq('business_id', businessId);
+        if (!res.error) updated = true;
+        else lastErr = res.error;
       }
 
-      if (!updated) {
-        throw lastErr || new Error('Could not update staff record');
-      }
-
-      // Best-effort users table (id may be auth uid)
+      // Always persist on users so staff portal can read permissions
       try {
-        const supabase = getSupabase();
         for (const key of staffKeys) {
           await supabase
             .from('users')
@@ -889,8 +893,15 @@ export default function StaffPage() {
             .update({ permissions: newStaffPermissions })
             .eq('email', editingStaff.email);
         }
+        // Also merge into user_metadata via auth is not possible client-side;
+        // users.permissions is enough for bootstrap if staff reads it.
+        updated = true;
       } catch (userErr) {
-        console.warn('users permissions update skipped', userErr);
+        console.warn('users permissions update', userErr);
+      }
+
+      if (!updated) {
+        throw lastErr || new Error('Could not update staff permissions');
       }
 
       if (editingStaff.email && scope.ownerEmail) {

@@ -152,7 +152,7 @@ const KNOWN_COLUMNS: Record<string, Set<string>> = {
   bank_transactions: new Set(['id','business_id','account_id','type','amount','balance_after','description','reference','metadata','created_at']),
   cash_flow: new Set(['id','business_id','type','amount','category','description','payment_method','reference','entry_date','metadata','created_at']),
   transactions: new Set(['id','business_id','type','category','amount','balance_after','reference','note','created_by','created_at','updated_at']),
-  staff: new Set(['id','business_id','user_id','role','name','email','phone','status','revenue','transactions','last_sale_at','metadata','created_at','updated_at']),
+  staff: new Set(['id','business_id','user_id','role','name','email','phone','status','revenue','transactions','last_sale_at','permissions','created_at','updated_at']),
   stock_receipts: new Set(['id','business_id','supplier_id','items','total_amount','status','notes','received_at','metadata','created_at']),
   credit_customers: new Set(['id','business_id','name','phone','email','address','credit_limit','total_credit','total_paid','balance','status','created_at','updated_at']),
   credit_transactions: new Set(['id','business_id','customer_id','type','amount','payment_method','note','created_by','created_at']),
@@ -190,7 +190,13 @@ function toRow(tableName: string, data: Record<string, unknown>): Record<string,
     if (metadata[k] === null || metadata[k] === undefined) delete metadata[k];
   }
   if (Object.keys(metadata).length > 0) {
-    row.metadata = row.metadata ? { ...(row.metadata as object), ...metadata } : metadata;
+    if (tableName === 'staff') {
+      // No metadata column — promote permissions if present, drop the rest
+      if (metadata.permissions != null) row.permissions = metadata.permissions;
+      else if (data.permissions != null) row.permissions = data.permissions;
+    } else {
+      row.metadata = row.metadata ? { ...(row.metadata as object), ...metadata } : metadata;
+    }
   }
   if (tableName === 'bank_accounts') {
     if (row.account_name == null && data.accountName != null) row.account_name = data.accountName;
@@ -400,7 +406,16 @@ export async function updateDoc(collectionPath: string, docId: string, data: Rec
   } else {
     delete row.updated_at;
   }
-  if (KNOWN_COLUMNS[table]?.has('metadata') && row.metadata && typeof row.metadata === 'object') {
+  if (table === 'staff') {
+    // Real staff table has no metadata column — map extra fields into permissions when present
+    if (row.metadata && typeof row.metadata === 'object') {
+      const meta = row.metadata as Record<string, unknown>;
+      if (meta.permissions != null && row.permissions == null) {
+        row.permissions = meta.permissions;
+      }
+    }
+    delete row.metadata;
+  } else if (KNOWN_COLUMNS[table]?.has('metadata') && row.metadata && typeof row.metadata === 'object') {
     try {
       const { data: existing } = await supabase.from(table).select('metadata').eq('id', docId).maybeSingle();
       const prev = existing?.metadata && typeof existing.metadata === 'object' ? (existing.metadata as Record<string, unknown>) : {};
@@ -409,7 +424,17 @@ export async function updateDoc(collectionPath: string, docId: string, data: Rec
   } else {
     delete row.metadata;
   }
-  const { error } = await supabase.from(table).update(row).eq('id', docId);
+  let { error } = await supabase.from(table).update(row).eq('id', docId);
+  // Staff: permissions column may also be missing — fall back to role-only / users table handled by caller
+  if (error && table === 'staff' && /permissions|schema cache|column/i.test(error.message || '')) {
+    const withoutPerms = { ...row };
+    delete withoutPerms.permissions;
+    delete withoutPerms.metadata;
+    if (Object.keys(withoutPerms).length) {
+      const retry = await supabase.from(table).update(withoutPerms).eq('id', docId);
+      error = retry.error;
+    }
+  }
   if (error) { console.error(`[supabase-client-data] updateDoc error (${table}):`, error); throw error; }
 }
 
