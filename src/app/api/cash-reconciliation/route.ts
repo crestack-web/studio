@@ -85,8 +85,6 @@ export async function GET(req: NextRequest) {
     if (!error && data) {
       rows = data;
     } else {
-      // Fallback: audit_trail / metadata store via mo_messages-like pattern not ideal
-      // Try generic reconciliations table name
       const alt = await supabase
         .from('reconciliations')
         .select('*')
@@ -94,6 +92,34 @@ export async function GET(req: NextRequest) {
         .order('created_at', { ascending: false })
         .limit(100);
       if (!alt.error && alt.data) rows = alt.data;
+    }
+
+    // Fallback: businesses.metadata.cashReconciliations (last-resort storage)
+    if (!rows.length) {
+      try {
+        const { data: biz } = await supabase
+          .from('businesses')
+          .select('id, metadata')
+          .eq('id', businessId)
+          .maybeSingle();
+        const meta =
+          biz?.metadata && typeof biz.metadata === 'object' ? (biz.metadata as any) : {};
+        const list = Array.isArray(meta.cashReconciliations) ? meta.cashReconciliations : [];
+        rows = list.map((item: any) => ({
+          id: item.id,
+          business_id: businessId,
+          metadata: item,
+          date: item.date,
+          expected_cash: item.expectedCash,
+          actual_cash: item.actualCash,
+          variance: item.variance,
+          notes: item.notes,
+          shift: item.shift,
+          created_at: item.reconciledAt || item.date,
+        }));
+      } catch (e) {
+        console.warn('[cash-reconciliation GET] metadata fallback', e);
+      }
     }
 
     const mapped = rows.map((r) => {

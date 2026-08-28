@@ -256,20 +256,67 @@ export default function MoneyControlPage() {
       const expectedCashCollections = cashSales + splitPayments * 0.5;
       const expectedBankCollections = transferSales + posSales + splitPayments * 0.5;
       
-      const reconciliations = await fetchDocs(`businesses/${resolvedBusinessId}/cashReconciliations`).catch(() => []);
-      
+      // Same source as Cash Reconciliation save API (service role + fallbacks)
+      let reconciliations: any[] = [];
+      try {
+        const supabase = getSupabase();
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        if (token) {
+          const res = await fetch(
+            `/api/cash-reconciliation?businessId=${encodeURIComponent(resolvedBusinessId)}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+              cache: 'no-store',
+            }
+          );
+          const json = await res.json().catch(() => ({}));
+          if (res.ok) {
+            reconciliations = json.reconciliations || [];
+          }
+        }
+      } catch (e) {
+        console.warn('[MoneyControl] reconciliation load failed', e);
+      }
+      // Client fallback if API empty
+      if (!reconciliations.length) {
+        try {
+          const rows = await fetchDocs(
+            `businesses/${resolvedBusinessId}/cashReconciliations`
+          );
+          reconciliations = (rows as any[]).map((r) => {
+            const meta =
+              r.metadata && typeof r.metadata === 'object' ? r.metadata : {};
+            return {
+              ...r,
+              actualCash: r.actualCash ?? meta.actualCash ?? r.actual_cash ?? 0,
+              variance: r.variance ?? meta.variance ?? 0,
+              saleIds: r.saleIds || meta.saleIds || r.sale_ids || [],
+            };
+          });
+        } catch {
+          /* ignore */
+        }
+      }
+
       let confirmedCashCollections = 0;
       let confirmedBankCollections = 0;
       const recSaleIds = new Set<string>();
-      
+
       reconciliations.forEach((rec: any) => {
-        const actualCash = rec.actualCash || 0;
+        const meta =
+          rec.metadata && typeof rec.metadata === 'object' ? rec.metadata : {};
+        const actualCash = Number(
+          rec.actualCash ?? meta.actualCash ?? rec.actual_cash ?? 0
+        ) || 0;
         confirmedCashCollections += actualCash;
-        
-        const saleIds = rec.saleIds || [];
-        saleIds.forEach((saleId: string) => {
-          recSaleIds.add(saleId);
-        });
+
+        const saleIds = rec.saleIds || meta.saleIds || rec.sale_ids || [];
+        if (Array.isArray(saleIds)) {
+          saleIds.forEach((saleId: string) => {
+            if (saleId) recSaleIds.add(String(saleId));
+          });
+        }
       });
       
       confirmedBankCollections = expectedBankCollections;
@@ -296,7 +343,9 @@ export default function MoneyControlPage() {
       let duplicatePayments = 0;
       
       reconciliations.forEach((rec: any) => {
-        const variance = rec.variance || 0;
+        const meta =
+          rec.metadata && typeof rec.metadata === 'object' ? rec.metadata : {};
+        const variance = Number(rec.variance ?? meta.variance ?? 0) || 0;
         if (variance < 0) {
           cashShortages++;
         } else if (variance > 0) {
