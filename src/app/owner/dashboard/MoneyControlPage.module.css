@@ -609,3 +609,52 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* ── Prevent horizontal page overflow; allow card-level scroll ── */
+.section,
+.statCard,
+.saleCard,
+.insightsGrid,
+.statsGrid,
+.actionsGrid,
+.alertsGrid {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.salesSection,
+.salesListWrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 12px;
+    overflow-x: hidden;
+  }
+
+  .section {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .pageTitle {
+    font-size: 1.3rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: 10px;
+  }
+
+  .statValue {
+    font-size: 0.95rem;
+    word-break: break-word;
+  }
+}

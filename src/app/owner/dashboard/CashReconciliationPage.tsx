@@ -452,16 +452,18 @@ export default function CashReconciliationPage() {
           {salesForShift.length === 0 ? (
             <div className={styles.empty}>No sales recorded for this shift</div>
           ) : (
-            <div className={styles.salesList}>
-              <div className={styles.salesHeader}>
-                <div className={styles.headerTime}>Time</div>
-                <div className={styles.headerStaff}>Staff</div>
-                <div className={styles.headerTotal}>Total</div>
-                <div className={styles.headerCash}>Cash</div>
+            <div className={styles.tableScroll}>
+              <div className={styles.salesList}>
+                <div className={styles.salesHeader}>
+                  <div className={styles.headerTime}>Time</div>
+                  <div className={styles.headerStaff}>Staff</div>
+                  <div className={styles.headerTotal}>Total</div>
+                  <div className={styles.headerCash}>Cash</div>
+                </div>
+                {salesForShift.map(sale => (
+                  <SalesRow key={sale.id} sale={sale} />
+                ))}
               </div>
-              {salesForShift.map(sale => (
-                <SalesRow key={sale.id} sale={sale} />
-              ))}
             </div>
           )}
         </Card>
@@ -482,18 +484,20 @@ export default function CashReconciliationPage() {
           ) : reconciliations.length === 0 ? (
             <div className={styles.empty}>No reconciliations yet</div>
           ) : (
-            <div className={styles.reconciliationsList}>
-              <div className={styles.reconciliationHeader}>
-                <div className={styles.headerDate}>Date</div>
-                <div className={styles.headerShift}>Shift</div>
-                <div className={styles.headerExpected}>Expected</div>
-                <div className={styles.headerActual}>Actual</div>
-                <div className={styles.headerVariance}>Variance</div>
-                <div className={styles.headerNotes}>Notes</div>
+            <div className={styles.tableScroll}>
+              <div className={styles.reconciliationsList}>
+                <div className={styles.reconciliationHeader}>
+                  <div className={styles.headerDate}>Date</div>
+                  <div className={styles.headerShift}>Shift</div>
+                  <div className={styles.headerExpected}>Expected</div>
+                  <div className={styles.headerActual}>Actual</div>
+                  <div className={styles.headerVariance}>Variance</div>
+                  <div className={styles.headerNotes}>Notes</div>
+                </div>
+                {reconciliations.map(rec => (
+                  <ReconciliationRow key={rec.id} rec={rec} />
+                ))}
               </div>
-              {reconciliations.map(rec => (
-                <ReconciliationRow key={rec.id} rec={rec} />
-              ))}
             </div>
           )}
         </Card>
