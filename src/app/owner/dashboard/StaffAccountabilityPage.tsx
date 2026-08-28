@@ -386,7 +386,7 @@ export default function StaffAccountabilityPage() {
             <Button variant="primary" onClick={() => navigateTo('cash-reconciliation')}>
               Cash reconciliation
             </Button>
-            <Button variant="secondary" onClick={() => loadAccountabilityData()}>
+            <Button variant="subtle" onClick={() => loadAccountabilityData()}>
               Refresh
             </Button>
           </div>
