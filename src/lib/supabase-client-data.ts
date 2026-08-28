@@ -138,8 +138,13 @@ function tableForCollection(collection: string): string {
   return TABLE_ALIASES[collection] || camelToSnake(collection);
 }
 
+/**
+ * cash_reconciliations live schema is minimal in production:
+ * id, business_id, metadata, created_at (+ optional updated_at).
+ * Expected/actual/variance live inside metadata (owner API already does this).
+ */
 const KNOWN_COLUMNS: Record<string, Set<string>> = {
-  cash_reconciliations: new Set(['id','business_id','date','expected_cash','actual_cash','variance','notes','shift','staff_id','metadata','created_at','updated_at']),
+  cash_reconciliations: new Set(['id', 'business_id', 'metadata', 'created_at', 'updated_at']),
   chat_conversations: new Set(['id','business_id','type','participants','messages','metadata','created_at','updated_at']),
   chat_messages: new Set(['id','business_id','conversation_id','sender_id','sender_name','sender_type','body','text','metadata','created_at']),
   products: new Set(['id','business_id','name','description','category','sku','barcode','price','cost','stock_level','reorder_level','unit','image_url','tags','status','metadata','created_at','updated_at']),
@@ -186,12 +191,38 @@ function toRow(tableName: string, data: Record<string, unknown>): Record<string,
     if (row['total_revenue'] == null && data['total'] != null) row['total_revenue'] = data['total'];
     if (row['total_amount'] == null && row['total_revenue'] != null) row['total_amount'] = row['total_revenue'];
   }
+  // Normalize cash reconciliation money fields into metadata (real DB has no expected_cash/actual_cash columns)
+  if (tableName === 'cash_reconciliations') {
+    const moneyKeys = [
+      'expectedCash', 'actualCash', 'variance', 'expected_cash', 'actual_cash',
+      'notes', 'shift', 'date', 'staffId', 'staff_id', 'staffName', 'saleIds', 'salesCount',
+    ];
+    for (const k of moneyKeys) {
+      if (data[k] !== undefined && data[k] !== null) {
+        if (k === 'expected_cash') metadata.expectedCash = data[k];
+        else if (k === 'actual_cash') metadata.actualCash = data[k];
+        else if (k === 'staff_id') metadata.staffId = data[k];
+        else metadata[k] = data[k];
+      }
+    }
+    if (metadata.expectedCash == null && data.expectedCash != null) metadata.expectedCash = data.expectedCash;
+    if (metadata.actualCash == null && data.actualCash != null) metadata.actualCash = data.actualCash;
+    if (metadata.variance == null && data.variance != null) metadata.variance = data.variance;
+    if (!metadata.type) metadata.type = 'cash_reconciliation';
+    // Never send non-existent money columns
+    delete row.expected_cash;
+    delete row.actual_cash;
+    delete row.variance;
+    delete row.notes;
+    delete row.shift;
+    delete row.date;
+    delete row.staff_id;
+  }
   for (const k of Object.keys(metadata)) {
     if (metadata[k] === null || metadata[k] === undefined) delete metadata[k];
   }
   if (Object.keys(metadata).length > 0) {
     if (tableName === 'staff') {
-      // No metadata column — promote permissions if present, drop the rest
       if (metadata.permissions != null) row.permissions = metadata.permissions;
       else if (data.permissions != null) row.permissions = data.permissions;
     } else {
@@ -278,6 +309,16 @@ function toDoc(tableName: string, row: Record<string, unknown>): Record<string, 
     for (const [k, v] of Object.entries(meta as Record<string, unknown>)) {
       if (doc[k] === undefined) doc[k] = v;
     }
+  }
+  if (tableName === 'cash_reconciliations') {
+    const m = (meta && typeof meta === 'object' && !Array.isArray(meta)) ? (meta as Record<string, unknown>) : {};
+    if (doc.expectedCash == null) doc.expectedCash = Number(m.expectedCash ?? m.expected_cash ?? 0) || 0;
+    if (doc.actualCash == null) doc.actualCash = Number(m.actualCash ?? m.actual_cash ?? 0) || 0;
+    if (doc.variance == null) doc.variance = Number(m.variance ?? (Number(doc.actualCash) - Number(doc.expectedCash))) || 0;
+    if (doc.notes == null && m.notes != null) doc.notes = m.notes;
+    if (doc.shift == null && m.shift != null) doc.shift = m.shift;
+    if (doc.date == null && m.date != null) doc.date = m.date;
+    if (doc.staffId == null) doc.staffId = m.staffId ?? m.staff_id;
   }
   if (tableName === 'bank_accounts') {
     const m = (row.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)) ? (row.metadata as Record<string, unknown>) : {};
@@ -378,7 +419,7 @@ export async function addDoc(collectionPath: string, data: Record<string, unknow
   row.id = id;
   if (businessId && !row.business_id) row.business_id = businessId;
   if (!row.created_at) row.created_at = new Date().toISOString();
-  const noUpdatedAt = new Set(['sales', 'audit_trail', 'credit_transactions', 'bank_transactions', 'attendance', 'expenses', 'mo_messages']);
+  const noUpdatedAt = new Set(['sales', 'audit_trail', 'credit_transactions', 'bank_transactions', 'attendance', 'expenses', 'mo_messages', 'cash_reconciliations']);
   if (!row.updated_at && !noUpdatedAt.has(table) && KNOWN_COLUMNS[table]?.has('updated_at')) {
     row.updated_at = new Date().toISOString();
   } else if (noUpdatedAt.has(table) || (KNOWN_COLUMNS[table] && !KNOWN_COLUMNS[table]!.has('updated_at'))) {
@@ -386,6 +427,22 @@ export async function addDoc(collectionPath: string, data: Record<string, unknow
   }
   if (KNOWN_COLUMNS[table] && !KNOWN_COLUMNS[table]!.has('metadata')) {
     delete row.metadata;
+  }
+  // cash_reconciliations: always prefer slim row (id + business_id + metadata + created_at)
+  if (table === 'cash_reconciliations') {
+    const slim: Record<string, unknown> = {
+      id,
+      business_id: row.business_id,
+      metadata: row.metadata || {},
+      created_at: row.created_at,
+    };
+    const { error: slimErr } = await supabase.from(table).insert(slim);
+    if (slimErr) {
+      console.error(`[supabase-client-data] addDoc error (${table}):`, slimErr, slim);
+      const err = new Error(slimErr.message || 'Failed to save') as Error & { code?: string; details?: string };
+      err.code = slimErr.code; err.details = slimErr.details; throw err;
+    }
+    return id;
   }
   const { error } = await supabase.from(table).insert(row);
   if (error) {
@@ -407,7 +464,6 @@ export async function updateDoc(collectionPath: string, docId: string, data: Rec
     delete row.updated_at;
   }
   if (table === 'staff') {
-    // Real staff table has no metadata column — map extra fields into permissions when present
     if (row.metadata && typeof row.metadata === 'object') {
       const meta = row.metadata as Record<string, unknown>;
       if (meta.permissions != null && row.permissions == null) {
@@ -425,7 +481,6 @@ export async function updateDoc(collectionPath: string, docId: string, data: Rec
     delete row.metadata;
   }
   let { error } = await supabase.from(table).update(row).eq('id', docId);
-  // Staff: permissions column may also be missing — fall back to role-only / users table handled by caller
   if (error && table === 'staff' && /permissions|schema cache|column/i.test(error.message || '')) {
     const withoutPerms = { ...row };
     delete withoutPerms.permissions;
