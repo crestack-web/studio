@@ -133,7 +133,10 @@ export async function appendConversationMessage(
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(json.error || json.message || `Send failed (${res.status})`);
+    const msg = json.detail
+      ? `${json.error || 'Error'}: ${json.detail}`
+      : (json.error || json.message || `Send failed (${res.status})`);
+    throw new Error(msg);
   }
   return normalizeMessage(json.message || opts.message);
 }

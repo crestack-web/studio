@@ -227,7 +227,7 @@ export function ChatPanel({
 
     try {
       const { appendConversationMessage } = await import('@/lib/teamChat');
-      await appendConversationMessage(businessId, {
+      await appendConversationMessage(String(businessId), {
         conversationKey: selectedChat === 'team' ? 'team' : selectedChat,
         message: {
           id: newMessage.id,
@@ -241,7 +241,9 @@ export function ChatPanel({
       });
     } catch (e: any) {
       console.error('[ChatPanel] send failed', e);
-      setSendError(e?.message || 'Message failed to send. Check connection.');
+      setSendError(
+        e?.message || e?.detail || 'Message failed to send. Check connection.'
+      );
     } finally {
       setSending(false);
       requestAnimationFrame(() => textareaRef.current?.focus());

@@ -1261,7 +1261,7 @@ export default function StaffPage() {
           conversations={conversations}
           setConversations={setConversations}
           initialSelectedChat={selectedChat}
-          businessId={user?.businessId}
+          businessId={user?.businessId || user?.id || null}
           ownerId={user?.id}
           ownerName={user?.name || user?.shortName || 'Owner'}
         />
@@ -1283,7 +1283,7 @@ export default function StaffPage() {
           </CardHeader>
           <StaffPayrollSection
             staffMembers={staffMembers}
-            businessId={user?.businessId}
+            businessId={user?.businessId || user?.id || null}
             userId={user?.id}
             showToast={showToast}
             onSalaryConfigured={(staffId, salary, frequency, nextDate) => {
