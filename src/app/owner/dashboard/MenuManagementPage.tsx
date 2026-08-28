@@ -33,6 +33,9 @@ interface MenuItem {
   available: boolean;
   imageUrl?: string;
   createdAt: Date;
+  unit: string;
+  quantity: number;
+  lowStockThreshold: number;
 }
 
 interface IngredientOption {
@@ -60,6 +63,9 @@ export default function MenuManagementPage() {
     price: '',
     preparationTime: '',
     available: true,
+    unit: 'portion',
+    quantity: '',
+    lowStockThreshold: '5',
   });
   const [recipeLines, setRecipeLines] = useState<RecipeLine[]>([]);
   const [pickIngredientId, setPickIngredientId] = useState('');
@@ -174,6 +180,9 @@ export default function MenuManagementPage() {
             createdAt: toDate(data.createdAt) || new Date(),
             productType: data.productType || meta.productType,
             dishCategory: data.dishCategory || meta.dishCategory,
+            unit: data.unit || meta.unit || data.portionUnit || meta.portionUnit || 'portion',
+            quantity: Number(data.stock ?? data.stockLevel ?? data.quantity ?? 0),
+            lowStockThreshold: Number(data.lowStockThreshold ?? data.reorderLevel ?? 5),
           };
         })
         .filter((item: any) => {
@@ -281,8 +290,10 @@ export default function MenuManagementPage() {
     }
     setSaving(true);
     try {
-      const path = `businesses/${bid}/products`;
       const cost = calculatedCost;
+      const qty = Math.max(0, parseFloat(formData.quantity || '0') || 0);
+      const lowAt = Math.max(0, parseInt(formData.lowStockThreshold || '5', 10) || 5);
+      const unit = (formData.unit || 'portion').trim() || 'portion';
       const itemData: Record<string, unknown> = {
         name: formData.name.trim(),
         description: formData.description.trim() || '',
@@ -298,11 +309,13 @@ export default function MenuManagementPage() {
         productType: 'dish',
         active: formData.available,
         status: formData.available ? 'active' : 'inactive',
-        stock: 999,
-        stockLevel: 999,
-        reorderLevel: 10,
-        lowStockThreshold: 10,
-        unit: 'portion',
+        stock: qty,
+        stockLevel: qty,
+        quantity: qty,
+        reorderLevel: lowAt,
+        lowStockThreshold: lowAt,
+        unit,
+        portionUnit: unit,
         attributes: { emoji: '🍽️' },
         updatedAt: new Date().toISOString(),
       };
@@ -362,6 +375,9 @@ export default function MenuManagementPage() {
       price: item.price.toString(),
       preparationTime: item.preparationTime.toString(),
       available: item.available,
+      unit: item.unit || 'portion',
+      quantity: String(item.quantity ?? 0),
+      lowStockThreshold: String(item.lowStockThreshold ?? 5),
     });
     setRecipeLines(item.recipeIngredients?.length ? item.recipeIngredients : []);
     setShowAddModal(true);
@@ -375,6 +391,9 @@ export default function MenuManagementPage() {
       price: '',
       preparationTime: '',
       available: true,
+      unit: 'portion',
+      quantity: '',
+      lowStockThreshold: '5',
     });
     setRecipeLines([]);
     setPickIngredientId('');
@@ -415,7 +434,7 @@ export default function MenuManagementPage() {
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>Menu Management</h1>
-          <p className={styles.pageDesc}>Build dishes with recipes and see true plate cost</p>
+          <p className={styles.pageDesc}>Build dishes with recipes, set portion units & quantity, and see true plate cost</p>
         </div>
         <button
           onClick={() => {
@@ -492,6 +511,22 @@ export default function MenuManagementPage() {
               <div className={styles.menuDetailRow}>
                 <span className={styles.menuDetailLabel}>Price:</span>
                 <span className={styles.menuDetailValue}>{formatMoney(item.price)}</span>
+              </div>
+              <div className={styles.menuDetailRow}>
+                <span className={styles.menuDetailLabel}>Available:</span>
+                <span className={`${styles.menuDetailValue} ${
+                  item.quantity <= 0
+                    ? styles.qtyOut
+                    : item.quantity <= (item.lowStockThreshold || 5)
+                      ? styles.qtyLow
+                      : styles.qtyOk
+                }`}>
+                  {item.quantity} {item.unit || 'portion'}
+                </span>
+              </div>
+              <div className={styles.menuDetailRow}>
+                <span className={styles.menuDetailLabel}>Unit:</span>
+                <span className={styles.menuDetailValue}>{item.unit || 'portion'}</span>
               </div>
               <div className={styles.menuDetailRow}>
                 <span className={styles.menuDetailLabel}>Ingredient cost:</span>
@@ -601,6 +636,50 @@ export default function MenuManagementPage() {
                   step="0.01"
                   required
                 />
+              </div>
+              <div className={styles.formGrid}>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Unit (portion type)</label>
+                  <select
+                    value={formData.unit}
+                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                    className={styles.formSelect}
+                  >
+                    <option value="portion">Portion</option>
+                    <option value="plate">Plate</option>
+                    <option value="serving">Serving</option>
+                    <option value="bowl">Bowl</option>
+                    <option value="piece">Piece</option>
+                    <option value="pack">Pack</option>
+                  </select>
+                </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Quantity available</label>
+                  <input
+                    type="number"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                    className={styles.formInput}
+                    min={0}
+                    step="1"
+                    placeholder="e.g. 20"
+                  />
+                </div>
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Low-stock alert at</label>
+                <input
+                  type="number"
+                  value={formData.lowStockThreshold}
+                  onChange={(e) => setFormData({ ...formData, lowStockThreshold: e.target.value })}
+                  className={styles.formInput}
+                  min={0}
+                  step="1"
+                  placeholder="5"
+                />
+                <p className={styles.recipeHint} style={{ marginTop: 4 }}>
+                  Staff see this count on the menu floor page. Update after prep or production runs.
+                </p>
               </div>
               <div className={styles.recipeSection}>
                 <div className={styles.recipeHeader}>
