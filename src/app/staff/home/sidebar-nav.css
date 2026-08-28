@@ -1,0 +1,72 @@
+/* Extra nav icon colors so every sidebar button matches Home/Sale/Settings */
+.ni-customers { background: #E0E7FF; color: #4F46E5; }
+.ni-credit { background: #FCE7F3; color: #DB2777; }
+.ni-returns { background: #FFEDD5; color: #EA580C; }
+.ni-receive { background: #DBEAFE; color: #2563EB; }
+.ni-expenses { background: #FEE2E2; color: #DC2626; }
+.ni-shift { background: #E0F2FE; color: #0284C7; }
+.ni-expiry { background: #FEF3C7; color: #B45309; }
+.ni-production { background: #E2E8F0; color: #475569; }
+.ni-menu { background: #FCE7F3; color: #BE185D; }
+.ni-transfers { background: #D1FAE5; color: #047857; }
+
+/* Uniform button chrome */
+.sb-nav {
+  list-style: none;
+  margin: 0;
+  padding: 6px 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sb-nav .nl {
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: var(--rsm, 8px);
+  font-size: 0.81rem;
+  font-weight: 500;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--t2);
+  text-align: left;
+}
+
+.sb-nav .nl.act {
+  background: var(--brand-lt);
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.sb-nav .nl:hover:not(.act) {
+  background: var(--bg);
+  color: var(--t1);
+}
+
+.sb-nav .nic {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sb-nav .nic svg {
+  width: 15px;
+  height: 15px;
+}
+
+.sb-nav .nlbl {
+  font-size: 0.81rem;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
