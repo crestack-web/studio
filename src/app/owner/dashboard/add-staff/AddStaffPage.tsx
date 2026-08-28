@@ -12,7 +12,9 @@ import {
   ROLES, 
   getRecommendedPermissions, 
   getRecommendedRoles,
-  createPermissionsObject
+  createPermissionsObject,
+  getStaffPermissionsForCategory,
+  normalizeBusinessCategory,
 } from '@/lib/staffPermissions';
 
 export default function AddStaffPage() {
