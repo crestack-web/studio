@@ -10,6 +10,7 @@ import { useBranch } from '@/context/BranchContext';
 import { doc, getDoc } from 'firebase/firestore';
 import styles from './InlineAIChat.module.css';
 import { useAskMO } from './useAskMO';
+import { fetchDoc } from '@/lib/supabase-client-data';
 
 import { Lightbulb, BarChart, DollarSign, Package, Heart, Cpu, Settings, Plus, Trash2, Pencil } from 'lucide-react';
 import { CreditPurchaseModal } from '@/components/CreditPurchaseModal';
@@ -382,21 +383,20 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
     setStreamedContent('');
     setLoadingText('Thinking');
 
-    // Create conversation if this is the first message
-    if (!currentConversationId) {
+    // Keep a local conversation id — React state would still be stale on this turn
+    let activeConversationId = currentConversationId || '';
+    if (!activeConversationId) {
       console.log('📝 Creating new conversation...');
       const newConversationId = await createConversation(userMsg);
       if (newConversationId) {
+        activeConversationId = newConversationId;
         setCurrentConversationId(newConversationId);
         console.log('✅ Conversation created:', newConversationId);
       }
-      
       // Load business data on first message for better performance
       console.log('📊 [InlineAIChat] Loading business data on first message');
       await loadBusinessData();
-      
-      // Wait a bit more to ensure businessSummary state is updated
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
       console.log('📊 [InlineAIChat] Current businessSummary:', businessSummary);
     }
 
@@ -412,15 +412,32 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
       let businessCategory = 'retail';
       if (user.businessId) {
         try {
+          // Prefer Supabase (source of truth for onboarding category)
+          const { data: sbBiz } = await fetchDoc('businesses', user.businessId);
+          if (sbBiz) {
+            businessCategory =
+              (sbBiz as any).category ||
+              (sbBiz as any).business_category ||
+              (sbBiz as any).businessCategory ||
+              (sbBiz as any).type ||
+              businessCategory;
+          }
+        } catch (_) {}
+        try {
           const { firestore } = initializeFirebase();
           const businessDoc = await getDoc(doc(firestore, 'businesses', user.businessId));
           if (businessDoc.exists()) {
             const data = businessDoc.data();
-            businessCategory = data?.category || data?.businessCategory || 'retail';
+            const fromFs = data?.category || data?.businessCategory || data?.business_category || data?.type;
+            if (fromFs && businessCategory === 'retail') businessCategory = fromFs;
+            else if (fromFs) businessCategory = fromFs;
           }
         } catch (error) {
           console.error('Error fetching business category:', error);
         }
+      }
+      if (typeof businessCategory === 'string') {
+        businessCategory = businessCategory.toLowerCase().trim() || 'retail';
       }
       
       const requestBody: any = {
@@ -491,8 +508,14 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
       const creditsConsumed = Math.max(5, Math.min(100, estimatedTokens));
       await updateCredits(creditsConsumed);
 
-      if (currentConversationId) {
-        await saveMessages(currentConversationId, [...messagesRef.current, userMsg, botMsg]);
+      // Prefer activeConversationId from this turn (state may still be empty)
+      const convId = activeConversationId || currentConversationId;
+      if (convId) {
+        const snapshot = [...messagesRef.current.filter((m) => m.id !== userMsg.id && m.id !== botMsg.id), userMsg, botMsg];
+        messagesRef.current = snapshot;
+        await saveMessages(convId, snapshot);
+      } else {
+        console.error('❌ [InlineAIChat] No conversation id — MO reply not persisted');
       }
     } catch (error) {
       console.error('❌ [InlineAIChat] MO API error:', {

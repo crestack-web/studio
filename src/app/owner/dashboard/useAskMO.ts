@@ -379,8 +379,17 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
             created_at: m.timestamp instanceof Date ? m.timestamp.toISOString() : new Date().toISOString(),
           }));
         if (toInsert.length) {
-          const { error } = await supabase.from('mo_messages').insert(toInsert);
-          if (error) console.error('saveMessages insert error:', error);
+          const { error } = await supabase.from('mo_messages').upsert(toInsert, {
+            onConflict: 'id',
+            ignoreDuplicates: false,
+          });
+          if (error) {
+            console.error('saveMessages upsert error:', error);
+            // Retry plain insert without created_at in case of column mismatch
+            const slim = toInsert.map(({ created_at, ...rest }) => rest);
+            const { error: e2 } = await supabase.from('mo_messages').insert(slim);
+            if (e2) console.error('saveMessages insert retry error:', e2);
+          }
         }
         const title = generateConversationTitle(updatedMessages);
         const preview =

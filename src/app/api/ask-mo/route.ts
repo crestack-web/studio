@@ -130,7 +130,30 @@ When suggesting navigation, always use the exact sidebar button names as referen
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { message, image, audio, businessId, userId, conversationHistory = [], language = 'en', languageName = 'English', businessCategory = 'retail', userRole = 'owner', businessSummary, userPlan = 'starter' } = body;
+    let { message, image, audio, businessId, userId, conversationHistory = [], language = 'en', languageName = 'English', businessCategory = 'retail', userRole = 'owner', businessSummary, userPlan = 'starter' } = body;
+
+    // Resolve category from business record (onboarding) — never guess when DB has it
+    if (businessId) {
+      try {
+        const { getSupabaseAdmin } = await import('@/lib/supabase-server');
+        const sb = getSupabaseAdmin();
+        const { data: biz } = await sb
+          .from('businesses')
+          .select('category, name, type')
+          .eq('id', businessId)
+          .maybeSingle();
+        const resolved =
+          (biz as any)?.category ||
+          (biz as any)?.type ||
+          null;
+        if (resolved) {
+          businessCategory = String(resolved).toLowerCase().trim();
+        }
+      } catch (e: any) {
+        console.warn('[Ask MO] category resolve failed', e?.message);
+      }
+    }
+    businessCategory = String(businessCategory || 'retail').toLowerCase().trim() || 'retail';
 
     console.log('📡 [Ask MO API] Request received', {
       messageLength: message?.length,
@@ -138,6 +161,8 @@ export async function POST(request: NextRequest) {
       businessId,
       language,
       conversationHistoryLength: conversationHistory.length,
+      businessCategory,
+      businessId,
     });
 
     // Detect if this is a new conversation start — only when no history is provided
@@ -544,6 +569,16 @@ export async function POST(request: NextRequest) {
     // Phase 2: Load available features based on user's plan and business category
     const normalizedPlan = (userPlan as Plan) || 'starter';
     const normalizedCategory = (businessCategory as BusinessCategory) || 'retail';
+
+    // Will be appended to system prompt: never re-ask onboarding category
+    const knownCategoryInstruction = `
+KNOWN BUSINESS PROFILE (from onboarding — DO NOT ask again):
+- Business category / type: ${normalizedCategory}
+- You already know this business type. Never ask "what type of business do you run?" or similar.
+- Tailor all advice, product language, and examples to this category.
+- Only ask about business type if the user is clearly discussing starting a DIFFERENT new business (not their current Busmo account).
+`.trim();
+
     const planFeatures = getFeaturesByPlan(normalizedPlan);
     const categoryFeatures = getFeaturesByBusinessCategory(normalizedCategory);
     
@@ -600,19 +635,16 @@ export async function POST(request: NextRequest) {
 
     // Detect if user is asking about starting a new business (outside their current business)
     const newBusinessPatterns = [
-      /want to start/i,
-      /thinking of starting/i,
-      /planning to start/i,
-      /considering starting/i,
-      /how do i start/i,
-      /should i start/i,
+      /want to start a (new )?business/i,
+      /thinking of starting a (new )?business/i,
+      /planning to start a (new )?business/i,
+      /considering starting a (new )?business/i,
       /new business idea/i,
-      /business to start/i,
-      /what business should/i,
-      /looking to start/i,
-      /want to open/i,
-      /thinking about opening/i,
-      /planning to open/i,
+      /what business should i start/i,
+      /looking to start a (new )?business/i,
+      /want to open a (new )?business/i,
+      /thinking about opening a (new )?business/i,
+      /planning to open a (new )?business/i,
     ];
     
     const isNewBusinessInquiry = newBusinessPatterns.some(pattern => pattern.test(message));
@@ -1126,6 +1158,8 @@ If NO action was executed, you MUST follow these rules:
 2. NEVER say "Sale recorded", "I've recorded", "Done, recorded", "your cash balance is now X", or anything presenting a transaction as finished.
 3. NEVER invent prices, quantities, totals, profits, cash balances, or any business data not present in the context above.
 4. If the user described selling or recording something, respond conversationally: restate what you understood and explain the system will show a confirmation card before anything is recorded. If the product cannot be confidently matched to inventory, say you couldn't find it and ask them to confirm the exact product name.`;
+
+    systemPrompt = `${systemPrompt}\n\n${knownCategoryInstruction}`;
 
     const mistral = getMistralClient();
 
