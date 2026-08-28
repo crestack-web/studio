@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { LockedPage } from '../components/shared';
 import { fetchDocs, addDoc as sbAddDoc } from '@/lib/supabase-client-data';
 import { getSupabase } from '@/lib/supabase';
@@ -50,6 +50,33 @@ const btn: React.CSSProperties = {
   fontWeight: 700,
   cursor: 'pointer',
 };
+
+const btnDisabled: React.CSSProperties = {
+  ...btn,
+  opacity: 0.55,
+  cursor: 'not-allowed',
+};
+
+function todayISODate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isCashPayment(method: unknown) {
+  const m = String(method || '').toLowerCase();
+  return !m || m === 'cash' || m.includes('cash');
+}
+
+function saleTotal(s: any): number {
+  return Number(s.totalRevenue ?? s.total_revenue ?? s.totalAmount ?? s.total_amount ?? s.total ?? 0) || 0;
+}
+
+function isSameLocalDay(iso: unknown, day: string) {
+  if (!iso) return false;
+  const d = new Date(String(iso));
+  if (Number.isNaN(d.getTime())) return String(iso).slice(0, 10) === day;
+  const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return local === day;
+}
 
 export function CustomersPage({ hasAccess, businessId }: BaseProps) {
   const [rows, setRows] = useState<any[]>([]);
@@ -281,34 +308,282 @@ export function ExpensesPage({ hasAccess, businessId, staffId, staffName }: Base
 
 export function ShiftClosePage({ hasAccess, businessId, staffId, staffName }: BaseProps) {
   const [counted, setCounted] = useState('');
+  const [expectedOverride, setExpectedOverride] = useState('');
   const [note, setNote] = useState('');
+  const [expectedCash, setExpectedCash] = useState(0);
+  const [cashSalesCount, setCashSalesCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
-  if (!hasAccess) return <LockedPage pageName="Shift close" />;
+  const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<any[]>([]);
 
-  const submit = async () => {
-    if (!businessId) return;
-    await sbAddDoc(`businesses/${businessId}/shift_closes`, {
-      id: crypto.randomUUID(),
-      countedCash: Number(counted) || 0,
-      note: note.trim(),
-      staffId: staffId || null,
-      staffName: staffName || null,
-      created_at: new Date().toISOString(),
-    });
-    setCounted('');
-    setNote('');
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  const day = todayISODate();
+
+  const load = async () => {
+    if (!businessId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const sales = await fetchDocs(`businesses/${businessId}/sales`).catch(() => []);
+      const todayCash = (sales || []).filter((s: any) => {
+        const when = s.created_at || s.createdAt;
+        return isSameLocalDay(when, day) && isCashPayment(s.paymentMethod || s.payment_method || s.paymentType);
+      });
+      const sum = todayCash.reduce((acc: number, s: any) => acc + saleTotal(s), 0);
+      setExpectedCash(sum);
+      setCashSalesCount(todayCash.length);
+
+      const recons = await fetchDocs(`businesses/${businessId}/cash_reconciliations`).catch(() => []);
+      const mine = (recons || [])
+        .filter((r: any) => {
+          if (staffId && String(r.staff_id || r.staffId || '') === String(staffId)) return true;
+          if (String(r.date || '').slice(0, 10) === day) return true;
+          return isSameLocalDay(r.created_at || r.createdAt, day);
+        })
+        .sort((a: any, b: any) => String(b.created_at || b.createdAt || '').localeCompare(String(a.created_at || a.createdAt || '')))
+        .slice(0, 8);
+      setHistory(mine);
+    } catch (e: any) {
+      setError(e?.message || 'Could not load shift data');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  useEffect(() => {
+    if (!hasAccess) return;
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasAccess, businessId, staffId, day]);
+
+  const expected = useMemo(() => {
+    if (expectedOverride.trim() !== '') {
+      const n = Number(expectedOverride);
+      return Number.isFinite(n) ? n : expectedCash;
+    }
+    return expectedCash;
+  }, [expectedOverride, expectedCash]);
+
+  const actual = Number(counted) || 0;
+  const variance = actual - expected;
+
+  const submit = async () => {
+    if (!businessId) {
+      setError('Missing business. Sign out and sign in again.');
+      return;
+    }
+    if (counted.trim() === '' || !Number.isFinite(Number(counted))) {
+      setError('Enter the cash you counted in the drawer.');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    setSaved(false);
+    const payload = {
+      id: crypto.randomUUID(),
+      date: day,
+      expected_cash: expected,
+      actual_cash: actual,
+      variance,
+      notes: note.trim() || null,
+      shift: `staff-close-${day}`,
+      staff_id: staffId || null,
+      staffId: staffId || null,
+      staffName: staffName || null,
+      metadata: {
+        staffName: staffName || null,
+        staffId: staffId || null,
+        cashSalesCount,
+        source: 'staff_shift_close',
+        submittedAt: new Date().toISOString(),
+      },
+      created_at: new Date().toISOString(),
+    };
+
+    try {
+      await sbAddDoc(`businesses/${businessId}/cash_reconciliations`, payload);
+      setCounted('');
+      setNote('');
+      setExpectedOverride('');
+      setSaved(true);
+      await load();
+      setTimeout(() => setSaved(false), 4000);
+    } catch (e: any) {
+      // Fallback: still record locally so staff is not blocked if table RLS fails
+      try {
+        const key = `busmo_shift_close_${businessId}`;
+        const prev = JSON.parse(localStorage.getItem(key) || '[]');
+        const entry = { ...payload, offline: true };
+        localStorage.setItem(key, JSON.stringify([entry, ...(Array.isArray(prev) ? prev : [])].slice(0, 20)));
+        setHistory((h) => [entry, ...h].slice(0, 8));
+        setCounted('');
+        setNote('');
+        setSaved(true);
+        setError(`Saved on this device. Server: ${e?.message || 'failed'}`);
+        setTimeout(() => setSaved(false), 4000);
+      } catch {
+        setError(e?.message || 'Failed to submit shift close');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!hasAccess) return <LockedPage pageName="Shift close" />;
+
   return (
-    <Shell title="Shift close" subtitle="Count the cash drawer and submit for owner review.">
-      <input style={field} type="number" placeholder="Cash counted *" value={counted} onChange={(e) => setCounted(e.target.value)} />
-      <input style={field} placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
-      <button type="button" style={btn} onClick={submit}>
-        Submit shift close
-      </button>
-      {saved && <p style={{ color: 'var(--brand)', marginTop: 10, fontWeight: 600 }}>Submitted.</p>}
+    <Shell
+      title="Shift close"
+      subtitle="Count the cash drawer, compare to today’s cash sales, and submit for owner review."
+    >
+      {loading ? (
+        <p style={{ color: 'var(--t3)' }}>Loading today’s cash sales…</p>
+      ) : (
+        <>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 10,
+              marginBottom: 14,
+            }}
+          >
+            <div
+              style={{
+                padding: 14,
+                borderRadius: 12,
+                background: 'var(--brand-lt, #d1fae5)',
+                border: '1px solid var(--bdr)',
+              }}
+            >
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase' }}>
+                Expected (cash sales)
+              </div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: 4 }}>
+                {expected.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--t3)', marginTop: 4 }}>
+                {cashSalesCount} cash sale{cashSalesCount === 1 ? '' : 's'} today
+              </div>
+            </div>
+            <div
+              style={{
+                padding: 14,
+                borderRadius: 12,
+                background: 'var(--surf)',
+                border: '1px solid var(--bdr)',
+              }}
+            >
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase' }}>
+                Variance
+              </div>
+              <div
+                style={{
+                  fontSize: '1.25rem',
+                  fontWeight: 800,
+                  marginTop: 4,
+                  color:
+                    counted.trim() === ''
+                      ? 'var(--t3)'
+                      : variance === 0
+                        ? 'var(--brand, #16a34a)'
+                        : variance < 0
+                          ? 'var(--red, #dc2626)'
+                          : 'var(--amber, #d97706)',
+                }}
+              >
+                {counted.trim() === ''
+                  ? '—'
+                  : `${variance > 0 ? '+' : ''}${variance.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--t3)', marginTop: 4 }}>Counted − expected</div>
+            </div>
+          </div>
+
+          <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Cash counted *</label>
+          <input
+            style={field}
+            type="number"
+            inputMode="decimal"
+            placeholder="Amount in drawer"
+            value={counted}
+            onChange={(e) => setCounted(e.target.value)}
+          />
+
+          <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>
+            Expected override (optional)
+          </label>
+          <input
+            style={field}
+            type="number"
+            inputMode="decimal"
+            placeholder={`Leave blank to use ${expectedCash.toLocaleString()}`}
+            value={expectedOverride}
+            onChange={(e) => setExpectedOverride(e.target.value)}
+          />
+
+          <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: 4 }}>Note</label>
+          <input
+            style={field}
+            placeholder="e.g. float left in drawer, expenses paid"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+
+          <button type="button" style={submitting ? btnDisabled : btn} onClick={submit} disabled={submitting}>
+            {submitting ? 'Submitting…' : 'Submit shift close'}
+          </button>
+
+          {saved && (
+            <p style={{ color: 'var(--brand)', marginTop: 10, fontWeight: 600 }}>Shift close submitted for owner review.</p>
+          )}
+          {error && (
+            <p style={{ color: 'var(--red, #dc2626)', marginTop: 10, fontSize: '0.85rem' }}>{error}</p>
+          )}
+
+          {history.length > 0 && (
+            <div style={{ marginTop: 24 }}>
+              <h3 style={{ fontSize: '0.95rem', fontWeight: 800, margin: '0 0 10px' }}>Recent submissions</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {history.map((h) => {
+                  const exp = Number(h.expected_cash ?? h.expectedCash ?? 0);
+                  const act = Number(h.actual_cash ?? h.actualCash ?? 0);
+                  const varn = Number(h.variance ?? act - exp);
+                  return (
+                    <div
+                      key={h.id}
+                      style={{
+                        padding: 12,
+                        borderRadius: 12,
+                        border: '1px solid var(--bdr)',
+                        background: 'var(--surf)',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                        <strong>{String(h.date || h.created_at || '').slice(0, 16)}</strong>
+                        <span style={{ color: varn === 0 ? 'var(--brand)' : 'var(--amber, #d97706)', fontWeight: 700 }}>
+                          Δ {varn > 0 ? '+' : ''}
+                          {varn.toLocaleString()}
+                        </span>
+                      </div>
+                      <div style={{ color: 'var(--t3)', marginTop: 4 }}>
+                        Expected {exp.toLocaleString()} · Counted {act.toLocaleString()}
+                        {h.offline ? ' · device only' : ''}
+                      </div>
+                      {h.notes && <div style={{ marginTop: 4 }}>{h.notes}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </Shell>
   );
 }
