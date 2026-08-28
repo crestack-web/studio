@@ -219,6 +219,21 @@
   color: var(--purple);
 }
 
+.menuDetailValue.qtyOk {
+  color: var(--green);
+  font-weight: 600;
+}
+
+.menuDetailValue.qtyLow {
+  color: var(--amber);
+  font-weight: 600;
+}
+
+.menuDetailValue.qtyOut {
+  color: var(--red);
+  font-weight: 600;
+}
+
 .menuPrepTime {
   display: flex;
   align-items: center;
