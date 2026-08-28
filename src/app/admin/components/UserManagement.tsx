@@ -57,7 +57,7 @@ export default function UserManagement() {
   }, [load]);
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y overflow-x-hidden-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Users & identity</h2>
@@ -96,7 +96,7 @@ export default function UserManagement() {
       <div className="grid gap-4 lg:grid-cols-5">
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:col-span-3">
           <div className="max-h-[70vh] overflow-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full min-w-[480px] text-left text-sm">
               <thead className="sticky top-0 bg-slate-50 text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-3 py-2">User</th>

@@ -107,7 +107,7 @@ export default function MoSalesConnections() {
       )}
 
       <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
+        <table className="min-w-[640px] w-full text-sm">
           <thead>
             <tr className="text-left text-gray-500 border-b">
               <th className="py-2 pr-3">Business</th>

@@ -55,7 +55,7 @@ export default function ChurnDetection() {
   const filtered = filter === 'all' ? risks : risks.filter((r) => r.riskLevel === filter);
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y overflow-x-hidden-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Churn & inactivity</h2>
@@ -95,7 +95,7 @@ export default function ChurnDetection() {
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <table className="w-full text-left text-sm">
+            <table className="w-full min-w-[480px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                 <tr>
                   <th className="px-4 py-3">User</th>

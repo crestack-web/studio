@@ -291,7 +291,7 @@ export default function BusinessTimeline() {
             <div className="relative">
               <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
               
-              <div className="space-y-6">
+              <div className="min-w-0 space-y overflow-x-hidden-6">
                 {selectedBusiness.timeline.map((event, index) => (
                   <div key={index} className="relative pl-10">
                     <div className={`absolute left-2 w-4 h-4 rounded-full border-4 border-white ${

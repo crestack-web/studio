@@ -94,9 +94,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen min-w-0 overflow-x-hidden bg-slate-50">
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-3 py-2.5 sm:px-6">
+        <div className="mx-auto flex max-w-7xl min-w-0 items-center justify-between gap-3 px-3 py-2.5 sm:px-6">
           <div className="flex min-w-0 items-center gap-2">
             <img
               src="/sidebar-logo.png"
@@ -125,11 +125,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         {/* Horizontal nav — scrolls on mobile, does not consume vertical space */}
         <div className="border-t border-slate-100">
           <nav
-            className="mx-auto max-w-7xl overflow-x-auto px-2 py-2 sm:px-6"
-            style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+            className="mx-auto max-w-7xl overflow-x-auto overscroll-x-contain px-2 py-2 sm:px-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
             aria-label="Admin sections"
           >
-            <ul className="flex w-max min-w-full flex-nowrap gap-1.5 sm:gap-2">
+            <ul className="flex w-max max-w-none flex-nowrap gap-1.5 sm:gap-2">
               {TABS.map((tab) => {
                 const active = activeTab === tab.id;
                 return (
@@ -155,7 +155,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-6">{renderContent()}</main>
+      <main className="mx-auto max-w-7xl min-w-0 px-3 py-4 sm:px-6 sm:py-6">{renderContent()}</main>
     </div>
   );
 }

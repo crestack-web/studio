@@ -82,7 +82,7 @@ export default function AdminRevenue() {
   const m = data!.metrics;
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y overflow-x-hidden-6">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Revenue</h2>
@@ -95,20 +95,20 @@ export default function AdminRevenue() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
           <div className="text-xs font-semibold uppercase text-slate-500">Total revenue</div>
           <div className="mt-1 text-2xl font-bold text-emerald-700">{naira(m.totalRevenue)}</div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
           <div className="text-xs font-semibold uppercase text-slate-500">This month</div>
           <div className="mt-1 text-2xl font-bold">{naira(m.revenueThisMonth)}</div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
           <div className="text-xs font-semibold uppercase text-slate-500">Last 30 days</div>
           <div className="mt-1 text-2xl font-bold">{naira(m.revenue30d)}</div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
           <div className="text-xs font-semibold uppercase text-slate-500">Successful payments</div>
           <div className="mt-1 text-2xl font-bold">{m.successfulPayments.toLocaleString()}</div>
         </div>
@@ -116,7 +116,7 @@ export default function AdminRevenue() {
 
       <div>
         <h3 className="mb-3 font-semibold text-slate-900">Pricing plans</h3>
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid min-w-0 gap-3 md:grid-cols-3">
           {data!.plans.map((pl) => (
             <div
               key={pl.id}
@@ -148,11 +148,11 @@ export default function AdminRevenue() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
           <div className="text-xs font-semibold uppercase text-slate-500">Monthly billing revenue</div>
           <div className="mt-1 text-xl font-bold">{naira(m.byBilling?.monthly || 0)}</div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
           <div className="text-xs font-semibold uppercase text-slate-500">Yearly billing revenue</div>
           <div className="mt-1 text-xl font-bold">{naira(m.byBilling?.yearly || 0)}</div>
         </div>

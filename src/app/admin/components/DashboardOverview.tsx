@@ -74,10 +74,18 @@ function MetricCard({
   accent?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-      <div className={`mt-1 text-2xl font-bold tabular-nums ${accent || 'text-slate-900'}`}>{value}</div>
-      {sub ? <div className="mt-1 text-xs text-slate-500">{sub}</div> : null}
+    <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+      <div className="truncate text-[10px] font-semibold uppercase tracking-wide text-slate-500 sm:text-xs">
+        {label}
+      </div>
+      <div
+        className={`mt-1 break-all text-xl font-bold tabular-nums leading-tight sm:text-2xl ${accent || 'text-slate-900'}`}
+      >
+        {value}
+      </div>
+      {sub ? (
+        <div className="mt-1 line-clamp-2 text-[11px] leading-snug text-slate-500 sm:text-xs">{sub}</div>
+      ) : null}
     </div>
   );
 }
@@ -111,14 +119,14 @@ function BarList({ data, maxItems = 6 }: { data: Record<string, number>; maxItem
 function MiniSpark({ series }: { series: Insights['growthSeries'] }) {
   const max = Math.max(1, ...series.map((s) => s.newUsers + s.newBusinesses));
   return (
-    <div className="flex h-16 items-end gap-0.5">
+    <div className="flex h-16 min-w-0 max-w-full items-end gap-0.5 overflow-hidden">
       {series.map((s) => {
         const h = ((s.newUsers + s.newBusinesses) / max) * 100;
         return (
           <div
             key={s.date}
             title={`${s.date}: ${s.newUsers} users, ${s.newBusinesses} businesses`}
-            className="flex-1 rounded-t bg-violet-400/80 hover:bg-violet-600"
+            className="min-w-0 flex-1 rounded-t bg-violet-400/80 hover:bg-violet-600"
             style={{ height: `${Math.max(4, h)}%` }}
           />
         );
@@ -182,7 +190,7 @@ export default function DashboardOverview() {
   const m = data!.metrics;
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6 overflow-x-hidden">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Company growth</h2>
@@ -199,14 +207,14 @@ export default function DashboardOverview() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
         <MetricCard label="Users" value={fmt(m.totalUsers)} sub={`+${fmt(m.newUsersToday)} today · +${fmt(m.newUsersThisWeek)} / 7d`} accent="text-violet-700" />
         <MetricCard label="Businesses" value={fmt(m.totalBusinesses)} sub={`+${fmt(m.newBusinessesThisMonth)} this month`} accent="text-indigo-700" />
         <MetricCard label="Active (users)" value={fmt(m.activeUsers)} sub={`${fmt(m.suspendedUsers)} suspended`} />
         <MetricCard label="30d retention" value={`${m.retentionRate30}%`} sub={`${fmt(m.churnRisk)} churn-risk signals`} accent="text-emerald-700" />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
         <MetricCard label="Paid / plan signals" value={fmt(m.paidSubscribers)} sub={`${fmt(m.trialUsers)} trial · ${fmt(m.lifetimeUsers)} lifetime`} />
         <MetricCard label="Biz active 7d" value={fmt(m.activeBusinesses7Days)} sub={`${fmt(m.activeBusinesses30Days)} in 30 days`} />
         <MetricCard label="Sales recorded" value={fmt(m.totalSales)} sub={`${fmt(m.totalProducts)} products`} />
@@ -225,22 +233,22 @@ export default function DashboardOverview() {
             <span>{data!.growthSeries?.[data!.growthSeries.length - 1]?.date}</span>
           </div>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
           <h3 className="mb-3 font-semibold text-slate-900">Plans</h3>
           <BarList data={data!.planBreakdown} />
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
           <h3 className="mb-3 font-semibold text-slate-900">User status</h3>
           <BarList data={data!.statusBreakdown} />
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
           <h3 className="mb-3 font-semibold text-slate-900">Business categories</h3>
           <BarList data={data!.categoryBreakdown} />
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
           <h3 className="mb-3 font-semibold text-slate-900">Operations volume</h3>
           <ul className="space-y-2 text-sm text-slate-700">
             <li className="flex justify-between"><span>Expenses</span><span className="font-semibold tabular-nums">{fmt(m.totalExpenses)}</span></li>
@@ -253,10 +261,10 @@ export default function DashboardOverview() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
           <h3 className="mb-3 font-semibold text-slate-900">Recent users</h3>
-          <div className="max-h-80 overflow-auto">
-            <table className="w-full text-left text-sm">
+          <div className="max-h-80 overflow-x-auto overflow-y-auto">
+            <table className="w-full min-w-[480px] text-left text-sm">
               <thead className="sticky top-0 bg-white text-xs uppercase text-slate-500">
                 <tr>
                   <th className="py-2 pr-2">Identity</th>
@@ -282,10 +290,10 @@ export default function DashboardOverview() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
           <h3 className="mb-3 font-semibold text-slate-900">Recent businesses</h3>
-          <div className="max-h-80 overflow-auto">
-            <table className="w-full text-left text-sm">
+          <div className="max-h-80 overflow-x-auto overflow-y-auto">
+            <table className="w-full min-w-[480px] text-left text-sm">
               <thead className="sticky top-0 bg-white text-xs uppercase text-slate-500">
                 <tr>
                   <th className="py-2 pr-2">Business</th>

@@ -129,7 +129,7 @@ export default function SupportInbox() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y overflow-x-hidden-4">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Support inbox</h2>
@@ -158,8 +158,8 @@ export default function SupportInbox() {
       {error && <p className="text-sm text-red-600">{error}</p>}
       {loading && !tickets.length && <p className="text-sm text-slate-500">Loading…</p>}
 
-      <div className="grid gap-4 lg:grid-cols-5">
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:col-span-2">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-5">
+        <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:col-span-2">
           <ul className="max-h-[70vh] divide-y divide-slate-100 overflow-auto">
             {filtered.map((t) => (
               <li key={t.id}>
@@ -191,7 +191,7 @@ export default function SupportInbox() {
           </ul>
         </div>
 
-        <div className="flex max-h-[70vh] flex-col rounded-2xl border border-slate-200 bg-white shadow-sm lg:col-span-3">
+        <div className="flex max-h-[70vh] min-w-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm lg:col-span-3">
           {!selected ? (
             <div className="flex flex-1 items-center justify-center p-6 text-sm text-slate-500">
               Select a conversation to reply as a human agent

@@ -33,7 +33,7 @@ type Insights = {
 
 function Card({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
       <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</div>
       <div className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{value}</div>
       {sub ? <div className="mt-1 text-xs text-slate-500">{sub}</div> : null}
@@ -84,7 +84,7 @@ export default function AdminOperations() {
   const fmt = (n: number) => Number(n || 0).toLocaleString();
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y overflow-x-hidden-6">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Operations</h2>
@@ -97,7 +97,7 @@ export default function AdminOperations() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
         <Card label="Sales recorded" value={fmt(m.totalSales)} />
         <Card label="Products" value={fmt(m.totalProducts)} />
         <Card label="Expenses" value={fmt(m.totalExpenses)} />
@@ -113,7 +113,7 @@ export default function AdminOperations() {
         <Card label="Platform scale" value={`${fmt(m.totalUsers)} users`} sub={`${fmt(m.totalBusinesses)} businesses`} />
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
         <h3 className="mb-3 font-semibold text-slate-900">Recently updated businesses</h3>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[480px] text-left text-sm">
