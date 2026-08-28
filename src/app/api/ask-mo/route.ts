@@ -162,7 +162,6 @@ export async function POST(request: NextRequest) {
       language,
       conversationHistoryLength: conversationHistory.length,
       businessCategory,
-      businessId,
     });
 
     // Detect if this is a new conversation start — only when no history is provided
