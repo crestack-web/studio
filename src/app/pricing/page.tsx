@@ -23,6 +23,31 @@ export default function PricingPage() {
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'bank_transfer' | 'ussd'>('card');
   const [isPaying, setIsPaying] = useState(false);
 
+  // After Paystack redirect: verify and record revenue
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const reference = params.get('reference') || params.get('trxref');
+    if (!reference) return;
+    (async () => {
+      try {
+        await fetch('/api/payments/verify-subscription', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reference }),
+        });
+      } catch (e) {
+        console.error('Payment verify failed', e);
+      }
+      const url = new URL(window.location.href);
+      url.searchParams.delete('reference');
+      url.searchParams.delete('trxref');
+      url.searchParams.delete('paid');
+      window.history.replaceState({}, '', url.pathname + url.search);
+    })();
+  }, []);
+
+
   useEffect(() => {
     // Nigeria default; geo can be added later
   }, []);
@@ -98,25 +123,15 @@ export default function PricingPage() {
 
     setIsPaying(true);
     try {
-      const response = await fetch(
-        'https://initializepayment-6kxikgkcjq-uc.a.run.app',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: userEmail,
-            amount: price,
-            plan: selectedPlan.name,
-            planId: selectedPlan.id,
-            billing: mode,
-            metadata: {
-              plan: selectedPlan.name,
-              planId: selectedPlan.id,
-              billing: mode,
-            },
-          }),
-        }
-      );
+      const response = await fetch('/api/payments/initialize-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: userEmail,
+          planId: selectedPlan.id,
+          billing: mode,
+        }),
+      });
 
       const data = await response.json();
 

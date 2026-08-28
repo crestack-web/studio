@@ -5,6 +5,7 @@ import { sendSubscriptionReceiptEmail } from '@/services/email/subscription-emai
 import { sendSubscriptionRenewedEmail } from '@/services/email/subscription-lifecycle-emails';
 import { sendReferralConvertedToPaidEmail, sendReferralRewardEarnedEmail } from '@/services/email/referral-emails';
 import { createPostHogClient } from '@/lib/posthog-server';
+import { recordSubscriptionPayment } from '@/lib/payments/record-subscription-payment';
 
 const COMMISSION_RATE = 0.20; // 20% referral commission
 
@@ -41,13 +42,43 @@ export async function POST(request: NextRequest) {
 
     const transaction = verifyData.data;
     const metadata = transaction.metadata || {};
+
+    // Always record successful Paystack subscription payment in Supabase (idempotent)
+    try {
+      await recordSubscriptionPayment({
+        reference: String(reference),
+        amountKobo: Number(transaction.amount) || 0,
+        currency: String(transaction.currency || 'NGN'),
+        email: transaction.customer?.email || metadata.email || null,
+        userId: metadata.userId || null,
+        planId: metadata.planId || metadata.plan || 'starter',
+        planName: metadata.plan || null,
+        billing: metadata.billing || 'monthly',
+        paidAt: transaction.paid_at
+          ? new Date(
+              typeof transaction.paid_at === 'number'
+                ? transaction.paid_at * 1000
+                : transaction.paid_at
+            ).toISOString()
+          : new Date().toISOString(),
+      });
+    } catch (recErr: any) {
+      console.error('[verify-subscription] Supabase payment record failed:', recErr?.message);
+    }
+
     const plan = metadata.plan || 'starter';
     const billing = metadata.billing || 'monthly';
     const userId = metadata.userId || transaction.customer?.customer_code;
 
     if (!userId) {
-      console.error('❌ [verify-subscription] No userId in transaction metadata');
-      return NextResponse.json({ error: 'Invalid payment - no user ID' }, { status: 400 });
+      console.warn('[verify-subscription] No userId in metadata — payment still recorded in Supabase');
+      return NextResponse.json({
+        success: true,
+        message: 'Payment verified and recorded',
+        plan: metadata.planId || metadata.plan || 'starter',
+        billing: metadata.billing || 'monthly',
+        amount: (Number(transaction.amount) || 0) / 100,
+      });
     }
 
     console.log('✅ [verify-subscription] Payment verified, updating user plan:', { userId, plan, billing });

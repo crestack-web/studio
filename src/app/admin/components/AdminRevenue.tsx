@@ -3,25 +3,45 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { adminAuthHeaders } from '@/lib/admin/client-auth';
 
-type Insights = {
-  generatedAt?: string;
+type RevenuePayload = {
+  generatedAt: string;
+  plans: Array<{
+    id: string;
+    name: string;
+    tagline: string;
+    monthlyPrice: number;
+    yearlyPrice: number;
+    monthlyPriceLabel: string;
+    yearlyPriceLabel: string;
+    popular?: boolean;
+    paymentsCount: number;
+    revenue: number;
+  }>;
   metrics: {
-    paidSubscribers: number;
-    trialUsers: number;
-    lifetimeUsers: number;
-    totalSales: number;
-    totalUsers: number;
-    newUsersThisWeek: number;
-    newBusinessesThisMonth: number;
-    retentionRate30: number;
-    churnRisk: number;
+    totalRevenue: number;
+    revenueThisMonth: number;
+    revenue30d: number;
+    successfulPayments: number;
+    byBilling: Record<string, number>;
   };
-  planBreakdown: Record<string, number>;
-  growthSeries: Array<{ date: string; newUsers: number; newBusinesses: number }>;
+  recentPayments: Array<{
+    id: string;
+    reference: string | null;
+    amount: number;
+    currency: string;
+    planName: string;
+    billing: string;
+    email: string | null;
+    createdAt: string;
+  }>;
 };
 
+function naira(n: number) {
+  return `₦${Number(n || 0).toLocaleString('en-NG')}`;
+}
+
 export default function AdminRevenue() {
-  const [data, setData] = useState<Insights | null>(null);
+  const [data, setData] = useState<RevenuePayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -30,12 +50,12 @@ export default function AdminRevenue() {
     setError(null);
     try {
       const headers = await adminAuthHeaders();
-      const res = await fetch('/api/admin/insights', { headers, cache: 'no-store' });
+      const res = await fetch('/api/admin/revenue', { headers, cache: 'no-store' });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed');
       setData(json);
     } catch (e: any) {
-      setError(e?.message || 'Failed');
+      setError(e?.message || 'Failed to load revenue');
     } finally {
       setLoading(false);
     }
@@ -45,7 +65,9 @@ export default function AdminRevenue() {
     load();
   }, [load]);
 
-  if (loading && !data) return <p className="text-sm text-slate-500">Loading revenue signals…</p>;
+  if (loading && !data) {
+    return <p className="text-sm text-slate-500">Loading subscription revenue…</p>;
+  }
   if (error && !data) {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -58,18 +80,14 @@ export default function AdminRevenue() {
   }
 
   const m = data!.metrics;
-  const plans = Object.entries(data!.planBreakdown || {}).sort((a, b) => b[1] - a[1]);
-  const maxPlan = Math.max(1, ...plans.map(([, v]) => v));
-  const weekUsers = (data!.growthSeries || []).slice(-7).reduce((s, d) => s + d.newUsers, 0);
-  const weekBiz = (data!.growthSeries || []).slice(-7).reduce((s, d) => s + d.newBusinesses, 0);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Revenue & monetization</h2>
+          <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Revenue</h2>
           <p className="text-sm text-slate-500">
-            Plan mix and growth signals from Supabase (not payment processor ledger)
+            Successful Paystack subscription payments · plans from pricing page (Start / Control / Scale)
           </p>
         </div>
         <button type="button" onClick={load} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold">
@@ -79,73 +97,103 @@ export default function AdminRevenue() {
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-semibold uppercase text-slate-500">Paid signals</div>
-          <div className="mt-1 text-2xl font-bold text-emerald-700">{m.paidSubscribers.toLocaleString()}</div>
+          <div className="text-xs font-semibold uppercase text-slate-500">Total revenue</div>
+          <div className="mt-1 text-2xl font-bold text-emerald-700">{naira(m.totalRevenue)}</div>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-semibold uppercase text-slate-500">Trial</div>
-          <div className="mt-1 text-2xl font-bold text-violet-700">{m.trialUsers.toLocaleString()}</div>
+          <div className="text-xs font-semibold uppercase text-slate-500">This month</div>
+          <div className="mt-1 text-2xl font-bold">{naira(m.revenueThisMonth)}</div>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-semibold uppercase text-slate-500">Lifetime</div>
-          <div className="mt-1 text-2xl font-bold">{m.lifetimeUsers.toLocaleString()}</div>
+          <div className="text-xs font-semibold uppercase text-slate-500">Last 30 days</div>
+          <div className="mt-1 text-2xl font-bold">{naira(m.revenue30d)}</div>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-semibold uppercase text-slate-500">Sales volume (rows)</div>
-          <div className="mt-1 text-2xl font-bold">{m.totalSales.toLocaleString()}</div>
+          <div className="text-xs font-semibold uppercase text-slate-500">Successful payments</div>
+          <div className="mt-1 text-2xl font-bold">{m.successfulPayments.toLocaleString()}</div>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h3 className="mb-3 font-semibold">Plan breakdown</h3>
-          <ul className="space-y-2">
-            {plans.map(([k, v]) => (
-              <li key={k}>
-                <div className="mb-0.5 flex justify-between text-xs">
-                  <span className="font-medium capitalize">{k || 'unknown'}</span>
-                  <span className="tabular-nums text-slate-500">{v.toLocaleString()}</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500"
-                    style={{ width: `${Math.max(4, (v / maxPlan) * 100)}%` }}
-                  />
-                </div>
-              </li>
-            ))}
-            {!plans.length && <p className="text-sm text-slate-500">No plan data</p>}
-          </ul>
+      <div>
+        <h3 className="mb-3 font-semibold text-slate-900">Pricing plans</h3>
+        <div className="grid gap-3 md:grid-cols-3">
+          {data!.plans.map((pl) => (
+            <div
+              key={pl.id}
+              className={`rounded-2xl border bg-white p-4 shadow-sm ${pl.popular ? 'border-violet-300 ring-1 ring-violet-200' : 'border-slate-200'}`}
+            >
+              {pl.popular && (
+                <span className="mb-2 inline-block rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold uppercase text-violet-800">
+                  Popular
+                </span>
+              )}
+              <div className="text-lg font-bold text-slate-900">{pl.name}</div>
+              <p className="mt-1 text-xs text-slate-500">{pl.tagline}</p>
+              <div className="mt-3 text-2xl font-bold text-slate-900">
+                {pl.monthlyPriceLabel}
+                <span className="text-sm font-medium text-slate-500">/mo</span>
+              </div>
+              <div className="text-xs text-slate-500">{pl.yearlyPriceLabel}/yr</div>
+              <div className="mt-4 flex justify-between border-t border-slate-100 pt-3 text-sm">
+                <span className="text-slate-600">Payments</span>
+                <span className="font-semibold tabular-nums">{pl.paymentsCount}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600">Revenue</span>
+                <span className="font-semibold tabular-nums text-emerald-700">{naira(pl.revenue)}</span>
+              </div>
+            </div>
+          ))}
         </div>
+      </div>
 
+      <div className="grid gap-3 sm:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <h3 className="mb-3 font-semibold">Health of growth</h3>
-          <ul className="space-y-3 text-sm">
-            <li className="flex justify-between border-b border-slate-100 pb-2">
-              <span className="text-slate-600">New users (7d series)</span>
-              <span className="font-semibold tabular-nums">{weekUsers.toLocaleString()}</span>
-            </li>
-            <li className="flex justify-between border-b border-slate-100 pb-2">
-              <span className="text-slate-600">New businesses (7d series)</span>
-              <span className="font-semibold tabular-nums">{weekBiz.toLocaleString()}</span>
-            </li>
-            <li className="flex justify-between border-b border-slate-100 pb-2">
-              <span className="text-slate-600">New businesses this month</span>
-              <span className="font-semibold tabular-nums">{m.newBusinessesThisMonth.toLocaleString()}</span>
-            </li>
-            <li className="flex justify-between border-b border-slate-100 pb-2">
-              <span className="text-slate-600">30d retention</span>
-              <span className="font-semibold tabular-nums">{m.retentionRate30}%</span>
-            </li>
-            <li className="flex justify-between">
-              <span className="text-slate-600">Churn-risk signals</span>
-              <span className="font-semibold tabular-nums text-amber-700">{m.churnRisk.toLocaleString()}</span>
-            </li>
-          </ul>
-          <p className="mt-4 text-xs text-slate-500">
-            Naira revenue from Paystack is not aggregated here yet — this view tracks subscription plan mix and product
-            sales activity in Supabase.
-          </p>
+          <div className="text-xs font-semibold uppercase text-slate-500">Monthly billing revenue</div>
+          <div className="mt-1 text-xl font-bold">{naira(m.byBilling?.monthly || 0)}</div>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="text-xs font-semibold uppercase text-slate-500">Yearly billing revenue</div>
+          <div className="mt-1 text-xl font-bold">{naira(m.byBilling?.yearly || 0)}</div>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 px-4 py-3 font-semibold">Recent successful payments</div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+              <tr>
+                <th className="px-4 py-2">Date</th>
+                <th className="px-4 py-2">Plan</th>
+                <th className="px-4 py-2">Billing</th>
+                <th className="px-4 py-2">Amount</th>
+                <th className="px-4 py-2">Customer</th>
+                <th className="px-4 py-2">Reference</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data!.recentPayments.map((p) => (
+                <tr key={p.id} className="border-t border-slate-100">
+                  <td className="px-4 py-2 text-xs text-slate-500">
+                    {p.createdAt ? new Date(p.createdAt).toLocaleString() : '—'}
+                  </td>
+                  <td className="px-4 py-2 font-medium">{p.planName}</td>
+                  <td className="px-4 py-2 capitalize">{p.billing}</td>
+                  <td className="px-4 py-2 font-semibold tabular-nums text-emerald-700">{naira(p.amount)}</td>
+                  <td className="px-4 py-2 text-xs text-slate-600">{p.email || '—'}</td>
+                  <td className="px-4 py-2 font-mono text-[11px] text-slate-500">{p.reference || '—'}</td>
+                </tr>
+              ))}
+              {!data!.recentPayments.length && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                    No successful subscription payments recorded yet. Payments verify via Paystack and land here.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
