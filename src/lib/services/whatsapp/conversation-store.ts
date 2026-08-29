@@ -1,6 +1,9 @@
 /**
  * WhatsApp conversation + message persistence + idempotency (server-only).
- * Business resolution is always from whatsapp_connections (sender mapping).
+ *
+ * Connection resolution is always from whatsapp_connections (provider + sender).
+ * connection_type, agent_profile, and business_id come ONLY from the DB row —
+ * never from Infobip payload, client request, or message text.
  */
 import 'server-only';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
@@ -8,6 +11,13 @@ import { normalizePhone } from '@/lib/infobip/client';
 
 export type AgentStatus = 'ai_active' | 'human_active';
 
+export type ConnectionType = 'merchant' | 'platform';
+export type AgentProfile = 'merchant_sales' | 'busmo_acquisition';
+
+/**
+ * Merchant-facing connection shape used by existing webhook / credits paths.
+ * business_id is always a non-null string when returned from resolveBusinessBySender.
+ */
 export type WhatsappConnection = {
   id: string;
   business_id: string;
@@ -15,40 +25,168 @@ export type WhatsappConnection = {
   whatsapp_sender: string;
   status: string;
   metadata?: Record<string, unknown> | null;
+  connection_type?: ConnectionType;
+  agent_profile?: AgentProfile;
 };
 
-export async function resolveBusinessBySender(
-  sender: string,
-  provider = 'infobip'
-): Promise<WhatsappConnection | null> {
-  const phone = normalizePhone(sender);
-  if (!phone) return null;
+/** Trusted resolution result for future multi-profile routing (Phase 4+). */
+export type ResolvedWhatsappConnection = {
+  connection: {
+    id: string;
+    provider: string;
+    whatsapp_sender: string;
+    status: string;
+    metadata: Record<string, unknown> | null;
+    connection_type: ConnectionType;
+    agent_profile: AgentProfile;
+    /** Raw DB value; may be null for platform connections. */
+    business_id: string | null;
+  };
+  connectionType: ConnectionType;
+  agentProfile: AgentProfile;
+  /** Null for platform connections; never invented. */
+  businessId: string | null;
+};
+
+const CONNECTION_SELECT =
+  'id, business_id, provider, whatsapp_sender, status, metadata, connection_type, agent_profile';
+
+function normalizeConnectionType(raw: unknown): ConnectionType {
+  return String(raw || '').toLowerCase() === 'platform' ? 'platform' : 'merchant';
+}
+
+function normalizeAgentProfile(raw: unknown, connectionType: ConnectionType): AgentProfile {
+  const v = String(raw || '').toLowerCase();
+  if (v === 'busmo_acquisition') return 'busmo_acquisition';
+  if (v === 'merchant_sales') return 'merchant_sales';
+  // Safe defaults aligned with Phase 2 migration defaults
+  return connectionType === 'platform' ? 'busmo_acquisition' : 'merchant_sales';
+}
+
+/**
+ * Map a DB row into a trusted ResolvedWhatsappConnection.
+ * Exported for unit tests — does not accept caller-supplied profile/type overrides.
+ */
+export function mapConnectionRow(row: Record<string, unknown> | null | undefined): ResolvedWhatsappConnection | null {
+  if (!row || !row.id) return null;
+
+  const connectionType = normalizeConnectionType(row.connection_type);
+  const agentProfile = normalizeAgentProfile(row.agent_profile, connectionType);
+
+  let businessId: string | null =
+    row.business_id != null && String(row.business_id).trim() !== ''
+      ? String(row.business_id)
+      : null;
+
+  // Enforce ownership invariant in application layer (DB CHECK is source of truth too)
+  if (connectionType === 'platform') {
+    businessId = null;
+  } else if (connectionType === 'merchant' && !businessId) {
+    // Invalid merchant row — do not invent a business
+    return null;
+  }
+
+  return {
+    connection: {
+      id: String(row.id),
+      provider: String(row.provider || 'infobip'),
+      whatsapp_sender: String(row.whatsapp_sender || ''),
+      status: String(row.status || ''),
+      metadata: (row.metadata as Record<string, unknown>) || null,
+      connection_type: connectionType,
+      agent_profile: agentProfile,
+      business_id: businessId,
+    },
+    connectionType,
+    agentProfile,
+    businessId,
+  };
+}
+
+async function fetchActiveConnectionRow(
+  phone: string,
+  provider: string
+): Promise<Record<string, unknown> | null> {
   const sb = getSupabaseAdmin();
 
   const { data: exact } = await sb
     .from('whatsapp_connections')
-    .select('id, business_id, provider, whatsapp_sender, status, metadata')
+    .select(CONNECTION_SELECT)
     .eq('provider', provider)
     .eq('status', 'active')
     .eq('whatsapp_sender', phone)
     .maybeSingle();
 
-  if (exact) return exact as WhatsappConnection;
+  if (exact) return exact as Record<string, unknown>;
 
+  // Fallback: normalize stored senders that may differ in formatting
   const { data: rows } = await sb
     .from('whatsapp_connections')
-    .select('id, business_id, provider, whatsapp_sender, status, metadata')
+    .select(CONNECTION_SELECT)
     .eq('provider', provider)
     .eq('status', 'active');
 
   const match =
-    (rows || []).find((r: any) => normalizePhone(r.whatsapp_sender) === phone) || null;
-  return match as WhatsappConnection | null;
+    (rows || []).find(
+      (r: any) => normalizePhone(r.whatsapp_sender) === phone
+    ) || null;
+
+  return match as Record<string, unknown> | null;
 }
 
+/**
+ * Trusted sender → connection → profile resolution.
+ *
+ * Only active rows for the given provider are considered.
+ * connectionType / agentProfile / businessId come solely from the DB row.
+ * Unknown senders return null (never auto-classified as platform).
+ */
+export async function resolveConnectionBySender(
+  sender: string,
+  provider = 'infobip'
+): Promise<ResolvedWhatsappConnection | null> {
+  const phone = normalizePhone(sender);
+  if (!phone) return null;
+
+  const row = await fetchActiveConnectionRow(phone, provider);
+  return mapConnectionRow(row);
+}
+
+/**
+ * Merchant-compatible resolver used by the existing Infobip webhook.
+ *
+ * Returns the same shape as before for active merchant connections with a business_id.
+ * Platform connections intentionally resolve to null here so the current webhook
+ * path is unchanged until Phase 4 wires resolveConnectionBySender.
+ */
+export async function resolveBusinessBySender(
+  sender: string,
+  provider = 'infobip'
+): Promise<WhatsappConnection | null> {
+  const resolved = await resolveConnectionBySender(sender, provider);
+  if (!resolved) return null;
+
+  // Preserve pre–Phase-3 merchant-only contract for existing callers
+  if (resolved.connectionType !== 'merchant' || !resolved.businessId) {
+    return null;
+  }
+
+  return {
+    id: resolved.connection.id,
+    business_id: resolved.businessId,
+    provider: resolved.connection.provider,
+    whatsapp_sender: resolved.connection.whatsapp_sender,
+    status: resolved.connection.status,
+    metadata: resolved.connection.metadata,
+    connection_type: resolved.connectionType,
+    agent_profile: resolved.agentProfile,
+  };
+}
 
 /** Global pause: metadata.mo_enabled === false means merchant paused MO. Default true. */
-export function isMoGloballyEnabled(connection: WhatsappConnection): boolean {
+export function isMoGloballyEnabled(
+  connection: WhatsappConnection | { metadata?: Record<string, unknown> | null }
+): boolean {
   const meta = (connection.metadata || {}) as Record<string, unknown>;
   return meta.mo_enabled !== false;
 }
@@ -123,7 +261,7 @@ export async function getConversationAgentStatus(
     .select('agent_status')
     .eq('id', conversationId)
     .maybeSingle();
-  return ((data?.agent_status as AgentStatus) || 'ai_active');
+  return (data?.agent_status as AgentStatus) || 'ai_active';
 }
 
 /**
@@ -206,7 +344,6 @@ export async function insertOutboundMessage(params: {
       clientMessageId: params.clientMessageId || null,
     },
   };
-  // Omit provider_message_id so PostgREST treats it as SQL NULL (avoid explicit null quirks)
 
   const { error } = await sb.from('whatsapp_messages').insert(row);
 
