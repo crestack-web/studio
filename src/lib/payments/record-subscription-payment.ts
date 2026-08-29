@@ -6,6 +6,7 @@ import { getPlanById, planDisplayName } from '@/lib/pricing';
 /**
  * Idempotent record of a successful Paystack subscription payment into Supabase.
  * Amount stored in Naira (Paystack amount is kobo).
+ * Also unlocks the user account: plan + subscription_status=active + end dates.
  */
 export async function recordSubscriptionPayment(params: {
   reference: string;
@@ -17,7 +18,7 @@ export async function recordSubscriptionPayment(params: {
   planName?: string | null;
   billing?: string | null;
   paidAt?: string | null;
-}): Promise<{ ok: boolean; id?: string; duplicate?: boolean; error?: string }> {
+}): Promise<{ ok: boolean; id?: string; duplicate?: boolean; error?: string; userId?: string | null }> {
   const sb = getSupabaseAdmin();
   const reference = String(params.reference || '').trim();
   if (!reference) return { ok: false, error: 'reference required' };
@@ -29,18 +30,24 @@ export async function recordSubscriptionPayment(params: {
     .maybeSingle();
 
   if (existing) {
+    await unlockUserSubscription(sb, {
+      userId: params.userId,
+      email: params.email,
+      planId: params.planId,
+      billing: params.billing,
+      paidAt: params.paidAt,
+    });
     return { ok: true, id: (existing as any).id, duplicate: true };
   }
 
   const plan = getPlanById(params.planId || 'starter');
   const amountNaira = Number(params.amountKobo || 0) / 100;
   const id = randomUUID();
+  const billing =
+    String(params.billing || 'monthly').toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
 
   let userId = params.userId || null;
-  if (userId && !String(userId).includes('-')) {
-    userId = null;
-  }
-  if (!userId && params.email) {
+  if ((!userId || !/^[0-9a-f-]{36}$/i.test(String(userId))) && params.email) {
     const { data: u } = await sb
       .from('users')
       .select('id')
@@ -51,8 +58,12 @@ export async function recordSubscriptionPayment(params: {
 
   let businessId: string | null = null;
   if (userId) {
-    const { data: u } = await sb.from('users').select('business_id').eq('id', userId).maybeSingle();
-    businessId = (u as any)?.business_id || null;
+    const { data: u } = await sb
+      .from('users')
+      .select('business_id, businessId')
+      .eq('id', userId)
+      .maybeSingle();
+    businessId = (u as any)?.business_id || (u as any)?.businessId || null;
   }
 
   const { error } = await sb.from('payment_transactions').insert({
@@ -68,7 +79,7 @@ export async function recordSubscriptionPayment(params: {
     metadata: {
       planId: plan.id,
       planName: params.planName || planDisplayName(params.planId || plan.id),
-      billing: params.billing || 'monthly',
+      billing,
       email: params.email || null,
       paidAt: params.paidAt || new Date().toISOString(),
       amountKobo: params.amountKobo,
@@ -78,21 +89,104 @@ export async function recordSubscriptionPayment(params: {
 
   if (error) {
     if (String(error.message || '').includes('duplicate') || error.code === '23505') {
-      return { ok: true, duplicate: true };
+      await unlockUserSubscription(sb, {
+        userId,
+        email: params.email,
+        planId: plan.id,
+        billing,
+        paidAt: params.paidAt,
+      });
+      return { ok: true, duplicate: true, userId };
     }
     console.error('[recordSubscriptionPayment]', error.message);
     return { ok: false, error: error.message };
   }
 
+  await unlockUserSubscription(sb, {
+    userId,
+    email: params.email,
+    planId: plan.id,
+    billing,
+    paidAt: params.paidAt,
+  });
+
+  return { ok: true, id, userId };
+}
+
+async function unlockUserSubscription(
+  sb: ReturnType<typeof getSupabaseAdmin>,
+  opts: {
+    userId?: string | null;
+    email?: string | null;
+    planId?: string | null;
+    billing?: string | null;
+    paidAt?: string | null;
+  }
+) {
+  const plan = getPlanById(opts.planId || 'starter');
+  const billing =
+    String(opts.billing || 'monthly').toLowerCase() === 'yearly' ? 'yearly' : 'monthly';
+
+  const end = new Date(opts.paidAt ? new Date(opts.paidAt) : new Date());
+  if (billing === 'yearly') {
+    end.setFullYear(end.getFullYear() + 1);
+  } else {
+    end.setDate(end.getDate() + 30);
+  }
+  const endIso = end.toISOString();
+  const nowIso = new Date().toISOString();
+
+  const patch: Record<string, unknown> = {
+    plan: plan.id,
+    subscription_status: 'active',
+    subscriptionStatus: 'active',
+    subscription_end_date: endIso,
+    subscriptionEndDate: endIso,
+    subscription_start_date: nowIso,
+    subscriptionStartDate: nowIso,
+    trial_end_date: nowIso,
+    trialEndDate: nowIso,
+    updated_at: nowIso,
+    updatedAt: nowIso,
+  };
+
+  let userId = opts.userId || null;
   if (userId) {
-    await sb
-      .from('users')
-      .update({
-        plan: plan.id,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', userId);
+    const { error } = await sb.from('users').update(patch).eq('id', userId);
+    if (error) {
+      console.error('[unlockUserSubscription] by id', error.message);
+    } else {
+      try {
+        const { data: u } = await sb
+          .from('users')
+          .select('business_id, businessId')
+          .eq('id', userId)
+          .maybeSingle();
+        const bid = (u as any)?.business_id || (u as any)?.businessId;
+        if (bid) {
+          await sb
+            .from('businesses')
+            .update({
+              plan: plan.id,
+              subscription_status: 'active',
+              updated_at: nowIso,
+            })
+            .eq('id', bid);
+        }
+      } catch (e: any) {
+        console.warn('[unlockUserSubscription] business update skipped', e?.message);
+      }
+      return;
+    }
   }
 
-  return { ok: true, id };
+  if (opts.email) {
+    const { error } = await sb
+      .from('users')
+      .update(patch)
+      .eq('email', opts.email.toLowerCase());
+    if (error) {
+      console.error('[unlockUserSubscription] by email', error.message);
+    }
+  }
 }
