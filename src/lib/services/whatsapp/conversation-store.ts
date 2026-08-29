@@ -4,6 +4,9 @@
  * Connection resolution is always from whatsapp_connections (provider + sender).
  * connection_type, agent_profile, and business_id come ONLY from the DB row —
  * never from Infobip payload, client request, or message text.
+ *
+ * Phase 5A: platform conversations/messages may have business_id NULL and are
+ * scoped by connection_id → conversation_id (never by phone alone).
  */
 import 'server-only';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
@@ -29,7 +32,7 @@ export type WhatsappConnection = {
   agent_profile?: AgentProfile;
 };
 
-/** Trusted resolution result for future multi-profile routing (Phase 4+). */
+/** Trusted resolution result for multi-profile routing. */
 export type ResolvedWhatsappConnection = {
   connection: {
     id: string;
@@ -48,6 +51,20 @@ export type ResolvedWhatsappConnection = {
   businessId: string | null;
 };
 
+export type GetOrCreateConversationParams = {
+  /** Required. Platform and merchant conversations attach to a connection. */
+  connectionId: string;
+  /**
+   * Merchant: non-null business id matching the connection.
+   * Platform: must be null.
+   */
+  businessId: string | null;
+  customerPhone: string;
+  provider?: string;
+  /** From resolveConnectionBySender — never from client payload. */
+  connectionType: ConnectionType;
+};
+
 const CONNECTION_SELECT =
   'id, business_id, provider, whatsapp_sender, status, metadata, connection_type, agent_profile';
 
@@ -59,8 +76,33 @@ function normalizeAgentProfile(raw: unknown, connectionType: ConnectionType): Ag
   const v = String(raw || '').toLowerCase();
   if (v === 'busmo_acquisition') return 'busmo_acquisition';
   if (v === 'merchant_sales') return 'merchant_sales';
-  // Safe defaults aligned with Phase 2 migration defaults
   return connectionType === 'platform' ? 'busmo_acquisition' : 'merchant_sales';
+}
+
+/**
+ * Validate conversation ownership invariants.
+ * Platform must never receive a merchant business_id; merchant must never be null.
+ */
+export function assertConversationOwnership(params: {
+  connectionType: ConnectionType;
+  connectionBusinessId: string | null;
+  businessId: string | null;
+}): void {
+  if (params.connectionType === 'platform') {
+    if (params.businessId != null) {
+      throw new Error('platform_conversation_must_have_null_business_id');
+    }
+    return;
+  }
+  if (!params.businessId) {
+    throw new Error('merchant_conversation_requires_business_id');
+  }
+  if (
+    params.connectionBusinessId &&
+    params.businessId !== params.connectionBusinessId
+  ) {
+    throw new Error('merchant_business_id_mismatch');
+  }
 }
 
 /**
@@ -78,11 +120,9 @@ export function mapConnectionRow(row: Record<string, unknown> | null | undefined
       ? String(row.business_id)
       : null;
 
-  // Enforce ownership invariant in application layer (DB CHECK is source of truth too)
   if (connectionType === 'platform') {
     businessId = null;
   } else if (connectionType === 'merchant' && !businessId) {
-    // Invalid merchant row — do not invent a business
     return null;
   }
 
@@ -119,7 +159,6 @@ async function fetchActiveConnectionRow(
 
   if (exact) return exact as Record<string, unknown>;
 
-  // Fallback: normalize stored senders that may differ in formatting
   const { data: rows } = await sb
     .from('whatsapp_connections')
     .select(CONNECTION_SELECT)
@@ -136,9 +175,6 @@ async function fetchActiveConnectionRow(
 
 /**
  * Trusted sender → connection → profile resolution.
- *
- * Only active rows for the given provider are considered.
- * connectionType / agentProfile / businessId come solely from the DB row.
  * Unknown senders return null (never auto-classified as platform).
  */
 export async function resolveConnectionBySender(
@@ -153,11 +189,7 @@ export async function resolveConnectionBySender(
 }
 
 /**
- * Merchant-compatible resolver used by the existing Infobip webhook.
- *
- * Returns the same shape as before for active merchant connections with a business_id.
- * Platform connections intentionally resolve to null here so the current webhook
- * path is unchanged until Phase 4 wires resolveConnectionBySender.
+ * Merchant-compatible resolver. Platform connections resolve to null here.
  */
 export async function resolveBusinessBySender(
   sender: string,
@@ -166,7 +198,6 @@ export async function resolveBusinessBySender(
   const resolved = await resolveConnectionBySender(sender, provider);
   if (!resolved) return null;
 
-  // Preserve pre–Phase-3 merchant-only contract for existing callers
   if (resolved.connectionType !== 'merchant' || !resolved.businessId) {
     return null;
   }
@@ -183,7 +214,7 @@ export async function resolveBusinessBySender(
   };
 }
 
-/** Global pause: metadata.mo_enabled === false means merchant paused MO. Default true. */
+/** Global pause: metadata.mo_enabled === false means MO paused. Default true. */
 export function isMoGloballyEnabled(
   connection: WhatsappConnection | { metadata?: Record<string, unknown> | null }
 ): boolean {
@@ -191,24 +222,103 @@ export function isMoGloballyEnabled(
   return meta.mo_enabled !== false;
 }
 
-export async function getOrCreateConversation(params: {
-  businessId: string;
-  customerPhone: string;
-  provider?: string;
-}): Promise<{ id: string; agent_status: AgentStatus }> {
+/**
+ * Get or create a conversation for merchant or platform.
+ *
+ * Merchant: uniqueness (business_id, customer_phone, provider); connection_id set.
+ * Platform: uniqueness (connection_id, customer_phone, provider); business_id NULL.
+ */
+export async function getOrCreateConversation(
+  params: GetOrCreateConversationParams
+): Promise<{ id: string; agent_status: AgentStatus }> {
   const sb = getSupabaseAdmin();
   const provider = params.provider || 'infobip';
   const customerPhone = normalizePhone(params.customerPhone);
+  const connectionId = String(params.connectionId || '').trim();
+  if (!connectionId) {
+    throw new Error('connection_id_required');
+  }
+
+  assertConversationOwnership({
+    connectionType: params.connectionType,
+    connectionBusinessId:
+      params.connectionType === 'merchant' ? params.businessId : null,
+    businessId: params.businessId,
+  });
+
+  // ── Platform path ──────────────────────────────────────────────────────────
+  if (params.connectionType === 'platform') {
+    const { data: existing } = await sb
+      .from('whatsapp_conversations')
+      .select('id, agent_status')
+      .eq('connection_id', connectionId)
+      .eq('customer_phone', customerPhone)
+      .eq('provider', provider)
+      .maybeSingle();
+
+    if (existing) {
+      return {
+        id: existing.id,
+        agent_status: (existing.agent_status as AgentStatus) || 'ai_active',
+      };
+    }
+
+    const id = crypto.randomUUID();
+    const { data, error } = await sb
+      .from('whatsapp_conversations')
+      .insert({
+        id,
+        business_id: null,
+        connection_id: connectionId,
+        customer_phone: customerPhone,
+        provider,
+        agent_status: 'ai_active',
+        last_message_at: new Date().toISOString(),
+      })
+      .select('id, agent_status')
+      .single();
+
+    if (error) {
+      const { data: again } = await sb
+        .from('whatsapp_conversations')
+        .select('id, agent_status')
+        .eq('connection_id', connectionId)
+        .eq('customer_phone', customerPhone)
+        .eq('provider', provider)
+        .maybeSingle();
+      if (again) {
+        return {
+          id: again.id,
+          agent_status: (again.agent_status as AgentStatus) || 'ai_active',
+        };
+      }
+      throw error;
+    }
+
+    return {
+      id: data.id,
+      agent_status: (data.agent_status as AgentStatus) || 'ai_active',
+    };
+  }
+
+  // ── Merchant path ──────────────────────────────────────────────────────────
+  const businessId = params.businessId as string;
 
   const { data: existing } = await sb
     .from('whatsapp_conversations')
     .select('id, agent_status')
-    .eq('business_id', params.businessId)
+    .eq('business_id', businessId)
     .eq('customer_phone', customerPhone)
     .eq('provider', provider)
     .maybeSingle();
 
   if (existing) {
+    await sb
+      .from('whatsapp_conversations')
+      .update({ connection_id: connectionId })
+      .eq('id', existing.id)
+      .is('connection_id', null);
+
     return {
       id: existing.id,
       agent_status: (existing.agent_status as AgentStatus) || 'ai_active',
@@ -220,7 +330,8 @@ export async function getOrCreateConversation(params: {
     .from('whatsapp_conversations')
     .insert({
       id,
-      business_id: params.businessId,
+      business_id: businessId,
+      connection_id: connectionId,
       customer_phone: customerPhone,
       provider,
       agent_status: 'ai_active',
@@ -233,7 +344,7 @@ export async function getOrCreateConversation(params: {
     const { data: again } = await sb
       .from('whatsapp_conversations')
       .select('id, agent_status')
-      .eq('business_id', params.businessId)
+      .eq('business_id', businessId)
       .eq('customer_phone', customerPhone)
       .eq('provider', provider)
       .maybeSingle();
@@ -266,11 +377,12 @@ export async function getConversationAgentStatus(
 
 /**
  * Claim inbound via unique (provider, provider_message_id).
- * duplicate:true → caller MUST NOT run MO.
+ * duplicate:true → caller MUST NOT run MO / stub twice.
+ * businessId may be null for platform messages (migration 0011).
  */
 export async function claimInboundMessage(params: {
   conversationId: string;
-  businessId: string;
+  businessId: string | null;
   providerMessageId: string;
   provider?: string;
   messageType?: string;
@@ -319,7 +431,7 @@ export async function claimInboundMessage(params: {
 
 export async function insertOutboundMessage(params: {
   conversationId: string;
-  businessId: string;
+  businessId: string | null;
   provider?: string;
   clientMessageId?: string;
   messageText: string;
@@ -399,19 +511,30 @@ export async function updateMessageStatus(
   await sb.from('whatsapp_messages').update(patch).eq('id', messageId);
 }
 
+/**
+ * History for a single conversation.
+ * Always filtered by conversation_id.
+ * When businessId is provided (merchant), also filters business_id for isolation.
+ * Never queries by customer_phone alone — prevents cross-connection leakage.
+ */
 export async function getRecentMessages(
   conversationId: string,
-  businessId: string,
+  businessId: string | null,
   limit = 12
 ): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
   const sb = getSupabaseAdmin();
-  const { data } = await sb
+  let q = sb
     .from('whatsapp_messages')
     .select('direction, message_text, created_at')
     .eq('conversation_id', conversationId)
-    .eq('business_id', businessId)
     .order('created_at', { ascending: false })
     .limit(limit);
+
+  if (businessId) {
+    q = q.eq('business_id', businessId);
+  }
+
+  const { data } = await q;
 
   const rows = (data || []).reverse();
   return rows
