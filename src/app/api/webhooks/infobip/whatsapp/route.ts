@@ -3,12 +3,15 @@
  * POST /api/webhooks/infobip/whatsapp
  *
  * Idempotency: unique claim insert on (provider, provider_message_id) is the source of truth.
- * Business isolation: business_id only from whatsapp_connections.sender mapping.
+ * Connection isolation: connection_type / agent_profile / business_id ONLY from
+ * resolveConnectionBySender() → whatsapp_connections row (never from Infobip payload).
+ *
+ * Phase 4: merchant → existing MO path; platform → temporary isolated stub (no acquisition agent).
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { sendWhatsAppText, normalizePhone, isInfobipConfigured } from '@/lib/infobip/client';
 import {
-  resolveBusinessBySender,
+  resolveConnectionBySender,
   getOrCreateConversation,
   claimInboundMessage,
   insertOutboundMessage,
@@ -16,6 +19,8 @@ import {
   getRecentMessages,
   getConversationAgentStatus,
   isMoGloballyEnabled,
+  type ResolvedWhatsappConnection,
+  type WhatsappConnection,
 } from '@/lib/services/whatsapp/conversation-store';
 import { generateSalesReply } from '@/lib/services/whatsapp/mo-sales-agent';
 import {
@@ -30,12 +35,19 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /** Safe deploy fingerprint — proves which build is handling webhook traffic */
-const WEBHOOK_BUILD_MARKER = 'phone-routing-diagnostic-v2';
+const WEBHOOK_BUILD_MARKER = 'phase4-connection-routing-v1';
 const WEBHOOK_COMMIT =
   process.env.VERCEL_GIT_COMMIT_SHA ||
   process.env.GITHUB_SHA ||
   process.env.COMMIT_SHA ||
   'unknown';
+
+/**
+ * PHASE 4 TEMPORARY STUB — NOT the final Busmo Acquisition agent.
+ * Replace in Phase 5 with busmo_acquisition agent. Do not treat as product copy.
+ */
+const PHASE4_PLATFORM_STUB_REPLY =
+  'Busmo Acquisition MO is being connected. Please try again shortly.';
 
 type InboundResult = {
   from?: string;
@@ -166,6 +178,83 @@ function isStatusOrDeliveryEvent(item: InboundResult): boolean {
     return true;
   }
   return false;
+}
+
+/**
+ * PHASE 4 — platform connection temporary path.
+ *
+ * Does NOT: generateSalesReply, ensureTrialCredits, deductForMoResponse,
+ * merchant product search, invent business_id, write busmo_leads, or run acquisition agent.
+ *
+ * Schema note (0010): whatsapp_messages.business_id remains NOT NULL, so we do not
+ * claim/persist platform messages here. Full conversation persistence for platform
+ * belongs with a later migration + Phase 5 agent.
+ */
+async function handlePlatformPhase4Stub(params: {
+  resolved: ResolvedWhatsappConnection;
+  customerPhone: string;
+  businessSender: string;
+  messageId: string;
+  text: string;
+}): Promise<void> {
+  const { resolved, customerPhone, businessSender, messageId, text } = params;
+
+  console.log(
+    JSON.stringify({
+      event: 'connection_resolved',
+      connectionType: resolved.connectionType,
+      agentProfile: resolved.agentProfile,
+      businessId: resolved.businessId,
+      connectionId: resolved.connection.id,
+      messageId,
+      senderSuffix: businessSender.slice(-4),
+      phase: 'phase4_platform_stub',
+    })
+  );
+
+  console.log(
+    JSON.stringify({
+      event: 'phase4_platform_stub',
+      note: 'TEMPORARY — acquisition agent not implemented; no merchant MO / credits / products',
+      connectionId: resolved.connection.id,
+      agentProfile: resolved.agentProfile,
+      messageId,
+      textLen: text.length,
+      fromSuffix: businessSender.slice(-4),
+      toSuffix: customerPhone.slice(-4),
+    })
+  );
+
+  if (!isInfobipConfigured()) {
+    console.error(
+      JSON.stringify({
+        event: 'phase4_platform_stub_send_skipped',
+        reason: 'infobip_not_configured',
+        messageId,
+      })
+    );
+    return;
+  }
+
+  const clientMessageId = `busmo-p4-stub-${messageId}`.slice(0, 200);
+  const sendResult = await sendWhatsAppText({
+    from: businessSender,
+    to: customerPhone,
+    text: PHASE4_PLATFORM_STUB_REPLY,
+    messageId: clientMessageId,
+  });
+
+  console.log(
+    JSON.stringify({
+      event: sendResult.ok ? 'phase4_platform_stub_sent' : 'phase4_platform_stub_send_failed',
+      messageId,
+      clientMessageId,
+      sendOk: sendResult.ok,
+      sendError: sendResult.ok ? undefined : sendResult.error,
+      fromSuffix: businessSender.slice(-4),
+      toSuffix: customerPhone.slice(-4),
+    })
+  );
 }
 
 async function processInbound(raw: InboundResult): Promise<void> {
@@ -299,16 +388,54 @@ async function processInbound(raw: InboundResult): Promise<void> {
     return;
   }
 
-  const connection = await resolveBusinessBySender(businessSender);
-  if (!connection) {
+  // ── Phase 4: trusted connection resolution (DB only — never from payload) ──
+  const resolved = await resolveConnectionBySender(businessSender);
+  if (!resolved) {
     console.error(JSON.stringify({
       event: 'conversation_resolved',
-      error: 'no_business_for_sender',
+      error: 'no_connection_for_sender',
       senderSuffix: businessSender.slice(-4),
       messageId,
     }));
     return;
   }
+
+  // Platform path: isolated Phase 4 stub — must not touch merchant MO / credits
+  if (
+    resolved.connectionType === 'platform' ||
+    resolved.agentProfile === 'busmo_acquisition'
+  ) {
+    await handlePlatformPhase4Stub({
+      resolved,
+      customerPhone,
+      businessSender,
+      messageId,
+      text,
+    });
+    return;
+  }
+
+  // Merchant path — behaviorally identical to pre–Phase-4 webhook
+  if (!resolved.businessId) {
+    console.error(JSON.stringify({
+      event: 'conversation_resolved',
+      error: 'merchant_missing_business_id',
+      connectionId: resolved.connection.id,
+      messageId,
+    }));
+    return;
+  }
+
+  const connection: WhatsappConnection = {
+    id: resolved.connection.id,
+    business_id: resolved.businessId,
+    provider: resolved.connection.provider,
+    whatsapp_sender: resolved.connection.whatsapp_sender,
+    status: resolved.connection.status,
+    metadata: resolved.connection.metadata,
+    connection_type: resolved.connectionType,
+    agent_profile: resolved.agentProfile,
+  };
 
   const conversation = await getOrCreateConversation({
     businessId: connection.business_id,
@@ -316,7 +443,9 @@ async function processInbound(raw: InboundResult): Promise<void> {
   });
 
   console.log(JSON.stringify({
-    event: 'business_resolved',
+    event: 'connection_resolved',
+    connectionType: resolved.connectionType,
+    agentProfile: resolved.agentProfile,
     businessId: connection.business_id,
     conversationId: conversation.id,
     agentStatus: conversation.agent_status,
