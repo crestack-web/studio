@@ -4,38 +4,28 @@
  * Used by both the Record Sale page and MO AI
  */
 
-import { getAdminDb } from '@/lib/firebase-admin';
-import admin from 'firebase-admin';
+import { getSupabaseAdmin } from '@/lib/supabase-server';
 
-// Helper function to record audit trail
-async function recordAuditTrail(businessId: string, userId: string, action: string, entityType: string, entityId: string, entityName: string, newValues: any) {
-  try {
-    const db = getAdminDb();
-    
-    // Get user details for audit log
-    const userDoc = await db.collection('users').doc(userId).get();
-    const userData = userDoc.data();
-    
-    await db.collection('businesses').doc(businessId).collection('auditTrail').add({
-      userId,
-      userName: userData?.displayName || userData?.name || 'Unknown',
-      userEmail: userData?.email || '',
-      action,
-      entityType,
-      entityId,
-      entityName,
-      previousValues: null,
-      newValues,
-      timestamp: admin.firestore.Timestamp.now(),
-      ipAddress: null,
-      userAgent: null,
-    });
-    
-    console.log(`✅ Audit trail recorded for ${entityType}: ${entityId}`);
-  } catch (auditError) {
-    console.error('⚠️ Failed to record audit trail:', auditError);
-    // Don't fail the main operation if audit fails
-  }
+function mapProductRow(row: any) {
+  const meta =
+    row?.metadata && typeof row.metadata === 'object' ? (row.metadata as Record<string, any>) : {};
+  const price = Number(meta.sellingPrice ?? meta.price ?? row.price ?? 0) || 0;
+  const cost = Number(meta.costPrice ?? meta.cost ?? row.cost ?? 0) || 0;
+  const stock = Number(meta.currentStock ?? meta.stock ?? row.stock_level ?? 0) || 0;
+  return {
+    id: row.id,
+    name: row.name || meta.name || 'Product',
+    price,
+    sellingPrice: price,
+    costPrice: cost,
+    cost,
+    stock,
+    quantity: stock,
+    stock_level: stock,
+    imageUrl: row.image_url || meta.imageUrl || '',
+    active: String(row.status || 'active').toLowerCase() !== 'inactive',
+    metadata: meta,
+  };
 }
 
 export interface SaleItem {
@@ -83,192 +73,138 @@ export interface RecordSaleResult {
  * This ensures consistency across all sale recording methods
  */
 export async function recordSale(params: RecordSaleParams): Promise<RecordSaleResult> {
-  const db = getAdminDb();
+  const sb = getSupabaseAdmin();
   const { businessId, userId, items, paymentType, source = 'mo_ai', recordedBy } = params;
 
   try {
-    // Validate inputs
     if (!businessId || !userId || !items || items.length === 0) {
       return {
         success: false,
         message: 'Invalid sale parameters',
-        error: 'Missing required fields: businessId, userId, or items'
+        error: 'Missing required fields: businessId, userId, or items',
       };
     }
 
-    // Calculate totals
     let totalRevenue = 0;
     let totalCost = 0;
     const remainingStock: { [productId: string]: number } = {};
+    const stockUpdates: Array<{ id: string; next: number }> = [];
 
-    // Validate all products and check stock
     for (const item of items) {
-      const productRef = db.collection('businesses').doc(businessId).collection('products').doc(item.productId);
-      const productSnap = await productRef.get();
+      const { data: row, error } = await sb
+        .from('products')
+        .select('id, name, price, cost, stock_level, status, metadata, image_url')
+        .eq('business_id', businessId)
+        .eq('id', item.productId)
+        .maybeSingle();
 
-      if (!productSnap.exists) {
+      if (error || !row) {
         return {
           success: false,
           message: `Product "${item.name}" not found in inventory`,
-          error: `Product ${item.productId} does not exist`
+          error: `Product ${item.productId} does not exist`,
         };
       }
 
-      const productData = productSnap.data() as any;
-      
-      // Check stock availability
-      let currentStock = 0;
-      if (productData.hasVariants && item.variantId) {
-        const variant = productData.variants?.find((v: any) => v.id === item.variantId);
-        if (!variant) {
-          return {
-            success: false,
-            message: `Variant not found for "${item.name}"`,
-            error: `Variant ${item.variantId} does not exist`
-          };
-        }
-        currentStock = variant.quantity || 0;
-      } else {
-        currentStock = productData.stock || productData.quantity || 0;
-      }
-
-      if (currentStock < item.quantity) {
+      const product = mapProductRow(row);
+      if (product.stock < item.quantity) {
         return {
           success: false,
-          message: `Insufficient stock for "${item.name}". Only ${currentStock} units available.`,
-          error: `Stock check failed for ${item.productId}`
+          message: `Insufficient stock for "${item.name}". Only ${product.stock} units available.`,
+          error: `Stock check failed for ${item.productId}`,
         };
       }
 
-      // Calculate totals
-      const itemRevenue = item.price * item.quantity;
-      const itemCost = item.costPrice * item.quantity;
-      totalRevenue += itemRevenue;
-      totalCost += itemCost;
-
-      // Calculate remaining stock
-      remainingStock[item.productId] = currentStock - item.quantity;
+      totalRevenue += item.price * item.quantity;
+      totalCost += item.costPrice * item.quantity;
+      const next = product.stock - item.quantity;
+      remainingStock[item.productId] = next;
+      stockUpdates.push({ id: item.productId, next });
     }
 
     const totalProfit = totalRevenue - totalCost;
+    const saleId = `sale-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const nowIso = new Date().toISOString();
 
-    // Record audit trail for sale creation
-    await recordAuditTrail(
-      businessId,
-      userId,
-      'create',
-      'sale',
-      'sale-' + Date.now().toString(36),
-      `Sale - ${items.length} items`,
-      {
-        products: items.map(item => ({
-          productId: item.productId,
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-          costPrice: item.costPrice,
-        })),
-        totalRevenue,
+    const saleRow = {
+      id: saleId,
+      business_id: businessId,
+      items: items.map((item) => ({
+        productId: item.productId,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        costPrice: item.costPrice,
+      })),
+      total_amount: totalRevenue,
+      total_revenue: totalRevenue,
+      profit: totalProfit,
+      payment_method: paymentType,
+      status: 'completed',
+      metadata: {
+        products: items,
         totalCost,
-        profit: totalProfit,
-        paymentMethod: paymentType,
-        source,
-      }
-    );
-
-    // Use transaction to ensure atomicity
-    let saleId = '';
-    await db.runTransaction(async (transaction) => {
-      // Update inventory for each product
-      for (const item of items) {
-        const productRef = db.collection('businesses').doc(businessId).collection('products').doc(item.productId);
-        const productSnap = await transaction.get(productRef);
-
-        if (!productSnap.exists) {
-          throw new Error(`Product ${item.name} not found during transaction`);
-        }
-
-        const productData = productSnap.data() as any;
-        
-        if (productData.hasVariants && item.variantId) {
-          const variantIndex = productData.variants?.findIndex((v: any) => v.id === item.variantId);
-          if (variantIndex === undefined || variantIndex < 0) {
-            throw new Error(`Variant not found for ${item.name}`);
-          }
-          const newVariants = [...(productData.variants || [])];
-          newVariants[variantIndex].quantity -= item.quantity;
-          transaction.update(productRef, { 
-            variants: newVariants,
-            updatedAt: admin.firestore.Timestamp.now()
-          });
-        } else {
-          const newQuantity = (productData.stock || productData.quantity || 0) - item.quantity;
-          transaction.update(productRef, { 
-            stock: newQuantity,
-            quantity: newQuantity,
-            updatedAt: admin.firestore.Timestamp.now()
-          });
-        }
-      }
-
-      // Create sale document — pre-generate the ID so we can return it
-      const salesCollectionRef = db.collection('businesses').doc(businessId).collection('sales');
-      const newSaleRef = salesCollectionRef.doc();
-      saleId = newSaleRef.id;
-      transaction.create(newSaleRef, {
-        products: items.map(item => ({
-          productId: item.productId,
-          name: item.name,
-          variantId: item.variantId || null,
-          variantName: item.variantName || null,
-          quantity: item.quantity,
-          price: item.price,
-          costPrice: item.costPrice,
-          emoji: item.emoji || '📦',
-        })),
-        totalRevenue,
-        totalCost,
-        profit: totalProfit,
-        paymentBreakdown: [{ method: paymentType, amount: totalRevenue }],
-        paymentMethod: paymentType,
-        expectedCash: paymentType === 'cash' ? totalRevenue : 0,
-        expectedBank: paymentType !== 'cash' ? totalRevenue : 0,
-        note: `Recorded via ${source === 'mo_ai' ? 'MO AI' : 'Point of Sale'}`,
-        businessId,
-        sourceLocation: 'main_store',
-        sourceLocationName: 'Main Store',
         source,
         recordedBy: recordedBy || {
           uid: userId,
-          email: 'system@busmo.ai',
           displayName: source === 'mo_ai' ? 'MO AI' : 'System',
           role: 'AI Assistant',
-          staffId: null,
         },
-        createdAt: admin.firestore.Timestamp.now(),
-      });
+        note: `Recorded via ${source === 'mo_ai' ? 'MO AI' : 'Point of Sale'}`,
+      },
+      created_at: nowIso,
+    };
 
-    });
+    const { error: saleErr } = await sb.from('sales').insert(saleRow);
+    if (saleErr) {
+      return {
+        success: false,
+        message: `Failed to record sale: ${saleErr.message}`,
+        error: saleErr.message,
+      };
+    }
+
+    for (const u of stockUpdates) {
+      const { data: existing } = await sb
+        .from('products')
+        .select('metadata, stock_level')
+        .eq('id', u.id)
+        .maybeSingle();
+      const meta =
+        existing?.metadata && typeof existing.metadata === 'object'
+          ? { ...(existing.metadata as Record<string, unknown>) }
+          : {};
+      meta.currentStock = u.next;
+      meta.stock = u.next;
+      await sb
+        .from('products')
+        .update({
+          stock_level: u.next,
+          metadata: meta,
+          updated_at: nowIso,
+        })
+        .eq('id', u.id)
+        .eq('business_id', businessId);
+    }
 
     return {
       success: true,
       saleId,
-      message: `Sale recorded successfully`,
+      message: 'Sale recorded successfully',
       data: {
         items,
         totalRevenue,
         totalCost,
         totalProfit,
-        remainingStock
-      }
+        remainingStock,
+      },
     };
-
   } catch (error: any) {
     console.error('Error recording sale:', error);
     return {
       success: false,
       message: `Failed to record sale: ${error.message}`,
-      error: error.message
+      error: error.message,
     };
   }
 }
@@ -345,60 +281,59 @@ export async function findProductByName(
   businessId: string,
   productName: string
 ): Promise<{ found: boolean; product?: any; matches?: any[] }> {
-  const db = getAdminDb();
-  
   try {
-    // Try exact match first
-    const exactMatch = await db.collection('businesses')
-      .doc(businessId)
-      .collection('products')
-      .where('name', '==', productName)
-      .where('active', '==', true)
-      .limit(1)
-      .get();
+    const sb = getSupabaseAdmin();
+    const q = (productName || '').trim();
+    if (!businessId || !q) return { found: false };
 
-    if (!exactMatch.empty) {
-      return {
-        found: true,
-        product: { id: exactMatch.docs[0].id, ...exactMatch.docs[0].data() }
-      };
+    // Prefer active products; fall back to all if needed
+    let { data: rows, error } = await sb
+      .from('products')
+      .select('id, name, price, cost, stock_level, status, metadata, image_url')
+      .eq('business_id', businessId)
+      .limit(300);
+
+    if (error) {
+      console.error('[findProductByName]', error.message);
+      return { found: false };
     }
 
-    // Try case-insensitive fuzzy search (handles misspellings and partial names)
-    const scoreProducts = (docs: any) =>
-      docs.docs
-        .map((doc: any) => ({ id: doc.id, ...doc.data() }))
-        .map((p: any) => ({ product: p, score: productNameSimilarity(productName, p.name) }))
-        .filter((entry: any) => entry.score >= 0.7)
-        .sort((a: any, b: any) => b.score - a.score)
-        .slice(0, 5)
-        .map((entry: any) => entry.product);
+    const products = (rows || []).map(mapProductRow).filter((p) => p.active !== false);
 
-    let matches = scoreProducts(
-      await db.collection('businesses')
-        .doc(businessId)
-        .collection('products')
-        .where('active', '==', true)
-        .get()
+    // Exact name (case-insensitive)
+    const exact = products.filter(
+      (p) => normalizeName(p.name) === normalizeName(q)
     );
-
-    // Fallback: also match products that may be missing the active flag
-    if (matches.length === 0) {
-      matches = scoreProducts(
-        await db.collection('businesses')
-          .doc(businessId)
-          .collection('products')
-          .get()
-      );
+    if (exact.length === 1) {
+      return { found: true, product: exact[0] };
+    }
+    if (exact.length > 1) {
+      return { found: true, matches: exact.slice(0, 5) };
     }
 
-    if (matches.length > 0) {
-      return {
-        found: true,
-        matches
-      };
+    // Starts-with / includes
+    const includes = products.filter((p) => {
+      const n = normalizeName(p.name);
+      const qq = normalizeName(q);
+      return n.includes(qq) || qq.includes(n);
+    });
+    if (includes.length === 1) {
+      return { found: true, product: includes[0] };
+    }
+    if (includes.length > 1) {
+      return { found: true, matches: includes.slice(0, 5) };
     }
 
+    // Fuzzy
+    const scored = products
+      .map((p) => ({ product: p, score: productNameSimilarity(q, p.name) }))
+      .filter((e) => e.score >= 0.55)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .map((e) => e.product);
+
+    if (scored.length === 1) return { found: true, product: scored[0] };
+    if (scored.length > 1) return { found: true, matches: scored };
     return { found: false };
   } catch (error) {
     console.error('Error finding product:', error);
@@ -413,24 +348,17 @@ export async function getProductDetails(
   businessId: string,
   productId: string
 ): Promise<{ found: boolean; product?: any }> {
-  const db = getAdminDb();
-  
   try {
-    const productRef = db.collection('businesses')
-      .doc(businessId)
-      .collection('products')
-      .doc(productId);
-    
-    const productSnap = await productRef.get();
-    
-    if (!productSnap.exists) {
-      return { found: false };
-    }
+    const sb = getSupabaseAdmin();
+    const { data: row, error } = await sb
+      .from('products')
+      .select('id, name, price, cost, stock_level, status, metadata, image_url')
+      .eq('business_id', businessId)
+      .eq('id', productId)
+      .maybeSingle();
 
-    return {
-      found: true,
-      product: { id: productSnap.id, ...productSnap.data() }
-    };
+    if (error || !row) return { found: false };
+    return { found: true, product: mapProductRow(row) };
   } catch (error) {
     console.error('Error getting product details:', error);
     return { found: false };

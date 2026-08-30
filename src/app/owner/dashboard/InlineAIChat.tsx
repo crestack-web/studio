@@ -500,6 +500,27 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
       if (data.pendingAction) {
         setPendingAction(data.pendingAction);
         setPendingMessageId(botMsg.id);
+        // Fallback sale confirmation card if renderer omitted it
+        if (
+          data.pendingAction.action === 'record_sale' &&
+          !botMsg.saleCard &&
+          data.pendingAction.data?.items?.length
+        ) {
+          const d = data.pendingAction.data;
+          botMsg.saleCard = {
+            type: 'sale',
+            items: d.items.map((item: any) => ({
+              name: item.productName || item.name,
+              quantity: item.quantity || 1,
+              price: item.price || 0,
+              costPrice: item.costPrice || 0,
+              imageUrl: item.imageUrl || '',
+            })),
+            totalRevenue: d.totalRevenue || 0,
+            totalProfit: d.profit || 0,
+            timestamp: new Date(),
+          };
+        }
       }
 
       setMessages(prev => [...prev, botMsg]);

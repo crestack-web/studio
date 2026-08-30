@@ -200,6 +200,13 @@ export function detectIntent(
           requiresConfirmation: true,
         };
       }
+      // Intent is clearly a sale but items could not be parsed — ask for structure
+      return {
+        intent: 'record_sale',
+        confidence: 0.7,
+        data: { items: [], productName: '', rawMessage: message },
+        requiresConfirmation: true,
+      };
     }
   }
 
@@ -453,6 +460,8 @@ function parseSaleData(message: string): Record<string, any> {
 
   // More comprehensive patterns for extracting sales data
   const itemPatterns = [
+    // Pattern: "sold 3 bread" / "sell 2 rice" (qty + product, optional price later)
+    /(?:sold|sell|record(?:ed)?\s+sale(?:\s+of)?)\s+(\d+)\s+([a-zA-Z][\w\s&.'-]{1,40}?)(?:\s|$)/gi,
     // Pattern: "Record sale: 2 Coca-Cola at ₦500 each"
     /(?:record\s+sale:|sold|sell|add|log)\s+(\d+)\s+(.+?)(?:\s+at\s+|@|\s+for\s+)(?:₦?(\d+(?:,\d+)*))\s+(?:each|per)/gi,
     // Pattern: "Sold 2 Coca-Cola for ₦1000"  
