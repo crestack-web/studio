@@ -841,11 +841,31 @@ export function SalePage({
                 >
                   {(
                     [
-                      { id: 'cash', label: 'Cash', icon: '💵' },
-                      { id: 'transfer', label: 'Transfer', icon: '🏦' },
-                      { id: 'pos', label: 'POS', icon: '💳' },
-                      { id: 'credit', label: 'Credit', icon: '📝' },
-                    ] as const
+                      {
+                        id: 'cash' as const,
+                        label: 'Cash',
+                        // banknote (match owner RecordSalePage)
+                        path: 'M2 6h20a2 2 0 012 2v12a2 2 0 01-2 2H2a2 2 0 01-2-2V8a2 2 0 012-2zM2 10h20',
+                      },
+                      {
+                        id: 'transfer' as const,
+                        label: 'Transfer',
+                        // device / transfer (match owner RecordSalePage)
+                        path: 'M5 2h14a2 2 0 012 2v20a2 2 0 01-2 2H5a2 2 0 01-2-2V4a2 2 0 012-2zM12 18h.01',
+                      },
+                      {
+                        id: 'pos' as const,
+                        label: 'POS',
+                        // card terminal (match owner RecordSalePage)
+                        path: 'M1 4h22v16a2 2 0 01-2 2H3a2 2 0 01-2-2V4zM1 10h22',
+                      },
+                      {
+                        id: 'credit' as const,
+                        label: 'Credit',
+                        // plus circle (match owner RecordSalePage)
+                        path: 'M12 2a10 10 0 100 20 10 10 0 000-20zM8 12h8M12 8v8',
+                      },
+                    ]
                   ).map((pm) => {
                     const active = paymentMethods.some((x) => x.method === pm.id);
                     const amount =
@@ -895,7 +915,20 @@ export function SalePage({
                             color: 'var(--t1, #0f172a)',
                           }}
                         >
-                          <span style={{ fontSize: '1.1rem' }}>{pm.icon}</span>
+                          <svg
+                            width="22"
+                            height="22"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.75"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden
+                            style={{ color: active ? 'var(--brand, #16a34a)' : 'var(--t2, #475569)' }}
+                          >
+                            <path d={pm.path} />
+                          </svg>
                           {pm.label}
                         </button>
                         {active && (
@@ -963,20 +996,20 @@ export function SalePage({
                   </span>
                 </div>
                 <div className="pm-row">
-                  <span>💵 Cash (Counter):</span>
+                  <span>Cash (Counter):</span>
                   <span>
                     {formatCurrency(getCashAmount(), businessCurrency)}
                   </span>
                 </div>
                 <div className="pm-row">
-                  <span>📱 Bank/POS:</span>
+                  <span>Bank / POS:</span>
                   <span>
                     {formatCurrency(getBankAmount(), businessCurrency)}
                   </span>
                 </div>
                 {getCreditAmount() > 0 && (
                   <div className="pm-row">
-                    <span>📝 Credit:</span>
+                    <span>Credit:</span>
                     <span>
                       {formatCurrency(getCreditAmount(), businessCurrency)}
                     </span>
