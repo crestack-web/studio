@@ -13,6 +13,7 @@ import { fetchDocs } from '@/lib/supabase-client-data';
 import { checkFeatureAccess as checkRegistryAccess } from '@/lib/featureRegistry';
 import { Plan, BusinessCategory } from '@/lib/featureRegistry';
 import { CATEGORY_FEATURES } from '@/app/welcome/signup/onboarding-constants';
+import { isRestaurantBusiness } from './utils/restaurantHelpers';
 
 function asDate(value: unknown): Date | undefined {
   if (!value) return undefined;
@@ -215,8 +216,19 @@ export function Sidebar() {
         const lifetimeAccess =
           (ownerDoc as any)?.lifetime_access === true || meta.lifetimeAccess === true;
 
-        // Prefer category from business record (source of truth after onboarding)
-        let categoryCandidate = rawCategory;
+        // Collect category signals from user + business (do not let a stale "retail" wipe restaurant)
+        const candidates: string[] = [];
+        const pushCandidate = (v: unknown) => {
+          if (v == null) return;
+          const s = String(v).trim();
+          if (s) candidates.push(s);
+        };
+        pushCandidate(rawCategory);
+        pushCandidate(meta.selectedCategory);
+        pushCandidate(meta.category);
+        pushCandidate(meta.categoryLabel);
+        pushCandidate(meta.businessType);
+
         if (businessId) {
           try {
             const { data: biz } = await supabase
@@ -228,28 +240,59 @@ export function Sidebar() {
               biz?.metadata && typeof biz.metadata === 'object'
                 ? (biz.metadata as Record<string, any>)
                 : {};
-            categoryCandidate =
-              biz?.category ||
-              biz?.industry ||
-              (biz as any)?.business_type ||
-              (biz as any)?.type ||
-              bizMeta.selectedCategory ||
-              bizMeta.category ||
-              bizMeta.categoryLabel ||
-              bizMeta.businessType ||
-              categoryCandidate;
+            pushCandidate(biz?.category);
+            pushCandidate(biz?.industry);
+            pushCandidate((biz as any)?.business_type);
+            pushCandidate((biz as any)?.type);
+            pushCandidate(bizMeta.selectedCategory);
+            pushCandidate(bizMeta.category);
+            pushCandidate(bizMeta.categoryLabel);
+            pushCandidate(bizMeta.businessType);
           } catch (bizErr) {
             console.warn('[Sidebar] business category load failed', bizErr);
           }
         }
 
-        const resolvedCategory = normalizeCategoryId(categoryCandidate);
-        setUserCategory(resolvedCategory);
+        // Prefer restaurant/cafe if any signal matches (same spirit as inventory isRestaurantBusiness)
+        let resolvedCategory = 'other';
+        const normalizedCandidates = candidates.map((c) => normalizeCategoryId(c));
+        if (normalizedCandidates.includes('restaurant')) {
+          resolvedCategory = 'restaurant';
+        } else if (normalizedCandidates.includes('cafe')) {
+          resolvedCategory = 'cafe';
+        } else if (normalizedCandidates.length) {
+          // First non-other candidate, else first
+          resolvedCategory =
+            normalizedCandidates.find((c) => c !== 'other') || normalizedCandidates[0] || 'other';
+        }
 
-        // If user has no saved features, use the same defaults as onboarding for that category
+        // Inventory page uses isRestaurantBusiness — mirror that so sidebar matches
+        if (businessId) {
+          try {
+            const restaurant = await isRestaurantBusiness(businessId);
+            if (restaurant && resolvedCategory !== 'cafe') {
+              resolvedCategory = 'restaurant';
+            }
+          } catch (_) {
+            /* ignore */
+          }
+        }
+
+        setUserCategory(resolvedCategory);
+        console.info('[Sidebar] resolved category', {
+          resolvedCategory,
+          candidates: candidates.slice(0, 8),
+          businessId: businessId ? String(businessId).slice(0, 8) + '…' : null,
+        });
+
+        // Always union category default features for restaurant/cafe so Menu/Ingredients/Expiry stay available
         const categoryDefaults = CATEGORY_FEATURES[resolvedCategory] || CATEGORY_FEATURES.other || [];
-        if (!features.length) {
-          features = [...categoryDefaults];
+        if (!features.length || resolvedCategory === 'restaurant' || resolvedCategory === 'cafe') {
+          const merged = new Set([
+            ...features.map(String),
+            ...categoryDefaults.map(String),
+          ]);
+          features = Array.from(merged);
         }
 
         const normalizedFeatures = features.map((f: string) => normalizeFeatureName(String(f)));
