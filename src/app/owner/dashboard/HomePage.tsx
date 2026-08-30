@@ -717,16 +717,89 @@ export function HomePage() {
                       </div>
                     </div>
 
-                    <button type="button" className={styles.dailyMoTip} onClick={toggleAIPanel}>
+                    <button
+                      type="button"
+                      className={styles.dailyMoTip}
+                      onClick={() => {
+                        try {
+                          let tipLabel = 'Ask MO about today\'s performance.';
+                          try {
+                            if (dailyCheck.transactions === 0) {
+                              tipLabel = t('home.dailyCheck.tipNoSales');
+                            } else if (dailyCheck.sales > yesterdaySales && yesterdaySales > 0) {
+                              tipLabel = t('home.dailyCheck.tipBeating', {
+                                amount: formatMoney(dailyCheck.sales - yesterdaySales),
+                              });
+                            } else if (dailyCheck.sales > 0) {
+                              tipLabel = t('home.dailyCheck.tipSales', {
+                                amount: formatMoney(dailyCheck.sales),
+                              });
+                            } else {
+                              tipLabel = t('home.dailyCheck.tipDefault');
+                            }
+                          } catch {
+                            /* keep fallback tipLabel */
+                          }
+
+                          // Concrete prompt for MO (not only the short tip label)
+                          let prompt =
+                            'Give me a short daily business check for today: sales, profit, and one practical action I should take.';
+                          if (dailyCheck.transactions === 0) {
+                            prompt =
+                              'I have no sales yet today. What practical steps can I take in the next few hours to get customers and record sales in Busmo?';
+                          } else if (dailyCheck.sales > yesterdaySales && yesterdaySales > 0) {
+                            prompt = `Today is beating yesterday by about ${formatMoney(
+                              dailyCheck.sales - yesterdaySales
+                            )} in sales (${dailyCheck.transactions} transactions, profit ${formatMoney(
+                              dailyCheck.profit
+                            )}). What should I double down on to finish strong?`;
+                          } else if (dailyCheck.sales > 0) {
+                            prompt = `Today so far: ${formatMoney(
+                              dailyCheck.sales
+                            )} in sales across ${dailyCheck.transactions} transactions, profit ${formatMoney(
+                              dailyCheck.profit
+                            )}. What are my top priorities right now?`;
+                          }
+
+                          try {
+                            sessionStorage.setItem('busmo_mo_prefill', prompt);
+                            sessionStorage.setItem('busmo_mo_auto_send', '1');
+                            sessionStorage.setItem('busmo_mo_prefill_label', tipLabel);
+                          } catch {
+                            /* ignore storage errors */
+                          }
+                          // Full Ask MO page — do not toggle home AI panel (that unmounts Daily Check)
+                          navigateTo('mo');
+                        } catch (err) {
+                          console.error('[DailyCheck] open MO failed', err);
+                          try {
+                            navigateTo('mo');
+                          } catch {
+                            /* ignore */
+                          }
+                        }
+                      }}
+                    >
                       <MoIcon size={12} />
                       <span>
-                        {dailyCheck.transactions === 0
-                          ? t('home.dailyCheck.tipNoSales')
-                          : dailyCheck.sales > yesterdaySales && yesterdaySales > 0
-                            ? t('home.dailyCheck.tipBeating', { amount: formatMoney(dailyCheck.sales - yesterdaySales) })
-                            : dailyCheck.sales > 0
-                              ? t('home.dailyCheck.tipSales', { amount: formatMoney(dailyCheck.sales) })
-                              : t('home.dailyCheck.tipDefault')}
+                        {(() => {
+                          try {
+                            if (dailyCheck.transactions === 0) return t('home.dailyCheck.tipNoSales');
+                            if (dailyCheck.sales > yesterdaySales && yesterdaySales > 0) {
+                              return t('home.dailyCheck.tipBeating', {
+                                amount: formatMoney(dailyCheck.sales - yesterdaySales),
+                              });
+                            }
+                            if (dailyCheck.sales > 0) {
+                              return t('home.dailyCheck.tipSales', {
+                                amount: formatMoney(dailyCheck.sales),
+                              });
+                            }
+                            return t('home.dailyCheck.tipDefault');
+                          } catch {
+                            return 'Ask MO about today';
+                          }
+                        })()}
                       </span>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" aria-hidden>
                         <polyline points="9 18 15 12 9 6" />

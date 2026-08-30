@@ -147,6 +147,45 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
   const [isExecutingAction, setIsExecutingAction] = useState(false);
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [isSending, setIsSending] = useState(false);
+
+  // Daily Check / external prefill → set input and optionally auto-send to MO
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let prefill = '';
+    let autoSend = false;
+    try {
+      prefill = sessionStorage.getItem('busmo_mo_prefill') || '';
+      autoSend = sessionStorage.getItem('busmo_mo_auto_send') === '1';
+      sessionStorage.removeItem('busmo_mo_prefill');
+      sessionStorage.removeItem('busmo_mo_auto_send');
+      sessionStorage.removeItem('busmo_mo_prefill_label');
+    } catch {
+      return;
+    }
+    if (!prefill.trim()) return;
+    setInput(prefill);
+    if (!autoSend) return;
+    // Defer until chat is interactive
+    const timer = window.setTimeout(() => {
+      try {
+        const form = document.getElementById('mo-chat-form') as HTMLFormElement | null;
+        if (form) {
+          form.requestSubmit();
+          return;
+        }
+        // Fallback: dispatch Enter on input if form id missing
+        const ta = document.querySelector('[data-mo-input="true"]') as HTMLTextAreaElement | null;
+        if (ta) {
+          ta.value = prefill;
+          ta.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      } catch (e) {
+        console.warn('[InlineAIChat] auto-send prefill failed', e);
+      }
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const messagesRef = useRef<MOMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
