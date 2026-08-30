@@ -7,11 +7,21 @@ import { NAV_SECTIONS, NAV_ITEM_REQUIREMENTS } from './navItems';
 import type { PageId, NavSection } from './index';
 import { MoIcon, NavIcons } from './NavIcons';
 import styles from './Sidebar.module.css';
-import { initializeFirebase } from '@/firebase';
 import { getAuthCurrentUser } from '@/lib/supabase-auth';
-import { collection, getDocs, getFirestore, doc, getDoc } from 'firebase/firestore';
+import { getSupabase } from '@/lib/supabase';
+import { fetchDocs } from '@/lib/supabase-client-data';
 import { checkFeatureAccess as checkRegistryAccess } from '@/lib/featureRegistry';
 import { Plan, BusinessCategory } from '@/lib/featureRegistry';
+
+function asDate(value: unknown): Date | undefined {
+  if (!value) return undefined;
+  if (value instanceof Date) return value;
+  if (typeof value === 'object' && value !== null && typeof (value as any).toDate === 'function') {
+    return (value as any).toDate();
+  }
+  const d = new Date(String(value));
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
 
 export function Sidebar() {
   const {
@@ -24,6 +34,7 @@ export function Sidebar() {
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
   const [featurePreferences, setFeaturePreferences] = useState<Record<string, boolean>>({});
   const [userPlan, setUserPlan] = useState<string>('starter');
+  /** True during trial OR post-trial grace extension — unlocks Standard-tier nav */
   const [isInTrial, setIsInTrial] = useState(false);
 
   // Normalize feature name to registry format (legacy names → kebab-case)
@@ -59,14 +70,12 @@ export function Sidebar() {
   const normalizeCategoryId = (raw?: string | null): string => {
     if (!raw) return 'other';
     const v = String(raw).trim().toLowerCase();
-    // Already an id
     const ids = [
       'retail', 'restaurant', 'grocery', 'fashion', 'electronics', 'manufacturing',
       'services', 'pharmacy', 'supermarket', 'cafe', 'wholesale', 'distributor',
       'healthcare', 'education', 'other',
     ];
     if (ids.includes(v)) return v;
-    // Labels from older onboarding saves
     const labelMap: Record<string, string> = {
       'retail shop': 'retail',
       'retail store': 'retail',
@@ -92,72 +101,148 @@ export function Sidebar() {
     return 'other';
   };
 
-  // Load staff count, category, features, and plan from Firestore
+  // Load staff count, category, features, and plan from Supabase (not Firebase)
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        const { auth, firestore } = initializeFirebase();
-        const currentUserId = getAuthCurrentUser()?.uid || '';
-        
-        if (!currentUserId) {
-          return;
+        const currentUserId = getAuthCurrentUser()?.uid || user?.id || '';
+        if (!currentUserId) return;
+
+        const supabase = getSupabase();
+        const { data: ownerDoc, error } = await supabase
+          .from('users')
+          .select(
+            'business_id, businessId, plan, role, subscription_status, trial_end_date, grace_end_date, subscription_end_date, lifetime_access, selected_category, category, selected_features, selectedFeatures, feature_preferences, featurePreferences, metadata'
+          )
+          .eq('id', currentUserId)
+          .maybeSingle();
+
+        if (error) {
+          console.warn('[Sidebar] Supabase user load failed:', error.message);
         }
 
-        // Get owner's business ID and user data
-        const ownerDoc = await getDoc(doc(firestore, 'users', currentUserId));
-        const businessId = ownerDoc.data()?.businessId || 'default';
+        const meta =
+          ownerDoc?.metadata && typeof ownerDoc.metadata === 'object'
+            ? (ownerDoc.metadata as Record<string, any>)
+            : {};
+
+        const businessId =
+          ownerDoc?.business_id ||
+          (ownerDoc as any)?.businessId ||
+          meta.businessId ||
+          user?.businessId ||
+          '';
+
         const rawCategory =
-          ownerDoc.data()?.selectedCategory ||
-          ownerDoc.data()?.category ||
+          ownerDoc?.selected_category ||
+          (ownerDoc as any)?.selectedCategory ||
+          ownerDoc?.category ||
+          meta.selectedCategory ||
+          meta.category ||
           'retail';
-        const features = ownerDoc.data()?.selectedFeatures || [];
-        const prefs = ownerDoc.data()?.featurePreferences || {};
-        const plan = ownerDoc.data()?.plan || 'starter';
-        const subscriptionStatus = ownerDoc.data()?.subscriptionStatus;
-        const trialEndDate = ownerDoc.data()?.trialEndDate?.toDate();
-        
+
+        const featuresRaw =
+          ownerDoc?.selected_features ||
+          (ownerDoc as any)?.selectedFeatures ||
+          meta.selectedFeatures ||
+          meta.selected_features ||
+          [];
+        const features = Array.isArray(featuresRaw) ? featuresRaw : [];
+
+        const prefsRaw =
+          ownerDoc?.feature_preferences ||
+          (ownerDoc as any)?.featurePreferences ||
+          meta.featurePreferences ||
+          meta.feature_preferences ||
+          {};
+        const prefs =
+          prefsRaw && typeof prefsRaw === 'object' && !Array.isArray(prefsRaw)
+            ? (prefsRaw as Record<string, boolean>)
+            : {};
+
+        const plan =
+          (ownerDoc?.plan as string) ||
+          (meta.plan as string) ||
+          (user as any)?.plan ||
+          'starter';
+
+        const subscriptionStatus =
+          (ownerDoc?.subscription_status as string) ||
+          (meta.subscriptionStatus as string) ||
+          (meta.subscription_status as string) ||
+          '';
+
+        const trialEndDate =
+          asDate(ownerDoc?.trial_end_date) ||
+          asDate(meta.trialEndDate) ||
+          asDate(meta.trial_end_date);
+        const graceEndDate =
+          asDate(ownerDoc?.grace_end_date) ||
+          asDate(meta.graceEndDate) ||
+          asDate(meta.grace_end_date);
+        const subscriptionEndDate =
+          asDate(ownerDoc?.subscription_end_date) ||
+          asDate(meta.subscriptionEndDate);
+        const lifetimeAccess =
+          (ownerDoc as any)?.lifetime_access === true || meta.lifetimeAccess === true;
+
         setUserCategory(normalizeCategoryId(rawCategory));
-        // Normalize feature names to registry format (kebab-case) for proper matching
-        const normalizedFeatures = Array.isArray(features) 
-          ? features.map((f: string) => normalizeFeatureName(f))
-          : [];
+        const normalizedFeatures = features.map((f: string) => normalizeFeatureName(String(f)));
         setSelectedFeatures(normalizedFeatures);
         setFeaturePreferences(prefs);
         setUserPlan(plan);
-        
-        // Check if user is in trial
+
+        // Trial OR grace extension → treat as in-trial for Standard-tier nav visibility
+        // Active paid subscription also keeps full access via plan field
         const now = new Date();
-        const inTrial = subscriptionStatus === 'trial' && trialEndDate && trialEndDate > now;
-        setIsInTrial(inTrial);
+        const inTrialWindow =
+          (subscriptionStatus === 'trial' && trialEndDate && trialEndDate > now) ||
+          (!subscriptionStatus && trialEndDate && trialEndDate > now);
+        const inGraceWindow =
+          subscriptionStatus === 'grace' ||
+          ((subscriptionStatus === 'expired' || subscriptionStatus === 'pending_payment') &&
+            graceEndDate &&
+            graceEndDate > now) ||
+          (trialEndDate &&
+            trialEndDate <= now &&
+            graceEndDate &&
+            graceEndDate > now);
+        const isActivePaid =
+          lifetimeAccess ||
+          (subscriptionStatus === 'active' &&
+            (!subscriptionEndDate || subscriptionEndDate > now));
 
-        // Load staff from Firestore
-        const staffCollection = collection(firestore, 'businesses', businessId, 'staff');
-        const staffSnapshot = await getDocs(staffCollection);
-        
-        // Count only active staff (not banned or removed)
-        const activeStaffCount = staffSnapshot.docs.filter(doc => {
-          const data = doc.data();
-          return data.status !== 'banned' && data.status !== 'removed';
-        }).length;
+        setIsInTrial(Boolean(inTrialWindow || inGraceWindow || isActivePaid));
 
-        setStaffCount(activeStaffCount);
+        // Staff count from Supabase business staff collection
+        if (businessId) {
+          try {
+            const staffRows = await fetchDocs(`businesses/${businessId}/staff`);
+            const activeStaffCount = (staffRows || []).filter((row: any) => {
+              const status = String(row.status || '').toLowerCase();
+              return status !== 'banned' && status !== 'removed';
+            }).length;
+            setStaffCount(activeStaffCount);
+          } catch (staffErr) {
+            console.warn('[Sidebar] staff count load failed', staffErr);
+          }
+        }
       } catch (error) {
         console.error('Error loading user data:', error);
-        // Fallback to localStorage
-        const savedStaff = localStorage.getItem('staff-members');
-        if (savedStaff) {
-          try {
+        try {
+          const savedStaff = localStorage.getItem('staff-members');
+          if (savedStaff) {
             const parsedStaff = JSON.parse(savedStaff);
             setStaffCount(parsedStaff.length);
-          } catch (e) {
-            console.error('Failed to load staff count from localStorage');
           }
+        } catch {
+          /* ignore */
         }
       }
     };
 
     loadUserData();
-  }, []);
+  }, [user?.id, user?.businessId]);
 
   // Detect mobile device
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
@@ -207,18 +292,25 @@ export function Sidebar() {
     // Normalize user data
     const normalizedPlan = userPlan as Plan;
     const normalizedCategory = (userCategory || 'other') as BusinessCategory;
-    
+
     // Combine selectedFeatures (onboarding) and featurePreferences (settings page)
-    // During trial, use selectedFeatures. After trial, use featurePreferences
+    // During trial/grace/active: prefer selectedFeatures when prefs empty
     const enabledFeaturesSet = new Set(
-      isInTrial ? selectedFeatures : 
-      Object.keys(featurePreferences).filter(key => featurePreferences[key])
+      isInTrial
+        ? (selectedFeatures.length
+            ? selectedFeatures
+            : Object.keys(featurePreferences).filter((key) => featurePreferences[key]))
+        : Object.keys(featurePreferences).filter((key) => featurePreferences[key]).length
+          ? Object.keys(featurePreferences).filter((key) => featurePreferences[key])
+          : selectedFeatures
     );
 
-    // Trial users get at least Standard-tier visibility so onboarding is not blocked
+    // Trial / grace users get at least Standard-tier visibility so onboarding is not blocked
     const planHierarchy = { starter: 1, standard: 2, pro: 3 } as const;
     const effectivePlan: Plan = isInTrial
-      ? (normalizedPlan === 'pro' ? 'pro' : 'standard')
+      ? normalizedPlan === 'pro'
+        ? 'pro'
+        : 'standard'
       : normalizedPlan;
 
     // requiredFeatures is OR: any matching selected/enabled feature unlocks the item
@@ -227,7 +319,7 @@ export function Sidebar() {
       const hasAnySelected = normalizedRequired.some((f) => enabledFeaturesSet.has(f));
 
       if (isInTrial) {
-        // During trial: show if selected in onboarding OR allowed on effective trial plan
+        // During trial/grace: show if selected in onboarding OR allowed on effective trial plan
         if (!hasAnySelected) {
           let anyEligible = false;
           for (const featureName of requirements.requiredFeatures) {
@@ -236,7 +328,6 @@ export function Sidebar() {
               normalizedFeatureName,
               effectivePlan,
               normalizedCategory,
-              // Pass feature ids so optional gate passes for plan-allowed features
               new Set([normalizedFeatureName, ...enabledFeaturesSet])
             );
             if (access.eligible) {
@@ -269,7 +360,7 @@ export function Sidebar() {
       }
     }
 
-    // Plan requirements: use effectivePlan so trial is not blocked as starter
+    // Plan requirements: use effectivePlan so trial/grace is not blocked as starter
     if (requirements.requiredPlan) {
       const userPlanLevel = planHierarchy[effectivePlan] || 1;
       const requiredPlanLevel = planHierarchy[requirements.requiredPlan] || 1;
@@ -290,10 +381,10 @@ export function Sidebar() {
   };
 
   // Filter nav sections based on visibility
-  const filteredNavSections = NAV_SECTIONS.map(section => ({
+  const filteredNavSections = NAV_SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter(item => isNavItemVisible(item.id))
-  })).filter(section => section.items.length > 0);
+    items: section.items.filter((item) => isNavItemVisible(item.id)),
+  })).filter((section) => section.items.length > 0);
 
   const handleNavigate = (pageId: PageId) => {
     // On mobile, navigate to mo-mobile instead of mo
@@ -309,13 +400,21 @@ export function Sidebar() {
       {sidebarOpen && <div className={styles.overlay} onClick={closeSidebar} />}
 
       <aside
-        className={[styles.sidebar, sidebarCollapsed ? styles.collapsed : '', sidebarOpen ? styles.open : ''].join(' ')}
+        className={[
+          styles.sidebar,
+          sidebarCollapsed ? styles.collapsed : '',
+          sidebarOpen ? styles.open : '',
+        ].join(' ')}
         aria-label="Main navigation"
       >
         <div className={styles.top}>
           <div className={styles.logoWrap}>
             <div className={styles.logoIcon}>
-              <img src="/email-logo.png" alt="Busmo Logo" style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
+              <img
+                src="/email-logo.png"
+                alt="Busmo Logo"
+                style={{ width: '40px', height: '40px', objectFit: 'contain' }}
+              />
             </div>
             <span className={styles.logoText}>Busmo</span>
           </div>
@@ -327,7 +426,7 @@ export function Sidebar() {
         </div>
 
         <div className={styles.scroll}>
-          {filteredNavSections.map(section => (
+          {filteredNavSections.map((section) => (
             <div key={section.label}>
               <div className={styles.sectionWrap}>
                 <span className={styles.sectionLabel} suppressHydrationWarning>
@@ -335,7 +434,7 @@ export function Sidebar() {
                 </span>
               </div>
               <ul className={styles.navList} role="list">
-                {section.items.map(item => {
+                {section.items.map((item) => {
                   const isActive = activePage === item.id;
                   return (
                     <li key={item.id} className={styles.navItem}>
@@ -351,8 +450,12 @@ export function Sidebar() {
                         <span className={styles.navLabel} suppressHydrationWarning>
                           {translateNav(item.label)}
                         </span>
-                        {item.id === 'staff' && staffCount > 0 && <span className={styles.badge}>{staffCount}</span>}
-                        {item.badge != null && item.id !== 'staff' && <span className={styles.badge}>{item.badge}</span>}
+                        {item.id === 'staff' && staffCount > 0 && (
+                          <span className={styles.badge}>{staffCount}</span>
+                        )}
+                        {item.badge != null && item.id !== 'staff' && (
+                          <span className={styles.badge}>{item.badge}</span>
+                        )}
                       </button>
                     </li>
                   );
@@ -364,11 +467,11 @@ export function Sidebar() {
 
         <div className={styles.userArea}>
           <button className={styles.userInner} onClick={openAvatarModal}>
-            <div 
-              className={styles.avatar} 
+            <div
+              className={styles.avatar}
               style={{
-                background: user.photoURL 
-                  ? `url(${user.photoURL}) center/cover` 
+                background: user.photoURL
+                  ? `url(${user.photoURL}) center/cover`
                   : user.avatarStyle?.background,
                 color: user.photoURL ? 'transparent' : user.avatarStyle?.color,
               }}
@@ -377,7 +480,9 @@ export function Sidebar() {
             </div>
             <div className={styles.userInfo}>
               <div className={styles.userName}>{user.name}</div>
-              <div className={styles.userRole}>{user.role} · {user.plan}</div>
+              <div className={styles.userRole}>
+                {user.role} · {user.plan}
+              </div>
             </div>
           </button>
         </div>
@@ -385,4 +490,3 @@ export function Sidebar() {
     </>
   );
 }
-
