@@ -448,13 +448,13 @@
 }
 
 .walletChip:hover {
-  border-color: #0f766e;
-  color: #0f766e;
+  border-color: var(--purple);
+  color: var(--purple);
 }
 
 .walletIcon {
   flex-shrink: 0;
-  color: #0f766e;
+  color: var(--purple);
 }
 
 .walletAmount {

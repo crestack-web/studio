@@ -134,72 +134,81 @@ export default function WalletPage() {
     <div className={styles.page}>
       <header className={styles.header}>
         <div>
-          <h1 className={styles.title}>Busmo Wallet</h1>
+          <h1 className={styles.title}>Wallet</h1>
           <p className={styles.sub}>
-            One balance for MO credits, payroll, and other paid features across Busmo.
+            Fund once and spend across Busmo — MO credits, payroll, and other paid features.
           </p>
         </div>
       </header>
 
       <section className={styles.balanceCard}>
-        <div className={styles.balanceLabel}>Available balance</div>
-        <div className={styles.balanceValue}>
-          {loading ? '…' : formatMoney(balance)}
+        <div className={styles.balanceInfo}>
+          <div className={styles.balanceLabel}>Available balance</div>
+          <div className={styles.balanceValue}>
+            {loading ? '…' : formatMoney(balance)}
+          </div>
+          <p className={styles.balanceHint}>
+            Money stays on your business until you use it in Busmo.
+          </p>
         </div>
-        <p className={styles.balanceHint}>Funds stay on your business account until you spend them.</p>
+        <div className={styles.balanceBadge} aria-hidden>
+          Busmo Wallet
+        </div>
       </section>
 
-      <section className={styles.fundCard}>
-        <h2 className={styles.sectionTitle}>Add money</h2>
-        <div className={styles.quickRow}>
-          {QUICK_AMOUNTS.map((a) => (
-            <button
-              key={a}
-              type="button"
-              className={styles.quickBtn}
-              onClick={() => setAmount(String(a))}
-            >
-              {formatMoney(a)}
+      <div className={styles.grid}>
+        <section className={styles.fundCard}>
+          <h2 className={styles.sectionTitle}>Add money</h2>
+          <div className={styles.quickRow}>
+            {QUICK_AMOUNTS.map((a) => (
+              <button
+                key={a}
+                type="button"
+                className={`${styles.quickBtn} ${String(a) === amount ? styles.quickBtnActive : ''}`}
+                onClick={() => setAmount(String(a))}
+              >
+                {formatMoney(a)}
+              </button>
+            ))}
+          </div>
+          <label className={styles.label}>
+            Amount (NGN)
+            <input
+              className={styles.input}
+              type="number"
+              min={100}
+              step={100}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            className={styles.primaryBtn}
+            disabled={funding || loading}
+            onClick={fund}
+          >
+            {funding ? 'Redirecting…' : 'Fund wallet'}
+          </button>
+        </section>
+
+        <section className={styles.usesCard}>
+          <h2 className={styles.sectionTitle}>What you can pay for</h2>
+          <ul className={styles.usesList}>
+            <li>MO Sales & Ask MO credit packs</li>
+            <li>Staff payroll payouts</li>
+            <li>Other Busmo paid features as they roll out</li>
+          </ul>
+          <div className={styles.linkRow}>
+            <button type="button" className={styles.linkBtn} onClick={() => navigateTo?.('mo-sales')}>
+              MO Sales
             </button>
-          ))}
-        </div>
-        <label className={styles.label}>
-          Amount (NGN)
-          <input
-            className={styles.input}
-            type="number"
-            min={100}
-            step={100}
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-        </label>
-        <button
-          type="button"
-          className={styles.primaryBtn}
-          disabled={funding || loading}
-          onClick={fund}
-        >
-          {funding ? 'Redirecting…' : 'Fund wallet'}
-        </button>
-      </section>
-
-      <section className={styles.usesCard}>
-        <h2 className={styles.sectionTitle}>What you can pay for</h2>
-        <ul className={styles.usesList}>
-          <li>MO Sales & Ask MO credit packs</li>
-          <li>Staff payroll payouts</li>
-          <li>Other Busmo paid features as they roll out</li>
-        </ul>
-        <div className={styles.linkRow}>
-          <button type="button" className={styles.linkBtn} onClick={() => navigateTo?.('mo-sales')}>
-            MO Sales
-          </button>
-          <button type="button" className={styles.linkBtn} onClick={() => navigateTo?.('payroll')}>
-            Payroll
-          </button>
-        </div>
-      </section>
+            <button type="button" className={styles.linkBtn} onClick={() => navigateTo?.('payroll')}>
+              Payroll
+            </button>
+          </div>
+        </section>
+      </div>
 
       <section className={styles.txCard}>
         <h2 className={styles.sectionTitle}>Recent activity</h2>
