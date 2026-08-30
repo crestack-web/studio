@@ -1,13 +1,15 @@
 // Add the proper import for cron
 import * as cron from 'node-cron';
-import { getFirestore, collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import { sendDailyBusinessSummaryEmail, sendBusinessInsightsEmail, sendTrialReminderEmail } from './subscription-emails';
+import { sendDailyBusinessSummaryEmail, sendTrialReminderEmail } from './subscription-emails';
 import { sendWeeklyBusinessReportEmail, sendMonthlyBusinessReportEmail } from './business-activity-emails';
-
-// ═══════════════════════════════════════════
-//  Types
-// ═══════════════════════════════════════════
+import { sendTrialExpiredEmail } from './subscription-lifecycle-emails';
+import {
+  sendGraceExtensionEmail,
+  sendGraceReminderEmail,
+  sendRenewalDueReminderEmail,
+} from './retention-emails';
 
 interface ScheduledTask {
   name: string;
@@ -23,20 +25,18 @@ interface BusinessData {
   ownerName: string;
   trialStartDate?: Timestamp;
   trialEndDate?: Timestamp;
+  graceEndDate?: Timestamp;
+  subscriptionEndDate?: Timestamp;
   subscriptionStatus: string;
+  planName?: string;
+  planAmount?: number;
 }
 
-// ═══════════════════════════════════════════
-//  Scheduler State
-// ═══════════════════════════════════════════
+const GRACE_PERIOD_DAYS = 3;
 
 class EmailScheduler {
   private tasks: Map<string, cron.ScheduledTask> = new Map();
   private isInitialized = false;
-
-  // ═══════════════════════════════════════════
-  //  Initialization
-  // ═══════════════════════════════════════════
 
   initialize() {
     if (this.isInitialized) {
@@ -45,20 +45,17 @@ class EmailScheduler {
     }
 
     console.log('🚀 [Email Scheduler] Initializing...');
-    
-    // Register all scheduled tasks
+
     this.registerDailyBusinessSummary();
     this.registerWeeklyBusinessReport();
     this.registerMonthlyBusinessReport();
     this.registerTrialReminders();
-    
+    this.registerGraceReminders();
+    this.registerRenewalReminders();
+
     this.isInitialized = true;
     console.log('✅ [Email Scheduler] Initialized successfully');
   }
-
-  // ═══════════════════════════════════════════
-  //  Task Registration
-  // ═══════════════════════════════════════════
 
   private registerTask(task: ScheduledTask) {
     if (!task.enabled) {
@@ -80,22 +77,16 @@ class EmailScheduler {
     console.log(`📅 [Email Scheduler] Registered task: ${task.name} (${task.cronExpression})`);
   }
 
-  // ═══════════════════════════════════════════
-  //  Scheduled Tasks
-  // ═══════════════════════════════════════════
-
   private registerDailyBusinessSummary() {
     this.registerTask({
       name: 'daily-business-summary',
-      cronExpression: '0 18 * * *', // 6:00 PM daily
+      cronExpression: '0 18 * * *',
       enabled: true,
       task: async () => {
         const businesses = await this.getActiveBusinesses();
-        
         for (const business of businesses) {
           try {
             const salesData = await this.getDailySalesData(business.businessId);
-            
             await sendDailyBusinessSummaryEmail({
               email: business.ownerEmail,
               name: business.ownerName,
@@ -120,15 +111,13 @@ class EmailScheduler {
   private registerWeeklyBusinessReport() {
     this.registerTask({
       name: 'weekly-business-report',
-      cronExpression: '0 9 * * 1', // 9:00 AM every Monday
+      cronExpression: '0 9 * * 1',
       enabled: true,
       task: async () => {
         const businesses = await this.getActiveBusinesses();
-        
         for (const business of businesses) {
           try {
             const weekData = await this.getWeeklyBusinessData(business.businessId);
-            
             await sendWeeklyBusinessReportEmail({
               email: business.ownerEmail,
               name: business.ownerName,
@@ -154,15 +143,13 @@ class EmailScheduler {
   private registerMonthlyBusinessReport() {
     this.registerTask({
       name: 'monthly-business-report',
-      cronExpression: '0 9 1 * *', // 9:00 AM on 1st of every month
+      cronExpression: '0 9 1 * *',
       enabled: true,
       task: async () => {
         const businesses = await this.getActiveBusinesses();
-        
         for (const business of businesses) {
           try {
             const monthData = await this.getMonthlyBusinessData(business.businessId);
-            
             await sendMonthlyBusinessReportEmail({
               email: business.ownerEmail,
               name: business.ownerName,
@@ -186,21 +173,19 @@ class EmailScheduler {
     });
   }
 
+  /** Trial retention: days 3, 2, 1 of trial; day 0 sends expired + free extension. */
   private registerTrialReminders() {
     this.registerTask({
       name: 'trial-reminders',
-      cronExpression: '0 10 * * *', // 10:00 AM daily
+      cronExpression: '0 10 * * *',
       enabled: true,
       task: async () => {
         const businesses = await this.getTrialBusinesses();
-        
         for (const business of businesses) {
           if (!business.trialEndDate) continue;
-          
           const daysRemaining = this.getDaysRemaining(business.trialEndDate);
-          
-          // Send reminders at 3 days, 2 days, 1 day, and 0 days remaining
-          if ([3, 2, 1, 0].includes(daysRemaining)) {
+
+          if ([3, 2, 1].includes(daysRemaining)) {
             try {
               await sendTrialReminderEmail({
                 email: business.ownerEmail,
@@ -213,45 +198,153 @@ class EmailScheduler {
               console.error(`Failed to send trial reminder for ${business.businessName}:`, error);
             }
           }
+
+          if (daysRemaining === 0) {
+            const trialEndStr = business.trialEndDate.toDate().toISOString().split('T')[0];
+            const graceEnd = new Date(
+              business.trialEndDate.toDate().getTime() + GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000
+            );
+            const graceEndStr = graceEnd.toISOString().split('T')[0];
+
+            try {
+              await sendTrialExpiredEmail({
+                email: business.ownerEmail,
+                name: business.ownerName,
+                businessName: business.businessName,
+                trialEndDate: trialEndStr,
+              });
+            } catch (error) {
+              console.error(`Failed to send trial expired for ${business.businessName}:`, error);
+            }
+
+            try {
+              await sendGraceExtensionEmail({
+                email: business.ownerEmail,
+                name: business.ownerName,
+                businessName: business.businessName,
+                trialEndDate: trialEndStr,
+                graceEndDate: graceEndStr,
+                daysRemainingInGrace: GRACE_PERIOD_DAYS,
+              });
+            } catch (error) {
+              console.error(`Failed to send grace extension for ${business.businessName}:`, error);
+            }
+          }
         }
       },
     });
   }
 
-  // ═══════════════════════════════════════════
-  //  Data Retrieval Helpers
-  // ═══════════════════════════════════════════
+  /** Grace reminders: 2, 1, 0 days left before dashboard gate. */
+  private registerGraceReminders() {
+    this.registerTask({
+      name: 'grace-reminders',
+      cronExpression: '0 11 * * *',
+      enabled: true,
+      task: async () => {
+        const businesses = await this.getGraceBusinesses();
+        for (const business of businesses) {
+          if (!business.graceEndDate) continue;
+          const daysRemaining = this.getDaysRemaining(business.graceEndDate);
+          if ([2, 1, 0].includes(daysRemaining)) {
+            try {
+              await sendGraceReminderEmail({
+                email: business.ownerEmail,
+                name: business.ownerName,
+                businessName: business.businessName,
+                graceEndDate: business.graceEndDate.toDate().toISOString().split('T')[0],
+                daysRemaining: Math.max(0, daysRemaining),
+              });
+            } catch (error) {
+              console.error(`Failed to send grace reminder for ${business.businessName}:`, error);
+            }
+          }
+        }
+      },
+    });
+  }
+
+  /** Renewal: 3, 1, 0 days before due; -1, -3 after if unpaid. */
+  private registerRenewalReminders() {
+    this.registerTask({
+      name: 'renewal-reminders',
+      cronExpression: '0 9 * * *',
+      enabled: true,
+      task: async () => {
+        const businesses = await this.getRenewalCandidateBusinesses();
+        for (const business of businesses) {
+          if (!business.subscriptionEndDate) continue;
+          const daysUntilDue = this.getSignedDaysUntil(business.subscriptionEndDate);
+          if (![3, 1, 0, -1, -3].includes(daysUntilDue)) continue;
+          try {
+            await sendRenewalDueReminderEmail({
+              email: business.ownerEmail,
+              name: business.ownerName,
+              businessName: business.businessName,
+              planName: business.planName || 'Busmo Plan',
+              amount: business.planAmount ?? 0,
+              currency: 'NGN',
+              dueDate: business.subscriptionEndDate.toDate().toISOString().split('T')[0],
+              daysUntilDue,
+            });
+          } catch (error) {
+            console.error(`Failed to send renewal reminder for ${business.businessName}:`, error);
+          }
+        }
+      },
+    });
+  }
+
+  private async enrichWithOwner(
+    businessId: string,
+    data: Record<string, unknown>
+  ): Promise<BusinessData | null> {
+    const { firestore } = initializeFirebase();
+    const usersRef = collection(firestore, 'users');
+    const ownerQuery = query(usersRef, where('businessId', '==', businessId));
+    const ownerSnapshot = await getDocs(ownerQuery);
+    if (ownerSnapshot.empty) return null;
+
+    const ownerData = ownerSnapshot.docs[0].data();
+    const trialEndDate =
+      (ownerData.trialEndDate as Timestamp | undefined) ||
+      (data.trialEndDate as Timestamp | undefined);
+    const graceEndDate =
+      (ownerData.graceEndDate as Timestamp | undefined) ||
+      (data.graceEndDate as Timestamp | undefined);
+    const subscriptionEndDate =
+      (ownerData.subscriptionEndDate as Timestamp | undefined) ||
+      (data.subscriptionEndDate as Timestamp | undefined);
+    const subscriptionStatus =
+      (ownerData.subscriptionStatus as string) ||
+      (data.subscriptionStatus as string) ||
+      'trial';
+
+    return {
+      businessId,
+      businessName: (data.businessName as string) || 'Unknown Business',
+      ownerEmail: ownerData.email,
+      ownerName:
+        ownerData.displayName || ownerData.email?.split('@')[0] || 'Business Owner',
+      trialStartDate: data.trialStartDate as Timestamp | undefined,
+      trialEndDate,
+      graceEndDate,
+      subscriptionEndDate,
+      subscriptionStatus,
+      planName: (ownerData.planName as string) || (data.planName as string),
+      planAmount: (ownerData.planAmount as number) || (data.planAmount as number),
+    };
+  }
 
   private async getActiveBusinesses(): Promise<BusinessData[]> {
     try {
       const { firestore } = initializeFirebase();
-      const businessesRef = collection(firestore, 'businesses');
-      const querySnapshot = await getDocs(businessesRef);
-      
+      const querySnapshot = await getDocs(collection(firestore, 'businesses'));
       const businesses: BusinessData[] = [];
-      
-      for (const doc of querySnapshot.docs) {
-        const data = doc.data();
-        
-        // Get owner info
-        const usersRef = collection(firestore, 'users');
-        const ownerQuery = query(usersRef, where('businessId', '==', doc.id));
-        const ownerSnapshot = await getDocs(ownerQuery);
-        
-        if (!ownerSnapshot.empty) {
-          const ownerData = ownerSnapshot.docs[0].data();
-          businesses.push({
-            businessId: doc.id,
-            businessName: data.businessName || 'Unknown Business',
-            ownerEmail: ownerData.email,
-            ownerName: ownerData.displayName || ownerData.email?.split('@')[0] || 'Business Owner',
-            trialStartDate: data.trialStartDate,
-            trialEndDate: data.trialEndDate,
-            subscriptionStatus: data.subscriptionStatus || 'trial',
-          });
-        }
+      for (const docSnap of querySnapshot.docs) {
+        const enriched = await this.enrichWithOwner(docSnap.id, docSnap.data());
+        if (enriched && enriched.subscriptionStatus === 'active') businesses.push(enriched);
       }
-      
       return businesses;
     } catch (error) {
       console.error('Error fetching active businesses:', error);
@@ -262,35 +355,14 @@ class EmailScheduler {
   private async getTrialBusinesses(): Promise<BusinessData[]> {
     try {
       const { firestore } = initializeFirebase();
-      const businessesRef = collection(firestore, 'businesses');
-      const querySnapshot = await getDocs(businessesRef);
-      
+      const querySnapshot = await getDocs(collection(firestore, 'businesses'));
       const businesses: BusinessData[] = [];
-      
-      for (const doc of querySnapshot.docs) {
-        const data = doc.data();
-        
-        if (data.subscriptionStatus === 'trial' && data.trialEndDate) {
-          // Get owner info
-          const usersRef = collection(firestore, 'users');
-          const ownerQuery = query(usersRef, where('businessId', '==', doc.id));
-          const ownerSnapshot = await getDocs(ownerQuery);
-          
-          if (!ownerSnapshot.empty) {
-            const ownerData = ownerSnapshot.docs[0].data();
-            businesses.push({
-              businessId: doc.id,
-              businessName: data.businessName || 'Unknown Business',
-              ownerEmail: ownerData.email,
-              ownerName: ownerData.displayName || ownerData.email?.split('@')[0] || 'Business Owner',
-              trialStartDate: data.trialStartDate,
-              trialEndDate: data.trialEndDate,
-              subscriptionStatus: data.subscriptionStatus,
-            });
-          }
+      for (const docSnap of querySnapshot.docs) {
+        const enriched = await this.enrichWithOwner(docSnap.id, docSnap.data());
+        if (enriched && enriched.subscriptionStatus === 'trial' && enriched.trialEndDate) {
+          businesses.push(enriched);
         }
       }
-      
       return businesses;
     } catch (error) {
       console.error('Error fetching trial businesses:', error);
@@ -298,23 +370,62 @@ class EmailScheduler {
     }
   }
 
-  private async getDailySalesData(businessId: string) {
-    // Mock implementation - replace with actual data retrieval
+  private async getGraceBusinesses(): Promise<BusinessData[]> {
+    try {
+      const { firestore } = initializeFirebase();
+      const querySnapshot = await getDocs(collection(firestore, 'businesses'));
+      const businesses: BusinessData[] = [];
+      for (const docSnap of querySnapshot.docs) {
+        const enriched = await this.enrichWithOwner(docSnap.id, docSnap.data());
+        if (enriched && enriched.subscriptionStatus === 'grace' && enriched.graceEndDate) {
+          businesses.push(enriched);
+        }
+      }
+      return businesses;
+    } catch (error) {
+      console.error('Error fetching grace businesses:', error);
+      return [];
+    }
+  }
+
+  private async getRenewalCandidateBusinesses(): Promise<BusinessData[]> {
+    try {
+      const { firestore } = initializeFirebase();
+      const querySnapshot = await getDocs(collection(firestore, 'businesses'));
+      const businesses: BusinessData[] = [];
+      for (const docSnap of querySnapshot.docs) {
+        const enriched = await this.enrichWithOwner(docSnap.id, docSnap.data());
+        if (
+          enriched &&
+          enriched.subscriptionEndDate &&
+          (enriched.subscriptionStatus === 'active' ||
+            enriched.subscriptionStatus === 'pending_payment' ||
+            enriched.subscriptionStatus === 'expired')
+        ) {
+          businesses.push(enriched);
+        }
+      }
+      return businesses;
+    } catch (error) {
+      console.error('Error fetching renewal candidates:', error);
+      return [];
+    }
+  }
+
+  private async getDailySalesData(_businessId: string) {
     return {
       totalSales: 0,
       totalProfit: 0,
       totalExpenses: 0,
       transactionCount: 0,
-      topProducts: [],
-      insights: [],
+      topProducts: [] as Array<{ name: string; quantity: number; revenue: number }>,
+      insights: [] as string[],
     };
   }
 
-  private async getWeeklyBusinessData(businessId: string) {
-    // Mock implementation - replace with actual data retrieval
+  private async getWeeklyBusinessData(_businessId: string) {
     const today = new Date();
     const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    
     return {
       weekStartDate: weekAgo.toISOString().split('T')[0],
       weekEndDate: today.toISOString().split('T')[0],
@@ -327,10 +438,8 @@ class EmailScheduler {
     };
   }
 
-  private async getMonthlyBusinessData(businessId: string) {
-    // Mock implementation - replace with actual data retrieval
+  private async getMonthlyBusinessData(_businessId: string) {
     const today = new Date();
-    
     return {
       month: today.toLocaleString('default', { month: 'long' }),
       year: today.getFullYear(),
@@ -344,25 +453,24 @@ class EmailScheduler {
     };
   }
 
-  private getDaysRemaining(trialEndDate: Timestamp): number {
+  private getDaysRemaining(endDate: Timestamp): number {
     const now = new Date();
-    const endDate = trialEndDate.toDate();
-    const diffTime = endDate.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return Math.max(0, diffDays);
+    const end = endDate.toDate();
+    const diffTime = end.getTime() - now.getTime();
+    return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
   }
 
-  // ═══════════════════════════════════════════
-  //  Task Management
-  // ═══════════════════════════════════════════
+  private getSignedDaysUntil(endDate: Timestamp): number {
+    const now = new Date();
+    const end = endDate.toDate();
+    return Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  }
 
   stopTask(taskName: string) {
     const task = this.tasks.get(taskName);
     if (task) {
       task.stop();
       console.log(`⏹️ [Email Scheduler] Stopped task: ${taskName}`);
-    } else {
-      console.warn(`⚠️ [Email Scheduler] Task not found: ${taskName}`);
     }
   }
 
@@ -371,8 +479,6 @@ class EmailScheduler {
     if (task) {
       task.start();
       console.log(`▶️ [Email Scheduler] Started task: ${taskName}`);
-    } else {
-      console.warn(`⚠️ [Email Scheduler] Task not found: ${taskName}`);
     }
   }
 
@@ -381,7 +487,6 @@ class EmailScheduler {
       task.stop();
       console.log(`⏹️ [Email Scheduler] Stopped task: ${name}`);
     });
-    console.log('🛑 [Email Scheduler] All tasks stopped');
   }
 
   startAll() {
@@ -389,7 +494,6 @@ class EmailScheduler {
       task.start();
       console.log(`▶️ [Email Scheduler] Started task: ${name}`);
     });
-    console.log('▶️ [Email Scheduler] All tasks started');
   }
 
   getRunningTasks(): string[] {
@@ -397,10 +501,5 @@ class EmailScheduler {
   }
 }
 
-// ═══════════════════════════════════════════
-//  Export singleton instance
-// ═══════════════════════════════════════════
-
 export const emailScheduler = new EmailScheduler();
-
 export default emailScheduler;
