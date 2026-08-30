@@ -286,54 +286,87 @@ export async function findProductByName(
     const q = (productName || '').trim();
     if (!businessId || !q) return { found: false };
 
-    // Prefer active products; fall back to all if needed
-    let { data: rows, error } = await sb
+    const { data: rows, error } = await sb
       .from('products')
-      .select('id, name, price, cost, stock_level, status, metadata, image_url')
+      .select('id, name, price, cost, stock_level, status, metadata, image_url, category')
       .eq('business_id', businessId)
-      .limit(300);
+      .limit(500);
 
     if (error) {
       console.error('[findProductByName]', error.message);
       return { found: false };
     }
 
-    const products = (rows || []).map(mapProductRow).filter((p) => p.active !== false);
-
-    // Exact name (case-insensitive)
-    const exact = products.filter(
-      (p) => normalizeName(p.name) === normalizeName(q)
-    );
-    if (exact.length === 1) {
-      return { found: true, product: exact[0] };
+    let ilikeRows: any[] = [];
+    try {
+      const cleaned = q.replace(/%/g, '');
+      const { data } = await sb
+        .from('products')
+        .select('id, name, price, cost, stock_level, status, metadata, image_url, category')
+        .eq('business_id', businessId)
+        .ilike('name', `%${cleaned}%`)
+        .limit(20);
+      ilikeRows = data || [];
+    } catch {
+      /* ignore */
     }
-    if (exact.length > 1) {
-      return { found: true, matches: exact.slice(0, 5) };
+
+    const byId = new Map<string, any>();
+    for (const row of [...(rows || []), ...ilikeRows]) {
+      byId.set(row.id, row);
     }
 
-    // Starts-with / includes
+    const isIngredient = (p: any) => {
+      const meta = p.metadata || {};
+      const pt = String(meta.productType || meta.product_type || p.productType || '').toLowerCase();
+      return pt === 'ingredient';
+    };
+
+    const products = Array.from(byId.values())
+      .map(mapProductRow)
+      .filter((p) => !isIngredient(p));
+
+    if (products.length === 0) {
+      console.warn('[findProductByName] no sellable products for business', String(businessId).slice(0, 8));
+      return { found: false };
+    }
+
+    const qq = normalizeName(q);
+
+    const exact = products.filter((p) => normalizeName(p.name) === qq);
+    if (exact.length === 1) return { found: true, product: exact[0] };
+    if (exact.length > 1) return { found: true, matches: exact.slice(0, 5) };
+
     const includes = products.filter((p) => {
       const n = normalizeName(p.name);
-      const qq = normalizeName(q);
       return n.includes(qq) || qq.includes(n);
     });
-    if (includes.length === 1) {
-      return { found: true, product: includes[0] };
-    }
-    if (includes.length > 1) {
-      return { found: true, matches: includes.slice(0, 5) };
+    if (includes.length === 1) return { found: true, product: includes[0] };
+    if (includes.length > 1) return { found: true, matches: includes.slice(0, 5) };
+
+    const qTokens = qq.split(' ').filter((tok) => tok.length > 1);
+    if (qTokens.length > 0) {
+      const tokenHits = products.filter((p) => {
+        const n = normalizeName(p.name);
+        return qTokens.every(
+          (tok) => n.includes(tok) || n.split(' ').some((nt) => nt.startsWith(tok) || tok.startsWith(nt))
+        );
+      });
+      if (tokenHits.length === 1) return { found: true, product: tokenHits[0] };
+      if (tokenHits.length > 1) return { found: true, matches: tokenHits.slice(0, 5) };
     }
 
-    // Fuzzy
     const scored = products
       .map((p) => ({ product: p, score: productNameSimilarity(q, p.name) }))
-      .filter((e) => e.score >= 0.55)
+      .filter((e) => e.score >= 0.45)
       .sort((a, b) => b.score - a.score)
       .slice(0, 5)
       .map((e) => e.product);
 
     if (scored.length === 1) return { found: true, product: scored[0] };
     if (scored.length > 1) return { found: true, matches: scored };
+
+    console.warn('[findProductByName] no match for', q, 'among', products.length, 'products');
     return { found: false };
   } catch (error) {
     console.error('Error finding product:', error);

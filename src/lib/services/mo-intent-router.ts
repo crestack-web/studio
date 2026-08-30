@@ -56,6 +56,8 @@ export function detectIntent(
 
   // Enhanced sale patterns with more flexible matching
   const salePatterns = [
+    /(?:record|log)\s+(?:sale|sales)\s+of\s+/i,
+    /(?:please\s+)?record\s+(?:this\s+)?sale/i,
     /^(?:record|log|add|make)\s+(?:a\s+)?(?:sale|sales|transaction)/i,
     /^(?:sold|sell|just\s+sold|just\s+sell)\s+/i,
     /^(?:customer\s+bought|buyer\s+purchased)/i,
@@ -568,6 +570,33 @@ function parseSaleData(message: string): Record<string, any> {
         items.push({
           productName,
           quantity: parseInt(looseMatch[1]) || 1,
+          price: undefined,
+        });
+      }
+    }
+  }
+
+  // Fallback: sold/sell product with no quantity (defaults to 1) — menu dishes like "sold fried rice"
+  if (items.length === 0) {
+    const noQty = /(?:i\s+)?(?:just\s+)?(?:sold|sell|record(?:ed)?\s+sale(?:\s+of)?)\s+(.+?)(?:\s+(?:at|for|@)\s+₦?\d|\s*$)/i;
+    const m = message.match(noQty);
+    if (m) {
+      let productName = m[1].trim();
+      productName = productName
+        .replace(/^(a|an|the|some|one)\s+/i, '')
+        .replace(/\s+(at|for|each|per|₦|naira|please|thanks)[\s\d]*$/i, '')
+        .trim();
+      const qtyLead = productName.match(/^(\d+)\s+(.+)$/);
+      if (qtyLead) {
+        items.push({
+          productName: qtyLead[2].trim(),
+          quantity: parseInt(qtyLead[1], 10) || 1,
+          price: undefined,
+        });
+      } else if (productName.length > 1 && productName.length < 60) {
+        items.push({
+          productName,
+          quantity: 1,
           price: undefined,
         });
       }

@@ -1156,7 +1156,7 @@ If NO action was executed, you MUST follow these rules:
 1. NEVER state that a sale, expense, product, payment, purchase, or any transaction was recorded, saved, or completed.
 2. NEVER say "Sale recorded", "I've recorded", "Done, recorded", "your cash balance is now X", or anything presenting a transaction as finished.
 3. NEVER invent prices, quantities, totals, profits, cash balances, or any business data not present in the context above.
-4. If the user described selling or recording something, respond conversationally: restate what you understood and explain the system will show a confirmation card before anything is recorded. If the product cannot be confidently matched to inventory, say you couldn't find it and ask them to confirm the exact product name.`;
+4. If the user described selling or recording something, respond conversationally: restate what you understood and explain the system will show a confirmation card before anything is recorded. Never claim a product is missing unless the system already failed a lookup. Prefer structured sale confirmation over free-form refusal.`;
 
     systemPrompt = `${systemPrompt}\n\n${knownCategoryInstruction}`;
 
