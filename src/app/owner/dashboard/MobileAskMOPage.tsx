@@ -5,11 +5,10 @@ import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { useTranslation } from './LangContext';
 import { MoIcon } from './NavIcons';
-import { initializeFirebase } from '@/firebase';
-import { doc, getDoc } from 'firebase/firestore';
 import { Lightbulb, BarChart, DollarSign, Package, Heart, Plus, Cpu, Settings, Trash2 } from 'lucide-react';
 import styles from './MobileAskMOPage.module.css';
 import { useAskMO } from './useAskMO';
+import { getSupabase } from '@/lib/supabase';
 import { CreditPurchaseModal } from '@/components/CreditPurchaseModal';
 import { SaleConfirmationCard } from '@/components/SaleConfirmationCard';
 
@@ -159,7 +158,6 @@ export function MobileAskMOPage() {
 
     setIsExecutingAction(true);
     try {
-      const { firestore } = initializeFirebase();
       const updatedMessages = [...messagesRef.current];
       
       if (pendingAction.action === 'record_sale') {
@@ -563,30 +561,23 @@ export function MobileAskMOPage() {
     setStreamedContent('');
     setLoadingText('Thinking');
 
-    // Create conversation immediately on first message (before API call)
-    if (!currentConversationId) {
+    // Track conversation id in a local variable — React state is async and cannot be relied on for save
+    let activeConversationId = currentConversationId;
+    if (!activeConversationId) {
       console.log('💾 [MobileAskMO] Creating new conversation on first message');
-      const newConversationId = await createConversation(userMsg);
-      if (newConversationId) {
-        console.log('✅ [MobileAskMO] Conversation created:', newConversationId);
+      activeConversationId = await createConversation(userMsg);
+      if (activeConversationId) {
+        console.log('✅ [MobileAskMO] Conversation created:', activeConversationId);
       }
-      
-      // Load business data on first message for better performance
       console.log('📊 [MobileAskMO] Loading business data on first message');
       await loadBusinessData();
-      
-      // Wait a bit more to ensure businessSummary state is updated
-      await new Promise(resolve => setTimeout(resolve, 500));
-      console.log('📊 [MobileAskMO] Current businessSummary:', businessSummary);
+      await new Promise(resolve => setTimeout(resolve, 300));
     }
 
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise(resolve => setTimeout(resolve, 800));
     setLoadingText('Generating insights');
 
     try {
-      console.log('💾 [MobileAskMO] Saving user message to conversation');
-      // Note: Messages are now saved to conversation document, not individual mo_messages collection
-
       // Create a placeholder bot message for streaming
       const botMsgId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const botMsg: MOMessage = {
@@ -608,12 +599,19 @@ export function MobileAskMOPage() {
       let businessCategory = 'retail';
       if (user.businessId) {
         try {
-          const { firestore } = initializeFirebase();
-          const businessDoc = await getDoc(doc(firestore, 'businesses', user.businessId));
-          if (businessDoc.exists()) {
-            const data = businessDoc.data();
-            businessCategory = data?.category || data?.businessCategory || 'retail';
-          }
+          const supabase = getSupabase();
+          const { data } = await supabase
+            .from('businesses')
+            .select('category, industry, metadata')
+            .eq('id', user.businessId)
+            .maybeSingle();
+          const meta = (data?.metadata && typeof data.metadata === 'object') ? (data.metadata as any) : {};
+          businessCategory =
+            data?.category ||
+            data?.industry ||
+            meta.selectedCategory ||
+            meta.category ||
+            'retail';
         } catch (error) {
           console.error('Error fetching business category:', error);
         }
@@ -706,11 +704,17 @@ export function MobileAskMOPage() {
         )
       );
 
-      // Save bot message to conversation immediately
-      if (currentConversationId) {
-        console.log('💾 [MobileAskMO] Saving bot message to conversation');
-        const updatedMessages = [...messages, updatedBotMsg];
-        await saveMessages(currentConversationId, updatedMessages);
+      // Persist user + assistant messages (use local conversation id, not stale state)
+      if (activeConversationId) {
+        console.log('💾 [MobileAskMO] Saving messages to conversation', activeConversationId);
+        const prior = messagesRef.current.filter((m) => m.id !== botMsgId);
+        // Ensure user message is included
+        const hasUser = prior.some((m) => m.id === userMsg.id);
+        const thread = hasUser ? [...prior, updatedBotMsg] : [...prior, userMsg, updatedBotMsg];
+        await saveMessages(activeConversationId, thread);
+        setMessages(thread);
+      } else {
+        console.warn('⚠️ [MobileAskMO] No conversation id — assistant reply not persisted');
       }
 
       // Calculate and consume credits based on response length (simulating token usage)

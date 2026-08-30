@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { initializeFirebase } from '@/firebase';
-import { getFirestore, collection, query, where, getDocs, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { getSupabase } from '@/lib/supabase';
+import { fetchDocs } from '@/lib/supabase-client-data';
 import { isRestaurantBusiness } from './utils/restaurantHelpers';
 
 interface MOMessage {
@@ -160,14 +159,28 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
         }
 
         try {
-          const { data: convRows, error } = await supabase
+          // Exclude staff/team chat threads (shared table; ids prefixed busmo-team:)
+          let convQuery = supabase
             .from('mo_conversations')
             .select('id, title, business_id, created_at, updated_at')
             .eq('user_id', userId)
+            .not('id', 'like', 'busmo-team:%')
             .order('updated_at', { ascending: false })
             .limit(50);
+          if (businessId) {
+            convQuery = convQuery.eq('business_id', businessId);
+          }
+          const { data: convRows, error } = await convQuery;
           if (error) throw error;
-          const loaded: Conversation[] = (convRows || []).map((row: any) => ({
+          const loaded: Conversation[] = (convRows || [])
+            .filter((row: any) => {
+              const id = String(row.id || '');
+              const title = String(row.title || '').toLowerCase();
+              if (id.startsWith('busmo-team:')) return false;
+              if (title === 'team channel' || title.startsWith('staff chat')) return false;
+              return true;
+            })
+            .map((row: any) => ({
             id: row.id,
             title: row.title || 'Untitled Conversation',
             preview: '',
@@ -206,78 +219,78 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
       }
     };
     load();
-  }, [userId, userPlan]);
+  }, [userId, userPlan, businessId]);
 
   const loadBusinessData = useCallback(async () => {
     if (!businessId || businessSummary) return;
     try {
-      const { firestore } = initializeFirebase();
       const isRestaurant = await isRestaurantBusiness(businessId);
-      const salesSnapshot = await getDocs(collection(firestore, 'businesses', businessId, 'sales'));
+      const todayDate = new Date();
+      todayDate.setHours(0, 0, 0, 0);
+      const productSales: Record<string, { name: string; quantity: number; revenue: number }> = {};
+
       let totalSales = 0;
       let totalProfit = 0;
       let todaySales = 0;
       let todayProfit = 0;
-      const todayDate = new Date();
-      todayDate.setHours(0, 0, 0, 0);
-      const productSales: Record<string, { name: string; quantity: number; revenue: number }> = {};
-      salesSnapshot.forEach((d) => {
-        const data = d.data();
-        const saleAmount = data.totalRevenue || data.total || 0;
-        const saleProfit = data.profit || 0;
+
+      const salesRows = await fetchDocs(`businesses/${businessId}/sales`);
+      for (const data of salesRows || []) {
+        const saleAmount = Number((data as any).totalRevenue ?? (data as any).total ?? (data as any).total_amount ?? 0) || 0;
+        const saleProfit = Number((data as any).profit ?? 0) || 0;
         totalSales += saleAmount;
         totalProfit += saleProfit;
-        const saleDate = data.createdAt?.toDate?.();
-        if (saleDate && saleDate >= todayDate) {
+        const rawDate = (data as any).createdAt || (data as any).created_at;
+        const saleDate = rawDate ? new Date(rawDate) : null;
+        if (saleDate && !isNaN(saleDate.getTime()) && saleDate >= todayDate) {
           todaySales += saleAmount;
           todayProfit += saleProfit;
         }
-        if (Array.isArray(data.products)) {
-          data.products.forEach((item: any) => {
+        const items = (data as any).products || (data as any).items || [];
+        if (Array.isArray(items)) {
+          items.forEach((item: any) => {
             const productName = item.name || item.productName || 'Unknown';
-            const quantity = item.quantity || 0;
-            const revenue = item.total || item.price * quantity || 0;
+            const quantity = Number(item.quantity || 0) || 0;
+            const revenue = Number(item.total ?? item.price * quantity ?? 0) || 0;
             if (!productSales[productName]) productSales[productName] = { name: productName, quantity: 0, revenue: 0 };
             productSales[productName].quantity += quantity;
             productSales[productName].revenue += revenue;
           });
         }
-      });
+      }
 
-      const productsSnapshot = await getDocs(
-        query(collection(firestore, 'businesses', businessId, 'products'), where('active', '==', true))
-      );
       let lowStockCount = 0;
       let outOfStockCount = 0;
       let totalInventoryValue = 0;
       const outOfStockProducts: any[] = [];
       const lowStockProducts: any[] = [];
-      productsSnapshot.forEach((d) => {
-        const data = d.data();
-        const stock = data.stock || 0;
-        const threshold = data.lowStockThreshold || 10;
-        const costPrice = data.costPrice || 0;
-        const productName = data.displayName || data.name || 'Unknown';
+      const productRows = await fetchDocs(`businesses/${businessId}/products`);
+      for (const data of productRows || []) {
+        const status = String((data as any).status || '').toLowerCase();
+        if (['inactive', 'archived', 'deleted', 'draft'].includes(status)) continue;
+        const stock = Number((data as any).stock ?? (data as any).stockLevel ?? (data as any).stock_level ?? 0) || 0;
+        const threshold = Number((data as any).lowStockThreshold ?? (data as any).reorder_level ?? 10) || 10;
+        const costPrice = Number((data as any).cost ?? (data as any).costPrice ?? 0) || 0;
+        const productName = (data as any).displayName || (data as any).name || 'Unknown';
         if (stock === 0) {
           outOfStockCount++;
-          outOfStockProducts.push({ name: productName, quantity: stock, sku: data.sku });
+          outOfStockProducts.push({ name: productName, quantity: stock, sku: (data as any).sku });
         } else if (stock <= threshold) {
           lowStockCount++;
-          lowStockProducts.push({ name: productName, quantity: stock, threshold, sku: data.sku });
+          lowStockProducts.push({ name: productName, quantity: stock, threshold, sku: (data as any).sku });
         }
         totalInventoryValue += stock * costPrice;
-      });
+      }
 
-      const expensesSnapshot = await getDocs(
-        query(
-          collection(firestore, 'businesses', businessId, 'expenses'),
-          where('createdAt', '>=', Timestamp.fromDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)))
-        )
-      );
       let totalExpenses = 0;
-      expensesSnapshot.forEach((d) => {
-        totalExpenses += d.data().amount || 0;
-      });
+      const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+      const expenseRows = await fetchDocs(`businesses/${businessId}/expenses`);
+      for (const data of expenseRows || []) {
+        const rawDate = (data as any).createdAt || (data as any).created_at;
+        const d = rawDate ? new Date(rawDate).getTime() : 0;
+        if (d && d < thirtyDaysAgo) continue;
+        totalExpenses += Number((data as any).amount || 0) || 0;
+      }
 
       setBusinessSummary({
         totalSales,
@@ -416,6 +429,10 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
 
   const loadConversation = useCallback(async (conversationId: string) => {
     try {
+      if (String(conversationId).startsWith('busmo-team:')) {
+        console.warn('[useAskMO] refused to load team conversation in Ask MO');
+        return;
+      }
       const supabase = getSupabase();
       const { data: rows, error } = await supabase
         .from('mo_messages')
