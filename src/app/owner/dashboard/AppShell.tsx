@@ -40,6 +40,7 @@ import IngredientsPage from './IngredientsPage';
 import ExpiryAlertsPage from './ExpiryAlertsPage';
 import ProductionPage from './ProductionPage';
 import PayrollPage from './PayrollPage';
+import WalletPage from './WalletPage';
 import CustomersPage from './CustomersPage';
 import SuppliersPage from './SuppliersPage';
 import { WarehousePage } from './WarehousePage';
@@ -78,6 +79,7 @@ const PAGE_COMPONENTS: Record<string, React.ComponentType> = {
   'expiry-alerts': ExpiryAlertsPage,
   'production-tracking': ProductionPage,
   payroll: PayrollPage,
+  wallet: WalletPage,
   'customer-management': CustomersPage,
   'supplier-management': SuppliersPage,
   warehouse: WarehousePage,

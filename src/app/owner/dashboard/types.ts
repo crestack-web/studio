@@ -37,6 +37,7 @@ export type PageId =
   | 'supplier-management'
   | 'customer-management'
   | 'payroll'
+  | 'wallet'
   | 'menu-management'
   | 'ingredient-tracking'
   | 'expiry-alerts'

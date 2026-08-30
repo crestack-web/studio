@@ -6,6 +6,8 @@ import { useTranslation } from './LangContext';
 import { MoIcon } from './NavIcons';
 import { BranchSwitcher } from '@/components/BranchSwitcher';
 import { useTrialInfo } from './TrialGuard';
+import { useCurrency } from './CurrencyContext';
+import { getSupabase } from '@/lib/supabase';
 import styles from './Topbar.module.css';
 
 export function Topbar() {
@@ -20,10 +22,13 @@ export function Topbar() {
     unreadNotificationCount,
     notificationsPanelOpen,
     activePage,
+    navigateTo,
   } = useApp();
   const { t } = useTranslation();
+  const { formatMoney } = useCurrency();
   const trialInfo = useTrialInfo();
   const [timeLeft, setTimeLeft] = useState(trialInfo);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
 
   useEffect(() => {
     if (!trialInfo) return;
@@ -58,6 +63,36 @@ export function Topbar() {
     const timer = setInterval(tick, 60_000);
     return () => clearInterval(timer);
   }, [trialInfo]);
+
+  useEffect(() => {
+    const businessId = user?.businessId;
+    if (!businessId) {
+      setWalletBalance(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = getSupabase();
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        if (!token) return;
+        const res = await fetch(
+          `/api/wallet?businessId=${encodeURIComponent(businessId)}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const json = await res.json().catch(() => ({}));
+        if (!cancelled && res.ok) {
+          setWalletBalance(Number(json.balance) || 0);
+        }
+      } catch {
+        if (!cancelled) setWalletBalance(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.businessId, activePage]);
 
   const urgency =
     !timeLeft
@@ -162,6 +197,36 @@ export function Topbar() {
             <BranchSwitcher />
           </div>
         )}
+
+        <button
+          type="button"
+          className={styles.walletChip}
+          onClick={() => navigateTo('wallet')}
+          title="Busmo Wallet"
+          aria-label={
+            walletBalance == null
+              ? 'Open wallet'
+              : `Wallet balance ${formatMoney(walletBalance)}`
+          }
+        >
+          <svg
+            className={styles.walletIcon}
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden
+          >
+            <path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h13A2.5 2.5 0 0 1 21 7.5v9A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-9Z" />
+            <path d="M3 10h18" />
+            <path d="M16 14h.01" />
+          </svg>
+          <span className={styles.walletAmount}>
+            {walletBalance == null ? 'Wallet' : formatMoney(walletBalance)}
+          </span>
+        </button>
 
         <button
           type="button"

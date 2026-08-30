@@ -428,3 +428,42 @@
     font-size: 0.82rem;
   }
 }
+
+
+/* Busmo central wallet chip */
+.walletChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--card, #fff);
+  color: var(--text, #0f172a);
+  border-radius: 999px;
+  padding: 5px 10px 5px 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  max-width: 140px;
+  white-space: nowrap;
+}
+
+.walletChip:hover {
+  border-color: #0f766e;
+  color: #0f766e;
+}
+
+.walletIcon {
+  flex-shrink: 0;
+  color: #0f766e;
+}
+
+.walletAmount {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 640px) {
+  .walletAmount {
+    max-width: 72px;
+  }
+}
