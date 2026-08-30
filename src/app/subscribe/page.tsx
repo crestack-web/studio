@@ -89,92 +89,95 @@ export default function SubscribePage() {
   }, []);
 
   const handleContinue = async () => {
-    console.log('Payment button clicked');
     setIsProcessing(true);
     try {
       const supabase = getSupabase();
       const { data: { session } } = await supabase.auth.getSession();
       const user = session?.user;
 
-      console.log('User:', user?.id);
-
       if (!user) {
-        console.error('No user found');
         router.replace('/login');
         return;
       }
 
-      const selectedPlanData = PLANS.find(p => p.id === selectedPlan);
+      const selectedPlanData = PLANS.find((p) => p.id === selectedPlan);
       if (!selectedPlanData) {
-        console.error('No plan data found for:', selectedPlan);
         alert('Unable to process payment. Please try again.');
         return;
       }
 
-      console.log('Selected plan:', selectedPlanData);
+      // Prefer auth email; fall back to Firestore profile if present
+      let userEmail = (user.email || '').trim();
+      if (!userEmail) {
+        try {
+          const { firestore } = initializeFirebase();
+          const userDoc = await getDoc(doc(firestore, 'users', user.id));
+          userEmail = String(userDoc.data()?.email || '').trim();
+        } catch {
+          // ignore profile read failures
+        }
+      }
+      if (!userEmail || !userEmail.includes('@')) {
+        alert('A valid email is required to start payment. Please update your account email.');
+        return;
+      }
 
-      // Get user email
-      const { firestore } = initializeFirebase();
-      const userDoc = await getDoc(doc(firestore, 'users', user.id));
-      const userData = userDoc.data();
-      const userEmail = userData?.email || user.email;
+      const amount =
+        billingCycle === 'monthly'
+          ? selectedPlanData.monthlyPrice
+          : selectedPlanData.yearlyPrice;
 
-      console.log('User email:', userEmail);
-
-      // Get amount based on billing cycle
-      const amount = billingCycle === 'monthly' ? selectedPlanData.monthlyPrice : selectedPlanData.yearlyPrice;
-
-      console.log('Amount:', amount, 'Billing cycle:', billingCycle);
       posthog.capture('subscription_checkout_started', {
         plan: selectedPlan,
         billing_cycle: billingCycle,
         amount,
       });
 
-      // Call Firebase Function to initialize subscription payment
-      const callbackUrl = 'https://busmo.web.app/subscribe/success';
-      console.log('🔗 [Subscribe] Callback URL:', callbackUrl);
-      
-      const response = await fetch('https://us-central1-bizassistant2-62305643-adad7.cloudfunctions.net/initializePayment', {
+      // Use Next.js Paystack route (same as /pricing) — not the legacy Firebase function
+      const origin =
+        typeof window !== 'undefined' ? window.location.origin : 'https://www.busmo.io';
+      const callbackUrl = `${origin}/subscribe/success`;
+
+      const response = await fetch('/api/payments/initialize-subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          plan: selectedPlan,
-          userId: user.id,
           email: userEmail,
-          amount: amount,
-          currency: 'NGN',
+          planId: selectedPlan,
+          plan: selectedPlan,
           billing: billingCycle,
-          callback_url: callbackUrl,
-          metadata: {
-            plan: selectedPlan,
-            billing: billingCycle,
-            userId: user.id,
-          },
+          userId: user.id,
+          callbackUrl,
         }),
       });
 
-      console.log('API response status:', response.status);
-      const data = await response.json();
-      console.log('API response data:', data);
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        console.error('Payment initialization failed:', data);
-        throw new Error(data.error || 'Failed to initialize payment');
+        const msg = String(data?.error || 'Failed to initialize payment');
+        console.error('Payment initialization failed:', response.status, data);
+        throw new Error(msg);
       }
 
-      // Redirect to Paystack checkout
-      if (data.data && data.data.authorization_url) {
-        console.log('Redirecting to Paystack:', data.data.authorization_url);
-        window.location.href = data.data.authorization_url;
-      } else {
-        console.error('No authorization URL in response');
-        throw new Error('No checkout URL returned');
+      const authUrl = data?.data?.authorization_url;
+      if (authUrl) {
+        window.location.href = authUrl;
+        return;
       }
 
+      throw new Error('No checkout URL returned');
     } catch (error) {
       console.error('Subscription error:', error);
-      alert('We are having issues connecting with payment processors. Please try again later.');
+      const msg =
+        error instanceof Error && error.message
+          ? error.message
+          : 'We could not start payment. Please try again in a moment.';
+      // Surface real API errors; keep a friendly fallback for opaque failures
+      if (/not configured|503|Payment not configured/i.test(msg)) {
+        alert('Payments are temporarily unavailable. Please try again later or contact support.');
+      } else {
+        alert(msg);
+      }
     } finally {
       setIsProcessing(false);
     }
