@@ -22,6 +22,8 @@ import { getSupabase } from '@/lib/supabase';
 import { getFirestoreUserId } from '@/lib/supabase-auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { DocumentTemplateManager } from './documentTemplates';
+import { ReceiptThemeConfig } from './ReceiptThemeConfig';
+import { updateDoc as sbUpdateDoc } from '@/lib/supabase-client-data';
 import { checkIsAdmin } from '@/lib/adminAuth';
 import { Settings, Globe, DollarSign, Palette, User, Building, FileText, Bell, Lock, Sun, Moon, Monitor, Search, Eye, ArrowRight, ShieldAlert, LogOut, Zap, LayoutDashboard, Package } from 'lucide-react';
 import styles from './SettingsPage.module.css';
@@ -718,16 +720,16 @@ export default function SettingsPage() {
                 onChange={async () => {
                   setReceiptTypeSetting('supermarket');
                   try {
-                    const { firestore } = initializeFirebase();
                     if (user.businessId) {
-                      await updateDoc(doc(firestore, 'businesses', user.businessId), {
+                      await sbUpdateDoc('businesses', user.businessId, {
                         receiptType: 'supermarket',
+                        receipt_type: 'supermarket',
                       });
-                      showToast(t('toast.receiptSupermarket'));
+                      showToast(t('toast.receiptSupermarket') || 'Supermarket receipt selected');
                     }
                   } catch (error) {
                     console.error('Failed to save receipt type:', error);
-                    showToast(t('toast.receiptFailed'));
+                    showToast(t('toast.receiptFailed') || 'Failed to save receipt type');
                   }
                 }}
               />
@@ -742,16 +744,16 @@ export default function SettingsPage() {
                 onChange={async () => {
                   setReceiptTypeSetting('invoice');
                   try {
-                    const { firestore } = initializeFirebase();
                     if (user.businessId) {
-                      await updateDoc(doc(firestore, 'businesses', user.businessId), {
+                      await sbUpdateDoc('businesses', user.businessId, {
                         receiptType: 'invoice',
+                        receipt_type: 'invoice',
                       });
-                      showToast(t('toast.receiptInvoice'));
+                      showToast(t('toast.receiptInvoice') || 'Invoice receipt selected');
                     }
                   } catch (error) {
                     console.error('Failed to save receipt type:', error);
-                    showToast(t('toast.receiptFailed'));
+                    showToast(t('toast.receiptFailed') || 'Failed to save receipt type');
                   }
                 }}
               />
@@ -799,8 +801,76 @@ export default function SettingsPage() {
           SECTION 5 · DOCUMENT TEMPLATES
       ════════════════════════════════════════ */}
       {activeSection === 'receipt' && sectionVisibility.receipt && (
-        <Section title="Document Templates">
-        <p className={styles.rowDesc}>Customize your invoices, receipts, and business documents. Retailers, wholesalers, and distributors get optimized templates automatically.</p>
+        <Section title="Receipts & documents">
+        <p className={styles.rowDesc}>
+          Choose your receipt format, customize branding, and save it for Record Sale and Ask MO text sales.
+        </p>
+
+        <div className={styles.toggleRow} style={{ marginTop: 8, marginBottom: 16 }}>
+          <div>
+            <div className={styles.toggleLabel}>Receipt type</div>
+            <div className={styles.rowDesc}>
+              Supermarket-style thermal receipt, or full invoice layout with customer details.
+            </div>
+          </div>
+          <div className={styles.radioGroup}>
+            <label className={styles.radioOption}>
+              <input
+                type="radio"
+                name="receiptTypeSection"
+                value="supermarket"
+                checked={receiptTypeSetting === 'supermarket'}
+                onChange={async () => {
+                  setReceiptTypeSetting('supermarket');
+                  try {
+                    if (user.businessId) {
+                      await sbUpdateDoc('businesses', user.businessId, {
+                        receiptType: 'supermarket',
+                        receipt_type: 'supermarket',
+                      });
+                      showToast('Supermarket receipt selected');
+                    }
+                  } catch (error) {
+                    console.error(error);
+                    showToast('Failed to save receipt type');
+                  }
+                }}
+              />
+              <span>Supermarket</span>
+            </label>
+            <label className={styles.radioOption}>
+              <input
+                type="radio"
+                name="receiptTypeSection"
+                value="invoice"
+                checked={receiptTypeSetting === 'invoice'}
+                onChange={async () => {
+                  setReceiptTypeSetting('invoice');
+                  try {
+                    if (user.businessId) {
+                      await sbUpdateDoc('businesses', user.businessId, {
+                        receiptType: 'invoice',
+                        receipt_type: 'invoice',
+                      });
+                      showToast('Invoice receipt selected');
+                    }
+                  } catch (error) {
+                    console.error(error);
+                    showToast('Failed to save receipt type');
+                  }
+                }}
+              />
+              <span>Invoice</span>
+            </label>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 24 }}>
+          <div className={styles.toggleLabel} style={{ marginBottom: 8 }}>Receipt design</div>
+          <ReceiptThemeConfig />
+        </div>
+
+        <div className={styles.toggleLabel} style={{ marginBottom: 8 }}>Other document templates</div>
         <DocumentTemplateManager />
       </Section>
       )}

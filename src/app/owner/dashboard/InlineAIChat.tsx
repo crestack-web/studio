@@ -2,6 +2,8 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useApp } from './AppContext';
+import { ReceiptGenerator, type ReceiptData } from './ReceiptGenerator';
+import { loadBusinessReceiptSettings, buildSaleReceiptData } from './utils/saleReceipt';
 import { useCurrency } from './CurrencyContext';
 import { useTranslation } from './LangContext';
 import { MoIcon } from './NavIcons';
@@ -138,6 +140,9 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
   const [loadingText, setLoadingText] = useState<string>('');
   const [isExecuting, setIsExecuting] = useState(false);
   const [pendingAction, setPendingAction] = useState<any>(null);
+  const [showSaleReceipt, setShowSaleReceipt] = useState(false);
+  const [saleReceiptData, setSaleReceiptData] = useState<ReceiptData | null>(null);
+  const [saleReceiptType, setSaleReceiptType] = useState<'supermarket' | 'invoice'>('supermarket');
   const [pendingMessageId, setPendingMessageId] = useState<string | null>(null);
   const [isExecutingAction, setIsExecutingAction] = useState(false);
   const [historySearchQuery, setHistorySearchQuery] = useState('');
@@ -1310,6 +1315,17 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
           </div>
         </>
       )}
-    </div>
+    
+      {showSaleReceipt && saleReceiptData && (
+        <ReceiptGenerator
+          receiptData={saleReceiptData}
+          onClose={() => {
+            setShowSaleReceipt(false);
+            setSaleReceiptData(null);
+          }}
+          receiptType={saleReceiptType}
+        />
+      )}
+</div>
   );
 }

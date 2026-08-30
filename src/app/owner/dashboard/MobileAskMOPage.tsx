@@ -2,6 +2,8 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useApp } from './AppContext';
+import { ReceiptGenerator, type ReceiptData } from './ReceiptGenerator';
+import { loadBusinessReceiptSettings, buildSaleReceiptData } from './utils/saleReceipt';
 import { useCurrency } from './CurrencyContext';
 import { useTranslation } from './LangContext';
 import { MoIcon } from './NavIcons';
@@ -131,6 +133,9 @@ export function MobileAskMOPage() {
   const [loadingText, setLoadingText] = useState<string>('');
   const [isSending, setIsSending] = useState(false); // Prevent duplicate requests
   const [pendingAction, setPendingAction] = useState<any>(null);
+  const [showSaleReceipt, setShowSaleReceipt] = useState(false);
+  const [saleReceiptData, setSaleReceiptData] = useState<ReceiptData | null>(null);
+  const [saleReceiptType, setSaleReceiptType] = useState<'supermarket' | 'invoice'>('supermarket');
   const [pendingMessageId, setPendingMessageId] = useState<string | null>(null);
   const [isExecutingAction, setIsExecutingAction] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -212,11 +217,36 @@ export function MobileAskMOPage() {
             }
           }
           
+          // Original Record Sale receipt
+          try {
+            if (user.businessId) {
+              const settings = await loadBusinessReceiptSettings(user.businessId);
+              setSaleReceiptType(settings.receiptType);
+              const itemsForReceipt = (result.data?.items || saleData.items || []).map((item: any) => ({
+                name: item.name || item.productName || 'Item',
+                quantity: Number(item.quantity) || 1,
+                price: Number(item.price) || 0,
+              }));
+              setSaleReceiptData(
+                buildSaleReceiptData({
+                  settings,
+                  items: itemsForReceipt,
+                  saleId: result.saleId || result.data?.saleId,
+                  paymentMethod: saleData.paymentMethod || saleData.paymentType || 'cash',
+                  soldBy: user.name || user.shortName || 'Owner',
+                })
+              );
+              setShowSaleReceipt(true);
+            }
+          } catch (e) {
+            console.warn('[MobileAskMO] receipt failed', e);
+          }
+
           // Add success message to chat
           const successMsg: MOMessage = {
             id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             role: 'bot',
-            content: `✅ Sale recorded successfully!\n\n${result.message}\n\nItems: ${saleData.items?.length || 1}\nRevenue: ₦${result.data.totalRevenue?.toLocaleString()}\nProfit: ₦${result.data.profit?.toLocaleString()}`,
+            content: `✅ Sale recorded successfully!\n\n${result.message}\n\nItems: ${saleData.items?.length || 1}\nRevenue: ₦${result.data.totalRevenue?.toLocaleString()}\nProfit: ₦${result.data.profit?.toLocaleString()}\n\nReceipt ready — same as Record Sale.`,
             timestamp: new Date(),
           };
           updatedMessages.push(successMsg);
@@ -1551,6 +1581,17 @@ export function MobileAskMOPage() {
         </>
       )}
 
-    </div>
+    
+      {showSaleReceipt && saleReceiptData && (
+        <ReceiptGenerator
+          receiptData={saleReceiptData}
+          onClose={() => {
+            setShowSaleReceipt(false);
+            setSaleReceiptData(null);
+          }}
+          receiptType={saleReceiptType}
+        />
+      )}
+</div>
   );
 }
