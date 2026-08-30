@@ -29,8 +29,8 @@ export const NAV_ITEM_REQUIREMENTS: Record<string, {
   'payroll': { requiredFeatures: ['Payroll Management'], requiredPlan: 'pro' },
   'customer-management': { requiredFeatures: ['Customer Management'] },
   'supplier-management': { requiredFeatures: ['Supplier Management'], excludedCategories: ['education', 'services'] },
-  'warehouse': { requiredCategories: ['retail', 'wholesale', 'distributor'] },
-  'stock-transfers': { requiredFeatures: ['Warehouse Management'], requiredCategories: ['retail', 'wholesale', 'distributor'] },
+  'warehouse': { requiredCategories: ['retail', 'wholesale', 'distributor'], excludedCategories: ['restaurant', 'cafe', 'services', 'education', 'healthcare'] },
+  'stock-transfers': { requiredFeatures: ['Warehouse Management'], requiredCategories: ['retail', 'wholesale', 'distributor'], excludedCategories: ['restaurant', 'cafe', 'services', 'education', 'healthcare'] },
 };
 
 export const SIDEBAR_TRANSLATIONS: { [key: string]: { [key: string]: string } } = {

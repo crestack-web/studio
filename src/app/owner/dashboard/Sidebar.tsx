@@ -428,6 +428,11 @@ export function Sidebar() {
       categoryDefaults.includes('menu-management') ||
       categoryDefaults.includes('ingredient-tracking');
 
+    // Warehouse is for retail/wholesale/distributor only — never for restaurants
+    if ((itemId === 'warehouse' || itemId === 'stock-transfers') && isRestaurantLike) {
+      return false;
+    }
+
     if (restaurantNavIds.has(itemId) && isRestaurantLike) {
       if (requirements.requiredPlan) {
         const userPlanLevel = planHierarchy[effectivePlan] || 1;
