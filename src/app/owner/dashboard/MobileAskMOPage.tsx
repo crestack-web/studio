@@ -171,7 +171,7 @@ export function MobileAskMOPage() {
             action: pendingAction,
             businessId: user.businessId || undefined,
             userId: user.id,
-            userRole: user.role,
+            userRole: (user.role && !['user',''].includes(String(user.role).toLowerCase())) ? user.role : 'owner',
           }),
         });
 
@@ -240,7 +240,7 @@ export function MobileAskMOPage() {
             action: pendingAction,
             businessId: user.businessId || undefined,
             userId: user.id,
-            userRole: user.role,
+            userRole: (user.role && !['user',''].includes(String(user.role).toLowerCase())) ? user.role : 'owner',
           }),
         });
 
@@ -628,7 +628,7 @@ export function MobileAskMOPage() {
         languageName: langMeta.name,
         businessCategory: businessCategory,
         businessSummary: businessSummary,
-        userRole: user.role,
+        userRole: (user.role && !['user',''].includes(String(user.role).toLowerCase())) ? user.role : 'owner',
       };
       if (audioBase64) requestBody.audio = audioBase64;
       

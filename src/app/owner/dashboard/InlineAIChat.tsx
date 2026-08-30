@@ -450,7 +450,7 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
         language: lang,
         languageName: langMeta.name,
         businessCategory: businessCategory,
-        userRole: user.role,
+        userRole: (user.role && !['user',''].includes(String(user.role).toLowerCase())) ? user.role : 'owner',
         businessSummary: businessSummary,
       };
       if (audioBase64) requestBody.audio = audioBase64;
@@ -591,7 +591,7 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
           action: pendingAction,
           businessId: user.businessId || undefined,
           userId: user.id,
-          userRole: user.role,
+          userRole: (user.role && !['user',''].includes(String(user.role).toLowerCase())) ? user.role : 'owner',
         }),
       });
       const result = await response.json();

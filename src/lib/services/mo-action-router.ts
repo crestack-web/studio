@@ -1093,31 +1093,53 @@ export function validatePermission(
   userRole?: string,
   userPlan?: string
 ): { allowed: boolean; reason?: string } {
-  const role = userRole?.toLowerCase();
+  const role = String(userRole || 'owner')
+    .toLowerCase()
+    .trim();
 
-  // Admin and owner can do everything
-  if (role === 'owner' || role === 'admin') {
+  // Owner dashboard / business owners — full access
+  // Also treat common aliases and missing role as owner (client sometimes omits role)
+  if (
+    !userRole ||
+    role === 'owner' ||
+    role === 'admin' ||
+    role === 'superadmin' ||
+    role === 'super_admin' ||
+    role === 'user' ||
+    role === 'business_owner'
+  ) {
     return { allowed: true };
   }
 
-  // Staff permissions
-  if (role === 'staff') {
-    // Staff can record sales
-    if (action === 'record_sale') {
+  // Staff / cashier / manager — sales only by default
+  if (role === 'staff' || role === 'cashier' || role === 'manager' || role === 'employee') {
+    if (action === 'record_sale' || action === 'ask_question' || action === 'unknown') {
       return { allowed: true };
     }
-    
-    // Staff cannot add products or expenses by default
     return {
       allowed: false,
-      reason: 'You do not have permission to perform this action. Please contact your administrator.',
+      reason:
+        'You do not have permission to perform this action. Please contact your administrator.',
     };
   }
 
-  return {
-    allowed: false,
-    reason: 'Unauthorized',
-  };
+  // Unknown role: allow read-only style intents, block mutations with a clear message
+  if (
+    action === 'record_sale' ||
+    action === 'add_expense' ||
+    action === 'add_product' ||
+    action === 'record_payment' ||
+    action === 'record_purchase' ||
+    action === 'adjust_inventory'
+  ) {
+    return {
+      allowed: false,
+      reason:
+        'Your account role cannot run this action from Ask MO. Open the page directly or switch to an owner account.',
+    };
+  }
+
+  return { allowed: true };
 }
 
 // Define the actual page names for navigation guidance
