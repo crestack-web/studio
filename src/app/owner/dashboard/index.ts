@@ -19,6 +19,7 @@ export type PageId =
   | 'mo'
   | 'mo-mobile'
   | 'mo-sell'
+  | 'mo-sales'
   | 'services'
   | 'staff'
   | 'add-product'
