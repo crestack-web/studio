@@ -215,6 +215,48 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
             });
           }
           setConversations(loaded);
+          
+          setConversationsLoaded(true);
+          if (loaded.length > 0) {
+            try {
+              let latestId = loaded[0].id;
+              try {
+                const remembered = localStorage.getItem(`busmo_mo_last_conv:${userId}:${businessId || 'na'}`);
+                if (remembered && loaded.some((c) => c.id === remembered)) {
+                  latestId = remembered;
+                }
+              } catch { /* ignore */ }
+              if (!String(latestId).startsWith('busmo-team:')) {
+                const { data: msgRows, error: msgErr } = await supabase
+                  .from('mo_messages')
+                  .select('id, role, content, created_at')
+                  .eq('conversation_id', latestId)
+                  .order('created_at', { ascending: true });
+                if (!msgErr) {
+                  const seen = new Set<string>();
+                  const loadedMsgs: MOMessage[] = (msgRows || [])
+                    .map((r: any) => ({
+                      id: r.id,
+                      role: fromDbRole(r.role),
+                      content: r.content || '',
+                      timestamp: r.created_at ? new Date(r.created_at) : new Date(),
+                    }))
+                    .filter((m) => {
+                      if (!m.id || seen.has(m.id)) return false;
+                      seen.add(m.id);
+                      return true;
+                    });
+                  setCurrentConversationId(latestId);
+                  setMessages(loadedMsgs);
+                  try {
+                    localStorage.setItem(`busmo_mo_last_conv:${userId}:${businessId || 'na'}`, latestId);
+                  } catch { /* ignore */ }
+                }
+              }
+            } catch (autoErr) {
+              console.error('MO auto-open latest conversation failed:', autoErr);
+            }
+          }
           console.log('📂 [useAskMO] Conversations loaded from Supabase');
         } catch (e) {
           console.error('MO conversations load error:', e);

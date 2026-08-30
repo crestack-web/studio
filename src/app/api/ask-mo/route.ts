@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMistralClient, STT_MODEL } from '@/ai/mistral';
 import { getAdminDb } from '@/lib/firebase-admin';
+import { loadMoBusinessContext, formatMoBusinessContextForPrompt } from '@/lib/ask-mo/business-context';
 import { detectIntent } from '@/lib/services/mo-intent-router';
 import { executeAction, validatePermission } from '@/lib/services/mo-action-router';
 import { renderResponse } from '@/lib/services/mo-response-renderer';
@@ -131,6 +132,26 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     let { message, image, audio, businessId, userId, conversationHistory = [], language = 'en', languageName = 'English', businessCategory = 'retail', userRole = 'owner', businessSummary, userPlan = 'starter' } = body;
+
+    // Real catalog + sales from Supabase (never invent products)
+    let liveBizContextText = '';
+    if (businessId) {
+      try {
+        const ctx = await loadMoBusinessContext(businessId);
+        if (ctx) {
+          liveBizContextText = formatMoBusinessContextForPrompt(ctx);
+          console.log('[Ask MO] live context', {
+            sellable: ctx.sellable.length,
+            ingredients: ctx.ingredients.length,
+            todayTx: ctx.todayTx,
+            top: ctx.topItemsToday.slice(0, 3).map((i) => i.name),
+          });
+        }
+      } catch (e) {
+        console.warn('[Ask MO] live context failed', e);
+      }
+    }
+
 
     // Resolve category from business record (onboarding) — never guess when DB has it
     if (businessId) {
@@ -609,7 +630,15 @@ KNOWN BUSINESS PROFILE (from onboarding — DO NOT ask again):
     // Run Master Processor - orchestrates all MO engines
     let processingResult;
     try {
-      const masterProcessor = getMasterProcessor(businessId || 'default', userId || 'default');
+      if (liveBizContextText) {
+      // Ensure model always sees real catalog/sales for this turn
+      if (typeof businessSummary === 'object' && businessSummary) {
+        (businessSummary as any).liveContext = liveBizContextText;
+      }
+      // Prepend to user message context for providers that only see user turns lightly
+      message = `${message}\n\n[${liveBizContextText}]`;
+    }
+    const masterProcessor = getMasterProcessor(businessId || 'default', userId || 'default');
       processingResult = await masterProcessor.process({
         message,
         businessId: businessId || 'default',
@@ -1156,7 +1185,7 @@ If NO action was executed, you MUST follow these rules:
 1. NEVER state that a sale, expense, product, payment, purchase, or any transaction was recorded, saved, or completed.
 2. NEVER say "Sale recorded", "I've recorded", "Done, recorded", "your cash balance is now X", or anything presenting a transaction as finished.
 3. NEVER invent prices, quantities, totals, profits, cash balances, or any business data not present in the context above.
-4. If the user described selling or recording something, respond conversationally: restate what you understood and explain the system will show a confirmation card before anything is recorded. Never claim a product is missing unless the system already failed a lookup. Prefer structured sale confirmation over free-form refusal.`;
+4. If the user described selling or recording something, respond conversationally: restate what you understood and explain the system will show a confirmation card before anything is recorded. Never claim a product is missing unless the system already failed a lookup. Prefer structured sale confirmation over free-form refusal. Only discuss products that appear in LIVE BUSINESS DATA. Never invent menu items.`;
 
     systemPrompt = `${systemPrompt}\n\n${knownCategoryInstruction}`;
 
