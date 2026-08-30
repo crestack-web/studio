@@ -130,3 +130,10 @@ export {
 } from './administrative-emails';
 
 export { sendStaffStockAlertToOwner } from './inventory-emails';
+
+// Retention & dunning (trial grace + renewal)
+export {
+  sendGraceExtensionEmail,
+  sendGraceReminderEmail,
+  sendRenewalDueReminderEmail,
+} from './retention-emails';
