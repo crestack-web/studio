@@ -33,12 +33,13 @@ export const SOCIAL_ICON = {
   youtube: 'https://cdn.simpleicons.org/youtube/FF0000',
 } as const;
 
+/** All Busmo socials use @busmodotio */
 export const SOCIAL_PROFILES = [
   {
     key: 'x',
     label: 'X',
-    handle: '@busmohq',
-    href: 'https://x.com/busmohq',
+    handle: '@busmodotio',
+    href: 'https://x.com/busmodotio',
     icon: SOCIAL_ICON.x,
   },
   {
@@ -51,8 +52,8 @@ export const SOCIAL_PROFILES = [
   {
     key: 'tiktok',
     label: 'TikTok',
-    handle: '@busmohq',
-    href: 'https://tiktok.com/@busmohq',
+    handle: '@busmodotio',
+    href: 'https://tiktok.com/@busmodotio',
     icon: SOCIAL_ICON.tiktok,
   },
   {
