@@ -148,42 +148,23 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
   const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [isSending, setIsSending] = useState(false);
 
-  // Daily Check / external prefill → set input and optionally auto-send to MO
+  // Daily Check / external prefill — applied once `send` is ready (see effect below)
+  const moPrefillRef = useRef<{ text: string; autoSend: boolean } | null>(null);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    let prefill = '';
-    let autoSend = false;
     try {
-      prefill = sessionStorage.getItem('busmo_mo_prefill') || '';
-      autoSend = sessionStorage.getItem('busmo_mo_auto_send') === '1';
+      const prefill = sessionStorage.getItem('busmo_mo_prefill') || '';
+      const autoSend = sessionStorage.getItem('busmo_mo_auto_send') === '1';
       sessionStorage.removeItem('busmo_mo_prefill');
       sessionStorage.removeItem('busmo_mo_auto_send');
       sessionStorage.removeItem('busmo_mo_prefill_label');
-    } catch {
-      return;
-    }
-    if (!prefill.trim()) return;
-    setInput(prefill);
-    if (!autoSend) return;
-    // Defer until chat is interactive
-    const timer = window.setTimeout(() => {
-      try {
-        const form = document.getElementById('mo-chat-form') as HTMLFormElement | null;
-        if (form) {
-          form.requestSubmit();
-          return;
-        }
-        // Fallback: dispatch Enter on input if form id missing
-        const ta = document.querySelector('[data-mo-input="true"]') as HTMLTextAreaElement | null;
-        if (ta) {
-          ta.value = prefill;
-          ta.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-      } catch (e) {
-        console.warn('[InlineAIChat] auto-send prefill failed', e);
+      if (prefill.trim()) {
+        moPrefillRef.current = { text: prefill, autoSend };
+        setInput(prefill);
       }
-    }, 400);
-    return () => window.clearTimeout(timer);
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const messagesRef = useRef<MOMessage[]>([]);
@@ -622,6 +603,21 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
       setIsSending(false);
     }
   }, [input, selectedImage, imagePreview, audioBlob, audioUrl, audioBase64, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, saveConversation, isSending, currentConversationId, creditsRemaining, businessSummary, loadBusinessData, createConversation, setCurrentConversationId, updateCredits, saveMessages]);
+
+  // Auto-send Daily Check recommendation into MO
+  useEffect(() => {
+    const pending = moPrefillRef.current;
+    if (!pending?.text?.trim()) return;
+    const shouldSend = pending.autoSend;
+    moPrefillRef.current = null;
+    setInput(pending.text);
+    if (!shouldSend) return;
+    const timer = window.setTimeout(() => {
+      void send(pending.text);
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [send]);
+
 
   // Execute pending action (sale/expense/product confirmation)
   const executePendingAction = useCallback(async () => {
@@ -1314,6 +1310,7 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
           )}
           <textarea
             ref={textareaRef}
+            data-mo-input="true"
             className={styles.textInput}
             placeholder="Ask MO..."
             value={input}
