@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { fetchDocs, fetchDoc, addDoc, updateDoc, deleteDoc, runBatch, toISOString, toDate } from '@/lib/supabase-client-data';
+import { getSupabase } from '@/lib/supabase';
 import styles from './PayrollPage.module.css';
 
 interface PayrollEntry {
@@ -84,30 +85,41 @@ export default function PayrollPage() {
 
   const businessId = user?.businessId;
 
+  const authHeaders = useCallback(async () => {
+    const supabase = getSupabase();
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  }, []);
+
   const loadWallet = useCallback(async () => {
     if (!businessId) return;
     try {
-      const walletPath = `businesses/${businessId}/settings`;
-      const walletSnap = await fetchDoc<{ balance?: number }>(walletPath, 'payrollWallet');
-      setWalletBalance(Number(walletSnap?.balance) || 0);
-
-      const txPath = `businesses/${businessId}/walletTransactions`;
-      const txDocs = await fetchDocs(txPath);
-      const txs: WalletTx[] = txDocs.map((data: any) => ({
-        id: data.id,
-        type: data.type === 'payout' ? 'payout' : 'deposit',
-        amount: Number(data.amount) || 0,
-        note: data.note || '',
-        balanceAfter: Number(data.balanceAfter) || 0,
-        createdAt: toDate(data.createdAt),
-        entryIds: data.entryIds || [],
-      }));
-      txs.sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0));
-      setWalletTx(txs.slice(0, 20));
+      const headers = await authHeaders();
+      const res = await fetch(`/api/wallet?businessId=${encodeURIComponent(businessId)}`, {
+        headers,
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Could not load wallet');
+      setWalletBalance(Number(json.balance) || 0);
+      const list: WalletTx[] = (Array.isArray(json.transactions) ? json.transactions : []).map(
+        (row: any) => ({
+          id: row.id,
+          type: row.type === 'debit' ? 'payout' : 'deposit',
+          amount: Number(row.amount) || 0,
+          note: row.description || row.purpose || undefined,
+          balanceAfter: Number(row.balanceAfter) || 0,
+          createdAt: row.createdAt ? new Date(row.createdAt) : null,
+        })
+      );
+      setWalletTx(list.slice(0, 20));
     } catch (e) {
       console.error('Failed to load wallet', e);
     }
-  }, [businessId]);
+  }, [businessId, authHeaders]);
 
   const loadPayrollEntries = useCallback(async () => {
     if (!businessId) return;
@@ -258,36 +270,33 @@ export default function PayrollPage() {
   const handleFundWallet = async () => {
     if (!businessId) return;
     const amount = parseFloat(fundAmount);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      showToast('Enter a valid amount greater than 0');
+    if (!Number.isFinite(amount) || amount < 100) {
+      showToast('Enter at least ₦100 to fund the Busmo wallet');
       return;
     }
     setIsFunding(true);
     try {
-      const walletPath = `businesses/${businessId}/settings`;
-      const currentSnap = await fetchDoc<{ balance?: number }>(walletPath, 'payrollWallet');
-      const currentBalance = Number(currentSnap?.balance) || 0;
-      const newBalance = currentBalance + amount;
-      await updateDoc(walletPath, 'payrollWallet', { balance: newBalance, updatedAt: new Date().toISOString() });
-
-      const txPath = `businesses/${businessId}/walletTransactions`;
-      await addDoc(txPath, {
-        type: 'deposit',
-        amount,
-        note: fundNote.trim() || 'Wallet top-up',
-        balanceAfter: newBalance,
-        createdAt: new Date().toISOString(),
-        createdBy: user?.id || null,
+      const headers = await authHeaders();
+      const res = await fetch('/api/wallet/fund', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          businessId,
+          amount,
+          callbackUrl: `${window.location.origin}/owner/dashboard?walletFunded=1`,
+        }),
       });
-      setWalletBalance(newBalance);
-      setShowFundModal(false);
-      setFundAmount('');
-      setFundNote('');
-      showToast(`Added ${formatMoney(amount)} to payroll wallet`);
-      await loadWallet();
-    } catch (e) {
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Could not start funding');
+      if (json.reference) sessionStorage.setItem('busmo_wallet_ref', json.reference);
+      if (json.authorizationUrl) {
+        window.location.href = json.authorizationUrl;
+        return;
+      }
+      throw new Error('No payment URL returned');
+    } catch (e: any) {
       console.error(e);
-      showToast('Failed to fund wallet');
+      showToast(e?.message || 'Failed to fund wallet');
     } finally {
       setIsFunding(false);
     }
@@ -305,19 +314,39 @@ export default function PayrollPage() {
   const handleBulkPay = async () => {
     if (!businessId || selectedEntries.length === 0) return;
     if (walletBalance < selectedTotal) {
-      showToast('Insufficient wallet balance. Fund your wallet first.');
+      showToast('Insufficient Busmo wallet balance. Fund your wallet first.');
       return;
     }
     setIsPaying(true);
     try {
-      const walletPath = `businesses/${businessId}/settings`;
-      const payrollPath = `businesses/${businessId}/payroll`;
-      const txPath = `businesses/${businessId}/walletTransactions`;
+      const headers = await authHeaders();
+      const debitRes = await fetch('/api/wallet/debit', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          businessId,
+          amount: selectedTotal,
+          purpose: 'payroll',
+          description: `Salary payout (${selectedEntries.length} staff)`,
+          metadata: {
+            entryIds: selectedEntries.map((e) => e.id),
+            staffNames: selectedEntries.map((e) => e.staffName),
+          },
+        }),
+      });
+      const debitJson = await debitRes.json().catch(() => ({}));
+      if (!debitRes.ok) {
+        if (debitJson.error === 'insufficient_balance') {
+          showToast('Insufficient Busmo wallet balance. Fund your wallet first.');
+        } else {
+          throw new Error(debitJson.error || 'Wallet debit failed');
+        }
+        return;
+      }
 
-      const newBalance = walletBalance - selectedTotal;
-      await runBatch([
-        { type: 'update', path: walletPath, id: 'payrollWallet', data: { balance: newBalance, updatedAt: new Date().toISOString() } },
-        ...selectedEntries.map((entry) => ({
+      const payrollPath = `businesses/${businessId}/payroll`;
+      await runBatch(
+        selectedEntries.map((entry) => ({
           type: 'update' as const,
           path: payrollPath,
           id: entry.id,
@@ -325,29 +354,19 @@ export default function PayrollPage() {
             status: 'paid',
             paidDate: new Date().toISOString(),
             paidFromWallet: true,
+            walletReference: debitJson.reference || null,
           },
-        })),
-      ]);
+        }))
+      );
 
-      await addDoc(txPath, {
-        type: 'payout',
-        amount: selectedTotal,
-        note: `Bulk salary payout (${selectedEntries.length} staff)`,
-        balanceAfter: newBalance,
-        entryIds: selectedEntries.map((e) => e.id),
-        staffNames: selectedEntries.map((e) => e.staffName),
-        createdAt: new Date().toISOString(),
-        createdBy: user?.id || null,
-      });
-
-      setWalletBalance(newBalance);
+      setWalletBalance(Number(debitJson.balance) || walletBalance - selectedTotal);
       setSelectedIds(new Set());
       setShowBulkConfirm(false);
       showToast(`Paid ${selectedEntries.length} staff — ${formatMoney(selectedTotal)}`);
       await Promise.all([loadPayrollEntries(), loadWallet()]);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      showToast('Bulk payout failed. Try again.');
+      showToast(e?.message || 'Bulk payout failed. Try again.');
     } finally {
       setIsPaying(false);
     }
@@ -517,7 +536,7 @@ export default function PayrollPage() {
 
       <div className={styles.walletCard}>
         <div className={styles.walletLeft}>
-          <div className={styles.walletLabel}>Payroll wallet</div>
+          <div className={styles.walletLabel}>Busmo wallet</div>
           <div className={styles.walletBalance}>{formatMoney(walletBalance)}</div>
           <div className={styles.walletHint}>
             Add money here, then pay selected staff in one go.
@@ -693,7 +712,7 @@ export default function PayrollPage() {
       {showFundModal && (
         <div className={styles.overlay} onClick={() => setShowFundModal(false)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <h3 className={styles.modalTitle}>Add money to payroll wallet</h3>
+            <h3 className={styles.modalTitle}>Add money to Busmo wallet</h3>
             <p className={styles.modalDesc}>
               Record funds available to pay staff. This balance is used for bulk salary payouts.
             </p>
@@ -743,7 +762,7 @@ export default function PayrollPage() {
             <h3 className={styles.modalTitle}>Pay selected staff</h3>
             <p className={styles.modalDesc}>
               You are about to pay <strong>{selectedEntries.length}</strong> staff a total of{' '}
-              <strong>{formatMoney(selectedTotal)}</strong> from your payroll wallet.
+              <strong>{formatMoney(selectedTotal)}</strong> from your Busmo wallet.
             </p>
             <div className={styles.confirmBox}>
               <div>
