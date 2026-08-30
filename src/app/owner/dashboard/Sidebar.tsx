@@ -13,7 +13,7 @@ import { fetchDocs } from '@/lib/supabase-client-data';
 import { checkFeatureAccess as checkRegistryAccess } from '@/lib/featureRegistry';
 import { Plan, BusinessCategory } from '@/lib/featureRegistry';
 import { CATEGORY_FEATURES } from '@/app/welcome/signup/onboarding-constants';
-import { isRestaurantBusiness } from './utils/restaurantHelpers';
+import { isRestaurantBusiness, resolveBusinessCategoryId } from './utils/restaurantHelpers';
 import { resolveUserAccess, USER_ACCESS_SELECT } from '@/lib/subscription/resolve-access';
 
 function asDate(value: unknown): Date | undefined {
@@ -205,7 +205,7 @@ export function Sidebar() {
           try {
             const { data: biz } = await supabase
               .from('businesses')
-              .select('category, industry, business_type, type, metadata')
+              .select('category, industry, metadata, name')
               .eq('id', businessId)
               .maybeSingle();
             const bizMeta =
@@ -214,12 +214,12 @@ export function Sidebar() {
                 : {};
             pushCandidate(biz?.category);
             pushCandidate(biz?.industry);
-            pushCandidate((biz as any)?.business_type);
-            pushCandidate((biz as any)?.type);
+            pushCandidate(biz?.name);
             pushCandidate(bizMeta.selectedCategory);
             pushCandidate(bizMeta.category);
             pushCandidate(bizMeta.categoryLabel);
             pushCandidate(bizMeta.businessType);
+            pushCandidate(bizMeta.businessCategory);
           } catch (bizErr) {
             console.warn('[Sidebar] business category load failed', bizErr);
           }
@@ -238,12 +238,17 @@ export function Sidebar() {
             normalizedCandidates.find((c) => c !== 'other') || normalizedCandidates[0] || 'other';
         }
 
-        // Inventory page uses isRestaurantBusiness — mirror that so sidebar matches
+        // Same detection as inventory / add-product (category + dish/ingredient products)
         if (businessId) {
           try {
-            const restaurant = await isRestaurantBusiness(businessId);
-            if (restaurant && resolvedCategory !== 'cafe') {
-              resolvedCategory = 'restaurant';
+            const fromBiz = await resolveBusinessCategoryId(businessId);
+            if (fromBiz && fromBiz !== 'other') {
+              resolvedCategory = fromBiz;
+            } else {
+              const restaurant = await isRestaurantBusiness(businessId);
+              if (restaurant && resolvedCategory !== 'cafe') {
+                resolvedCategory = 'restaurant';
+              }
             }
           } catch (_) {
             /* ignore */
