@@ -133,6 +133,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     let { message, image, audio, businessId, userId, conversationHistory = [], language = 'en', languageName = 'English', businessCategory = 'retail', userRole = 'owner', businessSummary, userPlan = 'starter' } = body;
 
+    const originalUserMessage = typeof message === 'string' ? message.trim() : '';
+
+
     // Real catalog + sales from Supabase (never invent products)
     let liveBizContextText = '';
     if (businessId) {
@@ -618,6 +621,11 @@ KNOWN BUSINESS PROFILE (from onboarding — DO NOT ask again):
     }));
     
     businessData.availableFeatures = featureContext;
+    if (liveBizContextText) {
+      businessData.liveContext = liveBizContextText;
+      businessData.groundingInstructions = liveBizContextText;
+    }
+
     businessData.userPlan = normalizedPlan;
     businessData.businessCategory = normalizedCategory;
     
@@ -631,14 +639,17 @@ KNOWN BUSINESS PROFILE (from onboarding — DO NOT ask again):
     let processingResult;
     try {
       if (liveBizContextText) {
-      // Ensure model always sees real catalog/sales for this turn
-      if (typeof businessSummary === 'object' && businessSummary) {
-        (businessSummary as any).liveContext = liveBizContextText;
+        if (typeof businessSummary === 'object' && businessSummary) {
+          (businessSummary as any).liveContext = liveBizContextText;
+        }
+        if (businessData && typeof businessData === 'object') {
+          (businessData as any).liveContext = liveBizContextText;
+          (businessData as any).groundingInstructions = liveBizContextText;
+        }
       }
-      // Prepend to user message context for providers that only see user turns lightly
-      message = `${message}\n\n[${liveBizContextText}]`;
-    }
-    const masterProcessor = getMasterProcessor(businessId || 'default', userId || 'default');
+      // Keep user message clean — never append catalog text (it breaks intent detection)
+      message = originalUserMessage || message;
+      const masterProcessor = getMasterProcessor(businessId || 'default', userId || 'default');
       processingResult = await masterProcessor.process({
         message,
         businessId: businessId || 'default',
@@ -682,7 +693,29 @@ KNOWN BUSINESS PROFILE (from onboarding — DO NOT ask again):
     }
 
     // Step 1: Detect intent using pattern matching
-    const intent = detectIntent(message);
+    let intent = detectIntent(originalUserMessage || message);
+
+    // Conversational guard: advice / how-to questions must never become record_sale
+    const q = (originalUserMessage || '').trim();
+    const isAdviceQuestion =
+      /^(how|what|why|when|where|who|which|can|could|should|would|is|are|do|does|did|tell|explain|help|advise|suggest|recommend)\b/i.test(q) ||
+      /\?\s*$/.test(q) ||
+      /\b(grow|expand|scale|branches?|franchise|strategy|advice|tips?)\b/i.test(q);
+    if (
+      isAdviceQuestion &&
+      (intent.intent === 'record_sale' ||
+        intent.intent === 'add_product' ||
+        intent.intent === 'adjust_inventory')
+    ) {
+      console.log('🎯 [Ask MO API] Overriding', intent.intent, '→ ask_question (conversational)');
+      intent = {
+        intent: 'ask_question',
+        confidence: 0.9,
+        data: {},
+        requiresConfirmation: false,
+      } as typeof intent;
+    }
+
     console.log('🎯 [Ask MO API] Intent detected:', intent.intent, 'confidence:', intent.confidence);
 
     // Step 2: If we have a structured intent with data, execute it
