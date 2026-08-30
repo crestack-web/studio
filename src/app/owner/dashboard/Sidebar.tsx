@@ -12,6 +12,7 @@ import { getSupabase } from '@/lib/supabase';
 import { fetchDocs } from '@/lib/supabase-client-data';
 import { checkFeatureAccess as checkRegistryAccess } from '@/lib/featureRegistry';
 import { Plan, BusinessCategory } from '@/lib/featureRegistry';
+import { CATEGORY_FEATURES } from '@/app/welcome/signup/onboarding-constants';
 
 function asDate(value: unknown): Date | undefined {
   if (!value) return undefined;
@@ -141,13 +142,28 @@ export function Sidebar() {
           meta.category ||
           'retail';
 
-        const featuresRaw =
-          ownerDoc?.selected_features ||
-          (ownerDoc as any)?.selectedFeatures ||
-          meta.selectedFeatures ||
-          meta.selected_features ||
-          [];
-        const features = Array.isArray(featuresRaw) ? featuresRaw : [];
+        const parseFeatureList = (raw: unknown): string[] => {
+          if (Array.isArray(raw)) return raw.map(String);
+          if (typeof raw === 'string') {
+            try {
+              const parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) return parsed.map(String);
+            } catch {
+              return raw
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean);
+            }
+          }
+          return [];
+        };
+
+        let features = parseFeatureList(
+          ownerDoc?.selected_features ??
+            (ownerDoc as any)?.selectedFeatures ??
+            meta.selectedFeatures ??
+            meta.selected_features
+        );
 
         const prefsRaw =
           ownerDoc?.feature_preferences ||
@@ -186,30 +202,65 @@ export function Sidebar() {
         const lifetimeAccess =
           (ownerDoc as any)?.lifetime_access === true || meta.lifetimeAccess === true;
 
-        setUserCategory(normalizeCategoryId(rawCategory));
+        // Prefer category from business record (source of truth after onboarding)
+        let categoryCandidate = rawCategory;
+        if (businessId) {
+          try {
+            const { data: biz } = await supabase
+              .from('businesses')
+              .select('category, industry, business_type, type, metadata')
+              .eq('id', businessId)
+              .maybeSingle();
+            const bizMeta =
+              biz?.metadata && typeof biz.metadata === 'object'
+                ? (biz.metadata as Record<string, any>)
+                : {};
+            categoryCandidate =
+              biz?.category ||
+              biz?.industry ||
+              (biz as any)?.business_type ||
+              (biz as any)?.type ||
+              bizMeta.selectedCategory ||
+              bizMeta.category ||
+              categoryCandidate;
+          } catch (bizErr) {
+            console.warn('[Sidebar] business category load failed', bizErr);
+          }
+        }
+
+        const resolvedCategory = normalizeCategoryId(categoryCandidate);
+        setUserCategory(resolvedCategory);
+
+        // If user has no saved features, use the same defaults as onboarding for that category
+        const categoryDefaults = CATEGORY_FEATURES[resolvedCategory] || CATEGORY_FEATURES.other || [];
+        if (!features.length) {
+          features = [...categoryDefaults];
+        }
+
         const normalizedFeatures = features.map((f: string) => normalizeFeatureName(String(f)));
         setSelectedFeatures(normalizedFeatures);
         setFeaturePreferences(prefs);
         setUserPlan(plan);
 
-        // Trial OR grace extension → treat as in-trial for Standard-tier nav visibility
-        // Active paid subscription also keeps full access via plan field
+        // Trial / grace / active paid → Standard-tier nav (same as day-one trial)
         const now = new Date();
+        const statusLc = String(subscriptionStatus || '').toLowerCase();
         const inTrialWindow =
-          (subscriptionStatus === 'trial' && trialEndDate && trialEndDate > now) ||
-          (!subscriptionStatus && trialEndDate && trialEndDate > now);
+          statusLc === 'trial' ||
+          statusLc === 'trialing' ||
+          (trialEndDate != null && trialEndDate > now);
         const inGraceWindow =
-          subscriptionStatus === 'grace' ||
-          ((subscriptionStatus === 'expired' || subscriptionStatus === 'pending_payment') &&
-            graceEndDate &&
+          statusLc === 'grace' ||
+          ((statusLc === 'expired' || statusLc === 'pending_payment') &&
+            graceEndDate != null &&
             graceEndDate > now) ||
-          (trialEndDate &&
+          (trialEndDate != null &&
             trialEndDate <= now &&
-            graceEndDate &&
+            graceEndDate != null &&
             graceEndDate > now);
         const isActivePaid =
           lifetimeAccess ||
-          (subscriptionStatus === 'active' &&
+          (statusLc === 'active' &&
             (!subscriptionEndDate || subscriptionEndDate > now));
 
         setIsInTrial(Boolean(inTrialWindow || inGraceWindow || isActivePaid));
@@ -293,19 +344,24 @@ export function Sidebar() {
     const normalizedPlan = userPlan as Plan;
     const normalizedCategory = (userCategory || 'other') as BusinessCategory;
 
-    // Combine selectedFeatures (onboarding) and featurePreferences (settings page)
-    // During trial/grace/active: prefer selectedFeatures when prefs empty
-    const enabledFeaturesSet = new Set(
-      isInTrial
-        ? (selectedFeatures.length
-            ? selectedFeatures
-            : Object.keys(featurePreferences).filter((key) => featurePreferences[key]))
-        : Object.keys(featurePreferences).filter((key) => featurePreferences[key]).length
-          ? Object.keys(featurePreferences).filter((key) => featurePreferences[key])
-          : selectedFeatures
-    );
+    // Match day-one trial: category default features ∪ selected ∪ explicit prefs
+    const categoryDefaults = (
+      CATEGORY_FEATURES[normalizedCategory] ||
+      CATEGORY_FEATURES.other ||
+      []
+    ).map((f) => normalizeFeatureName(f));
 
-    // Trial / grace users get at least Standard-tier visibility so onboarding is not blocked
+    const prefEnabled = Object.keys(featurePreferences)
+      .filter((key) => featurePreferences[key])
+      .map((key) => normalizeFeatureName(key));
+
+    const enabledFeaturesSet = new Set<string>([
+      ...(isInTrial || selectedFeatures.length === 0 ? categoryDefaults : []),
+      ...selectedFeatures,
+      ...prefEnabled,
+    ]);
+
+    // Trial / grace / active-paid get at least Standard-tier visibility
     const planHierarchy = { starter: 1, standard: 2, pro: 3 } as const;
     const effectivePlan: Plan = isInTrial
       ? normalizedPlan === 'pro'
@@ -313,14 +369,14 @@ export function Sidebar() {
         : 'standard'
       : normalizedPlan;
 
-    // requiredFeatures is OR: any matching selected/enabled feature unlocks the item
+    // requiredFeatures is OR: any matching enabled feature unlocks the item
     if (requirements.requiredFeatures && requirements.requiredFeatures.length > 0) {
       const normalizedRequired = requirements.requiredFeatures.map(normalizeFeatureName);
       const hasAnySelected = normalizedRequired.some((f) => enabledFeaturesSet.has(f));
 
-      if (isInTrial) {
-        // During trial/grace: show if selected in onboarding OR allowed on effective trial plan
-        if (!hasAnySelected) {
+      if (!hasAnySelected) {
+        // During trial: also allow if feature is eligible for this category + plan
+        if (isInTrial) {
           let anyEligible = false;
           for (const featureName of requirements.requiredFeatures) {
             const normalizedFeatureName = normalizeFeatureName(featureName);
@@ -336,27 +392,9 @@ export function Sidebar() {
             }
           }
           if (!anyEligible) return false;
+        } else {
+          return false;
         }
-      } else {
-        let anyEligible = false;
-        for (const featureName of requirements.requiredFeatures) {
-          const normalizedFeatureName = normalizeFeatureName(featureName);
-          if (enabledFeaturesSet.has(normalizedFeatureName)) {
-            anyEligible = true;
-            break;
-          }
-          const access = checkRegistryAccess(
-            normalizedFeatureName,
-            effectivePlan,
-            normalizedCategory,
-            enabledFeaturesSet
-          );
-          if (access.eligible) {
-            anyEligible = true;
-            break;
-          }
-        }
-        if (!anyEligible) return false;
       }
     }
 
