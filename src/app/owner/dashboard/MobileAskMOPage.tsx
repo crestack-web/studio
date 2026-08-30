@@ -157,6 +157,25 @@ export function MobileAskMOPage() {
     }
   }, [conversationsLoaded, conversations, currentConversationId, messages.length, loadConversation]);
 
+  // Daily Check / external prefill
+  const moPrefillRef = useRef<{ text: string; autoSend: boolean } | null>(null);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const prefill = sessionStorage.getItem('busmo_mo_prefill') || '';
+      const autoSend = sessionStorage.getItem('busmo_mo_auto_send') === '1';
+      sessionStorage.removeItem('busmo_mo_prefill');
+      sessionStorage.removeItem('busmo_mo_auto_send');
+      sessionStorage.removeItem('busmo_mo_prefill_label');
+      if (prefill.trim()) {
+        moPrefillRef.current = { text: prefill, autoSend };
+        setInput(prefill);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   // Execute pending action (sale confirmation)
   const executePendingAction = useCallback(async () => {
     if (!pendingAction || isExecutingAction) return;
@@ -834,6 +853,24 @@ export function MobileAskMOPage() {
       setIsSending(false);
     }
   }, [input, selectedImage, imagePreview, audioBlob, audioUrl, audioBase64, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, currentConversationId, createConversation, saveMessages, updateCredits, messagesRef, creditsRemaining, businessSummary, loadBusinessData, isSending, isTranscribing]);
+
+  // Auto-send Daily Check recommendation after recent conversation is ready
+  useEffect(() => {
+    const pending = moPrefillRef.current;
+    if (!pending?.text?.trim()) return;
+    if (!conversationsLoaded) return;
+    if (conversations.length > 0 && !currentConversationId) return;
+
+    const shouldSend = pending.autoSend;
+    moPrefillRef.current = null;
+    setInput(pending.text);
+    if (!shouldSend) return;
+    const timer = window.setTimeout(() => {
+      void send(pending.text);
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [send, conversationsLoaded, conversations.length, currentConversationId]);
+
 
   const cancelPendingAction = useCallback(async () => {
     const cancelMsg: MOMessage = {

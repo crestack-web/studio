@@ -768,12 +768,16 @@ export function HomePage() {
                           } catch {
                             /* ignore storage errors */
                           }
-                          // Full Ask MO page — do not toggle home AI panel (that unmounts Daily Check)
-                          navigateTo('mo');
+                          // Mobile bottom-nav Ask MO is mo-mobile; desktop sidebar uses mo
+                          const isMobile =
+                            typeof window !== 'undefined' && window.innerWidth <= 768;
+                          navigateTo(isMobile ? 'mo-mobile' : 'mo');
                         } catch (err) {
                           console.error('[DailyCheck] open MO failed', err);
                           try {
-                            navigateTo('mo');
+                            const isMobile =
+                              typeof window !== 'undefined' && window.innerWidth <= 768;
+                            navigateTo(isMobile ? 'mo-mobile' : 'mo');
                           } catch {
                             /* ignore */
                           }
