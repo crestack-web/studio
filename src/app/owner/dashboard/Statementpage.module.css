@@ -5,6 +5,10 @@
   max-width: 1100px;
   margin: 0 auto;
   animation: fadeIn 0.25s ease;
+  min-width: 0;
+  max-width: min(1100px, 100%);
+  box-sizing: border-box;
+  overflow-x: clip;
 }
 
 @keyframes fadeIn {
@@ -100,19 +104,28 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .filterLeft {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 .filterGroup {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 140px;
+  min-width: 0;
+  flex: 1 1 140px;
+  max-width: 100%;
 }
 
 .filterLabel {
@@ -134,7 +147,21 @@
   font-size: 13px;
   font-family: inherit;
   outline: none;
-  min-width: 150px;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Native date fields often force a large intrinsic width on mobile */
+.filterInput[type='date'],
+.filterInput[type='datetime-local'] {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .filterInput:focus,
@@ -622,22 +649,42 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .filterBar {
+    padding: 12px;
+    overflow: hidden;
+  }
+
   .filterLeft {
     flex-direction: column;
+    flex-wrap: nowrap;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 
   .filterGroup {
+    flex: 1 1 auto;
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 
-  .filterInput {
-    min-width: 100%;
-    width: 100%;
+  .filterInput,
+  .filterInput[type='date'],
+  .filterSelect,
+  .searchInput {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
   }
 
   .searchInput {
-    max-width: none;
-    width: 100%;
+    max-width: 100%;
+  }
+
+  .typeChips {
+    max-width: 100%;
   }
 
   .tableScroll {
