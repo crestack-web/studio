@@ -78,6 +78,9 @@ export function StatementPage() {
   const generatedDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
   const [stmtType, setStmtType] = useState('Full Summary');
+  const [ledgerFilter, setLedgerFilter] = useState<'all' | 'sale' | 'expense' | 'stock'>('all');
+  const [ledgerSearch, setLedgerSearch] = useState('');
+  const [activePreset, setActivePreset] = useState<'this_month' | 'last_month' | 'last_30' | 'this_year' | 'custom'>('this_month');
   const [downloading, setDownloading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -425,6 +428,53 @@ export function StatementPage() {
     win.onload = () => { win.print(); win.close(); };
   }, [startDate, endDate]);
 
+
+  function applyPreset(preset: typeof activePreset) {
+    const now = new Date();
+    let start: Date;
+    let end: Date;
+    if (preset === 'this_month') {
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    } else if (preset === 'last_month') {
+      start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      end = new Date(now.getFullYear(), now.getMonth(), 0);
+    } else if (preset === 'last_30') {
+      end = new Date(now);
+      start = new Date(now);
+      start.setDate(start.getDate() - 29);
+    } else if (preset === 'this_year') {
+      start = new Date(now.getFullYear(), 0, 1);
+      end = new Date(now.getFullYear(), 11, 31);
+    } else {
+      setActivePreset('custom');
+      return;
+    }
+    setActivePreset(preset);
+    setStartDate(start.toISOString().split('T')[0]);
+    setEndDate(end.toISOString().split('T')[0]);
+  }
+
+  const filteredTransactions = transactions.filter((tx) => {
+    if (ledgerFilter === 'sale' && tx.type !== 'Sale') return false;
+    if (ledgerFilter === 'expense' && tx.type !== 'Expense') return false;
+    if (ledgerFilter === 'stock' && tx.type !== 'Stock' && !/stock|inventory|restock/i.test(tx.type + ' ' + tx.description)) return false;
+    if (stmtType === 'Sales Only' && tx.type !== 'Sale') return false;
+    if (stmtType === 'Expenses Only' && tx.type !== 'Expense') return false;
+    if (stmtType === 'Stock Movement' && tx.type === 'Sale') return false;
+    if (ledgerSearch.trim()) {
+      const q = ledgerSearch.trim().toLowerCase();
+      const hay = `${tx.date} ${tx.ref} ${tx.type} ${tx.description}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const marginPct =
+    stats.totalRevenue > 0
+      ? Math.round((stats.netProfit / stats.totalRevenue) * 1000) / 10
+      : 0;
+
   async function handleDownload() {
     setDownloading(true);
     showToast('📄 Preparing PDF…');
@@ -436,85 +486,174 @@ export function StatementPage() {
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.heading}>
-        {t('statement.heading')}
-      </h1>
-      <p className={styles.sub}>
-        {t('statement.subheading')}
-      </p>
-
-      {/* ── FILTERS + ACTIONS ── */}
-      <div className={styles.filterBar}>
-        <div className={styles.filterLeft}>
-          <div className={styles.filterGroup}>
-            <label className={styles.filterLabel}>{t('statement.startDate')}</label>
-            <input 
-              type="date" 
-              className={styles.filterInput} 
-              value={startDate} 
-              onChange={e => setStartDate(e.target.value)}
-            />
-          </div>
-          <div className={styles.filterGroup}>
-            <label className={styles.filterLabel}>{t('statement.endDate')}</label>
-            <input 
-              type="date" 
-              className={styles.filterInput} 
-              value={endDate} 
-              onChange={e => setEndDate(e.target.value)}
-            />
-          </div>
-          <div className={styles.filterGroup}>
-            <label className={styles.filterLabel}>{t('statement.statementType')}</label>
-            <select className={styles.filterSelect} value={stmtType} onChange={e => setStmtType(e.target.value)}>
-              {STATEMENT_TYPES.map(t => <option key={t}>{t}</option>)}
-            </select>
-          </div>
+      <header className={styles.pageHeader}>
+        <div className={styles.pageHeaderText}>
+          <div className={styles.eyebrow}>Finance</div>
+          <h1 className={styles.heading}>{t('statement.heading')}</h1>
+          <p className={styles.sub}>{t('statement.subheading')}</p>
         </div>
-        <div className={styles.filterActions}>
-          <button className={styles.btnGhost} onClick={handlePrint}>
+        <div className={styles.headerActions}>
+          <button type="button" className={styles.btnGhost} onClick={handlePrint}>
             <PrintIcon /> {t('statement.print')}
           </button>
-          <button className={styles.btnPrimary} onClick={handleDownload} disabled={downloading}>
+          <button type="button" className={styles.btnPrimary} onClick={handleDownload} disabled={downloading}>
             <DownloadIcon /> {downloading ? t('statement.preparingPDF') : t('statement.downloadPDF')}
           </button>
         </div>
+      </header>
+
+      {/* Period presets */}
+      <div className={styles.presetRow} role="tablist" aria-label="Report period">
+        {[
+          { id: 'this_month' as const, label: 'This month' },
+          { id: 'last_month' as const, label: 'Last month' },
+          { id: 'last_30' as const, label: 'Last 30 days' },
+          { id: 'this_year' as const, label: 'This year' },
+        ].map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            role="tab"
+            aria-selected={activePreset === p.id}
+            className={`${styles.presetChip} ${activePreset === p.id ? styles.presetChipActive : ''}`}
+            onClick={() => applyPreset(p.id)}
+          >
+            {p.label}
+          </button>
+        ))}
       </div>
 
-      {/* ── VERIFICATION BANNER ── */}
-      <div className={styles.verifyBanner}>
-        <span className={styles.verifyCheck}>✅</span>
-        <div>
-          <strong>{t('statement.verifiedTitle')}</strong>
-          {t('statement.verifiedDesc')} <strong>busmo.io/verify</strong> {t('statement.statementIdLabel')} <strong className={styles.mono}>{stmtId}</strong>
+      {/* Filters */}
+      <div className={styles.filterBar}>
+        <div className={styles.filterLeft}>
+          <div className={styles.filterGroup}>
+            <label className={styles.filterLabel} htmlFor="stmt-start">{t('statement.startDate')}</label>
+            <input
+              id="stmt-start"
+              type="date"
+              className={styles.filterInput}
+              value={startDate}
+              onChange={(e) => {
+                setActivePreset('custom');
+                setStartDate(e.target.value);
+              }}
+            />
+          </div>
+          <div className={styles.filterGroup}>
+            <label className={styles.filterLabel} htmlFor="stmt-end">{t('statement.endDate')}</label>
+            <input
+              id="stmt-end"
+              type="date"
+              className={styles.filterInput}
+              value={endDate}
+              onChange={(e) => {
+                setActivePreset('custom');
+                setEndDate(e.target.value);
+              }}
+            />
+          </div>
+        </div>
+        <div className={styles.typeChips} role="group" aria-label="Statement type">
+          {STATEMENT_TYPES.map((type) => (
+            <button
+              key={type}
+              type="button"
+              className={`${styles.typeChip} ${stmtType === type ? styles.typeChipActive : ''}`}
+              onClick={() => setStmtType(type)}
+            >
+              {type}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* ── SUMMARY KPIs ── */}
-      <div className={styles.kpiGrid}>
-        {loading ? (
-          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>{t('common.loading')}...</div>
-        ) : (
-          [
-            { label: t('statement.totalRevenue'),      value: formatMoney(stats.totalRevenue),  change: t('statement.revenueChange'), up: true  },
-            { label: t('statement.totalExpenses'),     value: formatMoney(stats.totalExpenses),  change: t('statement.expenseChange'),  up: false },
-            { label: t('statement.netProfit'),         value: formatMoney(stats.netProfit),  change: t('statement.profitChange'), up: true  },
-            { label: 'Opening Stock', value: formatMoney(stats.openingStock), change: `${stockSummary.length} products`, up: null  },
-            { label: t('statement.closingStock'),value: formatMoney(stats.closingStock), change: `${stockSummary.length} ${t('statement.productsTracked')}`, up: null  },
-          ].map(k => (
-            <div key={k.label} className={styles.kpiCard}>
-              <div className={styles.kpiLabel}>{k.label}</div>
-              <div className={styles.kpiValue} style={{ color: k.up === true ? 'var(--green,#1A7A50)' : k.up === false ? 'var(--red,#C0392B)' : 'var(--purple,#6C21E8)' }}>{k.value}</div>
-              <div className={`${styles.kpiChange} ${k.up === true ? styles.kpiUp : k.up === false ? styles.kpiDown : styles.kpiFlat}`}>{k.change}</div>
-            </div>
-          ))
-        )}
+      {/* Insight + verify */}
+      <div className={styles.topCards}>
+        <div
+          className={`${styles.insightCard} ${
+            stats.netProfit >= 0 ? styles.insightPositive : styles.insightNegative
+          }`}
+        >
+          <div className={styles.insightLabel}>
+            {loading ? '…' : stats.netProfit >= 0 ? 'Profitable period' : 'Loss-making period'}
+          </div>
+          <div className={styles.insightValue}>
+            {loading ? '—' : formatMoney(stats.netProfit)}
+          </div>
+          <div className={styles.insightMeta}>
+            {loading
+              ? 'Loading figures…'
+              : `${marginPct}% net margin · ${startDate} → ${endDate}`}
+          </div>
+        </div>
+        <div className={styles.verifyBanner}>
+          <span className={styles.verifyCheck} aria-hidden>
+            ✓
+          </span>
+          <div>
+            <strong>{t('statement.verifiedTitle')}</strong>
+            <p className={styles.verifyText}>
+              {t('statement.verifiedDesc')} <strong>busmo.io/verify</strong> · ID{' '}
+              <strong className={styles.mono}>{stmtId}</strong>
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* ─── PRINTABLE DOCUMENT ─────────────────────── */}
-      {/* This div is rendered invisibly and fed to print window */}
+      {/* KPIs */}
+      <div className={styles.kpiGrid}>
+        {loading
+          ? Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className={`${styles.kpiCard} ${styles.skeletonCard}`}>
+                <div className={styles.skeletonLine} style={{ width: '40%' }} />
+                <div className={styles.skeletonLine} style={{ width: '70%', height: 22 }} />
+                <div className={styles.skeletonLine} style={{ width: '50%' }} />
+              </div>
+            ))
+          : [
+              {
+                label: t('statement.totalRevenue'),
+                value: formatMoney(stats.totalRevenue),
+                hint: t('statement.revenueChange'),
+                tone: 'green' as const,
+              },
+              {
+                label: t('statement.totalExpenses'),
+                value: formatMoney(stats.totalExpenses),
+                hint: t('statement.expenseChange'),
+                tone: 'red' as const,
+              },
+              {
+                label: t('statement.netProfit'),
+                value: formatMoney(stats.netProfit),
+                hint: t('statement.profitChange'),
+                tone: 'purple' as const,
+              },
+              {
+                label: 'Opening stock',
+                value: formatMoney(stats.openingStock),
+                hint: `${stockSummary.length} products`,
+                tone: 'neutral' as const,
+              },
+              {
+                label: t('statement.closingStock'),
+                value: formatMoney(stats.closingStock),
+                hint: `${stockSummary.length} ${t('statement.productsTracked')}`,
+                tone: 'neutral' as const,
+              },
+            ].map((k) => (
+              <div key={k.label} className={`${styles.kpiCard} ${styles[`kpiTone_${k.tone}`]}`}>
+                <div className={styles.kpiLabel}>{k.label}</div>
+                <div className={styles.kpiValue}>{k.value}</div>
+                <div className={styles.kpiChange}>{k.hint}</div>
+              </div>
+            ))}
+      </div>
+
+      {/* Hidden print document — unchanged structure below */}
       <div style={{ display: 'none' }}>
         <div ref={printRef}>
+
           {/* Header */}
           <div className="doc-header">
             <div>
@@ -642,110 +781,251 @@ export function StatementPage() {
               <div>busmo.io/verify · support@busmo.io</div>
             </div>
           </div>
+
         </div>
       </div>
 
-      {/* ── ON-SCREEN P&L ── */}
-      <div className={styles.sectionTitle}>{t('statement.profitLossStatement')} — {startDate} {t('statement.to')} {endDate}</div>
-      <div className={styles.card}>
-        <table className={styles.plTable}>
-          <tbody>
-            <tr><td className={styles.plGreen}>{t('statement.totalRevenue')}</td><td className={`${styles.plAmt} ${styles.plGreen}`}>+ {formatMoney(stats.totalRevenue)}</td></tr>
-            <tr><td className={styles.plRed}>{t('statement.cogs')}</td><td className={`${styles.plAmt} ${styles.plRed}`}>- {formatMoney(stats.totalCOGS)}</td></tr>
-            <tr className={styles.plDivider}><td style={{fontWeight:700}}>{t('statement.grossProfit')}</td><td className={`${styles.plAmt}`} style={{fontWeight:700}}>{formatMoney(stats.totalRevenue - stats.totalCOGS)}</td></tr>
-            <tr><td className={styles.plIndent}>{t('statement.otherOperatingExpenses')}</td><td className={`${styles.plAmt} ${styles.plMuted}`}>- {formatMoney(stats.totalExpenses)}</td></tr>
-            <tr className={styles.plTotal}><td>{t('statement.netProfitAfterCosts')}</td><td className={`${styles.plAmt} ${styles.plPurple}`}>{formatMoney(stats.netProfit)}</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      {/* ── ON-SCREEN LEDGER ── */}
-      <div className={styles.sectionTitle}>{t('statement.transactionLedger')}</div>
-      <div className={styles.tableWrap}>
-        <div className={styles.tableTop}>
-          <select className={styles.tableFilter}>
-            <option>{t('statement.allTransactions')}</option>
-            <option>{t('statement.salesOnly')}</option>
-            <option>{t('statement.expensesOnly')}</option>
-            <option>{t('statement.stockMovements')}</option>
-          </select>
-        </div>
-        <div className={styles.tableScroll}>
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>{t('common.loading')}...</div>
-          ) : transactions.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>
-              {t('statement.noTransactions')}
-            </div>
-          ) : (
-            <table className={styles.ledgerTable}>
-              <thead>
-                <tr>
-                  <th>{t('statement.table.date')}</th><th>{t('statement.table.reference')}</th><th>{t('statement.table.type')}</th><th>{t('statement.table.description')}</th>
-                  <th className={styles.right}>{t('statement.table.debit')}</th><th className={styles.right}>{t('statement.table.credit')}</th><th className={styles.right}>{t('statement.table.balance')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transactions.map(t => (
-                  <tr key={t.id}>
-                    <td className={styles.mono}>{t.date}</td>
-                    <td className={`${styles.mono} ${styles.muted} ${styles.tiny}`}>{t.ref}</td>
-                    <td><span className={`${styles.pill} ${t.type === 'Sale' ? styles.pillGreen : t.type === 'Expense' ? styles.pillRed : styles.pillAmber}`}>{t.type}</span></td>
-                    <td>{t.description}</td>
-                    <td className={`${styles.mono} ${styles.right} ${styles.debit}`}>{t.debit > 0 ? formatMoney(t.debit) : '-'}</td>
-                    <td className={`${styles.mono} ${styles.right} ${styles.credit}`}>{t.credit > 0 ? formatMoney(t.credit) : '-'}</td>
-                    <td className={`${styles.mono} ${styles.right}`} style={{fontWeight:600}}>{formatMoney(t.balance)}</td>
+      {/* P&L */}
+      {(stmtType === 'Full Summary' || stmtType === 'Profit & Loss') && (
+        <section className={styles.section}>
+          <div className={styles.sectionHead}>
+            <h2 className={styles.sectionTitle}>
+              {t('statement.profitLossStatement')}
+            </h2>
+            <span className={styles.sectionPeriod}>
+              {startDate} → {endDate}
+            </span>
+          </div>
+          <div className={styles.card}>
+            {loading ? (
+              <div className={styles.loadingBlock}>Loading profit & loss…</div>
+            ) : (
+              <table className={styles.plTable}>
+                <tbody>
+                  <tr>
+                    <td className={styles.plGreen}>{t('statement.totalRevenue')}</td>
+                    <td className={`${styles.plAmt} ${styles.plGreen}`}>+ {formatMoney(stats.totalRevenue)}</td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
-
-      {/* ── STOCK SUMMARY ── */}
-      <div className={styles.sectionTitle}>{t('statement.inventorySummary')}</div>
-      <div className={styles.tableWrap} style={{ marginBottom: 40 }}>
-        <div className={styles.tableScroll}>
-          {loading ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>{t('common.loading')}...</div>
-          ) : stockSummary.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-3)' }}>
-              {t('statement.noProducts')}
-            </div>
-          ) : (
-            <table className={styles.stockTable}>
-              <thead>
-                <tr>
-                  <th>{t('statement.table.product')}</th><th className={styles.right}>{t('statement.table.opening')}</th><th className={styles.right}>{t('statement.table.sold')}</th>
-                  <th className={styles.right}>{t('statement.table.loss')}</th><th className={styles.right}>{t('statement.table.restock')}</th>
-                  <th className={styles.right}>{t('statement.table.closing')}</th><th className={styles.right}>{t('statement.table.value')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stockSummary.map(s => (
-                  <tr key={s.product}>
-                    <td>{s.product}</td>
-                    <td className={`${styles.mono} ${styles.right}`}>{s.open}</td>
-                    <td className={`${styles.mono} ${styles.right} ${s.sold > 0 ? styles.debit : styles.muted}`}>{s.sold > 0 ? `-${s.sold}` : '0'}</td>
-                    <td className={`${styles.mono} ${styles.right} ${s.loss > 0 ? styles.debit : styles.muted}`}>{s.loss > 0 ? `-${s.loss}` : '0'}</td>
-                    <td className={`${styles.mono} ${styles.right} ${s.restock > 0 ? styles.credit : styles.muted}`}>{s.restock > 0 ? `+${s.restock}` : '0'}</td>
-                    <td className={`${styles.mono} ${styles.right}`} style={{fontWeight:700}}>{s.close}</td>
-                    <td className={`${styles.mono} ${styles.right}`} style={{fontWeight:700,color:'var(--purple,#6C21E8)'}}>{formatMoney(s.value)}</td>
+                  <tr>
+                    <td className={styles.plRed}>{t('statement.cogs')}</td>
+                    <td className={`${styles.plAmt} ${styles.plRed}`}>- {formatMoney(stats.totalCOGS)}</td>
                   </tr>
+                  <tr className={styles.plDivider}>
+                    <td style={{ fontWeight: 700 }}>{t('statement.grossProfit')}</td>
+                    <td className={styles.plAmt} style={{ fontWeight: 700 }}>
+                      {formatMoney(stats.totalRevenue - stats.totalCOGS)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className={styles.plIndent}>{t('statement.otherOperatingExpenses')}</td>
+                    <td className={`${styles.plAmt} ${styles.plMuted}`}>- {formatMoney(stats.totalExpenses)}</td>
+                  </tr>
+                  <tr className={styles.plTotal}>
+                    <td>{t('statement.netProfitAfterCosts')}</td>
+                    <td className={`${styles.plAmt} ${styles.plPurple}`}>{formatMoney(stats.netProfit)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Ledger */}
+      {(stmtType === 'Full Summary' || stmtType === 'Sales Only' || stmtType === 'Expenses Only') && (
+        <section className={styles.section}>
+          <div className={styles.sectionHead}>
+            <h2 className={styles.sectionTitle}>{t('statement.transactionLedger')}</h2>
+            <span className={styles.sectionCount}>
+              {loading ? '…' : `${filteredTransactions.length} rows`}
+            </span>
+          </div>
+          <div className={styles.tableWrap}>
+            <div className={styles.tableTop}>
+              <div className={styles.ledgerFilters}>
+                {[
+                  { id: 'all' as const, label: t('statement.allTransactions') },
+                  { id: 'sale' as const, label: t('statement.salesOnly') },
+                  { id: 'expense' as const, label: t('statement.expensesOnly') },
+                  { id: 'stock' as const, label: t('statement.stockMovements') },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    className={`${styles.ledgerChip} ${ledgerFilter === f.id ? styles.ledgerChipActive : ''}`}
+                    onClick={() => setLedgerFilter(f.id)}
+                  >
+                    {f.label}
+                  </button>
                 ))}
-              </tbody>
-              <tfoot>
-                <tr className={styles.stockFooter}>
-                  <td style={{fontWeight:800}}>{t('statement.table.total')}</td>
-                  <td colSpan={5} className={`${styles.right}`} style={{fontWeight:800}}>{t('statement.closingStockValue')}</td>
-                  <td className={`${styles.mono} ${styles.right}`} style={{fontWeight:800,color:'var(--purple,#6C21E8)'}}>{formatMoney(stats.closingStock)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          )}
-        </div>
-      </div>
+              </div>
+              <input
+                type="search"
+                className={styles.searchInput}
+                placeholder="Search date, ref, description…"
+                value={ledgerSearch}
+                onChange={(e) => setLedgerSearch(e.target.value)}
+                aria-label="Search transactions"
+              />
+            </div>
+            <div className={styles.tableScroll}>
+              {loading ? (
+                <div className={styles.loadingBlock}>Loading transactions…</div>
+              ) : filteredTransactions.length === 0 ? (
+                <div className={styles.emptyState}>
+                  <div className={styles.emptyIcon} aria-hidden>
+                    📋
+                  </div>
+                  <div className={styles.emptyTitle}>{t('statement.noTransactions')}</div>
+                  <p className={styles.emptyDesc}>
+                    Try another date range or statement type. Sales and expenses in this period will show here.
+                  </p>
+                </div>
+              ) : (
+                <table className={styles.ledgerTable}>
+                  <thead>
+                    <tr>
+                      <th>{t('statement.table.date')}</th>
+                      <th>{t('statement.table.reference')}</th>
+                      <th>{t('statement.table.type')}</th>
+                      <th>{t('statement.table.description')}</th>
+                      <th className={styles.right}>{t('statement.table.debit')}</th>
+                      <th className={styles.right}>{t('statement.table.credit')}</th>
+                      <th className={styles.right}>{t('statement.table.balance')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTransactions.map((tx) => (
+                      <tr key={tx.id}>
+                        <td className={styles.mono}>{tx.date}</td>
+                        <td className={`${styles.mono} ${styles.muted} ${styles.tiny}`}>{tx.ref}</td>
+                        <td>
+                          <span
+                            className={`${styles.pill} ${
+                              tx.type === 'Sale'
+                                ? styles.pillGreen
+                                : tx.type === 'Expense'
+                                  ? styles.pillRed
+                                  : styles.pillAmber
+                            }`}
+                          >
+                            {tx.type}
+                          </span>
+                        </td>
+                        <td>{tx.description}</td>
+                        <td className={`${styles.mono} ${styles.right} ${styles.debit}`}>
+                          {tx.debit > 0 ? formatMoney(tx.debit) : '—'}
+                        </td>
+                        <td className={`${styles.mono} ${styles.right} ${styles.credit}`}>
+                          {tx.credit > 0 ? formatMoney(tx.credit) : '—'}
+                        </td>
+                        <td className={`${styles.mono} ${styles.right}`} style={{ fontWeight: 600 }}>
+                          {formatMoney(tx.balance)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Stock */}
+      {(stmtType === 'Full Summary' || stmtType === 'Stock Movement') && (
+        <section className={styles.section}>
+          <div className={styles.sectionHead}>
+            <h2 className={styles.sectionTitle}>{t('statement.inventorySummary')}</h2>
+            <span className={styles.sectionCount}>
+              {loading ? '…' : `${stockSummary.length} products`}
+            </span>
+          </div>
+          <div className={styles.tableWrap}>
+            <div className={styles.tableScroll}>
+              {loading ? (
+                <div className={styles.loadingBlock}>Loading inventory…</div>
+              ) : stockSummary.length === 0 ? (
+                <div className={styles.emptyState}>
+                  <div className={styles.emptyIcon} aria-hidden>
+                    📦
+                  </div>
+                  <div className={styles.emptyTitle}>{t('statement.noProducts')}</div>
+                  <p className={styles.emptyDesc}>
+                    Add products on Inventory to include stock movement on this statement.
+                  </p>
+                </div>
+              ) : (
+                <table className={styles.stockTable}>
+                  <thead>
+                    <tr>
+                      <th>{t('statement.table.product')}</th>
+                      <th className={styles.right}>{t('statement.table.opening')}</th>
+                      <th className={styles.right}>{t('statement.table.sold')}</th>
+                      <th className={styles.right}>{t('statement.table.loss')}</th>
+                      <th className={styles.right}>{t('statement.table.restock')}</th>
+                      <th className={styles.right}>{t('statement.table.closing')}</th>
+                      <th className={styles.right}>{t('statement.table.value')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stockSummary.map((s) => (
+                      <tr key={s.product}>
+                        <td>{s.product}</td>
+                        <td className={`${styles.mono} ${styles.right}`}>{s.open}</td>
+                        <td
+                          className={`${styles.mono} ${styles.right} ${
+                            s.sold > 0 ? styles.debit : styles.muted
+                          }`}
+                        >
+                          {s.sold > 0 ? `-${s.sold}` : '0'}
+                        </td>
+                        <td
+                          className={`${styles.mono} ${styles.right} ${
+                            s.loss > 0 ? styles.debit : styles.muted
+                          }`}
+                        >
+                          {s.loss > 0 ? `-${s.loss}` : '0'}
+                        </td>
+                        <td
+                          className={`${styles.mono} ${styles.right} ${
+                            s.restock > 0 ? styles.credit : styles.muted
+                          }`}
+                        >
+                          {s.restock > 0 ? `+${s.restock}` : '0'}
+                        </td>
+                        <td className={`${styles.mono} ${styles.right}`} style={{ fontWeight: 700 }}>
+                          {s.close}
+                        </td>
+                        <td
+                          className={`${styles.mono} ${styles.right}`}
+                          style={{ fontWeight: 700, color: 'var(--purple)' }}
+                        >
+                          {formatMoney(s.value)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className={styles.stockFooter}>
+                      <td style={{ fontWeight: 800 }}>{t('statement.table.total')}</td>
+                      <td colSpan={5} className={styles.right} style={{ fontWeight: 800 }}>
+                        {t('statement.closingStockValue')}
+                      </td>
+                      <td
+                        className={`${styles.mono} ${styles.right}`}
+                        style={{ fontWeight: 800, color: 'var(--purple)' }}
+                      >
+                        {formatMoney(stats.closingStock)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
