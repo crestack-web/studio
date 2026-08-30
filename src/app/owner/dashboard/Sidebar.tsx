@@ -77,10 +77,23 @@ export function Sidebar() {
       'healthcare', 'education', 'other',
     ];
     if (ids.includes(v)) return v;
+    // Fuzzy restaurant / cafe first (common mis-labels after migration)
+    if (
+      v.includes('restaurant') ||
+      v.includes('resturant') ||
+      v.includes('food service') ||
+      v.includes('catering') ||
+      v === 'food' ||
+      v.includes('food &')
+    ) {
+      return 'restaurant';
+    }
+    if (v.includes('cafe') || v.includes('café') || v.includes('coffee')) {
+      return 'cafe';
+    }
     const labelMap: Record<string, string> = {
       'retail shop': 'retail',
       'retail store': 'retail',
-      'restaurant': 'restaurant',
       'grocery store': 'grocery',
       'fashion': 'fashion',
       'electronics': 'electronics',
@@ -88,13 +101,11 @@ export function Sidebar() {
       'services': 'services',
       'pharmacy': 'pharmacy',
       'supermarket': 'supermarket',
-      'cafe': 'cafe',
       'wholesale': 'wholesale',
       'distributor': 'distributor',
       'healthcare': 'healthcare',
       'education': 'education',
       'other': 'other',
-      'food service': 'restaurant',
     };
     for (const [key, id] of Object.entries(labelMap)) {
       if (v === key || v.includes(key)) return id;
@@ -140,7 +151,9 @@ export function Sidebar() {
           ownerDoc?.category ||
           meta.selectedCategory ||
           meta.category ||
-          'retail';
+          meta.categoryLabel ||
+          meta.businessType ||
+          '';
 
         const parseFeatureList = (raw: unknown): string[] => {
           if (Array.isArray(raw)) return raw.map(String);
@@ -222,6 +235,8 @@ export function Sidebar() {
               (biz as any)?.type ||
               bizMeta.selectedCategory ||
               bizMeta.category ||
+              bizMeta.categoryLabel ||
+              bizMeta.businessType ||
               categoryCandidate;
           } catch (bizErr) {
             console.warn('[Sidebar] business category load failed', bizErr);
@@ -403,6 +418,23 @@ export function Sidebar() {
       const userPlanLevel = planHierarchy[effectivePlan] || 1;
       const requiredPlanLevel = planHierarchy[requirements.requiredPlan] || 1;
       if (userPlanLevel < requiredPlanLevel) return false;
+    }
+
+    // Restaurant / cafe specialty pages: always show for those categories when plan allows
+    const restaurantNavIds = new Set(['menu-management', 'ingredient-tracking', 'expiry-alerts']);
+    const isRestaurantLike =
+      normalizedCategory === 'restaurant' ||
+      normalizedCategory === 'cafe' ||
+      categoryDefaults.includes('menu-management') ||
+      categoryDefaults.includes('ingredient-tracking');
+
+    if (restaurantNavIds.has(itemId) && isRestaurantLike) {
+      if (requirements.requiredPlan) {
+        const userPlanLevel = planHierarchy[effectivePlan] || 1;
+        const requiredPlanLevel = planHierarchy[requirements.requiredPlan] || 1;
+        if (userPlanLevel < requiredPlanLevel) return false;
+      }
+      return true;
     }
 
     // Check category requirements
