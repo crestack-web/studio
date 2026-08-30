@@ -101,6 +101,7 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
      creditsRemaining,
      planLimit,
      conversations,
+     conversationsLoaded,
      currentConversationId,
      setCurrentConversationId,
      businessSummary,
@@ -211,16 +212,15 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
     };
   }, [isRecording]);
 
-  // Auto-load most recent conversation on mount to persist state across refresh/navigation
+  // Auto-load most recent conversation (list rows do not embed messages[])
   useEffect(() => {
+    if (!conversationsLoaded) return;
     if (conversations.length > 0 && !currentConversationId && messages.length === 0) {
       const mostRecent = conversations[0];
-      if (mostRecent.messages && mostRecent.messages.length > 0) {
-        console.log('📂 [InlineAIChat] Auto-loading most recent conversation:', mostRecent.id);
-        loadConversation(mostRecent.id);
-      }
+      console.log('📂 [InlineAIChat] Auto-loading most recent conversation:', mostRecent.id);
+      void loadConversation(mostRecent.id);
     }
-  }, [conversations, currentConversationId, messages.length, loadConversation]);
+  }, [conversationsLoaded, conversations, currentConversationId, messages.length, loadConversation]);
 
   // Keep messagesRef in sync so save logic always uses latest state
   useEffect(() => {
@@ -604,19 +604,23 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
     }
   }, [input, selectedImage, imagePreview, audioBlob, audioUrl, audioBase64, messages, user, planLimit, creditsUsed, showToast, lang, langMeta, saveConversation, isSending, currentConversationId, creditsRemaining, businessSummary, loadBusinessData, createConversation, setCurrentConversationId, updateCredits, saveMessages]);
 
-  // Auto-send Daily Check recommendation into MO
+  // Auto-send Daily Check recommendation after recent conversation is ready
   useEffect(() => {
     const pending = moPrefillRef.current;
     if (!pending?.text?.trim()) return;
+    if (!conversationsLoaded) return;
+    // Wait for most-recent thread to load when history exists
+    if (conversations.length > 0 && !currentConversationId) return;
+
     const shouldSend = pending.autoSend;
     moPrefillRef.current = null;
     setInput(pending.text);
     if (!shouldSend) return;
     const timer = window.setTimeout(() => {
       void send(pending.text);
-    }, 350);
+    }, 400);
     return () => window.clearTimeout(timer);
-  }, [send]);
+  }, [send, conversationsLoaded, conversations.length, currentConversationId]);
 
 
   // Execute pending action (sale/expense/product confirmation)
@@ -894,8 +898,23 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
 
       {/* Messages */}
       <div className={styles.messages} ref={messagesContainerRef}>
-        {/* Bug #12 fix: show welcome screen when no active conversation, regardless of conversation history */}
-        {messages.length === 0 && currentConversationId === null && (
+        {/* Loading recent conversation */}
+        {messages.length === 0 && !conversationsLoaded && (
+          <div className={styles.emptyChat}>
+            <div className={styles.emptyChatContent}>
+              <p style={{ color: 'var(--text-3)', fontSize: '0.9rem' }}>Loading your conversations…</p>
+            </div>
+          </div>
+        )}
+        {messages.length === 0 && conversationsLoaded && conversations.length > 0 && currentConversationId && (
+          <div className={styles.emptyChat}>
+            <div className={styles.emptyChatContent}>
+              <p style={{ color: 'var(--text-3)', fontSize: '0.9rem' }}>Loading messages…</p>
+            </div>
+          </div>
+        )}
+        {/* Welcome only when there is truly no history */}
+        {messages.length === 0 && conversationsLoaded && conversations.length === 0 && currentConversationId === null && (
           <div className={styles.emptyChat}>
             <div className={styles.emptyChatContent}>
               <div className={styles.moAvatarLg}>

@@ -77,6 +77,7 @@ export function MobileAskMOPage() {
      totalCreditsConsumed,
      planLimit,
      conversations,
+    conversationsLoaded,
      currentConversationId,
      setCurrentConversationId,
      businessSummary,
@@ -146,16 +147,15 @@ export function MobileAskMOPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Auto-load most recent conversation on mount to persist state across refresh/navigation
+  // Auto-load most recent conversation on mount
   useEffect(() => {
+    if (!conversationsLoaded) return;
     if (conversations.length > 0 && !currentConversationId && messages.length === 0) {
       const mostRecent = conversations[0];
-      if (mostRecent.messages && mostRecent.messages.length > 0) {
-        console.log('📂 [MobileAskMO] Auto-loading most recent conversation:', mostRecent.id);
-        loadConversation(mostRecent.id);
-      }
+      console.log('📂 [MobileAskMO] Auto-loading most recent conversation:', mostRecent.id);
+      void loadConversation(mostRecent.id);
     }
-  }, [conversations, currentConversationId, messages.length, loadConversation]);
+  }, [conversationsLoaded, conversations, currentConversationId, messages.length, loadConversation]);
 
   // Execute pending action (sale confirmation)
   const executePendingAction = useCallback(async () => {
@@ -1094,7 +1094,7 @@ export function MobileAskMOPage() {
 
       {/* Messages */}
       <div className={styles.messages} ref={messagesContainerRef}>
-        {messages.length === 0 && conversations.length === 0 && (
+        {messages.length === 0 && conversationsLoaded && conversations.length === 0 && (
           <div className={styles.emptyChat}>
             <div className={styles.emptyChatContent}>
               <div className={styles.moAvatarLg}>

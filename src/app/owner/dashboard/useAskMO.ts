@@ -101,6 +101,7 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
   const [totalCreditsConsumed, setTotalCreditsConsumed] = useState(0);
   const [planLimit, setPlanLimit] = useState(10);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversationsLoaded, setConversationsLoaded] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [businessSummary, setBusinessSummary] = useState<any>(null);
   const [totalConversationsStarted, setTotalConversationsStarted] = useState(0);
@@ -118,7 +119,11 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
 
   useEffect(() => {
     const load = async () => {
-      if (!userId) return;
+      if (!userId) {
+        setConversationsLoaded(true);
+        return;
+      }
+      setConversationsLoaded(false);
       try {
         const supabase = getSupabase();
         const normalizedPlan = userPlan?.toLowerCase() || 'starter';
@@ -542,6 +547,7 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
     totalCreditsConsumed,
     planLimit,
     conversations,
+    conversationsLoaded,
     currentConversationId,
     setCurrentConversationId,
     businessSummary,
