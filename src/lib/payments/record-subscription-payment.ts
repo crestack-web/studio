@@ -139,19 +139,31 @@ async function unlockUserSubscription(
   const patch: Record<string, unknown> = {
     plan: plan.id,
     subscription_status: 'active',
-    subscriptionStatus: 'active',
     subscription_end_date: endIso,
-    subscriptionEndDate: endIso,
     subscription_start_date: nowIso,
-    subscriptionStartDate: nowIso,
     trial_end_date: nowIso,
-    trialEndDate: nowIso,
     updated_at: nowIso,
-    updatedAt: nowIso,
   };
 
   let userId = opts.userId || null;
   if (userId) {
+    try {
+      const { data: existing } = await sb.from('users').select('metadata').eq('id', userId).maybeSingle();
+      const prev =
+        existing?.metadata && typeof existing.metadata === 'object'
+          ? { ...(existing.metadata as Record<string, unknown>) }
+          : {};
+      patch.metadata = {
+        ...prev,
+        plan: plan.id,
+        subscriptionStatus: 'active',
+        subscriptionEndDate: endIso,
+        subscriptionStartDate: nowIso,
+        trialEndDate: nowIso,
+      };
+    } catch {
+      /* ignore */
+    }
     const { error } = await sb.from('users').update(patch).eq('id', userId);
     if (error) {
       console.error('[unlockUserSubscription] by id', error.message);

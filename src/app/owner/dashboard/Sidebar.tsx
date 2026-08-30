@@ -14,6 +14,7 @@ import { checkFeatureAccess as checkRegistryAccess } from '@/lib/featureRegistry
 import { Plan, BusinessCategory } from '@/lib/featureRegistry';
 import { CATEGORY_FEATURES } from '@/app/welcome/signup/onboarding-constants';
 import { isRestaurantBusiness } from './utils/restaurantHelpers';
+import { resolveUserAccess, USER_ACCESS_SELECT } from '@/lib/subscription/resolve-access';
 
 function asDate(value: unknown): Date | undefined {
   if (!value) return undefined;
@@ -124,9 +125,7 @@ export function Sidebar() {
         const supabase = getSupabase();
         const { data: ownerDoc, error } = await supabase
           .from('users')
-          .select(
-            'business_id, businessId, plan, role, subscription_status, trial_end_date, grace_end_date, subscription_end_date, lifetime_access, selected_category, category, selected_features, selectedFeatures, feature_preferences, featurePreferences, metadata'
-          )
+          .select(USER_ACCESS_SELECT)
           .eq('id', currentUserId)
           .maybeSingle();
 
@@ -147,13 +146,11 @@ export function Sidebar() {
           '';
 
         const rawCategory =
-          ownerDoc?.selected_category ||
-          (ownerDoc as any)?.selectedCategory ||
-          ownerDoc?.category ||
           meta.selectedCategory ||
           meta.category ||
           meta.categoryLabel ||
           meta.businessType ||
+          meta.businessCategory ||
           '';
 
         const parseFeatureList = (raw: unknown): string[] => {
@@ -173,15 +170,13 @@ export function Sidebar() {
         };
 
         let features = parseFeatureList(
-          ownerDoc?.selected_features ??
-            (ownerDoc as any)?.selectedFeatures ??
-            meta.selectedFeatures ??
-            meta.selected_features
+          meta.selectedFeatures ??
+            meta.selected_features ??
+            (ownerDoc as any)?.selected_features ??
+            (ownerDoc as any)?.selectedFeatures
         );
 
         const prefsRaw =
-          ownerDoc?.feature_preferences ||
-          (ownerDoc as any)?.featurePreferences ||
           meta.featurePreferences ||
           meta.feature_preferences ||
           {};
@@ -190,31 +185,8 @@ export function Sidebar() {
             ? (prefsRaw as Record<string, boolean>)
             : {};
 
-        const plan =
-          (ownerDoc?.plan as string) ||
-          (meta.plan as string) ||
-          (user as any)?.plan ||
-          'starter';
+        // plan/trial resolved later via resolveUserAccess (columns + metadata)
 
-        const subscriptionStatus =
-          (ownerDoc?.subscription_status as string) ||
-          (meta.subscriptionStatus as string) ||
-          (meta.subscription_status as string) ||
-          '';
-
-        const trialEndDate =
-          asDate(ownerDoc?.trial_end_date) ||
-          asDate(meta.trialEndDate) ||
-          asDate(meta.trial_end_date);
-        const graceEndDate =
-          asDate(ownerDoc?.grace_end_date) ||
-          asDate(meta.graceEndDate) ||
-          asDate(meta.grace_end_date);
-        const subscriptionEndDate =
-          asDate(ownerDoc?.subscription_end_date) ||
-          asDate(meta.subscriptionEndDate);
-        const lifetimeAccess =
-          (ownerDoc as any)?.lifetime_access === true || meta.lifetimeAccess === true;
 
         // Collect category signals from user + business (do not let a stale "retail" wipe restaurant)
         const candidates: string[] = [];
@@ -298,30 +270,16 @@ export function Sidebar() {
         const normalizedFeatures = features.map((f: string) => normalizeFeatureName(String(f)));
         setSelectedFeatures(normalizedFeatures);
         setFeaturePreferences(prefs);
-        setUserPlan(plan);
-
-        // Trial / grace / active paid → Standard-tier nav (same as day-one trial)
-        const now = new Date();
-        const statusLc = String(subscriptionStatus || '').toLowerCase();
-        const inTrialWindow =
-          statusLc === 'trial' ||
-          statusLc === 'trialing' ||
-          (trialEndDate != null && trialEndDate > now);
-        const inGraceWindow =
-          statusLc === 'grace' ||
-          ((statusLc === 'expired' || statusLc === 'pending_payment') &&
-            graceEndDate != null &&
-            graceEndDate > now) ||
-          (trialEndDate != null &&
-            trialEndDate <= now &&
-            graceEndDate != null &&
-            graceEndDate > now);
-        const isActivePaid =
-          lifetimeAccess ||
-          (statusLc === 'active' &&
-            (!subscriptionEndDate || subscriptionEndDate > now));
-
-        setIsInTrial(Boolean(inTrialWindow || inGraceWindow || isActivePaid));
+        const access = resolveUserAccess(ownerDoc || { metadata: meta, plan: (user as any)?.plan });
+        setUserPlan(access.effectivePlanForNav);
+        setIsInTrial(access.hasFullAccess);
+        console.info('[Sidebar] access', {
+          plan: access.plan,
+          effectivePlanForNav: access.effectivePlanForNav,
+          status: access.subscriptionStatus || null,
+          hasFullAccess: access.hasFullAccess,
+          trialEnd: access.trialEndDate?.toISOString?.() || null,
+        });
 
         // Staff count from Supabase business staff collection
         if (businessId) {
