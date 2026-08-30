@@ -251,7 +251,7 @@ export function useAskMO({ userId, userPlan, businessId, branchId, branchName }:
           items.forEach((item: any) => {
             const productName = item.name || item.productName || 'Unknown';
             const quantity = Number(item.quantity || 0) || 0;
-            const revenue = Number(item.total ?? item.price * quantity ?? 0) || 0;
+            const revenue = Number(item.total != null ? item.total : (item.price != null ? item.price * quantity : 0)) || 0;
             if (!productSales[productName]) productSales[productName] = { name: productName, quantity: 0, revenue: 0 };
             productSales[productName].quantity += quantity;
             productSales[productName].revenue += revenue;
