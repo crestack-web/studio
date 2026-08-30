@@ -137,68 +137,147 @@ export function ReceiptGenerator({
     }, 120);
   };
 
+  const safeFileSlug = (receiptData.saleNumber || 'receipt')
+    .replace(/[^a-zA-Z0-9-_]/g, '-')
+    .slice(0, 40);
+
+  const captureReceiptPngBlob = async (): Promise<Blob | null> => {
+    const el = receiptRef.current;
+    if (!el) return null;
+    const html2canvas = (await import('html2canvas')).default;
+    const canvas = await html2canvas(el, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: theme.backgroundColor || '#ffffff',
+      logging: false,
+    });
+    return await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((b) => resolve(b), 'image/png', 0.95);
+    });
+  };
+
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2500);
+  };
+
+  const shareFileOrDownload = async (file: File, fallbackToast: string) => {
+    const nav = typeof navigator !== 'undefined' ? navigator : null;
+    try {
+      if (nav && typeof nav.canShare === 'function' && nav.canShare({ files: [file] })) {
+        await nav.share({
+          files: [file],
+          title: `${isInvoice ? 'Invoice' : 'Receipt'} ${receiptData.saleNumber}`,
+        });
+        return;
+      }
+    } catch (err: any) {
+      // AbortError = user cancelled; don't fall through to download
+      if (err?.name === 'AbortError') return;
+    }
+    downloadBlob(file, file.name);
+    showToast(fallbackToast);
+  };
+
   const handleDownloadPDF = async () => {
     setIsGeneratingPDF(true);
     try {
-      window.print();
-      showToast('Use “Save as PDF” in the print dialog');
-    } catch {
-      showToast('Could not open print dialog');
+      const pngBlob = await captureReceiptPngBlob();
+      if (!pngBlob) {
+        showToast('Could not capture receipt');
+        return;
+      }
+      const { PDFDocument } = await import('pdf-lib');
+      const pdfDoc = await PDFDocument.create();
+      const pngBytes = await pngBlob.arrayBuffer();
+      const image = await pdfDoc.embedPng(pngBytes);
+      const page = pdfDoc.addPage([image.width, image.height]);
+      page.drawImage(image, {
+        x: 0,
+        y: 0,
+        width: image.width,
+        height: image.height,
+      });
+      const pdfBytes = await pdfDoc.save();
+      // Copy into a fresh ArrayBuffer for Blob typing compatibility
+      const ab = new ArrayBuffer(pdfBytes.byteLength);
+      new Uint8Array(ab).set(pdfBytes);
+      const pdfBlob = new Blob([ab], { type: 'application/pdf' });
+      const file = new File([pdfBlob], `${safeFileSlug}.pdf`, {
+        type: 'application/pdf',
+      });
+      await shareFileOrDownload(
+        file,
+        'PDF saved — open the file and share it on WhatsApp'
+      );
+    } catch (e) {
+      console.error('[Receipt] PDF failed', e);
+      showToast('Could not create PDF');
     } finally {
       setIsGeneratingPDF(false);
     }
   };
 
-  const buildShareText = () => {
-    const lines = [
-      receiptData.businessName,
-      isInvoice ? `Invoice ${receiptData.saleNumber}` : `Receipt ${receiptData.saleNumber}`,
-      receiptData.date,
-      '',
-      ...receiptData.items.map(
-        (i) => `${i.name} ×${i.quantity} — ${formatMoney(i.total)}`
-      ),
-      '',
-      `Total: ${formatMoney(receiptData.subtotal)}`,
-      `Paid: ${formatMoney(receiptData.amountPaid)} (${receiptData.paymentMethod})`,
-    ];
-    if (receiptData.outstandingBalance > 0) {
-      lines.push(`Outstanding: ${formatMoney(receiptData.outstandingBalance)}`);
-    }
-    if (receiptData.soldBy) {
-      lines.push(`Sold by: ${receiptData.soldBy}`);
-    }
-    return lines.join('\n');
-  };
-
+  /** Share receipt as image (preferred for WhatsApp) */
   const handleShare = async () => {
     setIsSharing(true);
     try {
-      const text = buildShareText();
-      if (typeof navigator !== 'undefined' && navigator.share) {
-        await navigator.share({
-          title: `${isInvoice ? 'Invoice' : 'Receipt'} ${receiptData.saleNumber}`,
-          text,
-        });
-      } else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
-        showToast('Receipt copied to clipboard');
-      } else {
-        showToast('Sharing is not supported on this device');
+      const pngBlob = await captureReceiptPngBlob();
+      if (!pngBlob) {
+        showToast('Could not capture receipt image');
+        return;
       }
-    } catch {
-      /* user cancelled share */
+      const file = new File([pngBlob], `${safeFileSlug}.png`, {
+        type: 'image/png',
+      });
+      await shareFileOrDownload(
+        file,
+        'Image saved — open the file and share it on WhatsApp'
+      );
+    } catch (e) {
+      console.error('[Receipt] image share failed', e);
+      showToast('Could not share receipt image');
     } finally {
       setIsSharing(false);
     }
   };
 
+  const handleSharePdf = async () => {
+    await handleDownloadPDF();
+  };
+
   const handleCopy = async () => {
+    setIsSharing(true);
     try {
-      await navigator.clipboard?.writeText(buildShareText());
-      showToast('Copied to clipboard');
-    } catch {
-      showToast('Could not copy');
+      const pngBlob = await captureReceiptPngBlob();
+      if (!pngBlob) {
+        showToast('Could not capture receipt');
+        return;
+      }
+      // Prefer image on clipboard when supported
+      const ClipboardItemCtor = (window as any).ClipboardItem;
+      if (navigator.clipboard?.write && ClipboardItemCtor) {
+        await navigator.clipboard.write([
+          new ClipboardItemCtor({ 'image/png': pngBlob }),
+        ]);
+        showToast('Receipt image copied');
+        return;
+      }
+      downloadBlob(pngBlob, `${safeFileSlug}.png`);
+      showToast('Receipt image downloaded');
+    } catch (e) {
+      console.error('[Receipt] copy image failed', e);
+      showToast('Could not copy receipt image');
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -478,30 +557,33 @@ export function ReceiptGenerator({
           </button>
           <button
             type="button"
-            className={styles.actionButton}
-            onClick={handleDownloadPDF}
-            disabled={isGeneratingPDF}
-          >
-            <FileText size={18} />
-            PDF
-          </button>
-          <button
-            type="button"
             className={`${styles.actionButton} ${styles.actionButtonShare}`}
             onClick={handleShare}
             disabled={isSharing}
+            title="Share as image on WhatsApp"
           >
             <Share2 size={18} />
-            Share
+            {isSharing ? 'Sharing…' : 'WhatsApp image'}
+          </button>
+          <button
+            type="button"
+            className={styles.actionButton}
+            onClick={handleSharePdf}
+            disabled={isGeneratingPDF}
+            title="Share or download as PDF"
+          >
+            <FileText size={18} />
+            {isGeneratingPDF ? 'PDF…' : 'WhatsApp PDF'}
           </button>
           <button
             type="button"
             className={styles.actionButton}
             onClick={handleCopy}
-            aria-label="Copy receipt text"
+            aria-label="Copy receipt image"
+            title="Copy receipt image"
           >
             <Copy size={18} />
-            Copy
+            Copy image
           </button>
         </div>
       </div>
