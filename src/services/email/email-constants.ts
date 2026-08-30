@@ -22,6 +22,89 @@ export const BUSMO_LOGO = BUSMO_LOGO_URL;
 
 export const EMAIL_LOGO_IMG = `<img src="${BUSMO_LOGO_URL}" alt="Busmo" width="80" height="80" style="width:80px;height:80px;display:inline-block;border:0;border-radius:16px;background:#ffffff;padding:8px;box-shadow:0 4px 12px rgba(0,0,0,0.15);margin-bottom:16px;" />`;
 
+/**
+ * Official brand icon URLs (Simple Icons CDN — exact glyph paths).
+ * Email clients render these more reliably than inline SVG.
+ */
+export const SOCIAL_ICON = {
+  x: 'https://cdn.simpleicons.org/x/000000',
+  instagram: 'https://cdn.simpleicons.org/instagram/E4405F',
+  tiktok: 'https://cdn.simpleicons.org/tiktok/000000',
+  youtube: 'https://cdn.simpleicons.org/youtube/FF0000',
+} as const;
+
+export const SOCIAL_PROFILES = [
+  {
+    key: 'x',
+    label: 'X',
+    handle: '@busmohq',
+    href: 'https://x.com/busmohq',
+    icon: SOCIAL_ICON.x,
+  },
+  {
+    key: 'instagram',
+    label: 'Instagram',
+    handle: '@busmodotio',
+    href: 'https://instagram.com/busmodotio',
+    icon: SOCIAL_ICON.instagram,
+  },
+  {
+    key: 'tiktok',
+    label: 'TikTok',
+    handle: '@busmohq',
+    href: 'https://tiktok.com/@busmohq',
+    icon: SOCIAL_ICON.tiktok,
+  },
+  {
+    key: 'youtube',
+    label: 'YouTube',
+    handle: '@busmodotio',
+    href: 'https://youtube.com/@busmodotio',
+    icon: SOCIAL_ICON.youtube,
+  },
+] as const;
+
+/**
+ * Email-safe social footer: table layout + exact brand icons as <img>.
+ * Use in every transactional footer: ${SOCIAL_FOOTER}
+ */
+export const SOCIAL_FOOTER = `
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:20px auto 0;border-collapse:collapse;">
+    <tr>
+      <td align="center" style="padding:0 0 12px;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;font-size:12px;color:#6B7280;">
+        Follow us on social media
+      </td>
+    </tr>
+    <tr>
+      <td align="center">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="border-collapse:collapse;">
+          <tr>
+            ${SOCIAL_PROFILES.map(
+              (p) => `
+            <td align="center" style="padding:0 6px;">
+              <a href="${p.href}" target="_blank" rel="noopener noreferrer" title="${p.label} ${p.handle}" style="display:inline-block;text-decoration:none;">
+                <img src="${p.icon}" width="22" height="22" alt="${p.label}" style="display:block;width:22px;height:22px;border:0;" />
+              </a>
+            </td>`
+            ).join('')}
+          </tr>
+          <tr>
+            ${SOCIAL_PROFILES.map(
+              (p) => `
+            <td align="center" style="padding:6px 6px 0;">
+              <a href="${p.href}" target="_blank" rel="noopener noreferrer" style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;font-size:10px;color:#6B3FE7;text-decoration:none;">${p.handle}</a>
+            </td>`
+            ).join('')}
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+`;
+
+/** @deprecated Prefer SOCIAL_FOOTER — kept for older templates that inject SOCIAL_LINKS */
+export const SOCIAL_LINKS = SOCIAL_FOOTER;
+
 export function getEmailHeader(title: string, subtitle: string, icon?: string): string {
   const iconHtml = icon
     ? `<div style="font-size:28px;margin-bottom:8px;">${icon}</div>`
