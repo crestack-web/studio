@@ -34,6 +34,7 @@ export type PageId =
   | 'payment-traceability'
   | 'update'
   | 'recordsale'
+  | 'wallet'
   | 'settings'
   | 'branches'
   | 'supplier-management'
