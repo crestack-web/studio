@@ -1,9 +1,9 @@
 /**
  * Retention & dunning emails for trial, grace extension, and subscription renewal.
- * Uses existing Brevo transactional sender.
+ * Uses existing Resend transactional sender.
  */
 import { sendTransactionalEmail } from './brevo-service';
-import { BUSMO_LOGO } from './email-constants';
+import { BUSMO_LOGO, SOCIAL_FOOTER } from './email-constants';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://busmo.io';
 const SUBSCRIBE_URL = `${APP_URL}/subscribe`;
@@ -85,6 +85,7 @@ export async function sendGraceExtensionEmail(params: GraceExtensionParams): Pro
         </div>
         <div class="footer">
           <p>&copy; 2026 Busmo. Built for African commerce</p>
+          ${SOCIAL_FOOTER}
         </div>
       </div>
     </body>
@@ -155,6 +156,7 @@ export async function sendGraceReminderEmail(params: GraceReminderParams): Promi
         </div>
         <div class="footer">
           <p>&copy; 2026 Busmo. Built for African commerce</p>
+          ${SOCIAL_FOOTER}
         </div>
       </div>
     </body>
@@ -273,6 +275,7 @@ export async function sendRenewalDueReminderEmail(params: RenewalDueParams): Pro
         </div>
         <div class="footer">
           <p>&copy; 2026 Busmo. Built for African commerce</p>
+          ${SOCIAL_FOOTER}
         </div>
       </div>
     </body>
