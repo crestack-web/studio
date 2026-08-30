@@ -508,7 +508,6 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
         ) {
           const d = data.pendingAction.data;
           botMsg.saleCard = {
-            type: 'sale',
             items: d.items.map((item: any) => ({
               name: item.productName || item.name,
               quantity: item.quantity || 1,

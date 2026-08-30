@@ -700,7 +700,6 @@ export function MobileAskMOPage() {
         ) {
           const d = data.pendingAction.data;
           updatedBotMsg.saleCard = {
-            type: 'sale',
             items: d.items.map((item: any) => ({
               name: item.productName || item.name,
               quantity: item.quantity || 1,
