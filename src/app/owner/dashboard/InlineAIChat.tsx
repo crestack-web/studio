@@ -635,6 +635,30 @@ export function InlineAIChat({ onClose, onExpand }: InlineAIChatProps) {
               },
             };
           }
+
+          try {
+            if (user.businessId) {
+              const settings = await loadBusinessReceiptSettings(user.businessId);
+              setSaleReceiptType(settings.receiptType);
+              const itemsForReceipt = recordedItems.map((item: any) => ({
+                name: item.name || 'Item',
+                quantity: Number(item.quantity) || 1,
+                price: Number(item.price) || 0,
+              }));
+              setSaleReceiptData(
+                buildSaleReceiptData({
+                  settings,
+                  items: itemsForReceipt,
+                  saleId: result.saleId || result.data?.saleId,
+                  paymentMethod: pendingAction.data?.paymentMethod || pendingAction.data?.paymentType || 'cash',
+                  soldBy: user.name || user.shortName || 'Owner',
+                })
+              );
+              setShowSaleReceipt(true);
+            }
+          } catch (e) {
+            console.warn('[Ask MO] receipt failed', e);
+          }
         }
 
         const successMsg: MOMessage = {
