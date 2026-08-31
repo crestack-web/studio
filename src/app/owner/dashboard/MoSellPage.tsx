@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useApp } from './AppContext';
 import { getSupabase } from '@/lib/supabase';
 import { ExternalLink, Link2, RefreshCw, Store } from 'lucide-react';
@@ -71,11 +71,16 @@ export default function MoSellPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<'orders' | 'earnings'>('orders');
+  const [awaitingConnect, setAwaitingConnect] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const linkedRef = useRef(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!user.businessId) return;
-    setLoading(true);
-    setError(null);
+    if (!opts?.silent) {
+      setLoading(true);
+      setError(null);
+    }
     try {
       const { data: sessionData } = await getSupabase().auth.getSession();
       const token = sessionData.session?.access_token;
@@ -86,17 +91,69 @@ export default function MoSellPage() {
       );
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to load');
-      setData(json as Payload);
+      const payload = json as Payload;
+      setData(payload);
+      linkedRef.current = !!payload.linked;
+      if (payload.linked) {
+        setAwaitingConnect(false);
+        if (pollRef.current) {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
+      }
     } catch (e: any) {
-      setError(e?.message || 'Failed to load Mo-sell activity');
+      if (!opts?.silent) setError(e?.message || 'Failed to load Mo-sell activity');
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     }
   }, [user.businessId]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  // When user returns from Mo-sell connect tab, refresh so linked state appears without manual click.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (linkedRef.current) return;
+      void load({ silent: true });
+    };
+    const onFocus = () => {
+      if (linkedRef.current) return;
+      void load({ silent: true });
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [load]);
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
+  const startConnectPoll = () => {
+    setAwaitingConnect(true);
+    if (pollRef.current) clearInterval(pollRef.current);
+    let ticks = 0;
+    pollRef.current = setInterval(() => {
+      ticks += 1;
+      void load({ silent: true });
+      if (ticks >= 24 || linkedRef.current) {
+        // ~2 minutes at 5s
+        if (pollRef.current) {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
+        if (!linkedRef.current) setAwaitingConnect(false);
+      }
+    }, 5000);
+  };
 
   const connect = () => {
     const url =
@@ -110,7 +167,8 @@ export default function MoSellPage() {
     }
     const opened = window.open(url, '_blank', 'noopener,noreferrer');
     if (!opened) window.location.href = url;
-    showToast('Finish connecting in Mo-sell (same email works best)');
+    showToast('Finish connecting in Mo-sell, then return here — status refreshes automatically');
+    startConnectPoll();
   };
 
   const m = data?.metrics;
@@ -125,7 +183,7 @@ export default function MoSellPage() {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={load}
+            onClick={() => load()}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50"
           >
             <RefreshCw size={14} /> Refresh
@@ -153,6 +211,13 @@ export default function MoSellPage() {
 
       {error && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+      )}
+
+      {awaitingConnect && !data?.linked && (
+        <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
+          Waiting for Mo-sell to finish linking… This page refreshes automatically when you return from Mo-sell.
+          You can also click Refresh.
+        </div>
       )}
 
       {loading && !data ? (
