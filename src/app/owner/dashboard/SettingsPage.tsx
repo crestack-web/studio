@@ -37,6 +37,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+const MO_SELL_APP_URL =
+  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_MO_SELL_APP_URL) || 'https://mo-sell.store';
+
 const WAREHOUSE_CATEGORIES = new Set([
   'retail', 'wholesale', 'distributor', 'supermarket', 'grocery',
   'pharmacy', 'fashion', 'electronics', 'manufacturing',
@@ -251,7 +254,7 @@ export default function SettingsPage() {
         <Section title={t('settings.section.business')}>
           <div className={styles.formGrid}>
             <div className={styles.formField}>
-              <label className={styles.label}>{t('settings.businessName')}</label>
+              <label className={styles.label}>{t('settings.section.business') === t('settings.section.business') ? t('settings.businessName') : t('settings.businessName')}</label>
               <input className={styles.input} value={biz.name} onChange={(e) => setBiz((p) => ({ ...p, name: e.target.value }))} />
             </div>
             <div className={styles.formField}>
@@ -307,15 +310,34 @@ export default function SettingsPage() {
             <button
               type="button"
               className={styles.saveBtn}
-              style={{ whiteSpace: 'nowrap' }}
-              disabled={!moSellConnectUrl}
+              style={{ whiteSpace: 'nowrap', opacity: moSellLoading ? 0.7 : 1 }}
+              disabled={moSellLoading || !user.businessId}
               onClick={() => {
-                if (!moSellConnectUrl) return;
-                window.open(moSellConnectUrl, '_blank', 'noopener,noreferrer');
-                showToast('Finish connecting in Mo-sell settings');
+                const businessId = user.businessId;
+                if (!businessId) {
+                  showToast('Business not loaded yet — try again in a moment');
+                  return;
+                }
+                const fallback =
+                  `${MO_SELL_APP_URL.replace(/\/$/, '')}/dashboard/settings?connectFromBusmo=1&busmoBusinessId=${encodeURIComponent(businessId)}`;
+                const url = moSellConnectUrl || fallback;
+                const opened = window.open(url, '_blank', 'noopener,noreferrer');
+                if (!opened) {
+                  window.location.href = url;
+                  return;
+                }
+                showToast(
+                  moSellLinked?.moSellBusinessId
+                    ? 'Opened Mo-sell'
+                    : 'Finish connecting in Mo-sell settings (same email works best)'
+                );
               }}
             >
-              {moSellLinked?.moSellBusinessId ? 'Open Mo-sell' : 'Connect Mo-sell'}
+              {moSellLoading
+                ? 'Loading…'
+                : moSellLinked?.moSellBusinessId
+                  ? 'Open Mo-sell'
+                  : 'Connect Mo-sell'}
             </button>
           </div>
 
