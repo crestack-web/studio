@@ -17,6 +17,7 @@ import { ReferralsPage }   from './ReferralsPage';
 import CapitalPage from './CapitalPage';
 import InventoryPage       from './InventoryPage';
 import SettingsPage        from './SettingsPage';
+import MoSellPage from './MoSellPage';
 import { BranchesPage }    from './BranchesPage';
 import { ReportsPage }     from './ReportsPage';
 import { BankReconciliationPage } from './BankReconciliationPage';
@@ -85,6 +86,7 @@ const PAGE_COMPONENTS: Record<string, React.ComponentType> = {
   warehouse: WarehousePage,
   'stock-transfers': StockTransfersPage,
   'mo-sales': MoSalesPage,
+  'mo-sell': MoSellPage,
 };
 
 const FULL_HEIGHT_PAGES = new Set<string>(['mo', 'mo-mobile']);
@@ -94,12 +96,6 @@ export function AppShell() {
   const isMobileAskMO = activePage === 'mo-mobile';
 
   usePageTracking();
-
-  useEffect(() => {
-    if (activePage === 'mo-sell') {
-      window.location.href = 'https://mo-sell.store/';
-    }
-  }, [activePage]);
 
   const PageComponent = PAGE_COMPONENTS[activePage];
   const currentPage = PageComponent ? (
