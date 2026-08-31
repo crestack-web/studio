@@ -1,5 +1,17 @@
 import React from 'react';
+import {
+  ShoppingCart,
+  CircleDollarSign,
+  Package,
+  Sparkles,
+  WifiOff,
+  Moon,
+  Bell,
+} from 'lucide-react';
 import { MoIcon, NavIcons } from '../../owner/dashboard/NavIcons';
+
+const pillIconProps = { size: 18, strokeWidth: 1.75, 'aria-hidden': true as const };
+const topbarIconProps = { size: 16, strokeWidth: 1.75, 'aria-hidden': true as const };
 
 export const MoSection: React.FC = () => (
   <section className="mo-section-new">
@@ -10,7 +22,7 @@ export const MoSection: React.FC = () => (
       {/* Left: Feature pills */}
       <div className="mo-features-left">
         <div className="mo-feat-pill">
-          <div className="mo-feat-pill-icon">🛒</div>
+          <div className="mo-feat-pill-icon"><ShoppingCart {...pillIconProps} /></div>
           <div className="mo-feat-pill-text">
             <div className="mo-feat-pill-label">Add Sale by Text</div>
             <div className="mo-feat-pill-sub">Just type what you sold</div>
@@ -18,7 +30,7 @@ export const MoSection: React.FC = () => (
         </div>
 
         <div className="mo-feat-pill">
-          <div className="mo-feat-pill-icon">💰</div>
+          <div className="mo-feat-pill-icon"><CircleDollarSign {...pillIconProps} /></div>
           <div className="mo-feat-pill-text">
             <div className="mo-feat-pill-label">Instant Profit Check</div>
             <div className="mo-feat-pill-sub">Ask anytime, get real numbers</div>
@@ -26,7 +38,7 @@ export const MoSection: React.FC = () => (
         </div>
 
         <div className="mo-feat-pill">
-          <div className="mo-feat-pill-icon">📦</div>
+          <div className="mo-feat-pill-icon"><Package {...pillIconProps} /></div>
           <div className="mo-feat-pill-text">
             <div className="mo-feat-pill-label">Restock Alerts</div>
             <div className="mo-feat-pill-sub">MO knows what's running low</div>
@@ -34,7 +46,7 @@ export const MoSection: React.FC = () => (
         </div>
 
         <div className="mo-feat-pill">
-          <div className="mo-feat-pill-icon">🔮</div>
+          <div className="mo-feat-pill-icon"><Sparkles {...pillIconProps} /></div>
           <div className="mo-feat-pill-text">
             <div className="mo-feat-pill-label">Smart Forecasts</div>
             <div className="mo-feat-pill-sub">Tomorrow's sales, predicted today</div>
@@ -42,7 +54,7 @@ export const MoSection: React.FC = () => (
         </div>
 
         <div className="mo-feat-pill">
-          <div className="mo-feat-pill-icon">🌍</div>
+          <div className="mo-feat-pill-icon"><WifiOff {...pillIconProps} /></div>
           <div className="mo-feat-pill-text">
             <div className="mo-feat-pill-label">Works Offline</div>
             <div className="mo-feat-pill-sub">MO syncs when you reconnect</div>
@@ -94,9 +106,9 @@ export const MoSection: React.FC = () => (
               </button>
               <span className="mo-topbar-title">Ask MO</span>
               <div className="mo-topbar-right">
-                <div className="mo-topbar-icon">🌙</div>
+                <div className="mo-topbar-icon"><Moon {...topbarIconProps} /></div>
                 <div className="mo-topbar-icon" style={{position:'relative'}}>
-                  🔔
+                  <Bell {...topbarIconProps} />
                   <span style={{position:'absolute',top:0,right:0,width:'8px',height:'8px',borderRadius:'50%',background:'#EF4444',border:'1.5px solid #F5F5F7',display:'block'}} />
                 </div>
                 <div className="mo-topbar-avatar">
@@ -121,7 +133,7 @@ export const MoSection: React.FC = () => (
               <button className="mo-back-btn">← Back</button>
             </div>
 
-            {/* Chat messages */}
+            {/* Chat messages — light conversational emojis kept only in the demo chat where they matter */}
             <div className="mo-chat-area">
               {/* MO greeting */}
               <div className="mo-msg-row" style={{animationDelay:'0s'}}>
@@ -170,7 +182,7 @@ export const MoSection: React.FC = () => (
                         <span className="mo-sale-amount">₦63,000</span>
                       </div>
                     </div>
-                    <div style={{fontSize:'0.68rem',color:'#888',marginTop:'6px'}}>📦 Inventory updated · Profit logged</div>
+                    <div style={{fontSize:'0.68rem',color:'#888',marginTop:'6px'}}>Inventory updated · Profit logged</div>
                   </div>
                   <div className="mo-bubble-time">10:02</div>
                 </div>
@@ -207,7 +219,7 @@ export const MoSection: React.FC = () => (
                         <span className="mo-insight-val up">₦48,800 ↑</span>
                       </div>
                     </div>
-                    <div style={{fontSize:'0.68rem',color:'#16A34A',marginTop:'6px',fontWeight:600}}>+22% vs yesterday 🚀</div>
+                    <div style={{fontSize:'0.68rem',color:'#16A34A',marginTop:'6px',fontWeight:600}}>+22% vs yesterday</div>
                   </div>
                   <div className="mo-bubble-time">10:05</div>
                 </div>

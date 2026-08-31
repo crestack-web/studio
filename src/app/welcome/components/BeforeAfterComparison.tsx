@@ -1,6 +1,9 @@
 "use client";
 
 import React from 'react';
+import { BookOpen, CheckCircle2 } from 'lucide-react';
+
+const iconProps = { size: 22, strokeWidth: 1.75, 'aria-hidden': true as const };
 
 const BEFORE_ITEMS = [
   "Sales don't match cash",
@@ -41,7 +44,7 @@ export const BeforeAfterComparison: React.FC = () => (
       <div className="comparison-table">
         <div className="comparison-column before">
           <div className="comparison-header">
-            <span className="comparison-icon">📓</span>
+            <span className="comparison-icon"><BookOpen {...iconProps} /></span>
             <h3 className="comparison-title">Without control</h3>
           </div>
           <ul className="comparison-list">
@@ -60,7 +63,7 @@ export const BeforeAfterComparison: React.FC = () => (
 
         <div className="comparison-column after">
           <div className="comparison-header">
-            <span className="comparison-icon">✓</span>
+            <span className="comparison-icon"><CheckCircle2 {...iconProps} /></span>
             <h3 className="comparison-title">With Busmo</h3>
           </div>
           <ul className="comparison-list">
