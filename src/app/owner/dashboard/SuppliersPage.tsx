@@ -450,69 +450,80 @@ export default function SuppliersPage() {
 
   const handleCreateSupplier = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const bid = await resolveBusinessId();
-    if (!bid) {
-      showToast(t('toast.businessIdNotFound') || 'Business not found');
+    // Read form fields BEFORE any await — React clears currentTarget after the event handler yields.
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    const supplierName = (formData.get('supplierName') as string)?.trim() || '';
+    const businessName = (formData.get('businessName') as string)?.trim() || '';
+    const phone = (formData.get('phone') as string)?.trim() || '';
+    const email = (formData.get('email') as string)?.trim() || '';
+    const address = (formData.get('address') as string)?.trim() || '';
+    const paymentTerms = ((formData.get('paymentTerms') as string) || 'net_30').trim();
+
+    if (!supplierName || !businessName || !phone) {
+      showToast('Name, business name, and phone are required');
       return;
     }
 
     setIsCreatingSupplier(true);
     try {
-      const formData = new FormData(e.currentTarget);
-      const supplierName = (formData.get('supplierName') as string)?.trim();
-      const businessName = (formData.get('businessName') as string)?.trim();
-      const phone = (formData.get('phone') as string)?.trim();
-      const email = (formData.get('email') as string)?.trim();
-      const address = (formData.get('address') as string)?.trim();
-      const paymentTerms = formData.get('paymentTerms') as string;
-
-      if (!supplierName || !businessName || !phone) {
-        showToast('Name, business name, and phone are required');
+      const bid = await resolveBusinessId();
+      if (!bid) {
+        showToast(t('toast.businessIdNotFound') || 'Business not found. Refresh and try again.');
         return;
       }
 
-      // Supabase suppliers columns: name, phone, email, address, active, metadata
-      // Extra fields are stored in metadata via the client data layer.
-      const newSupplier = {
+      // Ensure we have an auth session so RLS is_business_member() can pass
+      const { data: sessionData } = await getSupabase().auth.getSession();
+      if (!sessionData?.session) {
+        showToast('Session expired. Please sign in again.');
+        return;
+      }
+
+      // Supabase columns: name, phone, email, address, active, metadata (+ id, business_id, timestamps)
+      // Extra fields live in metadata via the client data layer.
+      const newSupplier: Record<string, unknown> = {
         id: crypto.randomUUID(),
         businessId: bid,
         name: businessName || supplierName,
         supplierName,
         businessName,
         phone,
-        email: email || null,
-        address: address || null,
         active: true,
         status: 'active',
-        paymentTerms: paymentTerms || 'net_30',
-        customPaymentDays: null,
+        paymentTerms,
         creditLimit: 0,
         openingBalance: 0,
         currentBalance: 0,
         category: 'general',
-        taxId: null,
-        bankAccount: null,
-        contactPerson: null,
-        notes: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        lastPurchaseDate: null,
-        lastPaymentDate: null,
         totalPurchases: 0,
         totalPayments: 0,
         purchaseCount: 0,
         paymentCount: 0,
         averagePaymentDays: 0,
         creditUtilization: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
+      if (email) newSupplier.email = email;
+      if (address) newSupplier.address = address;
 
       await addDoc(`businesses/${bid}/suppliers`, newSupplier);
       showToast(t('toast.supplierCreated') || 'Supplier created');
       setShowAddSupplierModal(false);
+      form.reset();
       await loadSuppliers();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating supplier:', error);
-      showToast(t('toast.supplierCreateFailed') || 'Failed to create supplier');
+      const msg =
+        (error as { message?: string; details?: string })?.message ||
+        (error as { details?: string })?.details ||
+        (error instanceof Error ? error.message : '');
+      showToast(
+        msg
+          ? `Failed to create supplier: ${msg}`
+          : t('toast.supplierCreateFailed') || 'Failed to create supplier'
+      );
     } finally {
       setIsCreatingSupplier(false);
     }

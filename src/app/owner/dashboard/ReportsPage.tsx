@@ -612,9 +612,6 @@ export function ReportsPage() {
 
   function openStatement() {
     navigateTo('statement');
-  } else {
-      showToast('Open Statement from the sidebar for printable books');
-    }
   }
 
   return (
