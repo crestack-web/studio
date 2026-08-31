@@ -69,12 +69,12 @@ export function BankReconciliationPage() {
           return;
         }
         const userIds = getFirestoreUserId();
-        let authId = user?.id;
+        let authId: string | undefined = user?.id;
         if (!authId) {
           const { data } = await getSupabase().auth.getSession();
           authId = data.session?.user?.id;
         }
-        if (!authId && userIds) authId = userIds.firestoreUid;
+        if (!authId && userIds) authId = userIds.firestoreUid || undefined;
         if (!authId) {
           if (!cancelled) {
             setResolveDone(true);
