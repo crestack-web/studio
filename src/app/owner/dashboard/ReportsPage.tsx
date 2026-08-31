@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useApp } from './AppContext';
-import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { fetchDocs } from '@/lib/supabase-client-data';
 import { getSupabase } from '@/lib/supabase';
@@ -227,7 +226,6 @@ function periodRange(
 
 export function ReportsPage() {
   const { showToast, user, navigateTo } = useApp();
-  const { t } = useTranslation();
   const { formatMoney } = useCurrency();
 
   const [period, setPeriod] = useState<PeriodType>('month');
@@ -555,12 +553,12 @@ export function ReportsPage() {
       });
     } catch (error) {
       console.error('Error loading insights:', error);
-      showToast(t('toast.reportsLoadFailed') || 'Failed to load insights');
+      showToast('Failed to load insights');
       setInsights(null);
     } finally {
       setLoading(false);
     }
-  }, [businessId, period, startDate, endDate, showToast, t]);
+  }, [businessId, period, startDate, endDate, showToast]);
 
   useEffect(() => {
     if (businessId) loadInsights();
@@ -607,7 +605,7 @@ export function ReportsPage() {
     a.download = `busmo_insights_${period}_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    showToast(t('toast.reportExported') || 'Insights exported');
+    showToast('Insights exported');
   }
 
   function openStatement() {
@@ -620,7 +618,7 @@ export function ReportsPage() {
         <div className={styles.pageHeaderText}>
           <div className={styles.eyebrow}>Insights</div>
           <h1 className={styles.heading}>
-            {t('reports.heading') || 'Business insights'}
+            Business insights
           </h1>
           <p className={styles.sub}>
             {copy.body}{' '}
