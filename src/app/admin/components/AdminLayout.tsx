@@ -10,6 +10,7 @@ const BusinessTimeline = dynamic(() => import('./BusinessTimeline'), { ssr: fals
 const SupportInbox = dynamic(() => import('./SupportInbox'), { ssr: false });
 const ChurnDetection = dynamic(() => import('./ChurnDetection'), { ssr: false });
 const MoSalesConnections = dynamic(() => import('./MoSalesConnections'), { ssr: false });
+const MoSellActivity = dynamic(() => import('./MoSellActivity'), { ssr: false });
 const AdminOperations = dynamic(() => import('./AdminOperations'), { ssr: false });
 const AdminRevenue = dynamic(() => import('./AdminRevenue'), { ssr: false });
 
@@ -25,6 +26,7 @@ const TABS: Array<{ id: string; label: string; short: string }> = [
   { id: 'revenue', label: 'Revenue', short: 'Revenue' },
   { id: 'churn', label: 'Churn', short: 'Churn' },
   { id: 'mo-sales', label: 'MO Sales', short: 'MO' },
+  { id: 'mo-sell', label: 'Mo-sell', short: 'Sell' },
   { id: 'support', label: 'Support', short: 'Support' },
 ];
 
@@ -76,6 +78,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <MoSalesConnections />
           </Suspense>
         );
+      case 'mo-sell':
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <MoSellActivity />
+          </Suspense>
+        );
       case 'support':
         return (
           <Suspense fallback={<LoadingFallback />}>
@@ -122,7 +130,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           </button>
         </div>
 
-        {/* Horizontal nav — scrolls on mobile, does not consume vertical space */}
         <div className="border-t border-slate-100">
           <nav
             className="mx-auto max-w-7xl overflow-x-auto overscroll-x-contain px-2 py-2 sm:px-6 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
