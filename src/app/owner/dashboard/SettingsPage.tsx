@@ -92,7 +92,8 @@ export default function SettingsPage() {
   }, [user.businessId]);
 
   useEffect(() => {
-    if (!user.businessId) return;
+    const businessId = user.businessId;
+    if (!businessId) return;
     let cancelled = false;
     (async () => {
       try {
@@ -101,7 +102,7 @@ export default function SettingsPage() {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token;
         if (!token) return;
-        const res = await fetch(`/api/integrations/mo-sell?businessId=${encodeURIComponent(user.businessId)}`, {
+        const res = await fetch(`/api/integrations/mo-sell?businessId=${encodeURIComponent(businessId)}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const json = await res.json().catch(() => ({}));
