@@ -3,11 +3,6 @@
 import { useState, useEffect } from 'react';
 import type { Page } from './types';
 import {
-  Gem,
-  Banknote,
-  Search,
-  Users,
-  Lock,
   Package,
   CircleDollarSign,
   TrendingDown,
@@ -91,45 +86,6 @@ export default function WelcomePage() {
         <HowBusmoWorks />
       </ScrollReveal>
 
-      {/* Money Control differentiator */}
-      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-        <section className="features-bg">
-          <div className="max-w">
-            <div className="section-head">
-              <div className="section-label">Money Control</div>
-              <h2 className="section-title">
-                Your sales are recorded.<br /><em>But where is the money?</em>
-              </h2>
-              <p className="section-sub">
-                A POS or accounting system can record a transaction. You still need to know whether the money handled by staff matches what should have happened.
-              </p>
-            </div>
-            <div className="features-grid">
-              <div className="feat-card wide">
-                <div className="feat-icon"><Gem {...iconProps} /></div>
-                <div>
-                  <div className="feat-title">Connect sales to money movement</div>
-                  <div className="feat-desc">
-                    Busmo helps you connect sales activity with the money your business should have received — so you can spot discrepancies, improve accountability and stay in control.
-                  </div>
-                  <span className="feat-tag">Visibility · Accountability</span>
-                </div>
-              </div>
-              <div className="feat-card">
-                <div className="feat-icon"><Banknote {...iconProps} /></div>
-                <div className="feat-title">Cash & transfers</div>
-                <div className="feat-desc">See expected collections against what was confirmed — cash, bank and POS in one view.</div>
-              </div>
-              <div className="feat-card">
-                <div className="feat-icon"><Search {...iconProps} /></div>
-                <div className="feat-title">Identify discrepancies</div>
-                <div className="feat-desc">Surface mismatches between sales and money handled. Not a promise of zero loss — clearer control.</div>
-              </div>
-            </div>
-          </div>
-        </section>
-      </ScrollReveal>
-
       {/* Profit */}
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <section>
@@ -142,45 +98,6 @@ export default function WelcomePage() {
               <p className="section-sub">
                 Revenue is not the same as profit. Busmo connects sales, costs, inventory and expenses so you can see what the business is really making — in plain language.
               </p>
-            </div>
-          </div>
-        </section>
-      </ScrollReveal>
-
-      {/* Staff / owner remote control */}
-      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-        <section className="features-bg">
-          <div className="max-w">
-            <div className="section-head">
-              <div className="section-label">For owners</div>
-              <h2 className="section-title">
-                Run your business without having to <em>be everywhere.</em>
-              </h2>
-              <p className="section-sub">
-                You should not need to stand in the shop all day just to know what happened. Busmo gives visibility into activity while staff operate the business.
-              </p>
-            </div>
-            <div className="features-grid">
-              <div className="feat-card">
-                <div className="feat-icon"><Users {...iconProps} /></div>
-                <div className="feat-title">Staff activity</div>
-                <div className="feat-desc">See who is handling sales, cash and day-to-day work.</div>
-              </div>
-              <div className="feat-card">
-                <div className="feat-icon"><Lock {...iconProps} /></div>
-                <div className="feat-title">Permissions</div>
-                <div className="feat-desc">Control what staff can access while you keep overall control.</div>
-              </div>
-              <div className="feat-card">
-                <div className="feat-icon"><Package {...iconProps} /></div>
-                <div className="feat-title">Stock & locations</div>
-                <div className="feat-desc">Inventory and multi-location visibility where supported.</div>
-              </div>
-              <div className="feat-card">
-                <div className="feat-icon"><Gem {...iconProps} /></div>
-                <div className="feat-title">Money Control</div>
-                <div className="feat-desc">Link sales to cash handling so accountability is clearer.</div>
-              </div>
             </div>
           </div>
         </section>
