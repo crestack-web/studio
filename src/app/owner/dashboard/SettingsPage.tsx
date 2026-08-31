@@ -61,6 +61,9 @@ export default function SettingsPage() {
   const [enablePayment, setEnablePayment] = useState(false);
   const [analytics, setAnalytics] = useState(true);
   const [selectedCountry, setSelectedCountry] = useState('NG');
+  const [moSellConnectUrl, setMoSellConnectUrl] = useState<string | null>(null);
+  const [moSellLinked, setMoSellLinked] = useState<{ moSellBusinessId: string | null } | null>(null);
+  const [moSellLoading, setMoSellLoading] = useState(false);
 
   const showInventoryDeductionMode = WAREHOUSE_CATEGORIES.has(String(biz.category || '').toLowerCase().trim());
 
@@ -82,12 +85,33 @@ export default function SettingsPage() {
           setInventoryDeductionMode(data.inventoryDeductionMode || 'immediate');
           if (data.receiptType) setReceiptTypeSetting(data.receiptType);
         }
-        const configDoc = await getDoc(doc(firestore, 'businesses', user.businessId, 'store', 'config'));
-        if (configDoc.exists()) setEnablePayment(configDoc.data().enablePayment || false);
       } catch (e) {
         console.error(e);
       }
     })();
+  }, [user.businessId]);
+
+  useEffect(() => {
+    if (!user.businessId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        setMoSellLoading(true);
+        const supabase = getSupabase();
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) return;
+        const res = await fetch(`/api/integrations/mo-sell?businessId=${encodeURIComponent(user.businessId)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = await res.json().catch(() => ({}));
+        if (cancelled || !res.ok) return;
+        setMoSellConnectUrl(json.connectUrl || null);
+        setMoSellLinked(json.linked || null);
+      } catch (e) { console.error(e); }
+      finally { if (!cancelled) setMoSellLoading(false); }
+    })();
+    return () => { cancelled = true; };
   }, [user.businessId]);
 
   const handleInventoryDeductionModeChange = async (mode: 'immediate' | 'warehouse') => {
@@ -187,17 +211,6 @@ export default function SettingsPage() {
               {COUNTRY_LIST.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
             </select>
           </div>
-          <div className={styles.currencyGrid}>
-            {CURRENCIES_SORTED.slice(0, 24).map((c) => (
-              <button key={c.code}
-                className={`${styles.currencyCard} ${currencyCode === c.code ? styles.currencyCardActive : ''}`}
-                onClick={() => { setCurrencyCode(c.code); showToast(`Currency set to ${c.name}`); }}>
-                <span className={styles.currencyFlag}>{c.flag}</span>
-                <span className={styles.currencyCode}>{c.code}</span>
-                <div className={styles.currencySymbolLarge}>{c.symbol}</div>
-              </button>
-            ))}
-          </div>
         </Section>
       )}
 
@@ -246,21 +259,6 @@ export default function SettingsPage() {
                 <option value="">Select category</option>
                 {CATEGORY_OPTIONS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
               </select>
-              <div className={styles.rowDesc} style={{ marginTop: 6 }}>
-                Category controls which settings appear (e.g. warehouse stock modes for wholesale / retail).
-              </div>
-            </div>
-            <div className={styles.formField}>
-              <label className={styles.label}>{t('settings.businessPhone')}</label>
-              <input className={styles.input} type="tel" value={biz.phone} onChange={(e) => setBiz((p) => ({ ...p, phone: e.target.value }))} />
-            </div>
-            <div className={styles.formField}>
-              <label className={styles.label}>{t('settings.businessEmail')}</label>
-              <input className={styles.input} type="email" value={biz.email} onChange={(e) => setBiz((p) => ({ ...p, email: e.target.value }))} />
-            </div>
-            <div className={styles.formField}>
-              <label className={styles.label}>{t('settings.businessAddress')}</label>
-              <input className={styles.input} value={biz.address} onChange={(e) => setBiz((p) => ({ ...p, address: e.target.value }))} />
             </div>
           </div>
 
@@ -268,9 +266,7 @@ export default function SettingsPage() {
             <div className={styles.toggleRow} style={{ marginTop: 24 }}>
               <div>
                 <div className={styles.toggleLabel}>Inventory deduction mode</div>
-                <div className={styles.rowDesc}>
-                  When stock is reduced: right away on each sale, or when the warehouse releases goods (wholesale / distributor).
-                </div>
+                <div className={styles.rowDesc}>When stock is reduced: on sale or on warehouse release.</div>
               </div>
               <div className={styles.radioGroup}>
                 <label className={styles.radioOption}>
@@ -289,23 +285,37 @@ export default function SettingsPage() {
             </div>
           )}
 
-          <div className={styles.toggleRow} style={{ marginTop: 24 }}>
-            <div>
-              <div className={styles.toggleLabel}>Enable online payments</div>
-              <div className={styles.rowDesc}>Allow customers to pay for digital products online.</div>
+          <div className={styles.toggleRow} style={{ marginTop: 28, alignItems: 'flex-start' }}>
+            <div style={{ flex: 1 }}>
+              <div className={styles.toggleLabel}>Mo-sell online store</div>
+              <div className={styles.rowDesc}>
+                Connect this Busmo business to Mo-sell so physical products can be sold online. Stock and sales stay in sync.
+              </div>
+              {moSellLoading ? (
+                <div className={styles.rowDesc} style={{ marginTop: 8 }}>Loading…</div>
+              ) : moSellLinked?.moSellBusinessId ? (
+                <div className={styles.rowDesc} style={{ marginTop: 8 }}>
+                  Linked to Mo-sell · <strong style={{ fontFamily: 'monospace' }}>{moSellLinked.moSellBusinessId}</strong>
+                </div>
+              ) : (
+                <div className={styles.rowDesc} style={{ marginTop: 8 }}>
+                  Not connected. Continue in Mo-sell (same email works best).
+                </div>
+              )}
             </div>
-            <Toggle id="enablePayment" checked={enablePayment} onChange={async (v) => {
-              setEnablePayment(v);
-              try {
-                if (user.businessId) {
-                  const { firestore } = initializeFirebase();
-                  await updateDoc(doc(firestore, 'businesses', user.businessId, 'store', 'config'), { enablePayment: v });
-                  showToast(v ? 'Payments enabled' : 'Payments disabled');
-                }
-              } catch {
-                showToast('Failed to update payment setting');
-              }
-            }} />
+            <button
+              type="button"
+              className={styles.saveBtn}
+              style={{ whiteSpace: 'nowrap' }}
+              disabled={!moSellConnectUrl}
+              onClick={() => {
+                if (!moSellConnectUrl) return;
+                window.open(moSellConnectUrl, '_blank', 'noopener,noreferrer');
+                showToast('Finish connecting in Mo-sell settings');
+              }}
+            >
+              {moSellLinked?.moSellBusinessId ? 'Open Mo-sell' : 'Connect Mo-sell'}
+            </button>
           </div>
 
           <button className={styles.saveBtn} onClick={() => showToast(t('settings.changesSaved'))}>
@@ -316,41 +326,28 @@ export default function SettingsPage() {
 
       {activeSection === 'receipt' && (
         <Section title="Receipts & documents">
-          <p className={styles.rowDesc}>
-            Choose your receipt format, customize branding, and save it for Record Sale and Ask MO text sales.
-          </p>
-          <div className={styles.toggleRow} style={{ marginTop: 8, marginBottom: 16 }}>
-            <div>
-              <div className={styles.toggleLabel}>Receipt type</div>
-              <div className={styles.rowDesc}>Supermarket-style thermal receipt, or full invoice layout with customer details.</div>
-            </div>
-            <div className={styles.radioGroup}>
-              <label className={styles.radioOption}>
-                <input type="radio" name="receiptTypeSection" value="supermarket"
-                  checked={receiptTypeSetting === 'supermarket'}
-                  onChange={() => saveReceiptType('supermarket')} />
-                <span>Supermarket</span>
-              </label>
-              <label className={styles.radioOption}>
-                <input type="radio" name="receiptTypeSection" value="invoice"
-                  checked={receiptTypeSetting === 'invoice'}
-                  onChange={() => saveReceiptType('invoice')} />
-                <span>Invoice</span>
-              </label>
-            </div>
+          <div className={styles.radioGroup}>
+            <label className={styles.radioOption}>
+              <input type="radio" name="receiptTypeSection" value="supermarket"
+                checked={receiptTypeSetting === 'supermarket'}
+                onChange={() => saveReceiptType('supermarket')} />
+              <span>Supermarket</span>
+            </label>
+            <label className={styles.radioOption}>
+              <input type="radio" name="receiptTypeSection" value="invoice"
+                checked={receiptTypeSetting === 'invoice'}
+                onChange={() => saveReceiptType('invoice')} />
+              <span>Invoice</span>
+            </label>
           </div>
-          <div style={{ marginBottom: 24 }}>
-            <div className={styles.toggleLabel} style={{ marginBottom: 8 }}>Receipt design</div>
-            <ReceiptThemeConfig />
-          </div>
-          <div className={styles.toggleLabel} style={{ marginBottom: 8 }}>Other document templates</div>
-          <DocumentTemplateManager />
+          <div style={{ marginTop: 16 }}><ReceiptThemeConfig /></div>
+          <div style={{ marginTop: 16 }}><DocumentTemplateManager /></div>
         </Section>
       )}
 
       {activeSection === 'notifications' && (
         <Section title={t('settings.section.notifications')}>
-          <p className={styles.rowDesc}>Notification preferences are managed here.</p>
+          <p className={styles.rowDesc}>Notification preferences.</p>
         </Section>
       )}
 
@@ -359,7 +356,6 @@ export default function SettingsPage() {
           <div className={styles.toggleRow}>
             <div>
               <div className={styles.toggleLabel}>{t('settings.privacyAnalytics')}</div>
-              <div className={styles.rowDesc}>{t('settings.privacyAnalyticsDesc')}</div>
             </div>
             <Toggle id="privacy-analytics" checked={analytics} onChange={setAnalytics} />
           </div>
