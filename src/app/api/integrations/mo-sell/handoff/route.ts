@@ -19,7 +19,7 @@ function signPayload(payload: object): string {
   return `${body}.${sig}`;
 }
 
-export function verifyHandoffToken(token: string): {
+function verifyHandoffToken(token: string): {
   email: string;
   fullName?: string;
   busmoUserId?: string;
@@ -50,7 +50,9 @@ async function requireUser(req: NextRequest) {
     global: { headers: { Authorization: `Bearer ${token}` } },
     auth: { autoRefreshToken: false, persistSession: false },
   });
-  const { data: { user } } = await client.auth.getUser();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
   return user;
 }
 
