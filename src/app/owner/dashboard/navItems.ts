@@ -83,7 +83,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { id: 'add-expense', label: 'Add Expense', tip: 'Add Expense', iconClass: 'add-expense' },
       { id: 'cashflow', label: 'Cashflow', tip: 'Cashflow', iconClass: 'cashflow' },
       { id: 'statement', label: 'Statement', tip: 'Statement', iconClass: 'statement' },
-      { id: 'reports', label: 'Reports', tip: 'Reports', iconClass: 'ni-chart' },
+      { id: 'reports', label: 'Reports', tip: 'Business insights', iconClass: 'ni-chart' },
       { id: 'bank-reconciliation', label: 'Bank Reconciliation', tip: 'Bank Reconciliation', iconClass: 'ni-bank' },
       { id: 'money-control', label: 'Money Control', tip: 'Money Control', iconClass: 'ni-cash' },
       { id: 'credit-tracking', label: 'Credit Tracking', tip: 'Credit Tracking', iconClass: 'ni-credit' },
