@@ -1,1 +1,1 @@
-see artifacts
+/home/workdir/artifacts/SuppliersPage.tsx
