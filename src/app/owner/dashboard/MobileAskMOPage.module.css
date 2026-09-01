@@ -105,8 +105,10 @@
   margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
+  gap: 4px;
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 55%;
 }
 
 .moAvatar {
@@ -132,11 +134,21 @@
 .tokenCounter {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   font-size: 11px;
   color: var(--text-3);
   transition: all 0.2s;
   white-space: nowrap;
+  max-width: 88px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.tokenCounter span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tokenCounter:hover {

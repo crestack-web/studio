@@ -98,11 +98,13 @@ export function CreditPurchaseModal({ isOpen, onClose, onSuccess }: CreditPurcha
               <img src="/mo-thinking.svg" alt="MO" className={styles.moLogo} />
             </div>
             <div>
-              <h2>Purchase MO Credits</h2>
-              <p className={styles.headerSubtitle}>Unlock AI-powered business insights</p>
+              <h2>MO Credits</h2>
+              <p className={styles.headerSubtitle}>Buy credits for Ask MO</p>
             </div>
           </div>
-          <button className={styles.closeButton} onClick={onClose}>✕</button>
+          <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close">
+            ✕
+          </button>
         </div>
 
         <div className={styles.content}>
@@ -121,13 +123,13 @@ export function CreditPurchaseModal({ isOpen, onClose, onSuccess }: CreditPurcha
                   className={`${styles.packCard} ${pack.popular ? styles.popular : ''}`}
                   onClick={() => !isProcessing && handlePurchase(packKey, pack)}
                 >
-                  {pack.popular && <div className={styles.popularBadge}>Most Popular</div>}
+                  {pack.popular && <div className={styles.popularBadge}>Popular</div>}
 
                   <div className={styles.packName}>{pack.name}</div>
 
                   <div className={styles.packCredits}>
                     {pack.credits.toLocaleString()}
-                    <span className={styles.creditsLabel}>credits</span>
+                    <span className={styles.creditsLabel}> credits</span>
                   </div>
 
                   <div className={styles.packPrice}>
@@ -141,12 +143,12 @@ export function CreditPurchaseModal({ isOpen, onClose, onSuccess }: CreditPurcha
                   )}
 
                   {isProcessing && selectedPack === packKey ? (
-                    <button className={styles.purchaseButton} disabled>
-                      Processing...
+                    <button type="button" className={styles.purchaseButton} disabled>
+                      …
                     </button>
                   ) : (
-                    <button className={styles.purchaseButton}>
-                      Purchase
+                    <button type="button" className={styles.purchaseButton}>
+                      Buy
                     </button>
                   )}
                 </div>
@@ -155,9 +157,7 @@ export function CreditPurchaseModal({ isOpen, onClose, onSuccess }: CreditPurcha
           </div>
 
           <div className={styles.footer}>
-            <p className={styles.secureNote}>
-              🔒 Secure payment powered by Paystack
-            </p>
+            <p className={styles.secureNote}>Secure payment via Paystack</p>
           </div>
         </div>
       </div>
