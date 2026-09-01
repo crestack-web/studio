@@ -2,6 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import type { Page } from './welcome/types';
+import {
+  Gem,
+  Banknote,
+  Search,
+  Users,
+  ShieldCheck,
+  Package,
+  CircleDollarSign,
+  TrendingDown,
+  Building2,
+  ShoppingBag,
+  BarChart3,
+  Target,
+} from 'lucide-react';
 import { AskMOSupportAgent } from './welcome/components/AskMOSupportAgent';
 import { Navbar } from './welcome/components/Navbar';
 import { Hero } from './welcome/components/Hero';
@@ -19,6 +33,8 @@ import { FAQSection } from './welcome/components/FAQSection';
 import { Footer } from './welcome/components/Footer';
 import { AnnouncementBar } from './welcome/components/AnnouncementBar';
 import './welcome/styles/globals.css';
+
+const iconProps = { size: 22, strokeWidth: 1.75, 'aria-hidden': true as const };
 
 export default function Home() {
   const [showDemoVideo, setShowDemoVideo] = useState(false);
@@ -88,7 +104,7 @@ export default function Home() {
             </div>
             <div className="features-grid">
               <div className="feat-card wide">
-                <div className="feat-icon">💎</div>
+                <div className="feat-icon"><Gem {...iconProps} /></div>
                 <div>
                   <div className="feat-title">Connect sales to money movement</div>
                   <div className="feat-desc">
@@ -98,12 +114,12 @@ export default function Home() {
                 </div>
               </div>
               <div className="feat-card">
-                <div className="feat-icon">💵</div>
+                <div className="feat-icon"><Banknote {...iconProps} /></div>
                 <div className="feat-title">Cash &amp; transfers</div>
                 <div className="feat-desc">See expected collections against what was confirmed — cash, bank and POS in one view.</div>
               </div>
               <div className="feat-card">
-                <div className="feat-icon">🔍</div>
+                <div className="feat-icon"><Search {...iconProps} /></div>
                 <div className="feat-title">Identify discrepancies</div>
                 <div className="feat-desc">Surface mismatches between sales and money handled. Not a promise of zero loss — clearer control.</div>
               </div>
@@ -142,22 +158,22 @@ export default function Home() {
             </div>
             <div className="features-grid">
               <div className="feat-card">
-                <div className="feat-icon">👥</div>
+                <div className="feat-icon"><Users {...iconProps} /></div>
                 <div className="feat-title">Staff activity</div>
                 <div className="feat-desc">See who is handling sales, cash and day-to-day work.</div>
               </div>
               <div className="feat-card">
-                <div className="feat-icon">🔐</div>
+                <div className="feat-icon"><ShieldCheck {...iconProps} /></div>
                 <div className="feat-title">Permissions</div>
                 <div className="feat-desc">Control what staff can access while you keep overall control.</div>
               </div>
               <div className="feat-card">
-                <div className="feat-icon">📦</div>
+                <div className="feat-icon"><Package {...iconProps} /></div>
                 <div className="feat-title">Stock &amp; locations</div>
                 <div className="feat-desc">Inventory and multi-location visibility where supported.</div>
               </div>
               <div className="feat-card">
-                <div className="feat-icon">💎</div>
+                <div className="feat-icon"><Gem {...iconProps} /></div>
                 <div className="feat-title">Money Control</div>
                 <div className="feat-desc">Link sales to cash handling so accountability is clearer.</div>
               </div>
@@ -180,22 +196,22 @@ export default function Home() {
             </div>
             <div className="features-grid">
               <div className="feat-card">
-                <div className="feat-icon">📦</div>
+                <div className="feat-icon"><Package {...iconProps} /></div>
                 <div className="feat-title">Stock levels</div>
                 <div className="feat-desc">See what you have and what is moving.</div>
               </div>
               <div className="feat-card">
-                <div className="feat-icon">💰</div>
+                <div className="feat-icon"><CircleDollarSign {...iconProps} /></div>
                 <div className="feat-title">Inventory value</div>
                 <div className="feat-desc">Understand what stock is worth to the business.</div>
               </div>
               <div className="feat-card">
-                <div className="feat-icon">📉</div>
+                <div className="feat-icon"><TrendingDown {...iconProps} /></div>
                 <div className="feat-title">Cost &amp; profit impact</div>
                 <div className="feat-desc">Link product costs to what you actually earn.</div>
               </div>
               <div className="feat-card">
-                <div className="feat-icon">🏬</div>
+                <div className="feat-icon"><Building2 {...iconProps} /></div>
                 <div className="feat-title">Locations</div>
                 <div className="feat-desc">Warehouses and locations where your plan supports them.</div>
               </div>
@@ -247,17 +263,17 @@ export default function Home() {
             </div>
             <div className="paths-grid">
               <div className="path-card">
-                <div className="path-icon seller"><span>🛍️</span></div>
+                <div className="path-icon seller"><ShoppingBag {...iconProps} /></div>
                 <div className="path-title">Mo-sell → Sell</div>
                 <div className="path-desc">Online storefront for social and WhatsApp selling.</div>
               </div>
               <div className="path-card featured">
-                <div className="path-icon owner"><span>📊</span></div>
+                <div className="path-icon owner"><BarChart3 {...iconProps} /></div>
                 <div className="path-title">Busmo → Understand</div>
                 <div className="path-desc">See sales, stock, cash and profit clearly.</div>
               </div>
               <div className="path-card">
-                <div className="path-icon multi"><span>🎯</span></div>
+                <div className="path-icon multi"><Target {...iconProps} /></div>
                 <div className="path-title">Busmo Control → Scale</div>
                 <div className="path-desc">Deeper control as the business grows.</div>
               </div>
