@@ -20,7 +20,9 @@ const TABLE_ALIASES: Record<string, string> = {
   stockTransfers: 'stock_transfers',
   bankAccounts: 'bank_accounts',
   bankTransactions: 'bank_transactions',
-  supplierLedger: 'supplier_ledger',
+  supplierLedger: 'supplier_credit',
+  supplierCredit: 'supplier_credit',
+  purchases: 'purchases',
   customerTransactions: 'customer_transactions',
   subscriptionTransactions: 'subscription_transactions',
   businessVerifications: 'business_verifications',
@@ -103,6 +105,32 @@ const WRITE_ALIASES: Record<string, Record<string, string>> = {
     reconciledBy: 'reconciled_by',
     staffId: 'reconciled_by',
   },
+  purchases: {
+    supplierId: 'supplier_id',
+    totalAmount: 'total',
+    totalCost: 'total',
+    total: 'total',
+    paidAmount: 'paid',
+    paid: 'paid',
+    creditAmount: 'balance',
+    balance: 'balance',
+    notes: 'note',
+    note: 'note',
+    createdBy: 'created_by',
+  },
+  stock_receipts: {
+    purchaseId: 'purchase_id',
+    notes: 'note',
+    note: 'note',
+    createdBy: 'created_by',
+  },
+  supplier_credit: {
+    supplierId: 'supplier_id',
+    amount: 'amount',
+    paid: 'paid',
+    balance: 'balance',
+    dueDate: 'due_date',
+  },
 };
 
 const READ_ALIASES: Record<string, Record<string, string[]>> = {
@@ -173,11 +201,13 @@ const KNOWN_COLUMNS: Record<string, Set<string>> = {
   customers: new Set(['id','business_id','name','email','phone','address','notes','active','metadata','created_at','updated_at']),
   suppliers: new Set(['id','business_id','name','email','phone','address','active','metadata','created_at','updated_at']),
   bank_accounts: new Set(['id','business_id','bank_name','account_name','account_number','currency','is_primary','metadata','created_at','updated_at']),
-  bank_transactions: new Set(['id','business_id','account_id','type','amount','balance_after','description','reference','metadata','created_at']),
-  cash_flow: new Set(['id','business_id','type','amount','category','description','payment_method','reference','entry_date','metadata','created_at']),
+  bank_transactions: new Set(['id','business_id','account_id','type','amount','balance_after','description','reference','created_at']),
+  cash_flow: new Set(['id','business_id','type','amount','category','description','entry_date','created_at']),
   transactions: new Set(['id','business_id','type','category','amount','balance_after','reference','note','created_by','created_at','updated_at']),
   staff: new Set(['id','business_id','user_id','role','name','email','phone','status','revenue','transactions','last_sale_at','permissions','created_at','updated_at']),
-  stock_receipts: new Set(['id','business_id','supplier_id','items','total_amount','status','notes','received_at','metadata','created_at']),
+  stock_receipts: new Set(['id','business_id','purchase_id','items','note','created_by','created_at']),
+  purchases: new Set(['id','business_id','supplier_id','items','total','paid','balance','status','note','created_by','created_at','updated_at']),
+  supplier_credit: new Set(['id','business_id','supplier_id','amount','paid','balance','status','due_date','created_at','updated_at']),
   credit_customers: new Set(['id','business_id','name','phone','email','address','credit_limit','total_credit','total_paid','balance','status','created_at','updated_at']),
   credit_transactions: new Set(['id','business_id','customer_id','type','amount','payment_method','note','created_by','created_at']),
   audit_trail: new Set(['id','business_id','user_id','action','entity_type','entity_id','details','ip_address','created_at']),
@@ -277,6 +307,124 @@ function toRow(tableName: string, data: Record<string, unknown>): Record<string,
       if (src != null) row.account_id = src;
     }
     delete row.bank_account_id;
+    delete row.metadata;
+    delete row.category;
+    delete row.account_name;
+    delete row.transaction_number;
+    delete row.payment_method;
+    delete row.performed_by;
+    delete row.performed_by_name;
+    delete row.notes;
+    delete row.reference_id;
+    delete row.reference_type;
+  }
+  if (tableName === 'cash_flow') {
+    if (row.type == null) {
+      const moneyOut = Number(data.moneyOut ?? data.money_out ?? 0) || 0;
+      const moneyIn = Number(data.moneyIn ?? data.money_in ?? 0) || 0;
+      if (moneyOut > 0) {
+        row.type = 'out';
+        if (row.amount == null) row.amount = moneyOut;
+      } else if (moneyIn > 0) {
+        row.type = 'in';
+        if (row.amount == null) row.amount = moneyIn;
+      } else {
+        row.type = String(data.type || 'out');
+      }
+    }
+    if (row.entry_date == null) {
+      const d = data.entryDate ?? data.date ?? data.createdAt;
+      if (d != null) {
+        const s = String(d);
+        row.entry_date = s.includes('T') ? s.split('T')[0] : s.slice(0, 10);
+      }
+    }
+    const extras: string[] = [];
+    if (data.paymentMethod) extras.push(`Payment: ${data.paymentMethod}`);
+    if (data.reference) extras.push(`Ref: ${data.reference}`);
+    if (extras.length && row.description) {
+      row.description = `${row.description} · ${extras.join(' · ')}`;
+    } else if (extras.length && !row.description) {
+      row.description = extras.join(' · ');
+    }
+    delete row.metadata;
+    delete row.payment_method;
+    delete row.reference;
+    delete row.money_in;
+    delete row.money_out;
+    delete row.expense_id;
+  }
+  if (tableName === 'purchases') {
+    if (row.supplier_id == null && data.supplierId != null) row.supplier_id = data.supplierId;
+    if (row.total == null) {
+      const t = data.total ?? data.totalAmount ?? data.totalCost;
+      if (t != null) row.total = Number(t) || 0;
+    }
+    if (row.paid == null) {
+      const p = data.paid ?? data.paidAmount;
+      if (p != null) row.paid = Number(p) || 0;
+    }
+    if (row.balance == null) {
+      const b = data.balance ?? data.creditAmount;
+      if (b != null) row.balance = Number(b) || 0;
+      else row.balance = Math.max(0, Number(row.total || 0) - Number(row.paid || 0));
+    }
+    if (row.status == null) {
+      const paid = Number(row.paid || 0);
+      const total = Number(row.total || 0);
+      row.status = paid >= total && total > 0 ? 'paid' : paid > 0 ? 'partial' : 'open';
+    }
+    if (row.note == null && (data.notes != null || data.description != null)) {
+      row.note = data.notes ?? data.description;
+    }
+    if (row.created_by != null) {
+      const by = String(row.created_by);
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(by)) {
+        delete row.created_by;
+      }
+    }
+    delete row.metadata;
+    delete row.payment_method;
+    delete row.receipt_number;
+    delete row.supplier_name;
+  }
+  if (tableName === 'stock_receipts') {
+    if (row.purchase_id == null && data.purchaseId != null) row.purchase_id = data.purchaseId;
+    if (row.note == null && (data.notes != null || data.description != null)) {
+      row.note = data.notes ?? data.description;
+    }
+    if (row.created_by != null) {
+      const by = String(row.created_by);
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(by)) {
+        delete row.created_by;
+      }
+    }
+    delete row.metadata;
+    delete row.supplier_id;
+    delete row.total_amount;
+    delete row.status;
+    delete row.notes;
+    delete row.received_at;
+    delete row.receipt_number;
+    delete row.supplier_name;
+    delete row.total_quantity;
+    delete row.total_cost;
+    delete row.payment_method;
+    delete row.paid_amount;
+    delete row.credit_amount;
+  }
+  if (tableName === 'supplier_credit') {
+    if (row.supplier_id == null && data.supplierId != null) row.supplier_id = data.supplierId;
+    if (row.amount == null && data.amount != null) row.amount = Number(data.amount) || 0;
+    if (row.paid == null) row.paid = Number(data.paid ?? 0) || 0;
+    if (row.balance == null) {
+      row.balance = Number(data.balance ?? (Number(row.amount || 0) - Number(row.paid || 0))) || 0;
+    }
+    if (row.status == null) {
+      const bal = Number(row.balance || 0);
+      row.status = bal <= 0 ? 'paid' : 'open';
+    }
+    delete row.metadata;
   }
   if (tableName === 'products') {
     if (row.stock_level != null && row.stock_level !== '') {
@@ -520,7 +668,7 @@ export async function addDoc(collectionPath: string, data: Record<string, unknow
   row.id = id;
   if (businessId && !row.business_id) row.business_id = businessId;
   if (!row.created_at) row.created_at = new Date().toISOString();
-  const noUpdatedAt = new Set(['sales', 'audit_trail', 'credit_transactions', 'bank_transactions', 'attendance', 'expenses', 'mo_messages', 'cash_reconciliations']);
+  const noUpdatedAt = new Set(['sales', 'audit_trail', 'credit_transactions', 'bank_transactions', 'attendance', 'expenses', 'mo_messages', 'cash_reconciliations', 'stock_receipts', 'cash_flow']);
   if (!row.updated_at && !noUpdatedAt.has(table) && KNOWN_COLUMNS[table]?.has('updated_at')) {
     row.updated_at = new Date().toISOString();
   } else if (noUpdatedAt.has(table) || (KNOWN_COLUMNS[table] && !KNOWN_COLUMNS[table]!.has('updated_at'))) {

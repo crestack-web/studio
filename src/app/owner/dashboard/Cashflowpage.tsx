@@ -130,15 +130,33 @@ export default function Cashflowpage() {
   const loadPurchases = async () => {
     if (!businessId) return;
     try {
-      const receipts = await fetchDocs(`businesses/${businessId}/stockReceipts`, {
+      const rows = await fetchDocs(`businesses/${businessId}/purchases`, {
         orderBy: { field: 'created_at', ascending: false }, limit: 50,
       });
-      setPurchases(receipts.map((data: any) => ({
-        id: data.id, receiptNumber: data.receiptNumber, supplierId: data.supplierId,
-        supplierName: data.supplierName, items: data.items || [], totalQuantity: data.totalQuantity,
-        totalCost: data.totalCost, paymentMethod: data.paymentMethod, paidAmount: data.paidAmount,
-        creditAmount: data.creditAmount, createdAt: toISOString(data.createdAt) || new Date().toISOString(),
-      })));
+      setPurchases(rows.map((data: any) => {
+        const items = Array.isArray(data.items) ? data.items : [];
+        const totalCost = Number(data.total ?? data.totalCost ?? data.totalAmount ?? 0) || 0;
+        const paidAmount = Number(data.paid ?? data.paidAmount ?? 0) || 0;
+        const creditAmount = Number(data.balance ?? data.creditAmount ?? Math.max(0, totalCost - paidAmount)) || 0;
+        const paymentMethod =
+          creditAmount <= 0 ? 'cash' : paidAmount > 0 ? 'partial' : 'credit';
+        return {
+          id: data.id,
+          receiptNumber: data.receiptNumber || data.note || data.id?.slice?.(-8) || data.id,
+          supplierId: data.supplierId || data.supplier_id || null,
+          supplierName:
+            data.supplierName ||
+            suppliers.find((s: any) => s.id === (data.supplierId || data.supplier_id))?.supplierName ||
+            'No Supplier',
+          items,
+          totalQuantity: items.reduce((s: number, i: any) => s + (Number(i.quantity) || 0), 0),
+          totalCost,
+          paymentMethod: data.paymentMethod || paymentMethod,
+          paidAmount,
+          creditAmount,
+          createdAt: toISOString(data.createdAt || data.created_at) || new Date().toISOString(),
+        };
+      }));
     } catch (error) {
       console.error('Error loading purchases:', error);
     }
@@ -226,10 +244,36 @@ export default function Cashflowpage() {
         );
       }
 
-      const bankTxDocs = await fetchDocs(`businesses/${resolvedBusinessId}/bankTransactions`, {
-        filters: txFilters.length > 0 ? txFilters : undefined,
-        orderBy: { field: 'created_at', ascending: false }, limit: 50,
-      });
+      const expenseFilters: any[] = [];
+      if (dateRange && dateFilter !== 'all') {
+        expenseFilters.push(
+          { field: 'created_at', op: '>=', value: dateRange.startDate.toISOString() },
+          { field: 'created_at', op: '<=', value: dateRange.endDate.toISOString() }
+        );
+      }
+
+      const [bankTxDocs, salesDocs, expenseDocs, purchaseDocs] = await Promise.all([
+        fetchDocs(`businesses/${resolvedBusinessId}/bankTransactions`, {
+          filters: txFilters.length > 0 ? txFilters : undefined,
+          orderBy: { field: 'created_at', ascending: false }, limit: 50,
+        }),
+        fetchDocs(`businesses/${resolvedBusinessId}/sales`, {
+          filters: dateRange && dateFilter !== 'all'
+            ? [
+                { field: 'created_at', op: '>=', value: dateRange.startDate.toISOString() },
+                { field: 'created_at', op: '<=', value: dateRange.endDate.toISOString() },
+              ]
+            : undefined,
+          orderBy: { field: 'created_at', ascending: false }, limit: 50,
+        }),
+        fetchDocs(`businesses/${resolvedBusinessId}/expenses`, {
+          filters: expenseFilters.length > 0 ? expenseFilters : undefined,
+          orderBy: { field: 'created_at', ascending: false }, limit: 50,
+        }),
+        fetchDocs(`businesses/${resolvedBusinessId}/purchases`, {
+          orderBy: { field: 'created_at', ascending: false }, limit: 50,
+        }),
+      ]);
 
       const transactionMap = new Map<string, Transaction>();
       const saleIdsInBankTx = new Set<string>();
@@ -239,42 +283,44 @@ export default function Cashflowpage() {
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
       for (const data of bankTxDocs) {
-        const amount = data.amount || 0;
+        const amount = Number(data.amount) || 0;
         const isCredit = data.type === 'money_in';
-        const date = toISOString(data.createdAt) ? new Date(toISOString(data.createdAt)!) : new Date();
+        const date = toISOString(data.createdAt || data.created_at)
+          ? new Date(toISOString(data.createdAt || data.created_at)!)
+          : new Date();
         transactionMap.set(data.id, {
           id: data.id,
           date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-          type: data.category || 'Other',
+          type: data.category || (isCredit ? 'Money In' : 'Money Out'),
           description: data.description || '',
-          amount, credit: isCredit, accountName: data.accountName,
+          amount,
+          credit: isCredit,
+          accountName: data.accountName || data.account_name || '',
         });
         if (data.saleId) saleIdsInBankTx.add(data.saleId);
-        if (isCredit) { if (date >= monthStart) monthIn += amount; }
-        else { if (date >= monthStart) monthOut += amount; }
+        if (isCredit) {
+          if (date >= monthStart) monthIn += amount;
+        } else if (date >= monthStart) {
+          monthOut += amount;
+        }
       }
-
-      const salesFilters: any[] = [];
-      if (dateRange && dateFilter !== 'all') {
-        salesFilters.push(
-          { field: 'created_at', op: '>=', value: dateRange.startDate.toISOString() },
-          { field: 'created_at', op: '<=', value: dateRange.endDate.toISOString() }
-        );
-      }
-      const salesDocs = await fetchDocs(`businesses/${resolvedBusinessId}/sales`, {
-        filters: salesFilters.length > 0 ? salesFilters : undefined,
-        orderBy: { field: 'created_at', ascending: false }, limit: 50,
-      });
 
       for (const data of salesDocs) {
         const amount = Number(data.totalRevenue ?? data.total ?? data.totalAmount ?? data.total_amount ?? 0) || 0;
         const date = toISOString(data.createdAt || data.created_at)
           ? new Date(toISOString(data.createdAt || data.created_at)!)
           : new Date();
-        const paymentBreakdown = data.paymentBreakdown || data.payment_breakdown || data.metadata?.paymentBreakdown || [];
-        let bankPayment = paymentBreakdown.filter((p: any) => ['transfer', 'card', 'pos'].includes(p.method)).reduce((s: number, p: any) => s + (p.amount || 0), 0);
-        let cashPayment = paymentBreakdown.filter((p: any) => p.method === 'cash').reduce((s: number, p: any) => s + (p.amount || 0), 0);
-        let creditPayment = paymentBreakdown.filter((p: any) => p.method === 'credit').reduce((s: number, p: any) => s + (p.amount || 0), 0);
+        const paymentBreakdown =
+          data.paymentBreakdown || data.payment_breakdown || data.metadata?.paymentBreakdown || [];
+        let bankPayment = paymentBreakdown
+          .filter((p: any) => ['transfer', 'card', 'pos'].includes(p.method))
+          .reduce((s: number, p: any) => s + (p.amount || 0), 0);
+        let cashPayment = paymentBreakdown
+          .filter((p: any) => p.method === 'cash')
+          .reduce((s: number, p: any) => s + (p.amount || 0), 0);
+        let creditPayment = paymentBreakdown
+          .filter((p: any) => p.method === 'credit')
+          .reduce((s: number, p: any) => s + (p.amount || 0), 0);
         if (!paymentBreakdown.length && amount > 0) {
           const primary = String(data.paymentMethod || data.payment_method || 'cash').toLowerCase();
           if (['transfer', 'card', 'pos'].includes(primary)) bankPayment = amount;
@@ -285,8 +331,13 @@ export default function Cashflowpage() {
           transactionMap.set(`sale-${data.id}`, {
             id: `sale-${data.id}`,
             date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-            type: 'Sale', description: `Sale #${data.id.slice(-6)}`, amount: bankPayment, credit: true,
-            accountName: data.bankAccountId ? accountsList.find(a => a.id === data.bankAccountId)?.accountName : 'Default Account',
+            type: 'Sale',
+            description: `Sale #${data.id.slice(-6)}`,
+            amount: bankPayment,
+            credit: true,
+            accountName: data.bankAccountId
+              ? accountsList.find((a) => a.id === data.bankAccountId)?.accountName
+              : 'Default Account',
           });
           if (!saleIdsInBankTx.has(data.id) && date >= monthStart) monthIn += bankPayment;
         }
@@ -294,27 +345,102 @@ export default function Cashflowpage() {
           transactionMap.set(`sale-cash-${data.id}`, {
             id: `sale-cash-${data.id}`,
             date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-            type: 'Cash Sale', description: `Sale #${data.id.slice(-6)}`, amount: cashPayment, credit: true, accountName: 'Cash',
+            type: 'Cash Sale',
+            description: `Sale #${data.id.slice(-6)}`,
+            amount: cashPayment,
+            credit: true,
+            accountName: 'Cash',
           });
           if (date >= monthStart) monthIn += cashPayment;
         }
         if (creditPayment > 0 && date >= monthStart) monthIn += creditPayment;
       }
 
-      purchases.forEach(purchase => {
-        const purchaseDate = toISOString(purchase.createdAt) ? new Date(toISOString(purchase.createdAt)!) : new Date();
+      // Expenses → money out
+      for (const data of expenseDocs as any[]) {
+        const amount = Number(data.amount) || 0;
+        if (amount <= 0) continue;
+        const date = toISOString(data.createdAt || data.created_at || data.date)
+          ? new Date(toISOString(data.createdAt || data.created_at || data.date)!)
+          : new Date();
+        const category = data.category || 'Expense';
+        transactionMap.set(`expense-${data.id}`, {
+          id: `expense-${data.id}`,
+          date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+          type: 'Expense',
+          description: data.description || category,
+          amount,
+          credit: false,
+          accountName: data.paymentMethod || data.payment_method || 'Expense',
+        });
+        if (date >= monthStart) monthOut += amount;
+      }
+
+      // Purchases from purchases table
+      const mappedPurchases = (purchaseDocs as any[]).map((data: any) => {
+        const items = Array.isArray(data.items) ? data.items : [];
+        const totalCost = Number(data.total ?? data.totalCost ?? data.totalAmount ?? 0) || 0;
+        const paidAmount = Number(data.paid ?? data.paidAmount ?? 0) || 0;
+        const creditAmount =
+          Number(data.balance ?? data.creditAmount ?? Math.max(0, totalCost - paidAmount)) || 0;
+        const paymentMethod =
+          creditAmount <= 0 ? 'cash' : paidAmount > 0 ? 'partial' : 'credit';
+        return {
+          id: data.id,
+          receiptNumber: data.note || data.id?.slice?.(-8) || data.id,
+          supplierId: data.supplierId || data.supplier_id || null,
+          supplierName:
+            suppliers.find((s: any) => s.id === (data.supplierId || data.supplier_id))?.supplierName ||
+            'No Supplier',
+          items,
+          totalQuantity: items.reduce((s: number, i: any) => s + (Number(i.quantity) || 0), 0),
+          totalCost,
+          paymentMethod,
+          paidAmount,
+          creditAmount,
+          createdAt: toISOString(data.createdAt || data.created_at) || new Date().toISOString(),
+        };
+      });
+      setPurchases(mappedPurchases);
+
+      for (const purchase of mappedPurchases) {
+        if (!purchase.totalCost) continue;
+        const purchaseDate = toISOString(purchase.createdAt)
+          ? new Date(toISOString(purchase.createdAt)!)
+          : new Date();
+        const displayAmount =
+          purchase.paymentMethod === 'credit'
+            ? purchase.totalCost
+            : purchase.creditAmount > 0
+              ? purchase.creditAmount
+              : 0;
         transactionMap.set(`purchase-${purchase.id}`, {
           id: `purchase-${purchase.id}`,
           date: purchaseDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
           type: 'Purchase',
-          description: `Receipt: ${purchase.receiptNumber} | Supplier: ${purchase.supplierName || 'No supplier'}`,
-          amount: purchase.totalCost, credit: false,
-          accountName: purchase.paymentMethod === 'cash' ? 'Cash' : 'Bank',
+          description: `Purchase ${purchase.receiptNumber} | ${purchase.supplierName}${
+            purchase.paymentMethod === 'credit'
+              ? ' (credit)'
+              : purchase.paymentMethod === 'partial'
+                ? ' (partial)'
+                : ''
+          }`,
+          amount: purchase.totalCost,
+          credit: false,
+          accountName:
+            purchase.paymentMethod === 'cash'
+              ? 'Cash'
+              : purchase.paymentMethod === 'credit'
+                ? 'Supplier credit'
+                : 'Partial',
         });
-      });
+        if (displayAmount > 0 && purchaseDate >= monthStart) {
+          monthOut += displayAmount;
+        }
+      }
 
       const sortedTransactions = Array.from(transactionMap.values()).sort((a, b) => {
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
+        return String(b.date).localeCompare(String(a.date));
       });
       setTransactions(sortedTransactions);
 
@@ -432,70 +558,197 @@ export default function Cashflowpage() {
     if (!businessId) return;
     setIsAddingPurchase(true);
     try {
-      const product = products.find(p => p.id === stockAddition.productId);
-      if (!product) { showToast('Please select a product'); setIsAddingPurchase(false); return; }
-      const purchaseAmount = stockAddition.costPrice * stockAddition.quantity;
-      let paidAmount = 0, creditAmount = 0;
+      const product = products.find((p) => p.id === stockAddition.productId);
+      if (!product) {
+        showToast('Please select a product');
+        setIsAddingPurchase(false);
+        return;
+      }
+      if (!stockAddition.quantity || stockAddition.quantity <= 0) {
+        showToast('Enter a valid quantity');
+        setIsAddingPurchase(false);
+        return;
+      }
+      if (stockAddition.costPrice < 0) {
+        showToast('Enter a valid cost price');
+        setIsAddingPurchase(false);
+        return;
+      }
+
+      const purchaseAmount = Number(stockAddition.costPrice) * Number(stockAddition.quantity);
+      let paidAmount = 0;
+      let creditAmount = 0;
       if (stockAddition.paymentMethod === 'cash') paidAmount = purchaseAmount;
       else if (stockAddition.paymentMethod === 'credit') creditAmount = purchaseAmount;
-      else { paidAmount = stockAddition.paymentAmount; creditAmount = purchaseAmount - stockAddition.paymentAmount; }
+      else {
+        paidAmount = Math.min(Number(stockAddition.paymentAmount) || 0, purchaseAmount);
+        creditAmount = Math.max(0, purchaseAmount - paidAmount);
+      }
 
-      const operations: any[] = [];
+      const supplier = stockAddition.supplierId
+        ? suppliers.find((s) => s.id === stockAddition.supplierId)
+        : null;
+      const supplierName = supplier?.supplierName || supplier?.businessName || 'No Supplier';
+
+      if (creditAmount > 0 && !stockAddition.supplierId) {
+        showToast('Select a supplier for credit purchases');
+        setIsAddingPurchase(false);
+        return;
+      }
+      if (
+        (stockAddition.paymentMethod === 'cash' || stockAddition.paymentMethod === 'partial') &&
+        paidAmount > 0 &&
+        !stockAddition.bankAccountId
+      ) {
+        showToast('Select a bank/cash account for the payment');
+        setIsAddingPurchase(false);
+        return;
+      }
+
+      const purchaseItems = [
+        {
+          productId: product.id,
+          productName: product.name,
+          quantity: stockAddition.quantity,
+          unitCost: stockAddition.costPrice,
+          totalCost: purchaseAmount,
+        },
+      ];
+      const purchaseNote = [
+        stockAddition.referenceNumber && `Ref: ${stockAddition.referenceNumber}`,
+        stockAddition.notes,
+        `Payment: ${stockAddition.paymentMethod}`,
+        supplierName !== 'No Supplier' ? `Supplier: ${supplierName}` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ');
+
+      // Canonical purchases row
+      const purchaseId = await sbAddDoc(`businesses/${businessId}/purchases`, {
+        supplierId: stockAddition.supplierId || null,
+        items: purchaseItems,
+        total: purchaseAmount,
+        paid: paidAmount,
+        balance: creditAmount,
+        status: creditAmount <= 0 ? 'paid' : paidAmount > 0 ? 'partial' : 'open',
+        note: purchaseNote || null,
+        createdBy: user?.id || null,
+        createdAt: new Date().toISOString(),
+      });
+
+      // Linked stock receipt (schema: purchase_id, items, note only)
+      await sbAddDoc(`businesses/${businessId}/stockReceipts`, {
+        purchaseId,
+        items: purchaseItems,
+        note: purchaseNote || `Stock in: ${product.name} x${stockAddition.quantity}`,
+        createdBy: user?.id || null,
+        createdAt: new Date().toISOString(),
+      });
+
+      // Update product stock + cost
       const currentProduct = await fetchDocs(`businesses/${businessId}/products`, {
-        filters: [{ field: 'id', op: '=', value: stockAddition.productId }], limit: 1,
+        filters: [{ field: 'id', op: '=', value: stockAddition.productId }],
+        limit: 1,
       });
       if (currentProduct.length > 0) {
-        const currentStock = (currentProduct[0] as any).stock || 0;
-        operations.push({
-          type: 'update', path: `businesses/${businessId}/products`, id: stockAddition.productId,
-          data: { stock: currentStock + stockAddition.quantity },
+        const currentStock =
+          Number(
+            (currentProduct[0] as any).stock ??
+              (currentProduct[0] as any).stockLevel ??
+              (currentProduct[0] as any).stock_level ??
+              0
+          ) || 0;
+        await sbUpdateDoc(`businesses/${businessId}/products`, stockAddition.productId, {
+          stock: currentStock + stockAddition.quantity,
+          costPrice: stockAddition.costPrice,
         });
       }
-      if ((stockAddition.paymentMethod === 'cash' || stockAddition.paymentMethod === 'partial') && stockAddition.bankAccountId) {
+
+      // Cash / partial payment against bank account
+      if (paidAmount > 0 && stockAddition.bankAccountId) {
         const accounts = await fetchDocs(`businesses/${businessId}/bankAccounts`, {
-          filters: [{ field: 'id', op: '=', value: stockAddition.bankAccountId }], limit: 1,
+          filters: [{ field: 'id', op: '=', value: stockAddition.bankAccountId }],
+          limit: 1,
         });
-        if (accounts[0]) {
-          const bal = (accounts[0] as any).currentBalance || 0;
-          if (bal < paidAmount) throw new Error('Insufficient bank balance');
-          operations.push({
-            type: 'update', path: `businesses/${businessId}/bankAccounts`, id: stockAddition.bankAccountId,
-            data: { currentBalance: bal - paidAmount },
-          });
-          operations.push({
-            type: 'add', path: `businesses/${businessId}/bankTransactions`,
-            data: {
-              transactionNumber: `TXN-${Date.now()}`, bankAccountId: stockAddition.bankAccountId,
-              accountName: (accounts[0] as any).accountName, type: 'money_out',
-              category: 'Purchase', amount: paidAmount, balanceAfter: bal - paidAmount,
-              description: `Purchase: ${product.name} - ${stockAddition.quantity} units`,
-              createdAt: new Date().toISOString(),
-            },
-          });
-        }
+        if (!accounts[0]) throw new Error('Bank account not found');
+        const bal = Number((accounts[0] as any).currentBalance) || 0;
+        if (bal < paidAmount) throw new Error('Insufficient bank balance');
+        await sbUpdateDoc(`businesses/${businessId}/bankAccounts`, stockAddition.bankAccountId, {
+          currentBalance: bal - paidAmount,
+        });
+        await sbAddDoc(`businesses/${businessId}/bankTransactions`, {
+          bankAccountId: stockAddition.bankAccountId,
+          type: 'money_out',
+          amount: paidAmount,
+          balanceAfter: bal - paidAmount,
+          description: `Purchase: ${product.name} x${stockAddition.quantity}`,
+          reference: purchaseId,
+          createdAt: new Date().toISOString(),
+        });
       }
-      operations.push({
-        type: 'add', path: `businesses/${businessId}/stockReceipts`,
-        data: {
-          receiptNumber: stockAddition.referenceNumber, supplierId: stockAddition.supplierId || null,
-          supplierName: suppliers.find(s => s.id === stockAddition.supplierId)?.supplierName || 'No Supplier',
-          items: [{ productId: product.id, productName: product.name, quantity: stockAddition.quantity, unitCost: stockAddition.costPrice, totalCost: purchaseAmount }],
-          totalQuantity: stockAddition.quantity, totalCost: purchaseAmount,
-          paymentMethod: stockAddition.paymentMethod, paidAmount, creditAmount,
-          receivedAt: new Date().toISOString(), receivedBy: user?.id || 'system',
-          notes: stockAddition.notes, createdAt: new Date().toISOString(),
-        },
+
+      // Credit tied to supplier
+      if (creditAmount > 0 && stockAddition.supplierId) {
+        const currentBal = Number(supplier?.currentBalance) || 0;
+        const totalPurchases = Number((supplier as any)?.totalPurchases) || 0;
+        const purchaseCount = Number((supplier as any)?.purchaseCount) || 0;
+        await sbUpdateDoc(`businesses/${businessId}/suppliers`, stockAddition.supplierId, {
+          currentBalance: currentBal + creditAmount,
+          totalPurchases: totalPurchases + purchaseAmount,
+          purchaseCount: purchaseCount + 1,
+          lastPurchaseDate: new Date().toISOString(),
+        });
+        await sbAddDoc(`businesses/${businessId}/supplierCredit`, {
+          supplierId: stockAddition.supplierId,
+          amount: creditAmount,
+          paid: 0,
+          balance: creditAmount,
+          status: 'open',
+          dueDate: null,
+          createdAt: new Date().toISOString(),
+        });
+      } else if (stockAddition.supplierId) {
+        const totalPurchases = Number((supplier as any)?.totalPurchases) || 0;
+        const purchaseCount = Number((supplier as any)?.purchaseCount) || 0;
+        await sbUpdateDoc(`businesses/${businessId}/suppliers`, stockAddition.supplierId, {
+          totalPurchases: totalPurchases + purchaseAmount,
+          purchaseCount: purchaseCount + 1,
+          lastPurchaseDate: new Date().toISOString(),
+        });
+      }
+
+      // Cashflow activity (schema-safe)
+      await sbAddDoc(`businesses/${businessId}/cashFlow`, {
+        type: 'out',
+        amount: purchaseAmount,
+        category: 'Purchase',
+        description: `Purchase: ${product.name} x${stockAddition.quantity}${
+          supplierName !== 'No Supplier' ? ` from ${supplierName}` : ''
+        }`,
+        entryDate: stockAddition.purchaseDate || new Date().toISOString().split('T')[0],
+        createdAt: new Date().toISOString(),
       });
-      await runBatch(operations);
+
       showToast('Purchase recorded successfully');
       setActiveAction(null);
       setStockAddition({
-        productId: '', quantity: 0, costPrice: 0, description: '',
+        productId: '',
+        quantity: 0,
+        costPrice: 0,
+        description: '',
         purchaseDate: new Date().toISOString().split('T')[0],
         referenceNumber: `PUR-${Date.now().toString().slice(-8)}`,
-        warehouse: '', bankAccountId: '', supplierId: '', paymentAmount: 0, paymentMethod: 'credit', notes: '',
+        warehouse: '',
+        bankAccountId: '',
+        supplierId: '',
+        paymentAmount: 0,
+        paymentMethod: 'credit',
+        notes: '',
       });
-      loadProducts(); loadData(); loadSuppliers(); loadPurchases();
+      loadProducts();
+      loadData();
+      loadSuppliers();
+      loadPurchases();
     } catch (error: any) {
       console.error(error);
       showToast(`Failed to record purchase: ${error.message || 'Unknown error'}`);
