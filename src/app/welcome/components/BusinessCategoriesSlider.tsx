@@ -1,14 +1,24 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import {
+  Store,
+  UtensilsCrossed,
+  Factory,
+  Briefcase,
+  Package,
+  Hospital,
+} from 'lucide-react';
 
 interface BusinessCategory {
   id: string;
   name: string;
   description: string;
   image: string;
-  icon: string;
+  icon: React.ReactNode;
 }
+
+const iconProps = { size: 28, strokeWidth: 1.75, 'aria-hidden': true as const };
 
 const businessCategories: BusinessCategory[] = [
   {
@@ -16,42 +26,42 @@ const businessCategories: BusinessCategory[] = [
     name: 'Retail & Supermarkets',
     description: 'Manage inventory, track sales, and optimize stock levels for retail businesses of all sizes.',
     image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&h=600&fit=crop',
-    icon: '🏪'
+    icon: <Store {...iconProps} />
   },
   {
     id: 'restaurant',
     name: 'Restaurants & Food Service',
     description: 'Track daily sales, manage food costs, and monitor staff performance for restaurants.',
     image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&h=600&fit=crop',
-    icon: '🍽️'
+    icon: <UtensilsCrossed {...iconProps} />
   },
   {
     id: 'manufacturing',
     name: 'Manufacturing & Production',
     description: 'Track production costs, monitor inventory, and manage supply chains efficiently.',
     image: 'https://images.unsplash.com/photo-1565043666747-69f6646db940?w=800&h=600&fit=crop',
-    icon: '🏭'
+    icon: <Factory {...iconProps} />
   },
   {
     id: 'services',
     name: 'Service Businesses',
     description: 'Manage appointments, track revenue, and monitor client relationships for service providers.',
     image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=600&fit=crop',
-    icon: '💼'
+    icon: <Briefcase {...iconProps} />
   },
   {
     id: 'wholesale',
     name: 'Wholesale & Distribution',
     description: 'Manage bulk orders, track inventory across locations, and optimize distribution.',
     image: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&h=600&fit=crop',
-    icon: '📦'
+    icon: <Package {...iconProps} />
   },
   {
     id: 'healthcare',
     name: 'Healthcare & Pharmacies',
     description: 'Track medicine inventory, manage patient records, and monitor financial health.',
     image: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&h=600&fit=crop',
-    icon: '🏥'
+    icon: <Hospital {...iconProps} />
   }
 ];
 
@@ -196,12 +206,18 @@ export function BusinessCategoriesSlider() {
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 2.5rem;
           box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
         }
 
         .category-icon-large {
-          font-size: 2.5rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--purple);
+        }
+        .category-icon-large svg {
+          width: 2.5rem;
+          height: 2.5rem;
         }
 
         .slider-text {
@@ -211,8 +227,14 @@ export function BusinessCategoriesSlider() {
         }
 
         .category-icon {
-          font-size: 3rem;
+          display: flex;
+          align-items: center;
           margin-bottom: 16px;
+          color: var(--purple);
+        }
+        .category-icon svg {
+          width: 2.5rem;
+          height: 2.5rem;
         }
 
         .category-title {
