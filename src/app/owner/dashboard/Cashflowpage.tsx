@@ -35,6 +35,7 @@ interface Supplier {
 interface Transaction {
   id: string;
   date: string;
+  sortAt: number;
   type: string;
   description: string;
   amount: number;
@@ -60,7 +61,7 @@ export default function Cashflowpage() {
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
-  const [transactionLimit, setTransactionLimit] = useState(5);
+  const [transactionLimit, setTransactionLimit] = useState<number | 'all'>(50);
   const [expandedTransaction, setExpandedTransaction] = useState<string | null>(null);
   const [transactionTypeFilter, setTransactionTypeFilter] = useState<string>('all');
   const [isDownloading, setIsDownloading] = useState(false);
@@ -252,10 +253,11 @@ export default function Cashflowpage() {
         );
       }
 
-      const [bankTxDocs, salesDocs, expenseDocs, purchaseDocs] = await Promise.all([
+      const listLimit = 200;
+      const [bankTxDocs, salesDocs, expenseDocs, purchaseDocs, cashFlowDocs] = await Promise.all([
         fetchDocs(`businesses/${resolvedBusinessId}/bankTransactions`, {
           filters: txFilters.length > 0 ? txFilters : undefined,
-          orderBy: { field: 'created_at', ascending: false }, limit: 50,
+          orderBy: { field: 'created_at', ascending: false }, limit: listLimit,
         }),
         fetchDocs(`businesses/${resolvedBusinessId}/sales`, {
           filters: dateRange && dateFilter !== 'all'
@@ -264,14 +266,23 @@ export default function Cashflowpage() {
                 { field: 'created_at', op: '<=', value: dateRange.endDate.toISOString() },
               ]
             : undefined,
-          orderBy: { field: 'created_at', ascending: false }, limit: 50,
+          orderBy: { field: 'created_at', ascending: false }, limit: listLimit,
         }),
         fetchDocs(`businesses/${resolvedBusinessId}/expenses`, {
           filters: expenseFilters.length > 0 ? expenseFilters : undefined,
-          orderBy: { field: 'created_at', ascending: false }, limit: 50,
+          orderBy: { field: 'created_at', ascending: false }, limit: listLimit,
         }),
         fetchDocs(`businesses/${resolvedBusinessId}/purchases`, {
-          orderBy: { field: 'created_at', ascending: false }, limit: 50,
+          orderBy: { field: 'created_at', ascending: false }, limit: listLimit,
+        }),
+        fetchDocs(`businesses/${resolvedBusinessId}/cashFlow`, {
+          filters: dateRange && dateFilter !== 'all'
+            ? [
+                { field: 'created_at', op: '>=', value: dateRange.startDate.toISOString() },
+                { field: 'created_at', op: '<=', value: dateRange.endDate.toISOString() },
+              ]
+            : undefined,
+          orderBy: { field: 'created_at', ascending: false }, limit: listLimit,
         }),
       ]);
 
@@ -282,22 +293,32 @@ export default function Cashflowpage() {
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
+      const toTxDate = (raw: unknown): Date => {
+        const iso = toISOString(raw);
+        if (iso) {
+          const d = new Date(iso);
+          if (!Number.isNaN(d.getTime())) return d;
+        }
+        return new Date();
+      };
+      const fmtTxDate = (d: Date) =>
+        d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+
       for (const data of bankTxDocs) {
         const amount = Number(data.amount) || 0;
-        const isCredit = data.type === 'money_in';
-        const date = toISOString(data.createdAt || data.created_at)
-          ? new Date(toISOString(data.createdAt || data.created_at)!)
-          : new Date();
+        const isCredit = data.type === 'money_in' || data.type === 'in' || data.type === 'inflow';
+        const date = toTxDate(data.createdAt || data.created_at);
         transactionMap.set(data.id, {
           id: data.id,
-          date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+          date: fmtTxDate(date),
+          sortAt: date.getTime(),
           type: data.category || (isCredit ? 'Money In' : 'Money Out'),
           description: data.description || '',
           amount,
           credit: isCredit,
           accountName: data.accountName || data.account_name || '',
         });
-        if (data.saleId) saleIdsInBankTx.add(data.saleId);
+        if (data.saleId) saleIdsInBankTx.add(String(data.saleId));
         if (isCredit) {
           if (date >= monthStart) monthIn += amount;
         } else if (date >= monthStart) {
@@ -307,9 +328,7 @@ export default function Cashflowpage() {
 
       for (const data of salesDocs) {
         const amount = Number(data.totalRevenue ?? data.total ?? data.totalAmount ?? data.total_amount ?? 0) || 0;
-        const date = toISOString(data.createdAt || data.created_at)
-          ? new Date(toISOString(data.createdAt || data.created_at)!)
-          : new Date();
+        const date = toTxDate(data.createdAt || data.created_at);
         const paymentBreakdown =
           data.paymentBreakdown || data.payment_breakdown || data.metadata?.paymentBreakdown || [];
         let bankPayment = paymentBreakdown
@@ -330,9 +349,10 @@ export default function Cashflowpage() {
         if (bankPayment > 0) {
           transactionMap.set(`sale-${data.id}`, {
             id: `sale-${data.id}`,
-            date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+            date: fmtTxDate(date),
+            sortAt: date.getTime(),
             type: 'Sale',
-            description: `Sale #${data.id.slice(-6)}`,
+            description: `Sale #${String(data.id).slice(-6)}`,
             amount: bankPayment,
             credit: true,
             accountName: data.bankAccountId
@@ -344,9 +364,10 @@ export default function Cashflowpage() {
         if (cashPayment > 0) {
           transactionMap.set(`sale-cash-${data.id}`, {
             id: `sale-cash-${data.id}`,
-            date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+            date: fmtTxDate(date),
+            sortAt: date.getTime(),
             type: 'Cash Sale',
-            description: `Sale #${data.id.slice(-6)}`,
+            description: `Sale #${String(data.id).slice(-6)}`,
             amount: cashPayment,
             credit: true,
             accountName: 'Cash',
@@ -360,13 +381,12 @@ export default function Cashflowpage() {
       for (const data of expenseDocs as any[]) {
         const amount = Number(data.amount) || 0;
         if (amount <= 0) continue;
-        const date = toISOString(data.createdAt || data.created_at || data.date)
-          ? new Date(toISOString(data.createdAt || data.created_at || data.date)!)
-          : new Date();
+        const date = toTxDate(data.createdAt || data.created_at || data.date);
         const category = data.category || 'Expense';
         transactionMap.set(`expense-${data.id}`, {
           id: `expense-${data.id}`,
-          date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+          date: fmtTxDate(date),
+          sortAt: date.getTime(),
           type: 'Expense',
           description: data.description || category,
           amount,
@@ -374,6 +394,39 @@ export default function Cashflowpage() {
           accountName: data.paymentMethod || data.payment_method || 'Expense',
         });
         if (date >= monthStart) monthOut += amount;
+      }
+
+      // cash_flow ledger rows not already covered by expense/purchase sources
+      for (const data of cashFlowDocs as any[]) {
+        const amount = Number(data.amount) || 0;
+        if (amount <= 0) continue;
+        const category = String(data.category || '').toLowerCase();
+        // Skip duplicates already listed from expenses / purchases tables
+        if (category === 'expense' || category === 'purchase' || category === 'purchases') continue;
+        const typeRaw = String(data.type || '').toLowerCase();
+        const isCredit =
+          typeRaw === 'in' ||
+          typeRaw === 'inflow' ||
+          typeRaw === 'money_in' ||
+          typeRaw === 'income';
+        const date = toTxDate(data.entryDate || data.entry_date || data.createdAt || data.created_at);
+        const id = `cf-${data.id}`;
+        if (transactionMap.has(id)) continue;
+        transactionMap.set(id, {
+          id,
+          date: fmtTxDate(date),
+          sortAt: date.getTime(),
+          type: data.category || (isCredit ? 'Cash In' : 'Cash Out'),
+          description: data.description || data.category || 'Cash flow',
+          amount,
+          credit: isCredit,
+          accountName: 'Cash flow',
+        });
+        if (isCredit) {
+          if (date >= monthStart) monthIn += amount;
+        } else if (date >= monthStart) {
+          monthOut += amount;
+        }
       }
 
       // Purchases from purchases table
@@ -416,7 +469,8 @@ export default function Cashflowpage() {
               : 0;
         transactionMap.set(`purchase-${purchase.id}`, {
           id: `purchase-${purchase.id}`,
-          date: purchaseDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+          date: purchaseDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }),
+          sortAt: purchaseDate.getTime(),
           type: 'Purchase',
           description: `Purchase ${purchase.receiptNumber} | ${purchase.supplierName}${
             purchase.paymentMethod === 'credit'
@@ -439,9 +493,9 @@ export default function Cashflowpage() {
         }
       }
 
-      const sortedTransactions = Array.from(transactionMap.values()).sort((a, b) => {
-        return String(b.date).localeCompare(String(a.date));
-      });
+      const sortedTransactions = Array.from(transactionMap.values()).sort(
+        (a, b) => (b.sortAt || 0) - (a.sortAt || 0)
+      );
       setTransactions(sortedTransactions);
 
       const stockValue = products.reduce((sum: number, product: any) => {
@@ -997,8 +1051,15 @@ export default function Cashflowpage() {
             </div>
             <span className={styles.txFilterLabel}>Show:</span>
             <div className={styles.chipGroup}>
-              {[2, 5, 10, 20].map(limitCount => (
-                <button key={limitCount} className={`${styles.chip} ${transactionLimit === limitCount ? styles.chipActive : ''}`} onClick={() => setTransactionLimit(limitCount)}>{limitCount}</button>
+              {([20, 50, 100, 'all'] as const).map((limitCount) => (
+                <button
+                  key={String(limitCount)}
+                  type="button"
+                  className={`${styles.chip} ${transactionLimit === limitCount ? styles.chipActive : ''}`}
+                  onClick={() => setTransactionLimit(limitCount)}
+                >
+                  {limitCount === 'all' ? 'All' : limitCount}
+                </button>
               ))}
             </div>
           </div>
@@ -1013,7 +1074,10 @@ export default function Cashflowpage() {
           </div>
         ) : (
           <div className={styles.transactionList}>
-            {getFilteredTransactions().slice(0, transactionLimit).map(tx => {
+            {(transactionLimit === 'all'
+              ? getFilteredTransactions()
+              : getFilteredTransactions().slice(0, transactionLimit)
+            ).map((tx) => {
               const isExpanded = expandedTransaction === tx.id;
               return (
                 <div key={tx.id} className={styles.transactionCard} onClick={() => setExpandedTransaction(isExpanded ? null : tx.id)}>
@@ -1043,11 +1107,24 @@ export default function Cashflowpage() {
           </div>
         )}
 
-        {!loading && transactions.length > transactionLimit && (
-          <div className={styles.txCounter}>
-            Showing {transactionLimit} of {transactions.length} transactions. Click a chip to view more.
-          </div>
-        )}
+        {!loading && (() => {
+          const filtered = getFilteredTransactions();
+          const shown = transactionLimit === 'all' ? filtered.length : Math.min(transactionLimit, filtered.length);
+          if (filtered.length <= shown) return null;
+          return (
+            <div className={styles.txCounter}>
+              Showing {shown} of {filtered.length} transactions.
+              <button
+                type="button"
+                className={styles.chip}
+                style={{ marginLeft: 8 }}
+                onClick={() => setTransactionLimit('all')}
+              >
+                Show all
+              </button>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
