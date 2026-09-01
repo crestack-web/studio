@@ -78,7 +78,7 @@ export function StatementPage() {
   const generatedDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
   const [stmtType, setStmtType] = useState('Full Summary');
-  const [ledgerFilter, setLedgerFilter] = useState<'all' | 'sale' | 'expense' | 'stock'>('all');
+  const [ledgerFilter, setLedgerFilter] = useState<'all' | 'sale' | 'expense' | 'purchase' | 'stock'>('all');
   const [ledgerSearch, setLedgerSearch] = useState('');
   const [activePreset, setActivePreset] = useState<'this_month' | 'last_month' | 'last_30' | 'this_year' | 'custom'>('this_month');
   const [downloading, setDownloading] = useState(false);
@@ -157,132 +157,260 @@ export function StatementPage() {
         const rangeStartMs = new Date(startDate + 'T00:00:00').getTime();
         const rangeEndMs = new Date(endDate + 'T23:59:59.999').getTime();
 
-        const saleMs = (data: any): number => {
-          const c = data?.createdAt || data?.created_at;
-          if (!c) return 0;
-          if (typeof c === 'string' || c instanceof Date) return new Date(c).getTime() || 0;
-          if (typeof c?.toDate === 'function') return c.toDate().getTime();
-          if (typeof c?.seconds === 'number') return c.seconds * 1000;
+        const eventMs = (data: any): number => {
+          const candidates = [
+            data?.date,
+            data?.entryDate,
+            data?.entry_date,
+            data?.metadata?.date,
+            data?.createdAt,
+            data?.created_at,
+          ];
+          for (const c of candidates) {
+            if (!c) continue;
+            if (typeof c === 'string' || c instanceof Date) {
+              const t = new Date(c).getTime();
+              if (!Number.isNaN(t) && t > 0) return t;
+            }
+            if (typeof c?.toDate === 'function') {
+              const t = c.toDate().getTime();
+              if (!Number.isNaN(t) && t > 0) return t;
+            }
+            if (typeof c?.seconds === 'number') return c.seconds * 1000;
+          }
           return 0;
         };
 
-        // 2) Sales — fetch all then filter by selected range (no server date filter fragility)
-        let salesDocs: any[] = await fetchDocs(`businesses/${businessId}/sales`, {
-          orderBy: { field: 'created_at', ascending: false },
-        }) || [];
-
-        console.log('[Statement] sales fetched:', salesDocs.length);
-
         const inRange = (d: any) => {
-          const ms = saleMs(d);
+          const ms = eventMs(d);
           if (!ms) return true; // keep undated rather than hide
           return ms >= rangeStartMs && ms <= rangeEndMs;
         };
 
-        let rangedSales = salesDocs.filter(inRange);
-        // If the selected month is empty but the business has sales, show all sales
-        // so the page never looks "broken" when the default range is wrong.
-        if (rangedSales.length === 0 && salesDocs.length > 0) {
-          console.warn('[Statement] no sales in selected range; showing all sales');
-          rangedSales = salesDocs;
-        }
+        const fmtDate = (ms: number) =>
+          (ms ? new Date(ms) : new Date()).toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          });
+
+        const listLimit = 500;
+        const [salesDocs, expensesDocs, purchaseDocs, bankTxDocs, cashFlowDocs, productsDocs] =
+          await Promise.all([
+            fetchDocs(`businesses/${businessId}/sales`, {
+              orderBy: { field: 'created_at', ascending: false },
+              limit: listLimit,
+            }),
+            fetchDocs(`businesses/${businessId}/expenses`, {
+              orderBy: { field: 'created_at', ascending: false },
+              limit: listLimit,
+            }),
+            fetchDocs(`businesses/${businessId}/purchases`, {
+              orderBy: { field: 'created_at', ascending: false },
+              limit: listLimit,
+            }),
+            fetchDocs(`businesses/${businessId}/bankTransactions`, {
+              orderBy: { field: 'created_at', ascending: false },
+              limit: listLimit,
+            }),
+            fetchDocs(`businesses/${businessId}/cashFlow`, {
+              orderBy: { field: 'created_at', ascending: false },
+              limit: listLimit,
+            }),
+            fetchDocs(`businesses/${businessId}/products`),
+          ]);
+
+        console.log('[Statement] fetched counts', {
+          sales: salesDocs?.length || 0,
+          expenses: expensesDocs?.length || 0,
+          purchases: purchaseDocs?.length || 0,
+          bankTx: bankTxDocs?.length || 0,
+          cashFlow: cashFlowDocs?.length || 0,
+          products: productsDocs?.length || 0,
+        });
+
+        const applyRange = (docs: any[]) => {
+          const list = docs || [];
+          const ranged = list.filter(inRange);
+          // If range is empty but data exists, fall back so the statement is never blank
+          if (ranged.length === 0 && list.length > 0) return list;
+          return ranged;
+        };
+
+        const rangedSales = applyRange(salesDocs || []);
+        const rangedExpenses = applyRange(expensesDocs || []);
+        const rangedPurchases = applyRange(purchaseDocs || []);
+        const rangedBankTx = applyRange(bankTxDocs || []);
+        const rangedCashFlow = applyRange(cashFlowDocs || []);
+
+        type LedgerRow = Transaction & { sortAt: number };
+        const ledger: LedgerRow[] = [];
 
         let totalRevenue = 0;
+        let totalExpenses = 0;
         let totalCOGS = 0;
-        const saleTransactions: Transaction[] = [];
-        let runningBalance = 0;
+        let totalPurchases = 0;
 
+        // Sales → credits
         for (const data of rangedSales) {
           const amount =
             Number(
-              (data as any).totalRevenue ??
-                (data as any).total ??
-                (data as any).totalAmount ??
-                (data as any).total_amount ??
-                0
+              data.totalRevenue ?? data.total ?? data.totalAmount ?? data.total_amount ?? 0
             ) || 0;
-          const ms = saleMs(data);
-          const date = ms ? new Date(ms) : new Date();
-
+          if (amount <= 0) continue;
+          const ms = eventMs(data);
           totalRevenue += amount;
-          runningBalance += amount;
-
-          const products = ((data as any).products || (data as any).items || []) as any[];
-          let saleCOGS = 0;
+          const products = (data.products || data.items || []) as any[];
           if (products.length > 0) {
-            saleCOGS = products.reduce((sum: number, p: any) => {
-              const costPrice = p.costPrice || p.cost || 0;
-              const quantity = p.quantity || 1;
+            totalCOGS += products.reduce((sum: number, p: any) => {
+              const costPrice = Number(p.costPrice || p.cost || 0) || 0;
+              const quantity = Number(p.quantity || 1) || 1;
               return sum + costPrice * quantity;
             }, 0);
           }
-          totalCOGS += saleCOGS;
-
-          saleTransactions.push({
-            id: String((data as any).id || crypto.randomUUID()),
-            date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-            ref: `SALE-${String((data as any).id || '').substring(0, 5).toUpperCase()}`,
+          ledger.push({
+            id: `sale-${data.id}`,
+            date: fmtDate(ms),
+            sortAt: ms || 0,
+            ref: `SALE-${String(data.id || '').substring(0, 6).toUpperCase()}`,
             type: 'Sale',
             description: `Sale (${products.length} items)`,
             debit: 0,
             credit: amount,
-            balance: runningBalance,
+            balance: 0,
           });
         }
 
-        // 3) Expenses
-        let expensesDocs: any[] =
-          (await fetchDocs(`businesses/${businessId}/expenses`, {
-            orderBy: { field: 'created_at', ascending: false },
-          })) || [];
-        let rangedExpenses = expensesDocs.filter(inRange);
-        if (rangedExpenses.length === 0 && expensesDocs.length > 0 && rangedSales === salesDocs) {
-          rangedExpenses = expensesDocs;
-        }
-
-        let totalExpenses = 0;
-        const expenseTransactions: Transaction[] = [];
-
+        // Expenses → debits
         for (const data of rangedExpenses) {
-          const amount = Number((data as any).amount) || 0;
-          const ms = saleMs(data);
-          const date = ms ? new Date(ms) : new Date();
-
+          const amount = Number(data.amount) || 0;
+          if (amount <= 0) continue;
+          const ms = eventMs(data);
           totalExpenses += amount;
-          runningBalance -= amount;
-
-          expenseTransactions.push({
-            id: String((data as any).id || crypto.randomUUID()),
-            date: date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-            ref: `EXP-${String((data as any).id || '').substring(0, 5).toUpperCase()}`,
+          const category = data.category || data.metadata?.category || 'Expense';
+          const desc =
+            data.description ||
+            data.title ||
+            data.metadata?.description ||
+            category;
+          ledger.push({
+            id: `exp-${data.id}`,
+            date: fmtDate(ms),
+            sortAt: ms || 0,
+            ref: `EXP-${String(data.id || '').substring(0, 6).toUpperCase()}`,
             type: 'Expense',
-            description: `${(data as any).category || 'Expense'}: ${(data as any).title || (data as any).description || 'Expense'}`,
+            description: `${category}: ${desc}`,
             debit: amount,
             credit: 0,
-            balance: runningBalance,
+            balance: 0,
           });
         }
 
-        // Sort by real timestamps, not display strings
-        const stamp = (tx: Transaction) => {
-          const d = new Date(tx.date);
-          return Number.isNaN(d.getTime()) ? 0 : d.getTime();
-        };
-        const allTransactions = [...saleTransactions, ...expenseTransactions].sort(
-          (a, b) => stamp(a) - stamp(b)
-        );
+        // Purchases → debits (inventory / supplier activity)
+        for (const data of rangedPurchases) {
+          const amount =
+            Number(data.total ?? data.totalCost ?? data.totalAmount ?? data.total_amount ?? 0) || 0;
+          if (amount <= 0) continue;
+          const ms = eventMs(data);
+          totalPurchases += amount;
+          // Count cash/partial paid portion toward operating outflows summary
+          const paid = Number(data.paid ?? data.paidAmount ?? 0) || 0;
+          const balanceDue = Number(data.balance ?? Math.max(0, amount - paid)) || 0;
+          const method =
+            balanceDue <= 0 ? 'cash' : paid > 0 ? 'partial' : 'credit';
+          const note = data.note || data.receiptNumber || String(data.id || '').slice(-6);
+          ledger.push({
+            id: `pur-${data.id}`,
+            date: fmtDate(ms),
+            sortAt: ms || 0,
+            ref: `PUR-${String(data.id || '').substring(0, 6).toUpperCase()}`,
+            type: 'Purchase',
+            description: `Purchase ${note}${method !== 'cash' ? ` (${method})` : ''}`,
+            debit: amount,
+            credit: 0,
+            balance: 0,
+          });
+        }
 
+        // Bank transactions (money in / out) — skip sale-linked rows already covered
+        for (const data of rangedBankTx) {
+          const amount = Number(data.amount) || 0;
+          if (amount <= 0) continue;
+          if (data.saleId || data.sale_id) continue;
+          const typeRaw = String(data.type || '').toLowerCase();
+          const isCredit =
+            typeRaw === 'money_in' || typeRaw === 'in' || typeRaw === 'inflow';
+          const ms = eventMs(data);
+          const category = data.category || (isCredit ? 'Money In' : 'Money Out');
+          // Avoid double-counting pure expense mirrors
+          if (/^expense/i.test(String(category)) || /^purchase/i.test(String(category))) continue;
+          if (isCredit) totalRevenue += amount;
+          else totalExpenses += amount;
+          ledger.push({
+            id: `bank-${data.id}`,
+            date: fmtDate(ms),
+            sortAt: ms || 0,
+            ref: `BNK-${String(data.id || '').substring(0, 6).toUpperCase()}`,
+            type: isCredit ? 'Money In' : 'Money Out',
+            description: data.description || category,
+            debit: isCredit ? 0 : amount,
+            credit: isCredit ? amount : 0,
+            balance: 0,
+          });
+        }
+
+        // cash_flow rows not already represented as expense/purchase
+        for (const data of rangedCashFlow) {
+          const amount = Number(data.amount) || Number(data.moneyOut) || Number(data.moneyIn) || 0;
+          if (amount <= 0) continue;
+          const category = String(data.category || '').toLowerCase();
+          if (
+            category === 'expense' ||
+            category === 'purchase' ||
+            category === 'purchases' ||
+            category === 'stock' ||
+            data.expenseId ||
+            data.expense_id
+          ) {
+            continue;
+          }
+          const typeRaw = String(data.type || '').toLowerCase();
+          const moneyIn = Number(data.moneyIn || data.money_in || 0) || 0;
+          const isCredit =
+            moneyIn > 0 ||
+            typeRaw === 'in' ||
+            typeRaw === 'inflow' ||
+            typeRaw === 'money_in' ||
+            typeRaw === 'income';
+          const ms = eventMs(data);
+          if (isCredit) totalRevenue += amount;
+          else totalExpenses += amount;
+          ledger.push({
+            id: `cf-${data.id}`,
+            date: fmtDate(ms),
+            sortAt: ms || 0,
+            ref: `CF-${String(data.id || '').substring(0, 6).toUpperCase()}`,
+            type: isCredit ? 'Cash In' : 'Cash Out',
+            description: data.description || data.category || 'Cash flow',
+            debit: isCredit ? 0 : amount,
+            credit: isCredit ? amount : 0,
+            balance: 0,
+          });
+        }
+
+        // Sort oldest → newest, compute running balance, then reverse for display
+        ledger.sort((a, b) => a.sortAt - b.sortAt);
         let balance = 0;
-        for (const tx of allTransactions) {
+        for (const tx of ledger) {
           balance += tx.credit - tx.debit;
           tx.balance = balance;
         }
-        allTransactions.reverse(); // newest first for display
+        ledger.reverse();
 
-        // 4) Products / stock (do not filter on non-existent `active` column)
-        const productsDocs =
-          (await fetchDocs(`businesses/${businessId}/products`)) || [];
-        const visibleProducts = productsDocs.filter((data: any) => {
+        const allTransactions: Transaction[] = ledger.map(({ sortAt: _s, ...tx }) => tx);
+
+        // Products / stock
+        const visibleProducts = (productsDocs || []).filter((data: any) => {
           const status = String(data.status || '').toLowerCase();
           if (['inactive', 'archived', 'deleted', 'draft'].includes(status)) return false;
           return true;
@@ -297,7 +425,7 @@ export function StatementPage() {
           const cost = Number(data.cost ?? data.costPrice ?? 0) || 0;
           const value = stock * cost;
           closingStock += value;
-          openingStock += value; // approximate without movement ledger
+          openingStock += value;
           stockSummaryItems.push({
             product: data.name || 'Product',
             open: stock,
@@ -309,12 +437,15 @@ export function StatementPage() {
           });
         }
 
+        // Purchases count toward expenses for statement P&L summary
+        const expensesWithPurchases = totalExpenses + totalPurchases;
+
         setTransactions(allTransactions);
         setStockSummary(stockSummaryItems);
         setStats({
           totalRevenue,
-          totalExpenses,
-          netProfit: totalRevenue - totalExpenses - totalCOGS,
+          totalExpenses: expensesWithPurchases,
+          netProfit: totalRevenue - expensesWithPurchases - totalCOGS,
           closingStock,
           openingStock,
           totalCOGS,
@@ -457,10 +588,22 @@ export function StatementPage() {
 
   const filteredTransactions = transactions.filter((tx) => {
     if (ledgerFilter === 'sale' && tx.type !== 'Sale') return false;
-    if (ledgerFilter === 'expense' && tx.type !== 'Expense') return false;
-    if (ledgerFilter === 'stock' && tx.type !== 'Stock' && !/stock|inventory|restock/i.test(tx.type + ' ' + tx.description)) return false;
+    if (ledgerFilter === 'expense' && !/expense|money out|cash out/i.test(tx.type)) return false;
+    if (ledgerFilter === 'purchase' && tx.type !== 'Purchase') return false;
+    if (
+      ledgerFilter === 'stock' &&
+      tx.type !== 'Stock' &&
+      !/stock|inventory|restock|purchase/i.test(`${tx.type} ${tx.description}`)
+    ) {
+      return false;
+    }
     if (stmtType === 'Sales Only' && tx.type !== 'Sale') return false;
-    if (stmtType === 'Expenses Only' && tx.type !== 'Expense') return false;
+    if (
+      stmtType === 'Expenses Only' &&
+      !/expense|purchase|money out|cash out/i.test(tx.type)
+    ) {
+      return false;
+    }
     if (stmtType === 'Stock Movement' && tx.type === 'Sale') return false;
     if (ledgerSearch.trim()) {
       const q = ledgerSearch.trim().toLowerCase();
@@ -847,6 +990,7 @@ export function StatementPage() {
                   { id: 'all' as const, label: t('statement.allTransactions') },
                   { id: 'sale' as const, label: t('statement.salesOnly') },
                   { id: 'expense' as const, label: t('statement.expensesOnly') },
+                  { id: 'purchase' as const, label: 'Purchases' },
                   { id: 'stock' as const, label: t('statement.stockMovements') },
                 ].map((f) => (
                   <button
@@ -878,7 +1022,7 @@ export function StatementPage() {
                   </div>
                   <div className={styles.emptyTitle}>{t('statement.noTransactions')}</div>
                   <p className={styles.emptyDesc}>
-                    Try another date range or statement type. Sales and expenses in this period will show here.
+                    Try another date range or statement type. Sales, expenses, purchases, and bank activity in this period will show here.
                   </p>
                 </div>
               ) : (
@@ -902,9 +1046,11 @@ export function StatementPage() {
                         <td>
                           <span
                             className={`${styles.pill} ${
-                              tx.type === 'Sale'
+                              tx.type === 'Sale' || /money in|cash in/i.test(tx.type)
                                 ? styles.pillGreen
-                                : tx.type === 'Expense'
+                                : tx.type === 'Expense' ||
+                                    tx.type === 'Purchase' ||
+                                    /money out|cash out/i.test(tx.type)
                                   ? styles.pillRed
                                   : styles.pillAmber
                             }`}
