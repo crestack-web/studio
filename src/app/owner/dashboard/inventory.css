@@ -595,8 +595,11 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  /* Keep radius clip on y; allow table wrap to own horizontal scroll */
   overflow: hidden;
   box-shadow: var(--shadow-sm);
+  max-width: 100%;
+  min-width: 0;
 }
 
 .chd {
@@ -730,6 +733,15 @@
 
 .inv-table-wrap {
   overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  max-width: 100%;
+  width: 100%;
+}
+
+.inv-table-wrap .inv-table {
+  min-width: 720px;
 }
 
 .inv-table {
@@ -1836,6 +1848,8 @@
   border-radius: var(--radius);
   overflow: hidden;
   box-shadow: var(--shadow-sm);
+  max-width: 100%;
+  min-width: 0;
 }
 
 .inv-table-header {
@@ -2477,13 +2491,25 @@
   margin-top: 2px;
 }
 
-.inv-table-container,
-.inv-table-wrap {
+.inv-table-container {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
   overflow: hidden;
   box-shadow: var(--shadow-sm);
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Must stay scrollable — do not set overflow:hidden here */
+.inv-table-wrap {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  max-width: 100%;
+  width: 100%;
+  min-width: 0;
 }
 
 .inv-table-header,
@@ -2591,6 +2617,9 @@
   .inv-page {
     padding: 8px 8px 24px;
     gap: 14px;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
   }
   .inv-page-header--v2 {
     padding: 14px;
@@ -2610,8 +2639,33 @@
     padding: 12px;
     border-radius: 14px;
   }
-  .inv-table-container,
-  .inv-table-wrap {
+  .card {
     border-radius: 14px;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .inv-table-container {
+    border-radius: 14px;
+    min-width: 0;
+    max-width: 100%;
+  }
+  /* Inventory products card: horizontal scroll on mobile */
+  .inv-table-wrap {
+    border-radius: 0 0 14px 14px;
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+    touch-action: pan-x pan-y;
+  }
+  .inv-table-wrap .inv-table {
+    min-width: 680px;
+  }
+  .inv-filters {
+    gap: 8px;
+  }
+  .inv-search-wrap {
+    min-width: 0;
+    width: 100%;
   }
 }
