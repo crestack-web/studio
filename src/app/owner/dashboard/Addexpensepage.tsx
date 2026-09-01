@@ -5,7 +5,7 @@ import { useApp } from './AppContext';
 import { notifyExpense } from '@/lib/deviceNotifications';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
-import { fetchDocs, addDoc } from '@/lib/supabase-client-data';
+import { fetchDocs, addDoc, updateDoc } from '@/lib/supabase-client-data';
 import { getSupabase } from '@/lib/supabase';
 import { getAuthCurrentUser, getFirestoreUserId } from '@/lib/supabase-auth';
 import { subscribeToActionEvents } from '@/utils/dataRefresh';
@@ -244,22 +244,78 @@ export function AddExpensePage() {
       };
 
       const expenseId = await addDoc(`businesses/${businessId}/expenses`, { ...expenseData, id: crypto.randomUUID() });
+      const expenseAmount = parseFloat(form.amount) || 0;
 
       try {
-        const amt = parseFloat(form.amount) || 0;
-        const amountLabel = Number.isFinite(amt)
-          ? new Intl.NumberFormat(undefined, { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(amt)
+        const amountLabel = Number.isFinite(expenseAmount)
+          ? new Intl.NumberFormat(undefined, { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(expenseAmount)
           : form.amount;
         await notifyExpense({ amountLabel, category: form.category });
       } catch { /* non-blocking */ }
 
-      // Create cash flow entry for the expense
+      // Debit a bank/cash account so Cash balance & period out stay accurate
+      try {
+        if (expenseAmount > 0) {
+          const accountsRaw: any[] = await fetchDocs(`businesses/${businessId}/bankAccounts`);
+          const accounts = (accountsRaw || []).filter((a) => a.isActive !== false);
+          const method = String(form.paymentMethod || 'Cash').toLowerCase();
+          const pickAccount = () => {
+            if (method.includes('pos') || method.includes('card')) {
+              return (
+                accounts.find((a) => a.isPosDefault) ||
+                accounts.find((a) => a.isDefault || a.isPrimary) ||
+                accounts[0]
+              );
+            }
+            if (method.includes('cash')) {
+              return (
+                accounts.find(
+                  (a) =>
+                    /cash/i.test(String(a.accountName || a.name || '')) ||
+                    /cash/i.test(String(a.bankName || ''))
+                ) ||
+                accounts.find((a) => a.isDefault || a.isPrimary) ||
+                accounts[0]
+              );
+            }
+            return accounts.find((a) => a.isDefault || a.isPrimary) || accounts[0];
+          };
+          const account = pickAccount();
+          if (account?.id) {
+            const bal = Number(account.currentBalance ?? account.current_balance ?? 0) || 0;
+            const newBal = bal - expenseAmount;
+            await updateDoc(`businesses/${businessId}/bankAccounts`, account.id, {
+              currentBalance: newBal,
+            });
+            await addDoc(`businesses/${businessId}/bankTransactions`, {
+              id: crypto.randomUUID(),
+              bankAccountId: account.id,
+              accountName: account.accountName || account.name || 'Account',
+              type: 'money_out',
+              amount: expenseAmount,
+              balanceAfter: newBal,
+              description: `Expense: ${form.category}${form.description ? ` — ${form.description}` : ''} (${expenseId})`,
+              reference: expenseId,
+              createdAt: new Date().toISOString(),
+            });
+            console.log('✅ Bank account debited for expense');
+          } else {
+            console.warn('⚠️ No bank/cash account to debit for expense — cash balance unchanged');
+          }
+        }
+      } catch (bankErr) {
+        console.error('⚠️ Failed to debit account for expense:', bankErr);
+      }
+
+      // Mirror in cash_flow ledger (secondary; KPIs use bank_transactions)
       try {
         await addDoc(`businesses/${businessId}/cashFlow`, {
           id: crypto.randomUUID(),
           date: new Date().toISOString(),
           moneyIn: 0,
-          moneyOut: parseFloat(form.amount),
+          moneyOut: expenseAmount,
+          type: 'out',
+          amount: expenseAmount,
           category: form.category,
           description: `Expense - ${form.category}`,
           expenseId: expenseId,
@@ -269,7 +325,6 @@ export function AddExpensePage() {
         console.log('✅ Cash flow entry created for expense');
       } catch (cashFlowError) {
         console.error('⚠️ Failed to create cash flow entry:', cashFlowError);
-        // Don't fail the expense if cash flow entry fails
       }
 
       // Record audit trail for expense creation

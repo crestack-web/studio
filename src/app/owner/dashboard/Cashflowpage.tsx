@@ -253,45 +253,40 @@ export default function Cashflowpage() {
         );
       }
 
-      const listLimit = 200;
-      const [bankTxDocs, salesDocs, expenseDocs, purchaseDocs, cashFlowDocs] = await Promise.all([
+      /**
+       * Cash model:
+       * - Cash balance = Σ active account currentBalance (live wallets)
+       * - Period in/out = bank_transactions only (real cash movements)
+       * - Ledger list = bank txs + non-cash notes (credit purchases / unlinked expenses)
+       *   so owners still see activity without double-counting cash KPIs
+       */
+      const listLimit = 300;
+      const [bankTxDocs, expenseDocs, purchaseDocs] = await Promise.all([
         fetchDocs(`businesses/${resolvedBusinessId}/bankTransactions`, {
           filters: txFilters.length > 0 ? txFilters : undefined,
-          orderBy: { field: 'created_at', ascending: false }, limit: listLimit,
-        }),
-        fetchDocs(`businesses/${resolvedBusinessId}/sales`, {
-          filters: dateRange && dateFilter !== 'all'
-            ? [
-                { field: 'created_at', op: '>=', value: dateRange.startDate.toISOString() },
-                { field: 'created_at', op: '<=', value: dateRange.endDate.toISOString() },
-              ]
-            : undefined,
-          orderBy: { field: 'created_at', ascending: false }, limit: listLimit,
+          orderBy: { field: 'created_at', ascending: false },
+          limit: listLimit,
         }),
         fetchDocs(`businesses/${resolvedBusinessId}/expenses`, {
           filters: expenseFilters.length > 0 ? expenseFilters : undefined,
-          orderBy: { field: 'created_at', ascending: false }, limit: listLimit,
+          orderBy: { field: 'created_at', ascending: false },
+          limit: listLimit,
         }),
         fetchDocs(`businesses/${resolvedBusinessId}/purchases`, {
-          orderBy: { field: 'created_at', ascending: false }, limit: listLimit,
-        }),
-        fetchDocs(`businesses/${resolvedBusinessId}/cashFlow`, {
-          filters: dateRange && dateFilter !== 'all'
-            ? [
-                { field: 'created_at', op: '>=', value: dateRange.startDate.toISOString() },
-                { field: 'created_at', op: '<=', value: dateRange.endDate.toISOString() },
-              ]
-            : undefined,
-          orderBy: { field: 'created_at', ascending: false }, limit: listLimit,
+          orderBy: { field: 'created_at', ascending: false },
+          limit: listLimit,
         }),
       ]);
 
       const transactionMap = new Map<string, Transaction>();
-      const saleIdsInBankTx = new Set<string>();
-      let monthIn = 0;
-      let monthOut = 0;
+      let periodIn = 0;
+      let periodOut = 0;
       const now = new Date();
       const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const periodStart =
+        dateRange && dateFilter !== 'all' ? dateRange.startDate : monthStart;
+      const periodEnd =
+        dateRange && dateFilter !== 'all' ? dateRange.endDate : now;
 
       const toTxDate = (raw: unknown): Date => {
         const iso = toISOString(raw);
@@ -303,133 +298,50 @@ export default function Cashflowpage() {
       };
       const fmtTxDate = (d: Date) =>
         d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+      const inPeriod = (d: Date) => d >= periodStart && d <= periodEnd;
 
-      for (const data of bankTxDocs) {
-        const amount = Number(data.amount) || 0;
-        const isCredit = data.type === 'money_in' || data.type === 'in' || data.type === 'inflow';
-        const date = toTxDate(data.createdAt || data.created_at);
-        transactionMap.set(data.id, {
-          id: data.id,
-          date: fmtTxDate(date),
-          sortAt: date.getTime(),
-          type: data.category || (isCredit ? 'Money In' : 'Money Out'),
-          description: data.description || '',
-          amount,
-          credit: isCredit,
-          accountName: data.accountName || data.account_name || '',
-        });
-        if (data.saleId) saleIdsInBankTx.add(String(data.saleId));
-        if (isCredit) {
-          if (date >= monthStart) monthIn += amount;
-        } else if (date >= monthStart) {
-          monthOut += amount;
-        }
-      }
+      const accountNameById = new Map(
+        accountsList.map((a) => [a.id, a.accountName] as const)
+      );
 
-      for (const data of salesDocs) {
-        const amount = Number(data.totalRevenue ?? data.total ?? data.totalAmount ?? data.total_amount ?? 0) || 0;
-        const date = toTxDate(data.createdAt || data.created_at);
-        const paymentBreakdown =
-          data.paymentBreakdown || data.payment_breakdown || data.metadata?.paymentBreakdown || [];
-        let bankPayment = paymentBreakdown
-          .filter((p: any) => ['transfer', 'card', 'pos'].includes(p.method))
-          .reduce((s: number, p: any) => s + (p.amount || 0), 0);
-        let cashPayment = paymentBreakdown
-          .filter((p: any) => p.method === 'cash')
-          .reduce((s: number, p: any) => s + (p.amount || 0), 0);
-        let creditPayment = paymentBreakdown
-          .filter((p: any) => p.method === 'credit')
-          .reduce((s: number, p: any) => s + (p.amount || 0), 0);
-        if (!paymentBreakdown.length && amount > 0) {
-          const primary = String(data.paymentMethod || data.payment_method || 'cash').toLowerCase();
-          if (['transfer', 'card', 'pos'].includes(primary)) bankPayment = amount;
-          else if (primary === 'credit') creditPayment = amount;
-          else cashPayment = amount;
-        }
-        if (bankPayment > 0) {
-          transactionMap.set(`sale-${data.id}`, {
-            id: `sale-${data.id}`,
-            date: fmtTxDate(date),
-            sortAt: date.getTime(),
-            type: 'Sale',
-            description: `Sale #${String(data.id).slice(-6)}`,
-            amount: bankPayment,
-            credit: true,
-            accountName: data.bankAccountId
-              ? accountsList.find((a) => a.id === data.bankAccountId)?.accountName
-              : 'Default Account',
-          });
-          if (!saleIdsInBankTx.has(data.id) && date >= monthStart) monthIn += bankPayment;
-        }
-        if (cashPayment > 0) {
-          transactionMap.set(`sale-cash-${data.id}`, {
-            id: `sale-cash-${data.id}`,
-            date: fmtTxDate(date),
-            sortAt: date.getTime(),
-            type: 'Cash Sale',
-            description: `Sale #${String(data.id).slice(-6)}`,
-            amount: cashPayment,
-            credit: true,
-            accountName: 'Cash',
-          });
-          if (date >= monthStart) monthIn += cashPayment;
-        }
-        if (creditPayment > 0 && date >= monthStart) monthIn += creditPayment;
-      }
-
-      // Expenses → money out
-      for (const data of expenseDocs as any[]) {
+      // 1) Canonical cash ledger = bank transactions
+      const bankTxDescriptions = new Set<string>();
+      for (const data of bankTxDocs as any[]) {
         const amount = Number(data.amount) || 0;
         if (amount <= 0) continue;
-        const date = toTxDate(data.createdAt || data.created_at || data.date);
-        const category = data.category || 'Expense';
-        transactionMap.set(`expense-${data.id}`, {
-          id: `expense-${data.id}`,
-          date: fmtTxDate(date),
-          sortAt: date.getTime(),
-          type: 'Expense',
-          description: data.description || category,
-          amount,
-          credit: false,
-          accountName: data.paymentMethod || data.payment_method || 'Expense',
-        });
-        if (date >= monthStart) monthOut += amount;
-      }
-
-      // cash_flow ledger rows not already covered by expense/purchase sources
-      for (const data of cashFlowDocs as any[]) {
-        const amount = Number(data.amount) || 0;
-        if (amount <= 0) continue;
-        const category = String(data.category || '').toLowerCase();
-        // Skip duplicates already listed from expenses / purchases tables
-        if (category === 'expense' || category === 'purchase' || category === 'purchases') continue;
         const typeRaw = String(data.type || '').toLowerCase();
         const isCredit =
-          typeRaw === 'in' ||
-          typeRaw === 'inflow' ||
-          typeRaw === 'money_in' ||
-          typeRaw === 'income';
-        const date = toTxDate(data.entryDate || data.entry_date || data.createdAt || data.created_at);
-        const id = `cf-${data.id}`;
-        if (transactionMap.has(id)) continue;
-        transactionMap.set(id, {
-          id,
+          typeRaw === 'money_in' || typeRaw === 'in' || typeRaw === 'inflow';
+        const date = toTxDate(data.createdAt || data.created_at);
+        const accountId = data.accountId || data.account_id || data.bankAccountId;
+        const accountName =
+          data.accountName ||
+          data.account_name ||
+          (accountId ? accountNameById.get(String(accountId)) : '') ||
+          '';
+        const desc = String(data.description || '');
+        if (desc) bankTxDescriptions.add(desc.toLowerCase());
+        // Fold category into description for schema-stripped category field
+        const label =
+          data.category ||
+          (isCredit ? 'Money in' : 'Money out');
+        transactionMap.set(String(data.id), {
+          id: String(data.id),
           date: fmtTxDate(date),
           sortAt: date.getTime(),
-          type: data.category || (isCredit ? 'Cash In' : 'Cash Out'),
-          description: data.description || data.category || 'Cash flow',
+          type: label,
+          description: desc || label,
           amount,
           credit: isCredit,
-          accountName: 'Cash flow',
+          accountName,
         });
-        if (isCredit) {
-          if (date >= monthStart) monthIn += amount;
-        } else if (date >= monthStart) {
-          monthOut += amount;
+        if (inPeriod(date)) {
+          if (isCredit) periodIn += amount;
+          else periodOut += amount;
         }
       }
 
-      // Purchases from purchases table
+      // 2) Purchases (credit / unpaid portion only as non-cash notes)
       const mappedPurchases = (purchaseDocs as any[]).map((data: any) => {
         const items = Array.isArray(data.items) ? data.items : [];
         const totalCost = Number(data.total ?? data.totalCost ?? data.totalAmount ?? 0) || 0;
@@ -457,40 +369,42 @@ export default function Cashflowpage() {
       setPurchases(mappedPurchases);
 
       for (const purchase of mappedPurchases) {
-        if (!purchase.totalCost) continue;
-        const purchaseDate = toISOString(purchase.createdAt)
-          ? new Date(toISOString(purchase.createdAt)!)
-          : new Date();
-        const displayAmount =
-          purchase.paymentMethod === 'credit'
-            ? purchase.totalCost
-            : purchase.creditAmount > 0
-              ? purchase.creditAmount
-              : 0;
-        transactionMap.set(`purchase-${purchase.id}`, {
-          id: `purchase-${purchase.id}`,
-          date: purchaseDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' }),
+        if (!purchase.totalCost || purchase.creditAmount <= 0) continue;
+        const purchaseDate = toTxDate(purchase.createdAt);
+        // Paid cash portion is already in bank txs — only show outstanding credit
+        transactionMap.set(`purchase-credit-${purchase.id}`, {
+          id: `purchase-credit-${purchase.id}`,
+          date: fmtTxDate(purchaseDate),
           sortAt: purchaseDate.getTime(),
-          type: 'Purchase',
-          description: `Purchase ${purchase.receiptNumber} | ${purchase.supplierName}${
-            purchase.paymentMethod === 'credit'
-              ? ' (credit)'
-              : purchase.paymentMethod === 'partial'
-                ? ' (partial)'
-                : ''
-          }`,
-          amount: purchase.totalCost,
+          type: 'Supplier credit',
+          description: `Owed on ${purchase.receiptNumber} · ${purchase.supplierName}`,
+          amount: purchase.creditAmount,
           credit: false,
-          accountName:
-            purchase.paymentMethod === 'cash'
-              ? 'Cash'
-              : purchase.paymentMethod === 'credit'
-                ? 'Supplier credit'
-                : 'Partial',
+          accountName: 'Not cash (credit)',
         });
-        if (displayAmount > 0 && purchaseDate >= monthStart) {
-          monthOut += displayAmount;
-        }
+      }
+
+      // 3) Expenses that never hit a bank account (legacy / unlinked) — show, don't count in cash KPIs
+      for (const data of expenseDocs as any[]) {
+        const amount = Number(data.amount) || 0;
+        if (amount <= 0) continue;
+        const date = toTxDate(data.createdAt || data.created_at || data.date || data.metadata?.date);
+        const category = data.category || data.metadata?.category || 'Expense';
+        const desc = String(data.description || data.metadata?.description || category);
+        const looksLinked = [...bankTxDescriptions].some(
+          (d) => d.includes(desc.toLowerCase()) || d.includes(String(data.id || '').toLowerCase())
+        );
+        if (looksLinked) continue;
+        transactionMap.set(`expense-note-${data.id}`, {
+          id: `expense-note-${data.id}`,
+          date: fmtTxDate(date),
+          sortAt: date.getTime(),
+          type: 'Expense (no account)',
+          description: `${desc} · record money out against an account to update cash`,
+          amount,
+          credit: false,
+          accountName: data.paymentMethod || data.payment_method || 'Unlinked',
+        });
       }
 
       const sortedTransactions = Array.from(transactionMap.values()).sort(
@@ -502,7 +416,12 @@ export default function Cashflowpage() {
         return sum + ((product.stock || 0) * (product.costPrice || product.cost || 0));
       }, 0);
       const totalBankBalance = accountsList.reduce((sum, a) => sum + (a.currentBalance || 0), 0);
-      setStats({ cashBalance: totalBankBalance, stockValue, monthIn, monthOut });
+      setStats({
+        cashBalance: totalBankBalance,
+        stockValue,
+        monthIn: periodIn,
+        monthOut: periodOut,
+      });
     } catch (error) {
       console.error('Error fetching cashflow data:', error);
       showToast('Failed to load cashflow data');
@@ -931,6 +850,7 @@ export default function Cashflowpage() {
                 <span className={`${styles.statIcon} ${styles.statIconGreen}`}><Banknote size={16} /></span>
               </div>
               <div className={styles.statValue} style={{ color: 'var(--green,#10B981)' }}>{formatMoney(stats.cashBalance)}</div>
+              <div className={styles.statHint}>Sum of active bank &amp; cash accounts</div>
             </div>
             <div className={styles.statCard}>
               <div className={styles.statTop}>
@@ -938,6 +858,7 @@ export default function Cashflowpage() {
                 <span className={`${styles.statIcon} ${styles.statIconBlue}`}><Package size={16} /></span>
               </div>
               <div className={styles.statValue}>{formatMoney(stats.stockValue)}</div>
+              <div className={styles.statHint}>Inventory at cost</div>
             </div>
             <div className={styles.statCard}>
               <div className={styles.statTop}>
@@ -945,6 +866,7 @@ export default function Cashflowpage() {
                 <span className={`${styles.statIcon} ${styles.statIconPurple}`}><TrendingUp size={16} /></span>
               </div>
               <div className={styles.statValue} style={{ color: '#10B981' }}>+{formatMoney(stats.monthIn)}</div>
+              <div className={styles.statHint}>Cash in from account movements</div>
             </div>
             <div className={styles.statCard}>
               <div className={styles.statTop}>
@@ -952,6 +874,7 @@ export default function Cashflowpage() {
                 <span className={`${styles.statIcon} ${styles.statIconRed}`}><TrendingDown size={16} /></span>
               </div>
               <div className={styles.statValue} style={{ color: '#EF4444' }}>-{formatMoney(stats.monthOut)}</div>
+              <div className={styles.statHint}>Cash out from account movements</div>
             </div>
           </>
         )}

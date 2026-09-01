@@ -695,7 +695,7 @@ export function RecordSalePage() {
         // Don't fail the sale if audit fails
       }
 
-      // Update bank account balance if sale has bank/POS/card payments
+      // Credit bank/POS/card payments to the selected account
       if (expectedBank > 0 && bankAccountId) {
         try {
           const bankAccountDoc = await fetchDoc(`businesses/${businessId}/bankAccounts`, bankAccountId);
@@ -706,7 +706,6 @@ export function RecordSalePage() {
               currentBalance: currentBalance + expectedBank
             });
             
-            // Create bank transaction record
             await sbAddDoc(`businesses/${businessId}/bankTransactions`, {
               transactionNumber: `SALE-${Date.now()}`,
               bankAccountId: bankAccountId,
@@ -715,13 +714,53 @@ export function RecordSalePage() {
               category: 'Sale',
               amount: expectedBank,
               balanceAfter: currentBalance + expectedBank,
-              description: `Sale #${saleRef.id.slice(-6)}`,
+              description: `Sale #${saleRef.id.slice(-6)} (bank/POS)`,
               saleId: saleRef.id,
+              reference: saleRef.id,
               createdAt: new Date().toISOString(),
             });
           }
         } catch (error) {
           console.error('Error updating bank account balance:', error);
+        }
+      }
+
+      // Credit cash payments to a Cash / default account so Cash balance stays true
+      if (expectedCash > 0) {
+        try {
+          const accountsRaw: any[] = await fetchDocs(`businesses/${businessId}/bankAccounts`);
+          const accounts = (accountsRaw || []).filter((a) => a.isActive !== false);
+          const cashAccount =
+            accounts.find(
+              (a) =>
+                /cash/i.test(String(a.accountName || a.name || '')) ||
+                /cash/i.test(String(a.bankName || ''))
+            ) ||
+            accounts.find((a) => a.isDefault || a.isPrimary) ||
+            accounts[0];
+          if (cashAccount?.id) {
+            const currentBalance =
+              Number(cashAccount.currentBalance ?? cashAccount.current_balance ?? 0) || 0;
+            const newBal = currentBalance + expectedCash;
+            await sbUpdateDoc(`businesses/${businessId}/bankAccounts`, cashAccount.id, {
+              currentBalance: newBal,
+            });
+            await sbAddDoc(`businesses/${businessId}/bankTransactions`, {
+              transactionNumber: `SALE-CASH-${Date.now()}`,
+              bankAccountId: cashAccount.id,
+              accountName: cashAccount.accountName || cashAccount.name || 'Cash',
+              type: 'money_in',
+              category: 'Cash Sale',
+              amount: expectedCash,
+              balanceAfter: newBal,
+              description: `Cash sale #${saleRef.id.slice(-6)}`,
+              saleId: saleRef.id,
+              reference: saleRef.id,
+              createdAt: new Date().toISOString(),
+            });
+          }
+        } catch (error) {
+          console.error('Error updating cash account for sale:', error);
         }
       }
 
