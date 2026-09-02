@@ -11,6 +11,7 @@ import { NavIcons } from './NavIcons';
 import { MoIcon } from './NavIcons';
 import { InlineAIChat } from './InlineAIChat';
 import { RestaurantHealthScore } from './RestaurantHealthScore';
+import { MoProactiveNudges } from './MoProactiveNudges';
 import { LANGUAGES } from './translations';
 import { subscribeToActionEvents } from '@/utils/dataRefresh';
 import styles from './HomePage.module.css';
@@ -817,6 +818,16 @@ export function HomePage() {
         </Card>
 
         {/* Smart Insights — actionable, priority-sorted */}
+        <MoProactiveNudges
+          seed={{
+            cashBalance: metrics.cashBalance,
+            salesToday: dailyCheck.sales,
+            cashRunwayDays: cashRunway,
+            lowStockCount: lowStockProducts.length,
+            pendingCollections,
+          }}
+        />
+
         <Card>
           <CardHeader>
             <CardIcon bg="var(--blue-bg)">

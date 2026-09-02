@@ -1,0 +1,126 @@
+.wrap {
+  margin: 0 0 16px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--purple, #7c3aed) 28%, var(--border, #e5e7eb));
+  background: color-mix(in srgb, var(--purple, #7c3aed) 8%, var(--surface, #fff));
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--purple, #7c3aed);
+}
+
+.head strong {
+  display: block;
+  color: var(--text-1, #111827);
+  font-size: 0.95rem;
+}
+
+.sub {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-3, #6b7280);
+  font-weight: 500;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+}
+
+.itemTitle {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-1, #111827);
+}
+
+.itemText {
+  margin-top: 2px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-2, #4b5563);
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--purple, #7c3aed);
+  color: #fff;
+  white-space: nowrap;
+}
+
+.sev_critical {
+  border-color: color-mix(in srgb, #ef4444 40%, var(--border, #e5e7eb));
+}
+
+.sev_warning {
+  border-color: color-mix(in srgb, #f59e0b 40%, var(--border, #e5e7eb));
+}
+
+.sev_positive {
+  border-color: color-mix(in srgb, #22c55e 40%, var(--border, #e5e7eb));
+}
+
+.skeleton {
+  height: 72px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--text-3, #9ca3af) 15%, transparent);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+:global([data-theme='dark']) .wrap,
+:global(.dark) .wrap {
+  background: color-mix(in srgb, #7c3aed 14%, #111827);
+  border-color: color-mix(in srgb, #7c3aed 35%, #374151);
+}
+
+:global([data-theme='dark']) .item,
+:global(.dark) .item {
+  background: var(--surface, #1f2937);
+  border-color: var(--border, #374151);
+}
+
+:global([data-theme='dark']) .itemTitle,
+:global(.dark) .itemTitle,
+:global([data-theme='dark']) .head strong,
+:global(.dark) .head strong {
+  color: var(--text-1, #f9fafb);
+}
+
+:global([data-theme='dark']) .itemText,
+:global(.dark) .itemText {
+  color: var(--text-2, #d1d5db);
+}

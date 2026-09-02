@@ -54,6 +54,7 @@ export function Sidebar() {
       'Staff Management': 'staff-management',
       'Menu Management': 'menu-management',
       'Margin Calculator': 'margin-calculator',
+      'Can I Buy This?': 'can-i-buy',
       'Ingredient Tracking': 'ingredient-tracking',
       'Expiry Alerts': 'expiry-alerts',
       'Production Tracking': 'production-tracking',

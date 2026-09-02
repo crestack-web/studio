@@ -49,6 +49,7 @@ export type PageId =
   | 'document-templates'
   | 'menu-management'
   | 'margin-calculator'
+  | 'can-i-buy'
   | 'ingredient-tracking'
   | 'expiry-alerts'
   | 'production-tracking'

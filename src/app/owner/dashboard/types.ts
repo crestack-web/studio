@@ -40,6 +40,7 @@ export type PageId =
   | 'wallet'
   | 'menu-management'
   | 'margin-calculator'
+  | 'can-i-buy'
   | 'ingredient-tracking'
   | 'expiry-alerts'
   | 'production-tracking'
