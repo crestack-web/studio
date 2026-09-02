@@ -60,51 +60,56 @@ function buildHtml({ name }) {
             <td style="padding:28px 28px 8px;">
               <p style="margin:0 0 14px;font-size:16px;line-height:1.5;">Hi ${first},</p>
               <p style="margin:0 0 14px;font-size:15px;line-height:1.55;color:#3d3550;">
-                We’re excited to introduce <strong>MO Sales</strong> — a new Busmo feature that lets MO answer customers on
-                <strong>WhatsApp</strong>, using your real products and prices, so you can sell even when you’re busy in the shop.
+                We&rsquo;re introducing <strong>MO Sales</strong> — MO working as a full sales agent on
+                <strong>WhatsApp</strong>, grounded in your real Busmo business data, so you can answer customers
+                and close sales at scale even when you&rsquo;re busy.
               </p>
               <p style="margin:0 0 18px;font-size:15px;line-height:1.55;color:#3d3550;">
-                Starting <strong>${ROLLOUT_DATE}</strong>, we will begin enabling MO Sales for
-                <strong>selected businesses</strong> first (a controlled rollout), then expand as we learn what works best for owners like you.
+                Starting <strong>${ROLLOUT_DATE}</strong>, we will enable MO Sales for
+                <strong>selected businesses</strong> first, then expand as we learn what works best for owners like you.
               </p>
 
               <h2 style="margin:0 0 12px;font-size:17px;color:#1a1523;">What MO Sales can do</h2>
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:20px;">
                 <tr>
-                  <td style="padding:12px 14px;border:1px solid #ece8f5;border-radius:12px;background:#faf9fd;">
-                    <p style="margin:0 0 10px;font-size:14px;line-height:1.5;color:#3d3550;">
-                      <strong style="color:#6B3FE7;">• Reply on WhatsApp at scale</strong><br />
-                      MO answers with your live catalogue, prices, and availability.
+                  <td style="padding:14px 16px;border:1px solid #ece8f5;border-radius:12px;background:#faf9fd;">
+                    <p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:#3d3550;">
+                      <strong style="color:#6B3FE7;">Reply to customers on WhatsApp, 24/7</strong><br />
+                      Customers message your business number. MO responds quickly and naturally — product questions, prices, availability, and follow-ups.
                     </p>
-                    <p style="margin:0 0 10px;font-size:14px;line-height:1.5;color:#3d3550;">
-                      <strong style="color:#6B3FE7;">• Accept orders in chat</strong><br />
-                      Customers can place orders in the conversation using your real stock rules.
+                    <p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:#3d3550;">
+                      <strong style="color:#6B3FE7;">Full business data context</strong><br />
+                      MO uses your live Busmo catalogue, stock, prices, and sales history — so answers stay accurate to <em>your</em> business, not generic AI guesses.
                     </p>
-                    <p style="margin:0 0 10px;font-size:14px;line-height:1.5;color:#3d3550;">
-                      <strong style="color:#6B3FE7;">• Send payment links</strong><br />
-                      MO can share a payment link so checkout stays simple on WhatsApp.
+                    <p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:#3d3550;">
+                      <strong style="color:#6B3FE7;">Accept orders</strong><br />
+                      When a customer is ready to buy, MO can take the order details and move the sale forward inside the conversation.
                     </p>
-                    <p style="margin:0 0 10px;font-size:14px;line-height:1.5;color:#3d3550;">
-                      <strong style="color:#6B3FE7;">• Full business context</strong><br />
-                      Inventory, prices, and sales context from Busmo — consistent, trustworthy replies.
+                    <p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:#3d3550;">
+                      <strong style="color:#6B3FE7;">Send payment links</strong><br />
+                      MO can share payment links so customers can pay without leaving WhatsApp — fewer abandoned chats, more completed sales.
                     </p>
-                    <p style="margin:0 0 10px;font-size:14px;line-height:1.5;color:#3d3550;">
-                      <strong style="color:#6B3FE7;">• Inbox, takeover &amp; control</strong><br />
-                      See chats in MO Sales, take over, hand back, turn MO on or off.
+                    <p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:#3d3550;">
+                      <strong style="color:#6B3FE7;">Consistent sales responses at scale</strong><br />
+                      Same quality of reply for the 1st customer and the 100th — no missed messages during rush hours, market days, or after close.
                     </p>
-                    <p style="margin:0;font-size:14px;line-height:1.5;color:#3d3550;">
-                      <strong style="color:#6B3FE7;">• Consistent sales</strong><br />
-                      Faster responses and a clearer path from question → order → payment.
+                    <p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:#3d3550;">
+                      <strong style="color:#6B3FE7;">Inbox in your Busmo dashboard</strong><br />
+                      See every conversation under <strong>MO Sales</strong>. Take over any chat yourself anytime, then hand it back to MO when you&rsquo;re ready.
+                    </p>
+                    <p style="margin:0;font-size:14px;line-height:1.55;color:#3d3550;">
+                      <strong style="color:#6B3FE7;">You stay in control</strong><br />
+                      Turn MO on or off, guide how it sells, and keep ownership of every customer relationship.
                     </p>
                   </td>
                 </tr>
               </table>
 
               <p style="margin:0 0 14px;font-size:15px;line-height:1.55;color:#3d3550;">
-                You don’t need to do anything right now. If your business is part of the first group, we’ll guide you inside Busmo when it’s time to connect WhatsApp and go live.
+                You don&rsquo;t need to do anything right now. If your business is in the first group, we&rsquo;ll guide you inside Busmo when it&rsquo;s time to connect WhatsApp and go live.
               </p>
               <p style="margin:0 0 22px;font-size:15px;line-height:1.55;color:#3d3550;">
-                Our goal is simple: help you sell more through WhatsApp, without hiring another full-time salesperson.
+                Our goal is simple: help you make more consistent sales through WhatsApp — with MO handling the volume, and you keeping control.
               </p>
 
               <div style="text-align:center;margin:0 0 24px;">
@@ -125,7 +130,7 @@ function buildHtml({ name }) {
           <tr>
             <td style="padding:18px 28px 28px;border-top:1px solid #ece8f5;">
               <p style="margin:0;font-size:11px;line-height:1.45;color:#8a8498;text-align:center;">
-                You’re receiving this because you have a Busmo account.<br />
+                You&rsquo;re receiving this because you have a Busmo account.<br />
                 Busmo · AI-powered business management for African SMEs
               </p>
             </td>
