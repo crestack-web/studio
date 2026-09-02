@@ -319,6 +319,62 @@
  .statement   { background: var(--blue-bg); color: var(--blue); }
  .money-control { background: var(--green-bg); color: var(--green); }
 
+ /* New pages — same icon tile treatment as home/sale/cashflow */
+ .navIcon.margin-calculator,
+ .margin-calculator {
+   background: var(--blue-bg);
+   color: var(--blue);
+   border-radius: 10px;
+ }
+ .navIcon.can-i-buy,
+ .can-i-buy {
+   background: var(--teal-bg);
+   color: var(--teal);
+   border-radius: 10px;
+ }
+ .navIcon.mo-sell,
+ .mo-sell {
+   background: var(--teal-bg);
+   color: var(--teal);
+   border-radius: 10px;
+ }
+ .navIcon.mo-sales,
+ .mo-sales {
+   background: var(--green-bg);
+   color: var(--green);
+   border-radius: 10px;
+ }
+ .navIcon.wallet,
+ .wallet {
+   background: var(--amber-bg);
+   color: var(--amber);
+   border-radius: 10px;
+ }
+ .navIcon.reports,
+ .reports {
+   background: var(--blue-bg);
+   color: var(--blue);
+   border-radius: 10px;
+ }
+ .navIcon.credit-tracking,
+ .credit-tracking {
+   background: var(--amber-bg);
+   color: var(--amber);
+   border-radius: 10px;
+ }
+ .navIcon.menu-management,
+ .menu-management {
+   background: var(--orange-bg, #ffedd5);
+   color: var(--orange, #ea580c);
+   border-radius: 10px;
+ }
+ .navIcon.ingredient-tracking,
+ .ingredient-tracking {
+   background: var(--green-bg);
+   color: var(--green);
+   border-radius: 10px;
+ }
+
 /* ── Nav label ── */
 .navLabel {
   overflow: hidden;
