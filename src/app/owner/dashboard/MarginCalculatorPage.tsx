@@ -5,6 +5,14 @@ import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { getSupabase } from '@/lib/supabase';
 import { fetchDocs } from '@/lib/supabase-client-data';
+import { saveProductViaApi } from '@/lib/product-api';
+import {
+  loadMarginApplies,
+  saveMarginApply,
+  daysSince,
+  suggestedPriceForMargin,
+  type MarginApplyRecord,
+} from '@/lib/margin-loop';
 import {
   Calculator,
   Target,
@@ -15,6 +23,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   Loader2,
+  Save,
+  RotateCcw,
 } from 'lucide-react';
 import styles from './MarginCalculatorPage.module.css';
 
@@ -165,6 +175,9 @@ export default function MarginCalculatorPage() {
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [selectedProductName, setSelectedProductName] = useState<string>('');
+  const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [savingPrice, setSavingPrice] = useState(false);
+  const [applyHistory, setApplyHistory] = useState<MarginApplyRecord[]>([]);
 
   const [moAdvice, setMoAdvice] = useState<string>('');
   const [moLoading, setMoLoading] = useState(false);
@@ -226,7 +239,10 @@ export default function MarginCalculatorPage() {
             .filter((p) => p.price > 0 || p.cost > 0)
             .sort((a, b) => a.margin - b.margin)
             .slice(0, 50);
-          if (!cancelled) setProducts(list);
+          if (!cancelled) {
+          setProducts(list);
+          if (bid) setApplyHistory(loadMarginApplies(bid));
+        }
         }
       } catch (e) {
         console.error(e);
@@ -322,6 +338,7 @@ export default function MarginCalculatorPage() {
     setPrice(String(p.price));
     setMode('from_cost_price');
     setSelectedProductName(p.name);
+    setSelectedProductId(p.id);
     showToast(`Loaded ${p.name}`);
   };
 
@@ -329,9 +346,161 @@ export default function MarginCalculatorPage() {
     if (result?.suggestedPrice != null) {
       setPrice(String(Math.ceil(result.suggestedPrice)));
       setMode('from_cost_price');
-      showToast('Applied MO-style suggested price');
+      showToast('Suggested price loaded — Save to catalogue to close the loop');
+    } else if (result && parseFloat(cost) > 0) {
+      const sp = suggestedPriceForMargin(parseFloat(cost), parseFloat(targetMargin) || hints.targetMargin);
+      setPrice(String(Math.ceil(sp)));
+      setMode('from_cost_price');
+      showToast('Target-margin price loaded — Save to catalogue when ready');
     }
   };
+
+  /** Write selling price back to product/dish and record for weekly follow-up */
+  const savePriceToCatalogue = async (overridePrice?: number) => {
+    if (!businessId) {
+      showToast('Business not loaded');
+      return;
+    }
+    const pId = selectedProductId;
+    if (!pId) {
+      showToast('Load a catalogue item first, then save the price');
+      return;
+    }
+    const p = products.find((x) => x.id === pId);
+    if (!p) {
+      showToast('Product not found');
+      return;
+    }
+    const newPrice = Math.round(
+      (overridePrice != null ? overridePrice : result?.price ?? parseFloat(price) || 0) * 100
+    ) / 100;
+    if (newPrice <= 0) {
+      showToast('Enter a valid selling price');
+      return;
+    }
+    setSavingPrice(true);
+    try {
+      await saveProductViaApi(
+        businessId,
+        {
+          name: p.name,
+          price: newPrice,
+          sellingPrice: newPrice,
+          cost: p.cost,
+          costPrice: p.cost,
+        },
+        { mode: 'update', productId: pId }
+      );
+      const target = parseFloat(targetMargin) || hints.targetMargin;
+      const appliedAt = new Date().toISOString();
+      const check = new Date();
+      check.setDate(check.getDate() + 7);
+      const rec = {
+        productId: pId,
+        businessId,
+        name: p.name,
+        oldPrice: p.price,
+        newPrice,
+        cost: p.cost,
+        targetMargin: target,
+        appliedAt,
+        checkAfter: check.toISOString(),
+      };
+      saveMarginApply(rec);
+      setApplyHistory(loadMarginApplies(businessId));
+      setProducts((prev) =>
+        prev.map((row) =>
+          row.id === pId
+            ? {
+                ...row,
+                price: newPrice,
+                margin: newPrice > 0 ? ((newPrice - row.cost) / newPrice) * 100 : 0,
+              }
+            : row
+        )
+      );
+      setPrice(String(newPrice));
+      showToast(`Saved ${p.name} at ${formatMoney(newPrice)} — MO will nudge a check in ~7 days`);
+    } catch (e: any) {
+      console.error(e);
+      showToast(e?.message || 'Failed to save price');
+    } finally {
+      setSavingPrice(false);
+    }
+  };
+
+  const saveTargetPriceForWeak = async (w: ProductRow) => {
+    if (!businessId || w.cost <= 0) {
+      showToast('Need a cost on this item first');
+      return;
+    }
+    const target = parseFloat(targetMargin) || hints.targetMargin;
+    const newPrice = Math.ceil(suggestedPriceForMargin(w.cost, target));
+    setSelectedProductId(w.id);
+    setSelectedProductName(w.name);
+    setCost(String(w.cost));
+    setPrice(String(newPrice));
+    setMode('from_cost_price');
+    setSavingPrice(true);
+    try {
+      await saveProductViaApi(
+        businessId,
+        {
+          name: w.name,
+          price: newPrice,
+          sellingPrice: newPrice,
+          cost: w.cost,
+          costPrice: w.cost,
+        },
+        { mode: 'update', productId: w.id }
+      );
+      const appliedAt = new Date().toISOString();
+      const check = new Date();
+      check.setDate(check.getDate() + 7);
+      saveMarginApply({
+        productId: w.id,
+        businessId,
+        name: w.name,
+        oldPrice: w.price,
+        newPrice,
+        cost: w.cost,
+        targetMargin: target,
+        appliedAt,
+        checkAfter: check.toISOString(),
+      });
+      setApplyHistory(loadMarginApplies(businessId));
+      setProducts((prev) =>
+        prev.map((row) =>
+          row.id === w.id
+            ? {
+                ...row,
+                price: newPrice,
+                margin: ((newPrice - row.cost) / newPrice) * 100,
+              }
+            : row
+        )
+      );
+      showToast(`Updated ${w.name} → ${formatMoney(newPrice)} (~${target}% margin)`);
+    } catch (e: any) {
+      showToast(e?.message || 'Failed to update price');
+    } finally {
+      setSavingPrice(false);
+    }
+  };
+
+  const followUps = useMemo(() => {
+    return applyHistory
+      .map((rec) => {
+        const live = products.find((p) => p.id === rec.productId);
+        const livePrice = live?.price ?? rec.newPrice;
+        const liveCost = live?.cost ?? rec.cost;
+        const liveMargin =
+          livePrice > 0 ? ((livePrice - liveCost) / livePrice) * 100 : 0;
+        const due = daysSince(rec.appliedAt) >= 7;
+        return { ...rec, livePrice, liveCost, liveMargin, due, days: daysSince(rec.appliedAt) };
+      })
+      .slice(0, 12);
+  }, [applyHistory, products]);
 
   const askMo = useCallback(
     async (intent: 'item' | 'catalogue') => {
@@ -637,11 +806,32 @@ Plain language for a busy owner. No fluff. Do NOT use markdown, asterisks, or bo
                   grows losses.
                 </p>
               )}
-              {result.suggestedPrice != null && (
+              {(result.suggestedPrice != null || (result && parseFloat(cost) > 0)) && (
                 <button type="button" className={styles.secondaryBtn} onClick={applySuggestedPrice}>
-                  Use suggested price {formatMoney(Math.ceil(result.suggestedPrice))}
+                  Use target-margin price{' '}
+                  {formatMoney(
+                    Math.ceil(
+                      result.suggestedPrice ??
+                        suggestedPriceForMargin(
+                          parseFloat(cost) || 0,
+                          parseFloat(targetMargin) || hints.targetMargin
+                        )
+                    )
+                  )}
                 </button>
               )}
+              <button
+                type="button"
+                className={styles.moBtn}
+                style={{ width: '100%', marginTop: 8, justifyContent: 'center' }}
+                disabled={savingPrice || !selectedProductId || !result}
+                onClick={() => savePriceToCatalogue()}
+              >
+                {savingPrice ? <Loader2 size={16} className={styles.spin} /> : <Save size={16} />}
+                {selectedProductId
+                  ? `Save ${formatMoney(result?.price || 0)} to catalogue`
+                  : 'Load an item to save price'}
+              </button>
             </div>
           ) : (
             <p className={styles.placeholder}>Enter values above to see margin, profit, and markup.</p>
@@ -687,17 +877,30 @@ Plain language for a busy owner. No fluff. Do NOT use markdown, asterisks, or bo
                 <AlertTriangle size={14} /> Priority fixes
               </div>
               {portfolio.weak.slice(0, 5).map((w) => (
-                <button
-                  key={w.id}
-                  type="button"
-                  className={styles.productRow}
-                  onClick={() => applyProduct(w.id)}
-                >
-                  <span className={styles.productName}>{w.name}</span>
-                  <span className={styles.productMeta}>
-                    {formatMoney(w.cost)} → {formatMoney(w.price)} · {w.margin.toFixed(0)}%
-                  </span>
-                </button>
+                <div key={w.id} className={styles.productRow} style={{ cursor: 'default' }}>
+                  <button
+                    type="button"
+                    style={{ all: 'unset', cursor: 'pointer', width: '100%' }}
+                    onClick={() => applyProduct(w.id)}
+                  >
+                    <span className={styles.productName}>{w.name}</span>
+                    <span className={styles.productMeta}>
+                      {formatMoney(w.cost)} → {formatMoney(w.price)} · {w.margin.toFixed(0)}%
+                      {w.cost > 0
+                        ? ` → target ${formatMoney(Math.ceil(suggestedPriceForMargin(w.cost, parseFloat(targetMargin) || hints.targetMargin)))}`
+                        : ''}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.secondaryBtn}
+                    style={{ marginTop: 6 }}
+                    disabled={savingPrice || w.cost <= 0}
+                    onClick={() => saveTargetPriceForWeak(w)}
+                  >
+                    Apply target price
+                  </button>
+                </div>
               ))}
             </div>
           )}
@@ -731,6 +934,45 @@ Plain language for a busy owner. No fluff. Do NOT use markdown, asterisks, or bo
           )}
         </section>
       </div>
+
+
+      {/* Margin loop follow-up */}
+      {followUps.length > 0 && (
+        <section className={styles.card} style={{ marginTop: 4 }}>
+          <h2 className={styles.cardTitle}>
+            <RotateCcw size={16} /> Price changes — check-back
+          </h2>
+          <p className={styles.placeholder} style={{ marginTop: 0 }}>
+            After you save a price, MO tracks it here. Re-check from day 7 whether margin still holds.
+          </p>
+          <div className={styles.productList}>
+            {followUps.map((f) => (
+              <div key={f.productId + f.appliedAt} className={styles.productRow} style={{ cursor: 'default' }}>
+                <span className={styles.productName}>
+                  {f.name}{' '}
+                  {f.due ? (
+                    <span style={{ color: '#d97706', fontSize: 11 }}>· due for check</span>
+                  ) : (
+                    <span style={{ color: 'var(--text-3)', fontSize: 11 }}>· day {f.days}/7</span>
+                  )}
+                </span>
+                <span className={styles.productMeta}>
+                  Was {formatMoney(f.oldPrice)} → set {formatMoney(f.newPrice)} · now{' '}
+                  {formatMoney(f.livePrice)} ({f.liveMargin.toFixed(0)}% margin, target {f.targetMargin}%)
+                </span>
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  style={{ marginTop: 6 }}
+                  onClick={() => applyProduct(f.productId)}
+                >
+                  Open in calculator
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* MO advice panel */}
       <section className={styles.moPanel}>
