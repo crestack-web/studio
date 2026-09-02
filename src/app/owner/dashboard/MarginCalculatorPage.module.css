@@ -5,13 +5,10 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  color: var(--text-1, #111827);
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
+.header { display: flex; justify-content: space-between; gap: 12px; }
 
 .eyebrow {
   font-size: 0.72rem;
@@ -39,11 +36,7 @@
   max-width: 52ch;
 }
 
-.modelRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
+.modelRow { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .modelChip {
   border: 1px solid var(--border, #e5e7eb);
@@ -57,7 +50,7 @@
 }
 
 .modelChipActive {
-  background: color-mix(in srgb, var(--purple, #7c3aed) 12%, white);
+  background: color-mix(in srgb, var(--purple, #7c3aed) 14%, var(--surface, #fff));
   border-color: var(--purple, #7c3aed);
   color: var(--purple, #7c3aed);
 }
@@ -69,9 +62,7 @@
 }
 
 @media (max-width: 720px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
+  .grid { grid-template-columns: 1fr; }
 }
 
 .card {
@@ -92,12 +83,7 @@
   color: var(--text-1, #111827);
 }
 
-.modeTabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 12px;
-}
+.modeTabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 
 .tab,
 .tabActive {
@@ -136,6 +122,8 @@
   color: var(--text-1, #111827);
 }
 
+.field input::placeholder { color: var(--text-3, #9ca3af); }
+
 .result {
   margin-top: 8px;
   border-radius: 12px;
@@ -146,17 +134,17 @@
 
 .health_healthy {
   border-color: #86efac;
-  background: #f0fdf4;
+  background: color-mix(in srgb, #22c55e 12%, var(--surface, #fff));
 }
 
 .health_ok {
   border-color: #fcd34d;
-  background: #fffbeb;
+  background: color-mix(in srgb, #f59e0b 12%, var(--surface, #fff));
 }
 
 .health_low {
   border-color: #fca5a5;
-  background: #fef2f2;
+  background: color-mix(in srgb, #ef4444 12%, var(--surface, #fff));
 }
 
 .resultRow {
@@ -179,6 +167,9 @@
   font-size: 0.8rem;
   line-height: 1.4;
   color: var(--text-2, #4b5563);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
 }
 
 .placeholder {
@@ -219,6 +210,7 @@
   margin: 0 0 8px;
   font-size: 0.85rem;
   font-weight: 700;
+  color: var(--text-1, #111827);
 }
 
 .productList {
@@ -239,11 +231,10 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  color: inherit;
 }
 
-.productRow:hover {
-  border-color: var(--purple, #7c3aed);
-}
+.productRow:hover { border-color: var(--purple, #7c3aed); }
 
 .productName {
   font-size: 0.85rem;
@@ -256,7 +247,6 @@
   color: var(--text-3, #6b7280);
 }
 
-
 .pulseBar {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -264,7 +254,7 @@
   padding: 12px 14px;
   border-radius: 14px;
   border: 1px solid var(--border, #e5e7eb);
-  background: color-mix(in srgb, var(--purple, #7c3aed) 6%, white);
+  background: color-mix(in srgb, var(--purple, #7c3aed) 8%, var(--surface, #fff));
 }
 
 .pulseStat {
@@ -280,9 +270,7 @@
   color: var(--text-1, #111827);
 }
 
-.warnText {
-  color: #dc2626 !important;
-}
+.warnText { color: #f87171 !important; }
 
 .pulseSummary {
   grid-column: 1 / -1;
@@ -295,7 +283,7 @@
 .selectedItem {
   margin: 0 0 8px;
   font-size: 0.78rem;
-  color: var(--purple, #7c3aed);
+  color: var(--purple, #a78bfa);
   font-weight: 600;
 }
 
@@ -303,7 +291,7 @@
   margin-top: 10px;
   width: 100%;
   border: 1px solid var(--purple, #7c3aed);
-  background: #fff;
+  background: transparent;
   color: var(--purple, #7c3aed);
   border-radius: 10px;
   padding: 8px 10px;
@@ -333,10 +321,7 @@
   cursor: pointer;
 }
 
-.moBtn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
+.moBtn:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .moBtnGhost {
   display: inline-flex;
@@ -352,20 +337,15 @@
   cursor: pointer;
 }
 
-.spin {
-  animation: spin 0.9s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+.spin { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .weakBox {
   margin-bottom: 14px;
   padding: 10px;
   border-radius: 12px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+  background: color-mix(in srgb, #ef4444 12%, var(--surface, #fff));
+  border: 1px solid color-mix(in srgb, #ef4444 35%, var(--border, #e5e7eb));
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -377,14 +357,14 @@
   gap: 6px;
   font-size: 0.8rem;
   font-weight: 700;
-  color: #b91c1c;
+  color: #dc2626;
   margin-bottom: 4px;
 }
 
 .moPanel {
   border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--purple, #7c3aed) 25%, #e5e7eb);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--purple, #7c3aed) 8%, white), var(--surface, #fff));
+  border: 1px solid color-mix(in srgb, var(--purple, #7c3aed) 30%, var(--border, #e5e7eb));
+  background: color-mix(in srgb, var(--purple, #7c3aed) 10%, var(--surface, #fff));
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -395,12 +375,14 @@
   display: flex;
   gap: 10px;
   align-items: flex-start;
+  color: var(--purple, #7c3aed);
 }
 
 .moPanelHead h2 {
   margin: 0;
   font-size: 1rem;
   font-weight: 700;
+  color: var(--text-1, #111827);
 }
 
 .moPanelHead p {
@@ -410,18 +392,180 @@
 }
 
 .moAdvice {
-  white-space: pre-wrap;
-  font-size: 0.9rem;
-  line-height: 1.55;
-  color: var(--text-1, #111827);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   background: var(--surface, #fff);
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px;
   padding: 12px 14px;
 }
 
+.moAdviceLine {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-1, #111827);
+}
+
+.moAdviceLine strong {
+  font-weight: 700;
+  color: var(--text-1, #111827);
+}
+
+.moAdviceBullet {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--text-2, #4b5563);
+}
+
+.moAdviceBullet::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  margin-top: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--purple, #7c3aed);
+}
+
 .moError {
   margin: 0;
   font-size: 0.78rem;
-  color: #b45309;
+  color: #d97706;
+}
+
+/* Dark mode */
+:global([data-theme='dark']) .card,
+:global(.dark) .card {
+  background: var(--surface, #1f2937);
+  border-color: var(--border, #374151);
+  box-shadow: none;
+}
+
+:global([data-theme='dark']) .title,
+:global(.dark) .title,
+:global([data-theme='dark']) .cardTitle,
+:global(.dark) .cardTitle,
+:global([data-theme='dark']) .subTitle,
+:global(.dark) .subTitle,
+:global([data-theme='dark']) .productName,
+:global(.dark) .productName,
+:global([data-theme='dark']) .moPanelHead h2,
+:global(.dark) .moPanelHead h2,
+:global([data-theme='dark']) .resultRow strong,
+:global(.dark) .resultRow strong,
+:global([data-theme='dark']) .pulseStat strong,
+:global(.dark) .pulseStat strong,
+:global([data-theme='dark']) .moAdviceLine,
+:global(.dark) .moAdviceLine {
+  color: var(--text-1, #f9fafb);
+}
+
+:global([data-theme='dark']) .modelChip,
+:global(.dark) .modelChip,
+:global([data-theme='dark']) .moBtnGhost,
+:global(.dark) .moBtnGhost,
+:global([data-theme='dark']) .productRow,
+:global(.dark) .productRow,
+:global([data-theme='dark']) .tab,
+:global(.dark) .tab {
+  background: var(--bg, #111827);
+  border-color: var(--border, #374151);
+  color: var(--text-2, #d1d5db);
+}
+
+:global([data-theme='dark']) .modelChipActive,
+:global(.dark) .modelChipActive {
+  background: color-mix(in srgb, #7c3aed 25%, #111827);
+  color: #c4b5fd;
+  border-color: #8b5cf6;
+}
+
+:global([data-theme='dark']) .field input,
+:global(.dark) .field input {
+  background: var(--bg, #111827);
+  border-color: var(--border, #374151);
+  color: var(--text-1, #f9fafb);
+}
+
+:global([data-theme='dark']) .result,
+:global(.dark) .result {
+  background: var(--bg, #111827);
+  border-color: var(--border, #374151);
+}
+
+:global([data-theme='dark']) .health_healthy,
+:global(.dark) .health_healthy {
+  background: color-mix(in srgb, #22c55e 15%, #111827);
+  border-color: #166534;
+}
+
+:global([data-theme='dark']) .health_ok,
+:global(.dark) .health_ok {
+  background: color-mix(in srgb, #f59e0b 15%, #111827);
+  border-color: #92400e;
+}
+
+:global([data-theme='dark']) .health_low,
+:global(.dark) .health_low {
+  background: color-mix(in srgb, #ef4444 15%, #111827);
+  border-color: #991b1b;
+}
+
+:global([data-theme='dark']) .pulseBar,
+:global(.dark) .pulseBar {
+  background: color-mix(in srgb, #7c3aed 12%, #111827);
+  border-color: var(--border, #374151);
+}
+
+:global([data-theme='dark']) .weakBox,
+:global(.dark) .weakBox {
+  background: color-mix(in srgb, #ef4444 12%, #111827);
+  border-color: #7f1d1d;
+}
+
+:global([data-theme='dark']) .weakTitle,
+:global(.dark) .weakTitle {
+  color: #f87171;
+}
+
+:global([data-theme='dark']) .moPanel,
+:global(.dark) .moPanel {
+  background: color-mix(in srgb, #7c3aed 14%, #111827);
+  border-color: color-mix(in srgb, #7c3aed 40%, #374151);
+}
+
+:global([data-theme='dark']) .moAdvice,
+:global(.dark) .moAdvice {
+  background: var(--surface, #1f2937);
+  border-color: var(--border, #374151);
+}
+
+:global([data-theme='dark']) .moAdviceBullet,
+:global(.dark) .moAdviceBullet {
+  color: var(--text-2, #d1d5db);
+}
+
+:global([data-theme='dark']) .secondaryBtn,
+:global(.dark) .secondaryBtn {
+  color: #c4b5fd;
+  border-color: #8b5cf6;
+}
+
+:global([data-theme='dark']) .sub,
+:global(.dark) .sub,
+:global([data-theme='dark']) .tips li,
+:global(.dark) .tips li,
+:global([data-theme='dark']) .healthMsg,
+:global(.dark) .healthMsg,
+:global([data-theme='dark']) .resultRow,
+:global(.dark) .resultRow,
+:global([data-theme='dark']) .pulseSummary,
+:global(.dark) .pulseSummary {
+  color: var(--text-2, #d1d5db);
 }
