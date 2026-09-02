@@ -13,6 +13,7 @@ const MoSalesConnections = dynamic(() => import('./MoSalesConnections'), { ssr: 
 const MoSellActivity = dynamic(() => import('./MoSellActivity'), { ssr: false });
 const AdminOperations = dynamic(() => import('./AdminOperations'), { ssr: false });
 const AdminRevenue = dynamic(() => import('./AdminRevenue'), { ssr: false });
+const AdminEmailSender = dynamic(() => import('./AdminEmailSender'), { ssr: false });
 
 interface AdminLayoutProps {
   children?: React.ReactNode;
@@ -28,6 +29,7 @@ const TABS: Array<{ id: string; label: string; short: string }> = [
   { id: 'mo-sales', label: 'MO Sales', short: 'MO' },
   { id: 'mo-sell', label: 'Mo-sell', short: 'Sell' },
   { id: 'support', label: 'Support', short: 'Support' },
+  { id: 'emails', label: 'Emails', short: 'Email' },
 ];
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
@@ -88,6 +90,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         return (
           <Suspense fallback={<LoadingFallback />}>
             <SupportInbox />
+          </Suspense>
+        );
+      case 'emails':
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <AdminEmailSender />
           </Suspense>
         );
       default:
