@@ -733,7 +733,7 @@ Plain language for a busy owner. No fluff.`;
         <button
           type="button"
           className={styles.moBtnGhost}
-          onClick={() => navigateTo?.('mo-mobile' as any) || navigateTo?.('mo' as any)}
+          onClick={() => { try { navigateTo('mo' as any); } catch { /* ignore */ } }}
         >
           Open full Ask MO chat
         </button>
