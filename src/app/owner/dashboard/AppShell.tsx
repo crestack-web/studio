@@ -37,6 +37,7 @@ import { NotificationsPanel } from './NotificationsPanel';
 import { DeviceNotificationsBridge } from './DeviceNotificationsBridge';
 import { NetworkStatus, NetworkStatusStyles } from '@/components/app/NetworkStatus';
 import MenuManagementPage from './MenuManagementPage';
+import MarginCalculatorPage from './MarginCalculatorPage';
 import IngredientsPage from './IngredientsPage';
 import ExpiryAlertsPage from './ExpiryAlertsPage';
 import ProductionPage from './ProductionPage';
@@ -76,6 +77,7 @@ const PAGE_COMPONENTS: Record<string, React.ComponentType> = {
   'mo-mobile': MobileAskMOPage,
   mo: InlineAIChat,
   'menu-management': MenuManagementPage,
+  'margin-calculator': MarginCalculatorPage,
   'ingredient-tracking': IngredientsPage,
   'expiry-alerts': ExpiryAlertsPage,
   'production-tracking': ProductionPage,

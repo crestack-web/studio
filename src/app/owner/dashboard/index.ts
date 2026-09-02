@@ -48,6 +48,7 @@ export type PageId =
   | 'email-campaigns'
   | 'document-templates'
   | 'menu-management'
+  | 'margin-calculator'
   | 'ingredient-tracking'
   | 'expiry-alerts'
   | 'production-tracking'

@@ -39,6 +39,7 @@ export type PageId =
   | 'payroll'
   | 'wallet'
   | 'menu-management'
+  | 'margin-calculator'
   | 'ingredient-tracking'
   | 'expiry-alerts'
   | 'production-tracking'

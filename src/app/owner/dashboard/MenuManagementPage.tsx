@@ -66,7 +66,11 @@ export default function MenuManagementPage() {
     unit: 'portion',
     quantity: '',
     lowStockThreshold: '5',
+    /** optional manual plate cost when not using recipe calc */
+    manualCost: '',
   });
+  /** recipe = sum ingredients; manual = user-set cost (recipe optional) */
+  const [costMode, setCostMode] = useState<'recipe' | 'manual'>('recipe');
   const [recipeLines, setRecipeLines] = useState<RecipeLine[]>([]);
   const [pickIngredientId, setPickIngredientId] = useState('');
   const [pickQuantity, setPickQuantity] = useState('');
@@ -290,7 +294,16 @@ export default function MenuManagementPage() {
     }
     setSaving(true);
     try {
-      const cost = calculatedCost;
+      const manual = parseFloat(formData.manualCost);
+      const useManual =
+        costMode === 'manual' ||
+        (recipeLines.length === 0 && Number.isFinite(manual) && manual >= 0);
+      if (useManual && (isNaN(manual) || manual < 0)) {
+        showToast('Enter a valid meal cost, or switch to recipe costing with ingredients');
+        setSaving(false);
+        return;
+      }
+      const cost = useManual ? manual : calculatedCost;
       const qty = Math.max(0, parseFloat(formData.quantity || '0') || 0);
       const lowAt = Math.max(0, parseInt(formData.lowStockThreshold || '5', 10) || 5);
       const unit = (formData.unit || 'portion').trim() || 'portion';
@@ -307,6 +320,7 @@ export default function MenuManagementPage() {
         ingredients: recipeLines.map((l) => l.ingredientName),
         recipeIngredients: recipeLines,
         productType: 'dish',
+        costSource: useManual ? 'manual' : 'recipe',
         active: formData.available,
         status: formData.available ? 'active' : 'inactive',
         stock: qty,
@@ -368,6 +382,8 @@ export default function MenuManagementPage() {
 
   const handleEdit = (item: MenuItem) => {
     setEditingItem(item);
+    const hasRecipe = (item.recipeIngredients?.length || 0) > 0;
+    setCostMode(hasRecipe ? 'recipe' : 'manual');
     setFormData({
       name: item.name,
       description: item.description || '',
@@ -378,6 +394,7 @@ export default function MenuManagementPage() {
       unit: item.unit || 'portion',
       quantity: String(item.quantity ?? 0),
       lowStockThreshold: String(item.lowStockThreshold ?? 5),
+      manualCost: String(item.cost ?? 0),
     });
     setRecipeLines(item.recipeIngredients?.length ? item.recipeIngredients : []);
     setShowAddModal(true);
@@ -394,7 +411,9 @@ export default function MenuManagementPage() {
       unit: 'portion',
       quantity: '',
       lowStockThreshold: '5',
+      manualCost: '',
     });
+    setCostMode('recipe');
     setRecipeLines([]);
     setPickIngredientId('');
     setPickQuantity('');
@@ -426,7 +445,11 @@ export default function MenuManagementPage() {
   }
 
   const sellingPrice = parseFloat(formData.price) || 0;
-  const liveProfit = sellingPrice - calculatedCost;
+  const effectiveCost =
+    costMode === 'manual'
+      ? parseFloat(formData.manualCost) || 0
+      : calculatedCost;
+  const liveProfit = sellingPrice - effectiveCost;
   const liveMargin = sellingPrice > 0 ? (liveProfit / sellingPrice) * 100 : 0;
 
   return (
@@ -684,10 +707,55 @@ export default function MenuManagementPage() {
               <div className={styles.recipeSection}>
                 <div className={styles.recipeHeader}>
                   <ChefHat size={18} />
-                  <span>Recipe (ingredients per portion)</span>
+                  <span>Plate cost</span>
                 </div>
+                <div className={styles.costModeToggle} style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className={`${styles.addLineButton} ${costMode === 'recipe' ? styles.primary : ''}`}
+                    onClick={() => setCostMode('recipe')}
+                    style={
+                      costMode === 'recipe'
+                        ? { background: 'var(--purple, #7c3aed)', color: '#fff' }
+                        : undefined
+                    }
+                  >
+                    From ingredients
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.addLineButton}
+                    onClick={() => setCostMode('manual')}
+                    style={
+                      costMode === 'manual'
+                        ? { background: 'var(--purple, #7c3aed)', color: '#fff' }
+                        : undefined
+                    }
+                  >
+                    Set cost manually
+                  </button>
+                </div>
+                {costMode === 'manual' && (
+                  <div className={styles.formGroup} style={{ marginBottom: 12 }}>
+                    <label className={styles.formLabel}>Meal cost price (optional recipe still available)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      className={styles.formInput}
+                      value={formData.manualCost}
+                      onChange={(e) => setFormData({ ...formData, manualCost: e.target.value })}
+                      placeholder="What it costs you to make this dish"
+                    />
+                    <p className={styles.recipeHint} style={{ marginTop: 4 }}>
+                      Use this when you know plate cost without building a full recipe. You can still add ingredients for stock tracking.
+                    </p>
+                  </div>
+                )}
                 <p className={styles.recipeHint}>
-                  Add ingredients used to prepare this dish. Cost is calculated from unit costs.
+                  {costMode === 'recipe'
+                    ? 'Add ingredients used per portion. Cost is calculated from ingredient unit costs.'
+                    : 'Recipe lines are optional when cost is set manually — helpful for stock deduction later.'}
                 </p>
                 {ingredientOptions.length === 0 && (
                   <p className={styles.recipeWarn}>
@@ -760,9 +828,17 @@ export default function MenuManagementPage() {
                 )}
                 <div className={styles.costSummary}>
                   <div className={styles.costRow}>
-                    <span>Ingredient cost / plate</span>
-                    <strong>{formatMoney(calculatedCost)}</strong>
+                    <span>
+                      {costMode === 'manual' ? 'Manual cost / plate' : 'Ingredient cost / plate'}
+                    </span>
+                    <strong>{formatMoney(effectiveCost)}</strong>
                   </div>
+                  {costMode === 'recipe' && calculatedCost > 0 && formData.manualCost && (
+                    <div className={styles.costRow}>
+                      <span>Recipe total</span>
+                      <strong>{formatMoney(calculatedCost)}</strong>
+                    </div>
+                  )}
                   <div className={styles.costRow}>
                     <span>Selling price</span>
                     <strong>{formatMoney(sellingPrice)}</strong>

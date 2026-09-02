@@ -196,8 +196,9 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ products, onProductClic
             ) : paginated.map(p => {
               const status = getStockStatus(p);
               const badge  = STATUS_MAP[status];
+              const isIngredient = String(p.productType || '').toLowerCase() === 'ingredient';
               const profit = p.sellingPrice - p.costPrice;
-              const totalValue = p.costPrice * p.stock;
+              const totalValue = isIngredient ? 0 : p.costPrice * p.stock;
               const daysSince = getDaysSinceLastSale(p);
               return (
                 <tr
@@ -219,9 +220,24 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ products, onProductClic
                         )}
                       </div>
                       <div>
-                        <div className="inv-prod-name">{p.name}</div>
+                        <div className="inv-prod-name">
+                          {p.name}
+                          {isIngredient && (
+                            <span className="inv-cat-chip" style={{ marginLeft: 6, fontSize: 10 }}>
+                              Ingredient
+                            </span>
+                          )}
+                        </div>
                         <div className="inv-prod-days">
-                          {daysSince === -1 ? 'Never sold' : daysSince === 0 ? t('inventory.soldToday') : daysSince === 1 ? t('inventory.soldYesterday') : t('inventory.soldDaysAgo', { days: daysSince })}
+                          {isIngredient
+                            ? 'Tracks quantity & expiry for recipes — not sold directly'
+                            : daysSince === -1
+                              ? 'Never sold'
+                              : daysSince === 0
+                                ? t('inventory.soldToday')
+                                : daysSince === 1
+                                  ? t('inventory.soldYesterday')
+                                  : t('inventory.soldDaysAgo', { days: daysSince })}
                         </div>
                       </div>
                     </div>
@@ -236,15 +252,18 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ products, onProductClic
                       {p.stock}
                     </span>
                   </td>
-                  <td className="inv-td inv-td-num">{formatMoney(p.costPrice)}</td>
-                  <td className="inv-td inv-td-num">{formatMoney(p.sellingPrice)}</td>
-                  <td className="inv-td inv-td-num inv-profit">+{formatMoney(profit)}</td>
-                  <td className="inv-td inv-td-num">{formatMoney(totalValue)}</td>
+                  {/* Ingredients: no retail cost/price/profit — used for recipe costing only */}
+                  <td className="inv-td inv-td-num">{isIngredient ? '—' : formatMoney(p.costPrice)}</td>
+                  <td className="inv-td inv-td-num">{isIngredient ? '—' : formatMoney(p.sellingPrice)}</td>
+                  <td className="inv-td inv-td-num inv-profit">
+                    {isIngredient ? '—' : `+${formatMoney(profit)}`}
+                  </td>
+                  <td className="inv-td inv-td-num">{isIngredient ? '—' : formatMoney(totalValue)}</td>
                   <td className="inv-td">
                     <span className={`inv-badge ${badge.cls}`}>{badge.label}</span>
                   </td>
-                  <td className="inv-td inv-td-num">{p.unitsSold30d}</td>
-                  <td className="inv-td"><TrendIcon dir={p.trend} /></td>
+                  <td className="inv-td inv-td-num">{isIngredient ? '—' : p.unitsSold30d}</td>
+                  <td className="inv-td">{isIngredient ? '—' : <TrendIcon dir={p.trend} />}</td>
                   <td className="inv-td inv-td-actions" onClick={e => e.stopPropagation()}>
                     <button className="inv-act-btn" title={t('inventory.actions.edit')} onClick={() => onProductClick(p)}>
                       <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">

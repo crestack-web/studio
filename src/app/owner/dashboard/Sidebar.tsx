@@ -53,6 +53,7 @@ export function Sidebar() {
       'Ask MO AI Assistant': 'ask-mo-ai-assistant',
       'Staff Management': 'staff-management',
       'Menu Management': 'menu-management',
+      'Margin Calculator': 'margin-calculator',
       'Ingredient Tracking': 'ingredient-tracking',
       'Expiry Alerts': 'expiry-alerts',
       'Production Tracking': 'production-tracking',
