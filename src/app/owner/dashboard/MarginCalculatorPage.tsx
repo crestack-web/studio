@@ -122,6 +122,33 @@ function marginOf(cost: number, price: number) {
   return ((price - cost) / price) * 100;
 }
 
+/** Strip markdown noise (** *** __ `) and split into readable lines for the coach panel. */
+function formatMoAdvice(raw: string): { kind: 'p' | 'li'; text: string }[] {
+  if (!raw) return [];
+  let s = raw
+    .replace(/\r\n/g, '\n')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\*{1,3}/g, '')
+    .replace(/_{1,2}/g, '')
+    .replace(/^#{1,6}\s*/gm, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^[\s>*-]+/gm, (m) => (m.includes('-') || m.includes('*') ? '- ' : ''))
+    .trim();
+
+  const lines = s.split('\n').map((l) => l.trim()).filter(Boolean);
+  const out: { kind: 'p' | 'li'; text: string }[] = [];
+  for (const line of lines) {
+    if (/^[-•]\s+/.test(line) || /^\d+[.)]\s+/.test(line)) {
+      out.push({ kind: 'li', text: line.replace(/^[-•]\s+/, '').replace(/^\d+[.)]\s+/, '') });
+    } else {
+      out.push({ kind: 'p', text: line });
+    }
+  }
+  return out.length ? out : [{ kind: 'p', text: s.replace(/\s+/g, ' ') }];
+}
+
+
 export default function MarginCalculatorPage() {
   const { user, showToast, navigateTo } = useApp();
   const { formatMoney } = useCurrency();
@@ -343,7 +370,7 @@ Respond with:
 1) Verdict (healthy / thin / loss)
 2) One concrete price or cost action
 3) One operational tip for this business type
-No markdown tables. Plain sentences.`;
+Do NOT use markdown. No asterisks, no bold, no bullet stars, no headings. Plain sentences only. Number actions 1) 2) 3).`;
       } else {
         message = `You are MO, Busmo pricing co-pilot. Analyse this ${hints.label} catalogue and give sharp pricing priorities (max 150 words).
 
@@ -360,7 +387,7 @@ Respond with:
 1) Overall pricing health in one sentence
 2) Top 3 actions ranked (what to change first)
 3) One sentence on cash risk if they keep current prices
-Plain language for a busy owner. No fluff.`;
+Plain language for a busy owner. No fluff. Do NOT use markdown, asterisks, or bold markers.`;
       }
 
       try {
@@ -721,7 +748,19 @@ Plain language for a busy owner. No fluff.`;
           </p>
         )}
         {moAdvice ? (
-          <div className={styles.moAdvice}>{moAdvice}</div>
+          <div className={styles.moAdvice}>
+            {formatMoAdvice(moAdvice).map((line, i) =>
+              line.kind === 'li' ? (
+                <p key={i} className={styles.moAdviceBullet}>
+                  {line.text}
+                </p>
+              ) : (
+                <p key={i} className={styles.moAdviceLine}>
+                  {line.text}
+                </p>
+              )
+            )}
+          </div>
         ) : (
           !moLoading && (
             <p className={styles.placeholder}>
