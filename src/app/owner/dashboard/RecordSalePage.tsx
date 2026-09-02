@@ -719,19 +719,54 @@ export function RecordSalePage() {
           return pos?.id || null;
         };
 
-        const resolveCashAccount = () =>
-          accounts.find(
-            (a: any) =>
-              /cash/i.test(String(a.accountName || a.name || '')) ||
-              /cash/i.test(String(a.bankName || '')) ||
-              /till|float|drawer/i.test(String(a.accountName || a.name || ''))
-          ) ||
-          accounts.find((a: any) => a.isDefault || a.isPrimary) ||
-          accounts[0];
+        const isCashWallet = (a: any) => {
+          const label = `${a.accountName || a.name || ''} ${a.bankName || ''} ${a.accountType || a.type || ''}`;
+          return /cash|till|float|drawer|petty/i.test(label);
+        };
 
-        // Bank / transfer / POS / card → POS default or selected bank
+        const findCashAccount = () => accounts.find((a: any) => isCashWallet(a));
+
+        /** Never put cash sales on a bank/POS account — create Cash on hand if missing */
+        const ensureCashAccount = async (): Promise<any | null> => {
+          const existing = findCashAccount();
+          if (existing?.id) return existing;
+          try {
+            const id = await sbAddDoc(`businesses/${businessId}/bankAccounts`, {
+              accountName: 'Cash on hand',
+              bankName: 'Cash',
+              currentBalance: 0,
+              isActive: true,
+              isDefault: false,
+              isPosDefault: false,
+              accountType: 'cash',
+              createdAt: new Date().toISOString(),
+            });
+            if (!id) return null;
+            const doc = {
+              id,
+              accountName: 'Cash on hand',
+              bankName: 'Cash',
+              currentBalance: 0,
+              isActive: true,
+              accountType: 'cash',
+            };
+            accounts.push(doc);
+            return doc;
+          } catch (e) {
+            console.error('Failed to create Cash on hand account', e);
+            return null;
+          }
+        };
+
+        // Bank / transfer / POS / card → POS default or selected bank (never a cash wallet)
         if (expectedBank > 0) {
-          const targetId = resolveBankAccountId();
+          let targetId = resolveBankAccountId();
+          // Prefer non-cash if resolved id is actually the cash till
+          const resolved = accounts.find((a: any) => a.id === targetId);
+          if (resolved && isCashWallet(resolved)) {
+            const bankOnly = accounts.find((a: any) => !isCashWallet(a));
+            targetId = bankOnly?.id || null;
+          }
           const bankAccountDoc =
             (targetId && accounts.find((a: any) => a.id === targetId)) ||
             (targetId ? await fetchDoc(`businesses/${businessId}/bankAccounts`, targetId) : null);
@@ -765,26 +800,21 @@ export function RecordSalePage() {
           }
         }
 
-        // Cash → Cash/till account (or default)
+        // Cash → only Cash / till / float account (create if needed). Never bank/POS.
         if (expectedCash > 0) {
-          const cashAccount = resolveCashAccount();
+          const cashAccount = await ensureCashAccount();
           if (cashAccount?.id) {
-            // Re-read if same account was just updated by bank leg
-            let currentBalance =
-              Number(cashAccount.currentBalance ?? cashAccount.current_balance ?? 0) || 0;
-            if (expectedBank > 0 && bankAccountId && cashAccount.id === bankAccountId) {
-              currentBalance += expectedBank;
-            } else if (expectedBank > 0) {
-              const fresh = await fetchDoc(
-                `businesses/${businessId}/bankAccounts`,
-                cashAccount.id
-              );
-              if (fresh) {
-                currentBalance =
-                  Number((fresh as any).currentBalance ?? (fresh as any).current_balance ?? 0) ||
-                  0;
-              }
-            }
+            const fresh = await fetchDoc(
+              `businesses/${businessId}/bankAccounts`,
+              cashAccount.id
+            );
+            const currentBalance =
+              Number(
+                (fresh as any)?.currentBalance ??
+                  (fresh as any)?.current_balance ??
+                  cashAccount.currentBalance ??
+                  0
+              ) || 0;
             const newBal = currentBalance + expectedCash;
             await sbUpdateDoc(`businesses/${businessId}/bankAccounts`, cashAccount.id, {
               currentBalance: newBal,
@@ -792,7 +822,7 @@ export function RecordSalePage() {
             await sbAddDoc(`businesses/${businessId}/bankTransactions`, {
               transactionNumber: `SALE-CASH-${Date.now()}`,
               bankAccountId: cashAccount.id,
-              accountName: cashAccount.accountName || cashAccount.name || 'Cash',
+              accountName: cashAccount.accountName || cashAccount.name || 'Cash on hand',
               type: 'money_in',
               category: 'Cash Sale',
               amount: expectedCash,

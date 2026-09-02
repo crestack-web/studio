@@ -43,6 +43,12 @@ interface Transaction {
   accountName?: string;
 }
 
+
+function isCashWalletAccount(a: { accountName?: string; bankName?: string; accountType?: string; name?: string }) {
+  const label = `${a.accountName || a.name || ''} ${a.bankName || ''} ${a.accountType || ''}`;
+  return /cash|till|float|drawer|petty/i.test(label);
+}
+
 export default function Cashflowpage() {
   const { showToast, user } = useApp();
   const { t } = useTranslation();
@@ -1041,28 +1047,66 @@ export default function Cashflowpage() {
 
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <h2 className={styles.sectionTitle}>Bank Accounts</h2>
+          <h2 className={styles.sectionTitle}>Cash &amp; bank accounts</h2>
           <button className={styles.modalButtonPrimary} onClick={() => setActiveAction('add-account')}>
             <Plus size={14} /> Add Account
           </button>
         </div>
         {bankAccounts.length === 0 ? (
-          <div className={styles.emptyState}><p>No bank accounts added yet</p></div>
+          <div className={styles.emptyState}><p>No accounts added yet — add Cash on hand and a bank/POS account</p></div>
         ) : (
-          <div className={styles.accountsList}>
-            {bankAccounts.map(account => (
-              <div key={account.id} className={styles.accountCard}>
-                <div className={styles.accountIcon}><Building2 size={18} /></div>
-                <div className={styles.accountInfo}>
-                  <h4 className={styles.accountName}>{account.accountName}</h4>
-                  <span className={styles.accountBank}>{account.bankName}</span>
-                  {account.isDefault && <span className={styles.defaultBadge}>Default</span>}
-                  {account.isPosDefault && <span className={styles.posDefaultBadge}>POS</span>}
-                </div>
-                <div className={styles.accountBalance}>{formatMoney(account.currentBalance)}</div>
-              </div>
-            ))}
-          </div>
+          <>
+            {(() => {
+              const cashAccounts = bankAccounts.filter((a) => isCashWalletAccount(a));
+              const bankOnly = bankAccounts.filter((a) => !isCashWalletAccount(a));
+              return (
+                <>
+                  {cashAccounts.length > 0 && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-3)', marginBottom: 8 }}>
+                        Cash / till (cash sales land here)
+                      </div>
+                      <div className={styles.accountsList}>
+                        {cashAccounts.map((account) => (
+                          <div key={account.id} className={styles.accountCard}>
+                            <div className={styles.accountIcon}><Banknote size={18} /></div>
+                            <div className={styles.accountInfo}>
+                              <h4 className={styles.accountName}>{account.accountName}</h4>
+                              <span className={styles.accountBank}>{account.bankName || 'Cash'}</span>
+                            </div>
+                            <div className={styles.accountBalance}>{formatMoney(account.currentBalance)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-3)', marginBottom: 8 }}>
+                      Bank / POS (transfers &amp; card sales)
+                    </div>
+                    {bankOnly.length === 0 ? (
+                      <div className={styles.emptyState}><p>No bank accounts yet</p></div>
+                    ) : (
+                      <div className={styles.accountsList}>
+                        {bankOnly.map((account) => (
+                          <div key={account.id} className={styles.accountCard}>
+                            <div className={styles.accountIcon}><Building2 size={18} /></div>
+                            <div className={styles.accountInfo}>
+                              <h4 className={styles.accountName}>{account.accountName}</h4>
+                              <span className={styles.accountBank}>{account.bankName}</span>
+                              {account.isDefault && <span className={styles.defaultBadge}>Default</span>}
+                              {account.isPosDefault && <span className={styles.posDefaultBadge}>POS</span>}
+                            </div>
+                            <div className={styles.accountBalance}>{formatMoney(account.currentBalance)}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              );
+            })()}
+          </>
         )}
       </div>
 
