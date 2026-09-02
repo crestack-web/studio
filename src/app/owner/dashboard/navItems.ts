@@ -104,8 +104,8 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { id: 'capital', label: 'Access Capital', tip: 'Access Capital', iconClass: 'ni-fund' },
       { id: 'referrals', label: 'Referrals', tip: 'Referrals', iconClass: 'ni-gift' },
-      { id: 'mo-sell', label: 'MO Sell', tip: 'MO Sell — Commerce Hub', iconClass: 'ni-ecommerce', badge: 'Beta' },
-      { id: 'mo-sales', label: 'MO Sales', tip: 'MO Sales — WhatsApp AI salesperson', iconClass: 'mo' },
+      { id: 'mo-sell', label: 'MO Sell', tip: 'MO Sell — Commerce Hub', iconClass: 'mo-sell', badge: 'Beta' },
+      { id: 'mo-sales', label: 'MO Sales', tip: 'MO Sales — WhatsApp AI salesperson', iconClass: 'mo-sales' },
     ],
     icon: '',
     id: undefined
@@ -123,7 +123,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { id: 'document-templates', label: 'Document Templates', tip: 'Document Templates', iconClass: 'ni-template' },
       { id: 'branches', label: 'Branches', tip: 'Branches', iconClass: 'ni-branch', badge: 'Pro' },
       { id: 'payroll', label: 'Payroll', tip: 'Payroll', iconClass: 'ni-payroll', badge: 'Pro' },
-      { id: 'wallet', label: 'Wallet', tip: 'Busmo Wallet', iconClass: 'ni-cash' },
+      { id: 'wallet', label: 'Wallet', tip: 'Busmo Wallet', iconClass: 'wallet' },
       { id: 'settings', label: 'Settings', tip: 'Settings', iconClass: 'ni-set' },
     ],
     icon: '',
