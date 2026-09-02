@@ -68,25 +68,33 @@ function buildHtml({ name }) {
                 <strong>selected businesses</strong> first (a controlled rollout), then expand as we learn what works best for owners like you.
               </p>
 
-              <h2 style="margin:0 0 12px;font-size:17px;color:#1a1523;">What MO Sales does</h2>
+              <h2 style="margin:0 0 12px;font-size:17px;color:#1a1523;">What MO Sales can do</h2>
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:20px;">
                 <tr>
                   <td style="padding:12px 14px;border:1px solid #ece8f5;border-radius:12px;background:#faf9fd;">
                     <p style="margin:0 0 10px;font-size:14px;line-height:1.5;color:#3d3550;">
-                      <strong style="color:#6B3FE7;">• Answers on WhatsApp</strong><br />
-                      Customers message your business number; MO replies with clear, helpful answers.
+                      <strong style="color:#6B3FE7;">• Reply on WhatsApp at scale</strong><br />
+                      MO answers with your live catalogue, prices, and availability.
                     </p>
                     <p style="margin:0 0 10px;font-size:14px;line-height:1.5;color:#3d3550;">
-                      <strong style="color:#6B3FE7;">• Uses your real catalogue</strong><br />
-                      MO looks at products you already manage in Busmo — so it talks about what you actually sell, not made-up items.
+                      <strong style="color:#6B3FE7;">• Accept orders in chat</strong><br />
+                      Customers can place orders in the conversation using your real stock rules.
                     </p>
                     <p style="margin:0 0 10px;font-size:14px;line-height:1.5;color:#3d3550;">
-                      <strong style="color:#6B3FE7;">• Inbox in your dashboard</strong><br />
-                      See conversations in <strong>MO Sales</strong>, take over any chat yourself, then hand it back to MO when you’re ready.
+                      <strong style="color:#6B3FE7;">• Send payment links</strong><br />
+                      MO can share a payment link so checkout stays simple on WhatsApp.
+                    </p>
+                    <p style="margin:0 0 10px;font-size:14px;line-height:1.5;color:#3d3550;">
+                      <strong style="color:#6B3FE7;">• Full business context</strong><br />
+                      Inventory, prices, and sales context from Busmo — consistent, trustworthy replies.
+                    </p>
+                    <p style="margin:0 0 10px;font-size:14px;line-height:1.5;color:#3d3550;">
+                      <strong style="color:#6B3FE7;">• Inbox, takeover &amp; control</strong><br />
+                      See chats in MO Sales, take over, hand back, turn MO on or off.
                     </p>
                     <p style="margin:0;font-size:14px;line-height:1.5;color:#3d3550;">
-                      <strong style="color:#6B3FE7;">• Built for small businesses</strong><br />
-                      Simple controls: turn MO on/off, set selling style, and stay in control of your customer relationships.
+                      <strong style="color:#6B3FE7;">• Consistent sales</strong><br />
+                      Faster responses and a clearer path from question → order → payment.
                     </p>
                   </td>
                 </tr>
