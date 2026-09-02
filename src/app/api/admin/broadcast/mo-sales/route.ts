@@ -9,6 +9,7 @@ export const maxDuration = 300;
 const ROLLOUT_DATE = '15 September 2026';
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || 'https://www.busmo.io').replace(/\/$/, '');
 const LOGO = `${APP_URL}/email-logo.png`;
+const MO_ICON = `${APP_URL}/mo-thinking.svg`;
 
 function buildHtml(name: string) {
   const first = (name || 'there').split(' ')[0];
@@ -25,8 +26,9 @@ function buildHtml(name: string) {
 <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(28,16,56,0.08);">
 <tr>
 <td style="background:linear-gradient(135deg,#6B3FE7 0%,#4B27B0 100%);padding:32px 28px;text-align:center;">
-<img src="${LOGO}" alt="Busmo" width="64" height="64" style="display:inline-block;border:0;border-radius:14px;background:#fff;padding:6px;" />
-<h1 style="margin:16px 0 8px;font-size:24px;line-height:1.25;color:#ffffff;font-weight:800;">Meet MO Sales</h1>
+<img src="${MO_ICON}" alt="MO" width="72" height="72" style="display:block;margin:0 auto 8px;width:72px;height:72px;border:0;border-radius:50%;background:#ffffff;padding:4px;box-shadow:0 4px 14px rgba(0,0,0,0.18);" />
+            <p style="margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:rgba(255,255,255,0.85);">Powered by MO</p>
+            <h1 style="margin:16px 0 8px;font-size:24px;line-height:1.25;color:#ffffff;font-weight:800;">Meet MO Sales</h1>
 <p style="margin:0;font-size:15px;color:rgba(255,255,255,0.92);line-height:1.45;">
 Your AI salesperson on WhatsApp — ready to reply, take orders, and share payment links at scale
 </p>

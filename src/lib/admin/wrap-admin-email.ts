@@ -39,6 +39,7 @@ export function buildMoSalesAnnouncementHtml(name?: string): string {
   const first = (name || 'there').split(' ')[0];
   const app = APP_BASE_URL || 'https://www.busmo.io';
   const logo = BUSMO_LOGO_URL;
+  const moIcon = `${app}/mo-thinking.svg`;
   const rollout = '15 September 2026';
   return `<!DOCTYPE html>
 <html lang="en">
@@ -49,8 +50,15 @@ export function buildMoSalesAnnouncementHtml(name?: string): string {
       <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(28,16,56,0.08);">
         <tr>
           <td style="background:linear-gradient(135deg,#6B3FE7 0%,#4B27B0 100%);padding:32px 28px;text-align:center;">
-            <img src="${logo}" alt="Busmo" width="64" height="64" style="display:inline-block;border:0;border-radius:14px;background:#fff;padding:6px;" />
-            <h1 style="margin:16px 0 8px;font-size:24px;line-height:1.25;color:#ffffff;font-weight:800;">Meet MO Sales</h1>
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto 8px;">
+              <tr>
+                <td align="center" style="padding:0 6px;">
+                  <img src="${moIcon}" alt="MO" width="72" height="72" style="display:block;width:72px;height:72px;border:0;border-radius:50%;background:#ffffff;padding:4px;box-shadow:0 4px 14px rgba(0,0,0,0.18);" />
+                </td>
+              </tr>
+            </table>
+            <p style="margin:0 0 4px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:rgba(255,255,255,0.85);">Powered by MO</p>
+            <h1 style="margin:8px 0 8px;font-size:24px;line-height:1.25;color:#ffffff;font-weight:800;">Meet MO Sales</h1>
             <p style="margin:0;font-size:15px;color:rgba(255,255,255,0.9);line-height:1.45;">
               Your AI salesperson on WhatsApp — rolling out to selected businesses on <strong>${rollout}</strong>
             </p>
