@@ -60,6 +60,7 @@ export function NavIcons({ id, size = 14 }: NavIconsProps) {
     case 'referrals':
       return <svg {...base} style={s}><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>;
     case 'mo':
+    case 'mo-mobile':
       // Increase icon size and ensure no stroke/fill props are passed from base
       return (
         <svg width={size * 2} height={size * 2} style={{ width: size * 2, height: size * 2 }} viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
@@ -77,6 +78,32 @@ export function NavIcons({ id, size = 14 }: NavIconsProps) {
           <ellipse cx="40" cy="65" rx="16" ry="7" fill="#1DB954" opacity="0.9"></ellipse>
           <rect x="32" y="58" width="16" height="9" rx="5" fill="#F5C9A0"></rect>
           <polygon points="36,58 44,58 42,66 38,66" fill="#1DB954"></polygon>
+        </svg>
+      );
+    case 'mo-sales':
+      // WhatsApp-style chat — AI salesperson
+      return (
+        <svg {...base} style={s}>
+          <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+          <path d="M8 12h.01M12 12h.01M16 12h.01" />
+        </svg>
+      );
+    case 'mo-sell':
+      // Storefront commerce hub
+      return (
+        <svg {...base} style={s}>
+          <path d="M3 9l1-4h16l1 4" />
+          <path d="M4 9h16v11a1 1 0 01-1 1H5a1 1 0 01-1-1V9z" />
+          <path d="M9 20v-6h6v6" />
+        </svg>
+      );
+    case 'wallet':
+      // Wallet
+      return (
+        <svg {...base} style={s}>
+          <rect x="2" y="6" width="20" height="14" rx="2" />
+          <path d="M2 10h20" />
+          <circle cx="17" cy="15" r="1.2" fill="currentColor" stroke="none" />
         </svg>
       );
     case 'services':
