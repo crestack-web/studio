@@ -372,7 +372,7 @@ export default function MarginCalculatorPage() {
       return;
     }
     const newPrice = Math.round(
-      (overridePrice != null ? overridePrice : result?.price ?? parseFloat(price) || 0) * 100
+      (overridePrice != null ? overridePrice : ((result?.price ?? parseFloat(price)) || 0)) * 100
     ) / 100;
     if (newPrice <= 0) {
       showToast('Enter a valid selling price');
