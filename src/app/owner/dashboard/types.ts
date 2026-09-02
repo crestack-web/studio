@@ -501,6 +501,9 @@ export interface SupplierLedgerTransaction {
     paymentMethod?: 'cash' | 'transfer' | 'pos' | 'card';
     bankReference?: string;
     reason?: string; // For adjustments
+    status?: string;
+    paid?: number;
+    balance?: number;
   };
 }
 
