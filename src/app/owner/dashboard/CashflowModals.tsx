@@ -289,44 +289,88 @@ export default function CashflowModals(p: any) {
             {activeAction === 'pay-supplier' && (
               <form onSubmit={(e) => { e.preventDefault(); handlePaySupplier(); }}>
                 <h3 className={styles.modalTitle}>Pay Supplier</h3>
+                <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--text-3)' }}>
+                  Reduces what you owe, clears open credit lines, and debits the selected account.
+                </p>
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Select Supplier</label>
-                  <select className={styles.formInput} value={supplierPayment.supplierId} onChange={(e) => setSupplierPayment({ ...supplierPayment, supplierId: e.target.value })}>
+                  <select
+                    className={styles.formInput}
+                    value={supplierPayment.supplierId}
+                    onChange={(e) => {
+                      const s = suppliers.find((x: any) => x.id === e.target.value);
+                      setSupplierPayment({
+                        ...supplierPayment,
+                        supplierId: e.target.value,
+                        amount: s?.currentBalance > 0 ? Number(s.currentBalance) : supplierPayment.amount,
+                      });
+                    }}
+                  >
                     <option value="">Select a supplier</option>
                     {suppliers.map((supplier: any) => (
                       <option key={supplier.id} value={supplier.id}>
                         {supplier.supplierName || supplier.businessName}
-                        {supplier.currentBalance ? ` (Balance: ${formatMoney(supplier.currentBalance)})` : ''}
+                        {Number(supplier.currentBalance) > 0
+                          ? ` (Owe: ${formatMoney(supplier.currentBalance)})`
+                          : ' (Settled)'}
                       </option>
                     ))}
                   </select>
                 </div>
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Payment Amount</label>
-                  <input type="number" className={styles.formInput} value={supplierPayment.amount} onChange={(e) => setSupplierPayment({ ...supplierPayment, amount: parseFloat(e.target.value) || 0 })} />
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    className={styles.formInput}
+                    value={supplierPayment.amount || ''}
+                    onChange={(e) =>
+                      setSupplierPayment({
+                        ...supplierPayment,
+                        amount: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                  />
                 </div>
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Payment Method</label>
-                  <select className={styles.formInput} value={supplierPayment.paymentMethod} onChange={(e) => setSupplierPayment({ ...supplierPayment, paymentMethod: e.target.value })}>
+                  <select
+                    className={styles.formInput}
+                    value={supplierPayment.paymentMethod}
+                    onChange={(e) =>
+                      setSupplierPayment({ ...supplierPayment, paymentMethod: e.target.value })
+                    }
+                  >
                     <option value="cash">Cash</option>
                     <option value="transfer">Bank Transfer</option>
                     <option value="pos">POS / Card</option>
                   </select>
                 </div>
-                {(supplierPayment.paymentMethod === 'transfer' || supplierPayment.paymentMethod === 'pos') && (
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Select Bank Account</label>
-                    <select className={styles.formInput} value={supplierPayment.bankAccountId} onChange={(e) => setSupplierPayment({ ...supplierPayment, bankAccountId: e.target.value })}>
-                      <option value="">Select bank account</option>
-                      {bankAccounts.map((account: any) => (
-                        <option key={account.id} value={account.id}>{account.accountName} - {account.bankName}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Pay from account</label>
+                  <select
+                    className={styles.formInput}
+                    value={supplierPayment.bankAccountId}
+                    onChange={(e) =>
+                      setSupplierPayment({ ...supplierPayment, bankAccountId: e.target.value })
+                    }
+                  >
+                    <option value="">Auto (cash / default)</option>
+                    {bankAccounts.map((account: any) => (
+                      <option key={account.id} value={account.id}>
+                        {account.accountName} - {account.bankName} ({formatMoney(account.currentBalance)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div className={styles.modalActions}>
-                  <button type="button" className={styles.modalButton} onClick={() => setActiveAction(null)}>Cancel</button>
-                  <button type="submit" className={styles.modalButtonPrimary}>Record Payment</button>
+                  <button type="button" className={styles.modalButton} onClick={() => setActiveAction(null)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className={styles.modalButtonPrimary}>
+                    Record Payment
+                  </button>
                 </div>
               </form>
             )}

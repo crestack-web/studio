@@ -110,18 +110,41 @@ export default function Cashflowpage() {
   const loadSuppliers = async () => {
     if (!businessId) return;
     try {
-      const allSuppliers = await fetchDocs(`businesses/${businessId}/suppliers`);
+      const [allSuppliers, creditRows] = await Promise.all([
+        fetchDocs(`businesses/${businessId}/suppliers`),
+        fetchDocs(`businesses/${businessId}/supplierCredit`, { limit: 300 }),
+      ]);
+      const owed = new Map<string, number>();
+      for (const c of creditRows as any[]) {
+        const sid = String(c.supplierId || c.supplier_id || '');
+        if (!sid) continue;
+        const bal =
+          Number(c.balance ?? Math.max(0, Number(c.amount || 0) - Number(c.paid || 0))) || 0;
+        if (bal > 0 && String(c.status || 'open').toLowerCase() !== 'paid') {
+          owed.set(sid, (owed.get(sid) || 0) + bal);
+        }
+      }
       setSuppliers(
         allSuppliers
-          .filter((data: any) => data.status === 'active')
-          .map((data: any) => ({
-            id: data.id,
-            supplierName: data.supplierName || data.businessName || 'Unnamed Supplier',
-            businessName: data.businessName || data.supplierName || 'Unnamed Supplier',
-            phone: data.phone || '',
-            email: data.email,
-            currentBalance: data.currentBalance || 0,
-          }))
+          .filter((data: any) => {
+            const status = String(data.status || (data.active === false ? 'inactive' : 'active')).toLowerCase();
+            return status === 'active';
+          })
+          .map((data: any) => {
+            const creditOwed = owed.get(String(data.id)) || 0;
+            const meta = Number(data.currentBalance) || 0;
+            return {
+              id: data.id,
+              supplierName: data.supplierName || data.businessName || data.name || 'Unnamed Supplier',
+              businessName: data.businessName || data.supplierName || data.name || 'Unnamed Supplier',
+              phone: data.phone || '',
+              email: data.email,
+              currentBalance: creditOwed > 0 ? creditOwed : meta,
+              totalPayments: Number(data.totalPayments) || 0,
+              paymentCount: Number(data.paymentCount) || 0,
+              creditLimit: Number(data.creditLimit) || 0,
+            };
+          })
       );
     } catch (error) {
       console.error('Error loading suppliers:', error);
@@ -734,45 +757,181 @@ export default function Cashflowpage() {
     if (!businessId) return;
     try {
       if (!supplierPayment.supplierId || supplierPayment.amount <= 0) {
-        showToast('Please select a supplier and enter a valid amount'); return;
+        showToast('Please select a supplier and enter a valid amount');
+        return;
       }
-      const supplier = suppliers.find(s => s.id === supplierPayment.supplierId);
-      if (!supplier) { showToast('Supplier not found'); return; }
-      const paymentAmount = supplierPayment.amount;
-      const newBalance = (supplier.currentBalance || 0) - paymentAmount;
-      const operations: any[] = [];
-      operations.push({
-        type: 'update', path: `businesses/${businessId}/suppliers`, id: supplierPayment.supplierId,
-        data: { currentBalance: newBalance, lastPaymentDate: new Date().toISOString() },
+
+      // Fresh supplier from DB (UI list can be stale)
+      const supplierRows = await fetchDocs(`businesses/${businessId}/suppliers`, {
+        filters: [{ field: 'id', op: '=', value: supplierPayment.supplierId }],
+        limit: 1,
       });
-      if (supplierPayment.bankAccountId) {
-        const accounts = await fetchDocs(`businesses/${businessId}/bankAccounts`, {
-          filters: [{ field: 'id', op: '=', value: supplierPayment.bankAccountId }], limit: 1,
-        });
-        if (accounts[0]) {
-          const bal = (accounts[0] as any).currentBalance || 0;
-          if (bal < paymentAmount) throw new Error('Insufficient bank balance');
-          operations.push({
-            type: 'update', path: `businesses/${businessId}/bankAccounts`, id: supplierPayment.bankAccountId,
-            data: { currentBalance: bal - paymentAmount },
-          });
-          operations.push({
-            type: 'add', path: `businesses/${businessId}/bankTransactions`,
-            data: {
-              transactionNumber: `TXN-${Date.now()}`, bankAccountId: supplierPayment.bankAccountId,
-              accountName: (accounts[0] as any).accountName, type: 'money_out', category: 'Supplier Payment',
-              amount: paymentAmount, balanceAfter: bal - paymentAmount,
-              description: `Payment to ${supplier.supplierName || supplier.businessName}`,
-              createdAt: new Date().toISOString(),
-            },
-          });
+      const supplier = (supplierRows[0] as any) || suppliers.find((s) => s.id === supplierPayment.supplierId);
+      if (!supplier) {
+        showToast('Supplier not found');
+        return;
+      }
+
+      const openCredits: any[] = (
+        await fetchDocs(`businesses/${businessId}/supplierCredit`, {
+          orderBy: { field: 'created_at', ascending: true },
+          limit: 200,
+        })
+      ).filter(
+        (c: any) =>
+          String(c.supplierId || c.supplier_id) === String(supplierPayment.supplierId) &&
+          Number(c.balance ?? Math.max(0, Number(c.amount || 0) - Number(c.paid || 0))) > 0 &&
+          String(c.status || 'open').toLowerCase() !== 'paid'
+      );
+
+      const creditOutstanding = openCredits.reduce(
+        (s, c) => s + (Number(c.balance ?? Math.max(0, Number(c.amount || 0) - Number(c.paid || 0))) || 0),
+        0
+      );
+      const metaBalance = Number(supplier.currentBalance) || 0;
+      const outstanding = Math.max(metaBalance, creditOutstanding);
+
+      let paymentAmount = Number(supplierPayment.amount) || 0;
+      if (paymentAmount > outstanding + 0.001) {
+        showToast(
+          `Amount exceeds what you owe (${formatMoney(outstanding)}). Paying the outstanding balance instead.`
+        );
+        paymentAmount = outstanding;
+      }
+      if (paymentAmount <= 0) {
+        showToast('Nothing outstanding for this supplier');
+        return;
+      }
+
+      // Resolve account to debit (required for a real cash payment)
+      let accountId = supplierPayment.bankAccountId;
+      if (!accountId) {
+        const accountsRaw: any[] = await fetchDocs(`businesses/${businessId}/bankAccounts`);
+        const accounts = (accountsRaw || []).filter((a) => a.isActive !== false);
+        const method = String(supplierPayment.paymentMethod || 'cash').toLowerCase();
+        if (method.includes('pos') || method.includes('card')) {
+          accountId =
+            accounts.find((a) => a.isPosDefault)?.id ||
+            accounts.find((a) => a.isDefault || a.isPrimary)?.id ||
+            accounts[0]?.id;
+        } else if (method.includes('cash')) {
+          accountId =
+            accounts.find(
+              (a) =>
+                /cash/i.test(String(a.accountName || a.name || '')) ||
+                /cash/i.test(String(a.bankName || ''))
+            )?.id ||
+            accounts.find((a) => a.isDefault || a.isPrimary)?.id ||
+            accounts[0]?.id;
+        } else {
+          accountId = accounts.find((a) => a.isDefault || a.isPrimary)?.id || accounts[0]?.id;
         }
       }
-      await runBatch(operations);
-      showToast(`Payment of ${formatMoney(paymentAmount)} recorded`);
+      if (!accountId) {
+        showToast('Add a bank/cash account first so the payment can update cash balance');
+        return;
+      }
+
+      const accounts = await fetchDocs(`businesses/${businessId}/bankAccounts`, {
+        filters: [{ field: 'id', op: '=', value: accountId }],
+        limit: 1,
+      });
+      if (!accounts[0]) throw new Error('Bank account not found');
+      const bankBal = Number((accounts[0] as any).currentBalance) || 0;
+      if (bankBal < paymentAmount) throw new Error('Insufficient bank/cash balance');
+
+      // FIFO: apply payment to open supplier_credit rows
+      let remaining = paymentAmount;
+      for (const credit of openCredits) {
+        if (remaining <= 0) break;
+        const bal =
+          Number(credit.balance ?? Math.max(0, Number(credit.amount || 0) - Number(credit.paid || 0))) ||
+          0;
+        if (bal <= 0) continue;
+        const apply = Math.min(remaining, bal);
+        const newPaid = (Number(credit.paid) || 0) + apply;
+        const newBal = Math.max(0, bal - apply);
+        await sbUpdateDoc(`businesses/${businessId}/supplierCredit`, credit.id, {
+          paid: newPaid,
+          balance: newBal,
+          status: newBal <= 0 ? 'paid' : 'open',
+        });
+        remaining -= apply;
+      }
+
+      // FIFO against open purchases for this supplier (paid / balance columns)
+      if (remaining >= 0) {
+        let purchaseRemaining = paymentAmount;
+        const purchasesForSupplier = (
+          await fetchDocs(`businesses/${businessId}/purchases`, {
+            orderBy: { field: 'created_at', ascending: true },
+            limit: 200,
+          })
+        ).filter((p: any) => {
+          if (String(p.supplierId || p.supplier_id) !== String(supplierPayment.supplierId)) return false;
+          const bal = Number(p.balance ?? 0) || 0;
+          return bal > 0 || String(p.status || '').toLowerCase() !== 'paid';
+        });
+        for (const p of purchasesForSupplier) {
+          if (purchaseRemaining <= 0) break;
+          const total = Number(p.total ?? p.totalCost ?? 0) || 0;
+          const alreadyPaid = Number(p.paid ?? 0) || 0;
+          const bal = Number(p.balance ?? Math.max(0, total - alreadyPaid)) || 0;
+          if (bal <= 0) continue;
+          const apply = Math.min(purchaseRemaining, bal);
+          const newPaid = alreadyPaid + apply;
+          const newBal = Math.max(0, bal - apply);
+          await sbUpdateDoc(`businesses/${businessId}/purchases`, p.id, {
+            paid: newPaid,
+            balance: newBal,
+            status: newBal <= 0 ? 'paid' : 'partial',
+          });
+          purchaseRemaining -= apply;
+        }
+      }
+
+      const newBalance = Math.max(0, outstanding - paymentAmount);
+      const totalPayments = (Number(supplier.totalPayments) || 0) + paymentAmount;
+      const paymentCount = (Number(supplier.paymentCount) || 0) + 1;
+      const creditLimit = Number(supplier.creditLimit) || 0;
+
+      await sbUpdateDoc(`businesses/${businessId}/suppliers`, supplierPayment.supplierId, {
+        currentBalance: newBalance,
+        totalPayments,
+        paymentCount,
+        lastPaymentDate: new Date().toISOString(),
+        creditUtilization: creditLimit > 0 ? (newBalance / creditLimit) * 100 : 0,
+      });
+
+      await sbUpdateDoc(`businesses/${businessId}/bankAccounts`, accountId, {
+        currentBalance: bankBal - paymentAmount,
+      });
+      await sbAddDoc(`businesses/${businessId}/bankTransactions`, {
+        bankAccountId: accountId,
+        accountName: (accounts[0] as any).accountName || (accounts[0] as any).name,
+        type: 'money_out',
+        amount: paymentAmount,
+        balanceAfter: bankBal - paymentAmount,
+        description: `Supplier payment: ${supplier.supplierName || supplier.businessName || supplier.name || 'Supplier'}`,
+        reference: supplierPayment.supplierId,
+        createdAt: new Date().toISOString(),
+      });
+
+      showToast(
+        newBalance <= 0
+          ? `Paid ${formatMoney(paymentAmount)} — supplier is fully settled`
+          : `Paid ${formatMoney(paymentAmount)} — still owe ${formatMoney(newBalance)}`
+      );
       setActiveAction(null);
-      setSupplierPayment({ supplierId: '', amount: 0, paymentMethod: 'cash', bankAccountId: '', description: '' });
-      loadData(); loadSuppliers();
+      setSupplierPayment({
+        supplierId: '',
+        amount: 0,
+        paymentMethod: 'cash',
+        bankAccountId: '',
+        description: '',
+      });
+      loadData();
+      loadSuppliers();
     } catch (error: any) {
       console.error(error);
       showToast(`Failed to pay supplier: ${error.message || 'Unknown error'}`);
