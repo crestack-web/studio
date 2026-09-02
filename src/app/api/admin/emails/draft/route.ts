@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdminUser } from '@/lib/admin/require-admin-api';
+import { requireAdminUser } from '@/lib/admin/require-admin';
 import { getMistralClient } from '@/ai/mistral';
 import { wrapBusmoEmailHtml } from '@/lib/admin/wrap-admin-email';
 

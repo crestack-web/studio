@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdminUser } from '@/lib/admin/require-admin-api';
+import { requireAdminUser } from '@/lib/admin/require-admin';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { sendTransactionalEmail } from '@/services/email/brevo-service';
 import { getAdminEmailTemplate } from '@/lib/admin/email-catalog';

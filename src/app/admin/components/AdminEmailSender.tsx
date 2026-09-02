@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { getSupabase } from '@/lib/supabase';
+import { adminAuthHeaders } from '@/lib/admin/client-auth';
 
 type Template = {
   id: string;
@@ -11,20 +11,6 @@ type Template = {
   readiness: 'ready' | 'params_required';
   defaultSubject: string;
 };
-
-async function adminHeaders(): Promise<Record<string, string>> {
-  const supabase = getSupabase();
-  let {
-    data: { session },
-  } = await supabase.auth.getSession();
-  if (!session?.access_token) {
-    const { data } = await supabase.auth.refreshSession();
-    session = data.session;
-  }
-  const token = session?.access_token;
-  if (!token) throw new Error('Sign in with an admin Busmo account');
-  return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-}
 
 export default function AdminEmailSender() {
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -55,7 +41,7 @@ export default function AdminEmailSender() {
     setLoading(true);
     setError(null);
     try {
-      const headers = await adminHeaders();
+      const headers = await adminAuthHeaders();
       const res = await fetch('/api/admin/emails/templates', { headers });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed to load templates');
@@ -88,7 +74,7 @@ export default function AdminEmailSender() {
     setError(null);
     setLastResult(null);
     try {
-      const headers = await adminHeaders();
+      const headers = await adminAuthHeaders();
       const res = await fetch('/api/admin/emails/draft', {
         method: 'POST',
         headers,
@@ -113,7 +99,7 @@ export default function AdminEmailSender() {
     setError(null);
     setLastResult(null);
     try {
-      const headers = await adminHeaders();
+      const headers = await adminAuthHeaders();
       const payload: Record<string, unknown> = {
         templateId,
         audience,
