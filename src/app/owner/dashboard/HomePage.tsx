@@ -12,6 +12,7 @@ import { MoIcon } from './NavIcons';
 import { InlineAIChat } from './InlineAIChat';
 import { RestaurantHealthScore } from './RestaurantHealthScore';
 import { MoProactiveNudges } from './MoProactiveNudges';
+import { CategoryDepthStrip } from './CategoryDepthStrip';
 import { LANGUAGES } from './translations';
 import { subscribeToActionEvents } from '@/utils/dataRefresh';
 import styles from './HomePage.module.css';
@@ -818,6 +819,7 @@ export function HomePage() {
         </Card>
 
         {/* Smart Insights — actionable, priority-sorted */}
+        <CategoryDepthStrip />
         <MoProactiveNudges
           seed={{
             cashBalance: metrics.cashBalance,

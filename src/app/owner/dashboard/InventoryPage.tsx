@@ -7,6 +7,7 @@ import DeadStockInsights from './DeadStockInsights';
 import ProductDetailModal from './ProductDetailModal';
 import { AddProductPage } from './Addproductpage';
 import { useTranslation } from './LangContext';
+import { getCategoryDepth } from '@/lib/categoryDepth';
 import { fetchDocs, fetchDoc, addDoc as sbAddDoc, updateDoc as sbUpdateDoc, deleteDoc as sbDeleteDoc, runBatch } from '@/lib/supabase-client-data';
 import { getSupabase } from '@/lib/supabase';
 import { useApp } from './AppContext';
@@ -695,15 +696,16 @@ const InventoryPage: React.FC = () => {
             products.length) *
             100
         );
+  const categoryDepth = getCategoryDepth(businessCategory);
 
   return (
     <div className="inv-page">
       {/* ── Page Header ── */}
       <div className="inv-page-header inv-page-header--v2">
         <div className="inv-page-title-wrap">
-          <div className="inv-eyebrow">Stock control</div>
+          <div className="inv-eyebrow">Stock control · {categoryDepth.label}</div>
           <h1 className="inv-page-title">{t('inventory.title')}</h1>
-          <p className="inv-page-sub">{t('inventory.subtitle')}</p>
+          <p className="inv-page-sub">{categoryDepth.inventoryFocus}</p>
           {products.length > 0 && (
             <div className="inv-health-row" aria-label="Inventory health">
               <div className="inv-health-bar">

@@ -1,0 +1,78 @@
+.wrap {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border, #e5e7eb);
+  background: var(--surface, #fff);
+}
+
+.top {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.icon {
+  color: var(--purple, #7c3aed);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-1, #111827);
+}
+
+.promise {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-2, #4b5563);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.chip {
+  border: 1px solid var(--border, #e5e7eb);
+  background: var(--bg, #f9fafb);
+  color: var(--text-1, #111827);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: var(--purple, #7c3aed);
+  color: var(--purple, #7c3aed);
+}
+
+:global([data-theme='dark']) .wrap,
+:global(.dark) .wrap {
+  background: var(--surface, #1f2937);
+  border-color: var(--border, #374151);
+}
+
+:global([data-theme='dark']) .label,
+:global(.dark) .label {
+  color: var(--text-1, #f9fafb);
+}
+
+:global([data-theme='dark']) .promise,
+:global(.dark) .promise {
+  color: var(--text-2, #d1d5db);
+}
+
+:global([data-theme='dark']) .chip,
+:global(.dark) .chip {
+  background: var(--bg, #111827);
+  border-color: var(--border, #374151);
+  color: var(--text-2, #e5e7eb);
+}

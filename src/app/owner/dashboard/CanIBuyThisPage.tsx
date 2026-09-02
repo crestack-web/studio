@@ -6,6 +6,8 @@ import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
 import { fetchDocs } from '@/lib/supabase-client-data';
 import { evaluateCanIBuy } from '@/lib/mo-proactive-nudges';
+import { getCategoryDepth } from '@/lib/categoryDepth';
+import { getSupabase } from '@/lib/supabase';
 import { ShoppingBag, Sparkles, Loader2, ArrowRight } from 'lucide-react';
 import styles from './CanIBuyThisPage.module.css';
 
@@ -18,6 +20,7 @@ export default function CanIBuyThisPage() {
   const [supplierOwed, setSupplierOwed] = useState(0);
   const [monthlyBurn, setMonthlyBurn] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [depthLabel, setDepthLabel] = useState('');
 
   const [amount, setAmount] = useState('');
   const [what, setWhat] = useState('');
@@ -63,10 +66,26 @@ export default function CanIBuyThisPage() {
           for (const s of suppliers as any[]) owed += Number(s.currentBalance) || 0;
         }
 
+        let category = '';
+        try {
+          const { data: ud } = await getSupabase()
+            .from('users')
+            .select('category, business_type, metadata')
+            .eq('id', user?.id || '')
+            .maybeSingle();
+          category =
+            (ud as any)?.category ||
+            (ud as any)?.business_type ||
+            (ud as any)?.metadata?.category ||
+            '';
+        } catch { /* ignore */ }
+        const depth = getCategoryDepth(category);
+
         if (!cancelled) {
           setCashBalance(cash);
           setMonthlyBurn(burn);
           setSupplierOwed(owed);
+          setDepthLabel(depth.label);
         }
       } catch (e) {
         console.error(e);
@@ -147,8 +166,9 @@ Give 3 short plain sentences. No markdown, no asterisks. Say yes/caution/no clea
           <ShoppingBag size={22} /> Can I buy this?
         </h1>
         <p className={styles.sub}>
-          Check cash, runway, and supplier credit before you commit — built for owners away from the
-          till.
+          Check cash, runway, and supplier credit before you commit
+          {depthLabel ? ` — tuned for ${depthLabel}` : ''}
+          . Built for owners away from the till.
         </p>
       </header>
 

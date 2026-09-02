@@ -27,6 +27,15 @@ export interface NudgeInput {
   thinMarginCount: number;
   thinMarginNames: string[];
   formatMoney: (n: number) => string;
+  /** Category-native copy + thresholds */
+  targetMarginPct?: number;
+  deadStockCount?: number;
+  categoryNudgeCopy?: {
+    thinMargin: string;
+    lowStock: string;
+    supplier: string;
+    quiet: string;
+  };
 }
 
 export function buildProactiveNudges(input: NudgeInput): MoNudge[] {
@@ -42,6 +51,9 @@ export function buildProactiveNudges(input: NudgeInput): MoNudge[] {
     thinMarginCount,
     thinMarginNames,
     formatMoney,
+    targetMarginPct = 30,
+    deadStockCount = 0,
+    categoryNudgeCopy,
   } = input;
 
   if (expensesToday > salesToday && expensesToday > 0) {
@@ -71,7 +83,9 @@ export function buildProactiveNudges(input: NudgeInput): MoNudge[] {
       id: 'supplier-pressure',
       severity: 'warning',
       title: 'Supplier debt is heavy vs cash',
-      body: `You owe suppliers ${formatMoney(supplierOwed)} with ${formatMoney(cashBalance)} on hand. Plan payments — don’t stack more credit blindly.`,
+      body:
+        categoryNudgeCopy?.supplier ||
+        `You owe suppliers ${formatMoney(supplierOwed)} with ${formatMoney(cashBalance)} on hand. Plan payments — don’t stack more credit blindly.`,
       actionLabel: 'Pay suppliers',
       href: 'cashflow',
     });
@@ -95,9 +109,23 @@ export function buildProactiveNudges(input: NudgeInput): MoNudge[] {
         thinMarginCount === 1
           ? '1 item priced too thin'
           : `${thinMarginCount} items priced too thin`,
-      body: `${names || 'Several products'} sit below a healthy margin. Fix price or cost before volume grows losses.`,
+      body:
+        (categoryNudgeCopy?.thinMargin ||
+          `${names || 'Several products'} sit below a healthy ~${targetMarginPct}% margin. Fix price or cost before volume grows losses.`) +
+        (names ? ` (${names})` : ''),
       actionLabel: 'Margin calculator',
       href: 'margin-calculator' as PageId,
+    });
+  }
+
+  if (deadStockCount > 0) {
+    nudges.push({
+      id: 'dead-stock',
+      severity: 'warning',
+      title: deadStockCount === 1 ? '1 slow / dead stock line' : `${deadStockCount} slow / dead stock lines`,
+      body: 'High on-hand quantity with almost no recent sales. Discount, bundle, or stop reordering.',
+      actionLabel: 'Open inventory',
+      href: 'inventory',
     });
   }
 
@@ -106,7 +134,9 @@ export function buildProactiveNudges(input: NudgeInput): MoNudge[] {
       id: 'low-stock',
       severity: lowStockCount >= 3 ? 'critical' : 'warning',
       title: lowStockCount === 1 ? '1 product low on stock' : `${lowStockCount} products low on stock`,
-      body: 'Restock winners first. Use “Can I buy this?” so cash and credit stay in check.',
+      body:
+        categoryNudgeCopy?.lowStock ||
+        'Restock winners first. Use “Can I buy this?” so cash and credit stay in check.',
       actionLabel: 'Can I buy this?',
       href: 'can-i-buy' as PageId,
     });
@@ -139,7 +169,9 @@ export function buildProactiveNudges(input: NudgeInput): MoNudge[] {
       id: 'quiet-start',
       severity: 'info',
       title: 'Quiet start to the day',
-      body: 'No sales logged yet. A quick sale or stock check keeps the books honest.',
+      body:
+        categoryNudgeCopy?.quiet ||
+        'No sales logged yet. A quick sale or stock check keeps the books honest.',
       actionLabel: 'Record sale',
       href: 'sale',
     });

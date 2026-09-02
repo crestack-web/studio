@@ -6,6 +6,8 @@ import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
 import { fetchDocs } from '@/lib/supabase-client-data';
 import { buildProactiveNudges, type MoNudge } from '@/lib/mo-proactive-nudges';
+import { getCategoryDepth, isLikelyDeadStock } from '@/lib/categoryDepth';
+import { getSupabase } from '@/lib/supabase';
 import { Sparkles, ChevronRight } from 'lucide-react';
 import styles from './MoProactiveNudges.module.css';
 
@@ -40,6 +42,22 @@ export function MoProactiveNudges({ seed }: Props) {
 
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
+
+        let category = '';
+        try {
+          const { data: ud } = await getSupabase()
+            .from('users')
+            .select('category, business_type, metadata')
+            .eq('id', user?.id || '')
+            .maybeSingle();
+          category =
+            (ud as any)?.category ||
+            (ud as any)?.business_type ||
+            (ud as any)?.metadata?.category ||
+            '';
+        } catch { /* ignore */ }
+        const depth = getCategoryDepth(category);
+        const TARGET = depth.targetMarginPct;
 
         const [accounts, expenses, products, suppliers, credits, sales] = await Promise.all([
           fetchDocs(`businesses/${businessId}/bankAccounts`).catch(() => []),
@@ -92,16 +110,28 @@ export function MoProactiveNudges({ seed }: Props) {
           }
         }
 
-        const TARGET = 30;
         const thin: string[] = [];
+        let deadStockCount = 0;
         for (const p of products as any[]) {
           const type = String(p.productType || p.metadata?.productType || '').toLowerCase();
           if (type === 'ingredient') continue;
           const cost = Number(p.cost ?? p.costPrice ?? 0) || 0;
           const price = Number(p.price ?? p.sellingPrice ?? 0) || 0;
-          if (price <= 0) continue;
-          const margin = ((price - cost) / price) * 100;
-          if (margin < TARGET * 0.7) thin.push(p.name || 'Item');
+          if (price > 0) {
+            const margin = ((price - cost) / price) * 100;
+            if (margin < TARGET * depth.thinMarginFactor) thin.push(p.name || 'Item');
+          }
+          if (depth.model === 'retail' || depth.model === 'wholesale' || depth.model === 'pharmacy') {
+            if (
+              isLikelyDeadStock({
+                stock: Number(p.stock ?? p.stockLevel ?? 0),
+                unitsSold30d: Number(p.unitsSold30d ?? p.metadata?.unitsSold30d ?? 0),
+                reorderLevel: Number(p.reorderLevel ?? p.lowStockThreshold ?? 5),
+              })
+            ) {
+              deadStockCount += 1;
+            }
+          }
         }
 
         const lowStockCount =
@@ -128,6 +158,9 @@ export function MoProactiveNudges({ seed }: Props) {
             thinMarginCount: thin.length,
             thinMarginNames: thin,
             formatMoney,
+            targetMarginPct: TARGET,
+            deadStockCount,
+            categoryNudgeCopy: depth.nudgeCopy,
           })
         );
       } catch (e) {
@@ -171,7 +204,7 @@ export function MoProactiveNudges({ seed }: Props) {
         <Sparkles size={16} />
         <div>
           <strong>MO nudges</strong>
-          <span className={styles.sub}>Proactive — based on today’s numbers</span>
+          <span className={styles.sub}>Proactive — tuned to your business type</span>
         </div>
       </div>
       <ul className={styles.list}>
