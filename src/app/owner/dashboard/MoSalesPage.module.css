@@ -28,6 +28,16 @@
   margin-bottom: 16px;
 }
 
+/* Match Capital page: centered MO spinner while data loads */
+.moLoadingCenter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .title {
   font-family: var(--font-display, inherit);
   font-size: 1.45rem;

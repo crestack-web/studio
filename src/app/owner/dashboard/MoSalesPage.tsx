@@ -10,6 +10,7 @@ import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { getSupabase } from '@/lib/supabase';
 import styles from './MoSalesPage.module.css';
+import { MOLoadingSpinner } from '@/components/MOLoadingSpinner';
 
 type View = 'home' | 'inbox' | 'credits' | 'settings';
 
@@ -433,9 +434,12 @@ export default function MoSalesPage() {
     if (!user?.id || user?.shortName === 'User' || user?.initials === '..') {
       return (
         <div className={styles.wrap} role="status" aria-live="polite" aria-busy="true">
-          <div className={styles.loadingState}>
-            <div className={styles.loadingSpinner} aria-hidden="true" />
-            <p className={styles.loadingText}>Loading your business…</p>
+          <div className={styles.header}>
+            <h1 className={styles.title}>MO Sales</h1>
+            <p className={styles.subtitle}>Loading your business…</p>
+          </div>
+          <div className={styles.moLoadingCenter}>
+            <MOLoadingSpinner size={120} />
           </div>
         </div>
       );
@@ -456,28 +460,12 @@ export default function MoSalesPage() {
   if (loading) {
     return (
       <div className={styles.wrap} role="status" aria-live="polite" aria-busy="true">
-        <div className={styles.loadingState}>
-          <div className={styles.loadingSpinner} aria-hidden="true" />
-          <p className={styles.loadingText}>Loading MO Sales…</p>
-          <p className={styles.loadingHint}>Fetching connection, conversations and product readiness</p>
+        <div className={styles.header}>
+          <h1 className={styles.title}>MO Sales</h1>
+          <p className={styles.subtitle}>Loading your WhatsApp sales agent…</p>
         </div>
-        <div className={styles.skeletonPage} aria-hidden="true">
-          <div className={styles.skeletonHeader}>
-            <div className={styles.skeletonTitle} />
-            <div className={styles.skeletonLine} style={{ width: '70%', maxWidth: 320 }} />
-          </div>
-          <div className={styles.skeletonTabs}>
-            <div className={styles.skeletonPill} />
-            <div className={styles.skeletonPill} />
-            <div className={styles.skeletonPill} />
-          </div>
-          <div className={styles.skeletonBlock} />
-          <div className={styles.skeletonGrid}>
-            <div className={styles.skeletonCard} />
-            <div className={styles.skeletonCard} />
-            <div className={styles.skeletonCard} />
-          </div>
-          <div className={styles.skeletonBlock} />
+        <div className={styles.moLoadingCenter}>
+          <MOLoadingSpinner size={120} />
         </div>
       </div>
     );
