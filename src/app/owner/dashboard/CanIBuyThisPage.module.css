@@ -231,3 +231,14 @@
 :global(.dark) .moBox p {
   color: var(--text-1, #f9fafb);
 }
+
+.intentNote {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--text-1, #111827);
+  background: color-mix(in srgb, var(--purple, #7c3aed) 10%, var(--surface, #fff));
+  border: 1px solid color-mix(in srgb, var(--purple, #7c3aed) 28%, var(--border, #e5e7eb));
+}

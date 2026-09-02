@@ -14,6 +14,15 @@ export interface MoNudge {
   body: string;
   actionLabel: string;
   href: PageId;
+  /** Optional context for destination pages (e.g. Can I Buy This) */
+  payload?: {
+    productId?: string;
+    productName?: string;
+    amount?: number;
+    stock?: number;
+    reorderLevel?: number;
+    unitCost?: number;
+  };
 }
 
 export interface NudgeInput {
@@ -36,6 +45,15 @@ export interface NudgeInput {
     supplier: string;
     quiet: string;
   };
+  /** First / primary low-stock product for Can I Buy This handoff */
+  lowStockProduct?: {
+    id?: string;
+    name: string;
+    stock?: number;
+    reorderLevel?: number;
+    unitCost?: number;
+    estimatedAmount?: number;
+  };
 }
 
 export function buildProactiveNudges(input: NudgeInput): MoNudge[] {
@@ -54,6 +72,7 @@ export function buildProactiveNudges(input: NudgeInput): MoNudge[] {
     targetMarginPct = 30,
     deadStockCount = 0,
     categoryNudgeCopy,
+    lowStockProduct,
   } = input;
 
   if (expensesToday > salesToday && expensesToday > 0) {
@@ -130,15 +149,38 @@ export function buildProactiveNudges(input: NudgeInput): MoNudge[] {
   }
 
   if (lowStockCount > 0) {
+    const name = lowStockProduct?.name;
+    const title =
+      lowStockCount === 1
+        ? name
+          ? `Low stock: ${name}`
+          : '1 product low on stock'
+        : name
+          ? `${lowStockCount} low on stock (e.g. ${name})`
+          : `${lowStockCount} products low on stock`;
+    const bodyExtra = name
+      ? ` “Can I buy this?” opens with ${name} ready to check.`
+      : '';
     nudges.push({
       id: 'low-stock',
       severity: lowStockCount >= 3 ? 'critical' : 'warning',
-      title: lowStockCount === 1 ? '1 product low on stock' : `${lowStockCount} products low on stock`,
+      title,
       body:
-        categoryNudgeCopy?.lowStock ||
-        'Restock winners first. Use “Can I buy this?” so cash and credit stay in check.',
-      actionLabel: 'Can I buy this?',
+        (categoryNudgeCopy?.lowStock ||
+          'Restock winners first. Use “Can I buy this?” so cash and credit stay in check.') +
+        bodyExtra,
+      actionLabel: name ? `Can I buy ${name}?` : 'Can I buy this?',
       href: 'can-i-buy' as PageId,
+      payload: lowStockProduct
+        ? {
+            productId: lowStockProduct.id,
+            productName: lowStockProduct.name,
+            amount: lowStockProduct.estimatedAmount,
+            stock: lowStockProduct.stock,
+            reorderLevel: lowStockProduct.reorderLevel,
+            unitCost: lowStockProduct.unitCost,
+          }
+        : undefined,
     });
   }
 

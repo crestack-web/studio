@@ -6,6 +6,7 @@ import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
 import { fetchDocs } from '@/lib/supabase-client-data';
 import { evaluateCanIBuy } from '@/lib/mo-proactive-nudges';
+import { consumeCanIBuyIntent } from '@/lib/can-i-buy-intent';
 import { getCategoryDepth } from '@/lib/categoryDepth';
 import { getSupabase } from '@/lib/supabase';
 import { ShoppingBag, Sparkles, Loader2, ArrowRight } from 'lucide-react';
@@ -27,6 +28,7 @@ export default function CanIBuyThisPage() {
   const [useCredit, setUseCredit] = useState(false);
   const [moText, setMoText] = useState('');
   const [moLoading, setMoLoading] = useState(false);
+  const [intentNote, setIntentNote] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -97,6 +99,28 @@ export default function CanIBuyThisPage() {
       cancelled = true;
     };
   }, [branchBiz, user?.businessId]);
+
+  // Auto-apply product from MO low-stock nudge (or other handoffs)
+  useEffect(() => {
+    const intent = consumeCanIBuyIntent();
+    if (!intent) return;
+    setWhat(intent.productName);
+    if (intent.amount && intent.amount > 0) {
+      setAmount(String(intent.amount));
+    }
+    const bits = [intent.productName];
+    if (intent.stock != null) bits.push(`on hand: ${intent.stock}`);
+    if (intent.reorderLevel != null) bits.push(`reorder at: ${intent.reorderLevel}`);
+    if (intent.unitCost != null && intent.unitCost > 0) {
+      bits.push(`unit cost: ${intent.unitCost}`);
+    }
+    setIntentNote(
+      intent.amount && intent.amount > 0
+        ? `Pre-filled from MO for ${bits.join(' · ')}. Estimated restock ~${intent.amount}. Adjust if needed.`
+        : `Pre-filled from MO for ${bits.join(' · ')}. Enter the amount you plan to spend.`
+    );
+  }, []);
+
 
   const purchaseAmount = parseFloat(amount) || 0;
 
@@ -170,6 +194,7 @@ Give 3 short plain sentences. No markdown, no asterisks. Say yes/caution/no clea
           {depthLabel ? ` — tuned for ${depthLabel}` : ''}
           . Built for owners away from the till.
         </p>
+        {intentNote && <p className={styles.intentNote}>{intentNote}</p>}
       </header>
 
       <div className={styles.stats}>

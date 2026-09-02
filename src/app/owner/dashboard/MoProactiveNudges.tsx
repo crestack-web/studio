@@ -6,6 +6,7 @@ import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
 import { fetchDocs } from '@/lib/supabase-client-data';
 import { buildProactiveNudges, type MoNudge } from '@/lib/mo-proactive-nudges';
+import { setCanIBuyIntent, estimateRestockAmount } from '@/lib/can-i-buy-intent';
 import { getCategoryDepth, isLikelyDeadStock } from '@/lib/categoryDepth';
 import { getSupabase } from '@/lib/supabase';
 import { Sparkles, ChevronRight } from 'lucide-react';
@@ -134,13 +135,39 @@ export function MoProactiveNudges({ seed }: Props) {
           }
         }
 
-        const lowStockCount =
-          seed?.lowStockCount ??
-          (products as any[]).filter((p) => {
+        const lowStockItems = (products as any[])
+          .map((p) => {
             const stock = Number(p.stock ?? p.stockLevel ?? 0) || 0;
             const reorder = Number(p.reorderLevel ?? p.lowStockThreshold ?? 5) || 5;
-            return stock <= reorder;
-          }).length;
+            const unitCost = Number(p.cost ?? p.costPrice ?? 0) || 0;
+            return {
+              id: String(p.id || ''),
+              name: String(p.name || 'Product'),
+              stock,
+              reorder,
+              unitCost,
+              isLow: stock <= reorder,
+            };
+          })
+          .filter((p) => p.isLow)
+          .sort((a, b) => a.stock - b.stock);
+
+        const lowStockCount = seed?.lowStockCount ?? lowStockItems.length;
+        const primaryLow = lowStockItems[0];
+        const lowStockProduct = primaryLow
+          ? {
+              id: primaryLow.id,
+              name: primaryLow.name,
+              stock: primaryLow.stock,
+              reorderLevel: primaryLow.reorder,
+              unitCost: primaryLow.unitCost,
+              estimatedAmount: estimateRestockAmount({
+                stock: primaryLow.stock,
+                reorderLevel: primaryLow.reorder,
+                unitCost: primaryLow.unitCost,
+              }),
+            }
+          : undefined;
 
         const cashRunwayDays = seed?.cashRunwayDays ?? 30;
         const pendingCollections = seed?.pendingCollections ?? 0;
@@ -161,6 +188,7 @@ export function MoProactiveNudges({ seed }: Props) {
             targetMarginPct: TARGET,
             deadStockCount,
             categoryNudgeCopy: depth.nudgeCopy,
+            lowStockProduct,
           })
         );
       } catch (e) {
@@ -217,7 +245,20 @@ export function MoProactiveNudges({ seed }: Props) {
             <button
               type="button"
               className={styles.action}
-              onClick={() => navigateTo(n.href as any)}
+              onClick={() => {
+                if (n.href === 'can-i-buy' && n.payload?.productName) {
+                  setCanIBuyIntent({
+                    productId: n.payload.productId,
+                    productName: n.payload.productName,
+                    amount: n.payload.amount,
+                    stock: n.payload.stock,
+                    reorderLevel: n.payload.reorderLevel,
+                    unitCost: n.payload.unitCost,
+                    source: 'mo-nudge-low-stock',
+                  });
+                }
+                navigateTo(n.href as any);
+              }}
             >
               {n.actionLabel}
               <ChevronRight size={14} />
