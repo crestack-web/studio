@@ -101,6 +101,29 @@ export function NavIcons({ id, size = 14 }: NavIconsProps) {
       return <svg {...base} style={s}><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>;
     case 'menu-management':
       return <svg {...base} style={s}><path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/></svg>;
+    case 'margin-calculator':
+      // Calculator + trend — pricing / margin tool
+      return (
+        <svg {...base} style={s}>
+          <rect x="4" y="2" width="16" height="20" rx="2" />
+          <line x1="8" y1="6" x2="16" y2="6" />
+          <line x1="8" y1="10" x2="10" y2="10" />
+          <line x1="14" y1="10" x2="16" y2="10" />
+          <line x1="8" y1="14" x2="10" y2="14" />
+          <line x1="14" y1="14" x2="16" y2="14" />
+          <line x1="8" y1="18" x2="10" y2="18" />
+          <line x1="14" y1="18" x2="16" y2="18" />
+        </svg>
+      );
+    case 'can-i-buy':
+      // Shopping bag with check — owner purchase decision
+      return (
+        <svg {...base} style={s}>
+          <path d="M6 8h12l-1 13H7L6 8z" />
+          <path d="M9 8V6a3 3 0 016 0v2" />
+          <path d="M9 14l2 2 4-4" />
+        </svg>
+      );
     case 'ingredient-tracking':
       return <svg {...base} style={s}><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>;
     case 'expiry-alerts':
