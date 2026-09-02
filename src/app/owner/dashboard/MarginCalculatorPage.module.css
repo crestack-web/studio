@@ -255,3 +255,173 @@
   font-size: 0.72rem;
   color: var(--text-3, #6b7280);
 }
+
+
+.pulseBar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border, #e5e7eb);
+  background: color-mix(in srgb, var(--purple, #7c3aed) 6%, white);
+}
+
+.pulseStat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.72rem;
+  color: var(--text-3, #6b7280);
+}
+
+.pulseStat strong {
+  font-size: 1.15rem;
+  color: var(--text-1, #111827);
+}
+
+.warnText {
+  color: #dc2626 !important;
+}
+
+.pulseSummary {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--text-2, #4b5563);
+}
+
+.selectedItem {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: var(--purple, #7c3aed);
+  font-weight: 600;
+}
+
+.secondaryBtn {
+  margin-top: 10px;
+  width: 100%;
+  border: 1px solid var(--purple, #7c3aed);
+  background: #fff;
+  color: var(--purple, #7c3aed);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.moActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.moBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.moBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.moBtnGhost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border, #e5e7eb);
+  background: var(--surface, #fff);
+  color: var(--text-1, #111827);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.weakBox {
+  margin-bottom: 14px;
+  padding: 10px;
+  border-radius: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.weakTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #b91c1c;
+  margin-bottom: 4px;
+}
+
+.moPanel {
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--purple, #7c3aed) 25%, #e5e7eb);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--purple, #7c3aed) 8%, white), var(--surface, #fff));
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.moPanelHead {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.moPanelHead h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.moPanelHead p {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-3, #6b7280);
+}
+
+.moAdvice {
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-1, #111827);
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.moError {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #b45309;
+}
