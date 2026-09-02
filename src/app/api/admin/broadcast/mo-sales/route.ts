@@ -14,58 +14,96 @@ function buildHtml(name: string) {
   const first = (name || 'there').split(' ')[0];
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>MO Sales is coming to Busmo</title></head>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>MO Sales is coming to Busmo</title>
+</head>
 <body style="margin:0;padding:0;background:#f4f2f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a1523;">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f2f8;padding:24px 12px;">
 <tr><td align="center">
-<table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(28,16,56,0.080.08);">
-<tr><td style="background:linear-gradient(135deg,#6B3FE7 0%,#4B27B0 100%);padding:32px 28px;text-align:center;">
+<table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(28,16,56,0.08);">
+<tr>
+<td style="background:linear-gradient(135deg,#6B3FE7 0%,#4B27B0 100%);padding:32px 28px;text-align:center;">
 <img src="${LOGO}" alt="Busmo" width="64" height="64" style="display:inline-block;border:0;border-radius:14px;background:#fff;padding:6px;" />
 <h1 style="margin:16px 0 8px;font-size:24px;line-height:1.25;color:#ffffff;font-weight:800;">Meet MO Sales</h1>
-<p style="margin:0;font-size:15px;color:rgba(255,255,255,0.9);line-height:1.45;">
-Your AI salesperson on WhatsApp — rolling out to selected businesses on <strong>${ROLLOUT_DATE}</strong>
+<p style="margin:0;font-size:15px;color:rgba(255,255,255,0.92);line-height:1.45;">
+Your AI salesperson on WhatsApp — ready to reply, take orders, and share payment links at scale
 </p>
-</td></tr>
-<tr><td style="padding:28px 28px 8px;">
+<p style="margin:12px 0 0;font-size:13px;color:rgba(255,255,255,0.85);">
+Selected businesses go live <strong>${ROLLOUT_DATE}</strong>
+</p>
+</td>
+</tr>
+<tr>
+<td style="padding:28px 28px 8px;">
 <p style="margin:0 0 14px;font-size:16px;line-height:1.5;">Hi ${first},</p>
 <p style="margin:0 0 14px;font-size:15px;line-height:1.55;color:#3d3550;">
-We&rsquo;re excited to introduce <strong>MO Sales</strong> — Busmo&rsquo;s AI sales agent that works on <strong>WhatsApp</strong> with your full business data, so customers get fast, accurate replies and you keep selling even when the shop is busy.
+We&rsquo;re introducing <strong>MO Sales</strong> — Busmo&rsquo;s AI sales agent on <strong>WhatsApp</strong>. MO uses your <strong>full business data</strong> (products, prices, stock, and how you sell) so customers get accurate answers and you can keep sales moving even when you&rsquo;re busy.
 </p>
 <p style="margin:0 0 18px;font-size:15px;line-height:1.55;color:#3d3550;">
-Starting <strong>${ROLLOUT_DATE}</strong>, we will enable MO Sales for <strong>selected businesses</strong> first, then expand as we learn what drives consistent sales for owners like you.
+From <strong>${ROLLOUT_DATE}</strong>, we will enable MO Sales for <strong>selected businesses</strong> first, then expand as we learn what drives consistent sales for owners like you.
 </p>
 
 <h2 style="margin:0 0 12px;font-size:17px;color:#1a1523;">What MO Sales can do</h2>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:16px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-bottom:18px;">
 <tr><td style="padding:14px 16px;border:1px solid #ece8f5;border-radius:12px;background:#faf9fd;">
-<p style="margin:0 0 12px;font-size:14px;line-height:1.5;color:#3d3550;"><strong style="color:#6B3FE7;">Reply to customers on WhatsApp at scale</strong><br/>MO answers product questions, prices, and availability using your live Busmo catalogue — not guesswork.</p>
-<p style="margin:0 0 12px;font-size:14px;line-height:1.5;color:#3d3550;"><strong style="color:#6B3FE7;">Accept orders in the chat</strong><br/>Customers can place orders through the conversation. MO follows your products, stock, and business rules.</p>
-<p style="margin:0 0 12px;font-size:14px;line-height:1.5;color:#3d3550;"><strong style="color:#6B3FE7;">Send payment links</strong><br/>When it&rsquo;s time to pay, MO can share a payment link so checkout stays simple on WhatsApp.</p>
-<p style="margin:0 0 12px;font-size:14px;line-height:1.5;color:#3d3550;"><strong style="color:#6B3FE7;">Full business context</strong><br/>MO works with your real inventory, prices, and sales context in Busmo so answers stay consistent and trustworthy.</p>
-<p style="margin:0 0 12px;font-size:14px;line-height:1.5;color:#3d3550;"><strong style="color:#6B3FE7;">Inbox, takeover &amp; control</strong><br/>See every conversation in <strong>MO Sales</strong>, take over any chat yourself, hand it back to MO, and turn MO on or off when you want.</p>
-<p style="margin:0;font-size:14px;line-height:1.5;color:#3d3550;"><strong style="color:#6B3FE7;">Built for consistent sales</strong><br/>Faster responses, fewer missed chats, and a clearer path from question → order → payment — without hiring another full-time salesperson.</p>
+<p style="margin:0 0 12px;font-size:14px;line-height:1.5;color:#3d3550;">
+<strong style="color:#6B3FE7;">Reply to customers on WhatsApp</strong><br/>
+When a customer messages your business number, MO answers quickly — product questions, availability, prices, and next steps — so no enquiry is left hanging.
+</p>
+<p style="margin:0 0 12px;font-size:14px;line-height:1.5;color:#3d3550;">
+<strong style="color:#6B3FE7;">Grounded in your real Busmo data</strong><br/>
+MO works with your catalogue, stock, and business context in Busmo. It sells what you actually offer, with the information you already manage in the app.
+</p>
+<p style="margin:0 0 12px;font-size:14px;line-height:1.5;color:#3d3550;">
+<strong style="color:#6B3FE7;">Accept orders in the conversation</strong><br/>
+Customers can move from “Do you have this?” to placing an order in the same WhatsApp chat, so interest turns into sales without long back-and-forth.
+</p>
+<p style="margin:0 0 12px;font-size:14px;line-height:1.5;color:#3d3550;">
+<strong style="color:#6B3FE7;">Send payment links</strong><br/>
+MO can share payment links in WhatsApp so customers pay faster, with fewer abandoned chats and less manual follow-up from you.
+</p>
+<p style="margin:0 0 12px;font-size:14px;line-height:1.5;color:#3d3550;">
+<strong style="color:#6B3FE7;">Consistent sales responses at scale</strong><br/>
+Whether it is one customer or many at once, MO keeps a steady, professional response — helpful, on-brand, and available when you cannot reply yourself.
+</p>
+<p style="margin:0 0 12px;font-size:14px;line-height:1.5;color:#3d3550;">
+<strong style="color:#6B3FE7;">Inbox, human takeover, and control</strong><br/>
+See conversations in <strong>MO Sales</strong> inside Busmo. Take over any chat yourself, hand it back to MO, turn MO on or off, and guide how it sells.
+</p>
+<p style="margin:0;font-size:14px;line-height:1.5;color:#3d3550;">
+<strong style="color:#6B3FE7;">Built for growing businesses</strong><br/>
+Designed for owners who want more WhatsApp sales without hiring another full-time salesperson — with you always in control.
+</p>
 </td></tr>
 </table>
 
 <p style="margin:0 0 14px;font-size:15px;line-height:1.55;color:#3d3550;">
-You don&rsquo;t need to do anything right now. If your business is in the first group, we&rsquo;ll guide you inside Busmo when it&rsquo;s time to connect WhatsApp and go live.
+You do not need to do anything right now. If your business is in the first group, we will guide you inside Busmo when it is time to connect WhatsApp and go live.
+</p>
+<p style="margin:0 0 22px;font-size:15px;line-height:1.55;color:#3d3550;">
+Our goal is simple: help you reply faster, take more orders, collect payment, and grow sales on WhatsApp — with MO working from your real business data.
 </p>
 <div style="text-align:center;margin:0 0 24px;">
 <a href="${APP_URL}" style="display:inline-block;background:#6B3FE7;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:12px 22px;border-radius:10px;">Open Busmo</a>
 </div>
 <p style="margin:0 0 6px;font-size:14px;line-height:1.5;color:#3d3550;">Questions? Reply to this email or write to <a href="mailto:support@busmo.io" style="color:#6B3FE7;">support@busmo.io</a>.</p>
 <p style="margin:16px 0 0;font-size:14px;line-height:1.5;color:#3d3550;">— The Busmo team</p>
-</td></tr>
-<tr><td style="padding:18px 28px 28px;border-top:1px solid #ece8f5;">
+</td>
+</tr>
+<tr>
+<td style="padding:18px 28px 28px;border-top:1px solid #ece8f5;">
 <p style="margin:0;font-size:11px;line-height:1.45;color:#8a8498;text-align:center;">
 You&rsquo;re receiving this because you have a Busmo account.<br/>Busmo · AI-powered business management for African SMEs
 </p>
-</td></tr>
+</td>
+</tr>
 </table>
 </td></tr>
 </table>
-</body></html>`;
+</body>
+</html>`;
 }
 
 function unauthorized() {
@@ -88,7 +126,7 @@ export async function POST(req: NextRequest) {
   }
   const mode = body.mode === 'all' ? 'all' : 'test';
 
-  const subject = `MO Sales is coming — selected businesses go live ${ROLLOUT_DATE}`;
+  const subject = `MO Sales on WhatsApp: orders, payment links & replies at scale — live ${ROLLOUT_DATE}`;
 
   if (mode === 'test') {
     const result = await sendTransactionalEmail({

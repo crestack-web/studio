@@ -148,7 +148,7 @@ async function sendOne({ email, name }) {
     body: JSON.stringify({
       from: FROM,
       to: [email],
-      subject: `MO Sales is coming — selected businesses go live ${ROLLOUT_DATE}`,
+      subject: `MO Sales on WhatsApp: orders, payment links & replies at scale — live ${ROLLOUT_DATE}`,
       html: buildHtml({ name }),
     }),
   });
