@@ -179,7 +179,7 @@ async function loadAllRecipients() {
   let from = 0;
   const page = 1000;
   while (true) {
-    const endpoint = `${url.replace(/\/$/, '')}/rest/v1/users?select=email,name,full_name,display_name&email=not.is.null&offset=${from}&limit=${page}`;
+    const endpoint = `${url.replace(/\/$/, '')}/rest/v1/users?select=email,full_name&email=not.is.null&offset=${from}&limit=${page}`;
     const res = await fetch(endpoint, {
       headers: {
         apikey: key,
@@ -197,7 +197,7 @@ async function loadAllRecipients() {
         .toLowerCase();
       if (!email || !email.includes('@')) continue;
       const name =
-        row.name || row.full_name || row.display_name || email.split('@')[0];
+        row.full_name || email.split('@')[0];
       recipients.push({ email, name });
     }
     if (rows.length < page) break;

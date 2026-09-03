@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
   while (true) {
     const { data, error } = await supabase
       .from('users')
-      .select('email, name, full_name, display_name')
+      .select('email, full_name')
       .not('email', 'is', null)
       .range(from, from + pageSize - 1);
     if (error) {
@@ -180,9 +180,7 @@ export async function POST(req: NextRequest) {
         .toLowerCase();
       if (!email || !email.includes('@')) continue;
       const name =
-        (row as any).name ||
         (row as any).full_name ||
-        (row as any).display_name ||
         email.split('@')[0];
       recipients.push({ email, name });
     }

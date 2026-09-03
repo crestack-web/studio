@@ -46,7 +46,7 @@ async function loadAllUsers(): Promise<Recipient[]> {
   while (true) {
     const { data, error } = await admin
       .from('users')
-      .select('email, name, full_name, display_name')
+      .select('email, full_name')
       .not('email', 'is', null)
       .range(from, from + page - 1);
     if (error) throw new Error(error.message);
@@ -58,7 +58,7 @@ async function loadAllUsers(): Promise<Recipient[]> {
       if (!email.includes('@')) continue;
       out.push({
         email,
-        name: row.name || row.full_name || row.display_name || email.split('@')[0],
+        name: row.full_name || email.split('@')[0],
       });
     }
     if (rows.length < page) break;
