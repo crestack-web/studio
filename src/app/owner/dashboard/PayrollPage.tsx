@@ -24,6 +24,10 @@ interface PayrollEntry {
   paidDate?: Date | null;
   notes?: string;
   createdAt?: Date | null;
+  bankName?: string;
+  bankCode?: string;
+  accountNumber?: string;
+  accountName?: string;
 }
 
 interface StaffMember {
@@ -34,6 +38,10 @@ interface StaffMember {
   salary?: number;
   active?: boolean;
   status?: string;
+  bankName?: string;
+  bankCode?: string;
+  accountNumber?: string;
+  accountName?: string;
 }
 
 interface WalletTx {
@@ -72,6 +80,16 @@ export default function PayrollPage() {
   const [isFunding, setIsFunding] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [banks, setBanks] = useState<Array<{ name: string; code: string }>>([]);
+  const [showBankModal, setShowBankModal] = useState(false);
+  const [bankStaffId, setBankStaffId] = useState('');
+  const [bankForm, setBankForm] = useState({
+    bankCode: '',
+    bankName: '',
+    accountNumber: '',
+    accountName: '',
+  });
+  const [resolvingAccount, setResolvingAccount] = useState(false);
   const [formData, setFormData] = useState({
     staffId: '',
     period: currentPeriod(),
@@ -143,6 +161,10 @@ export default function PayrollPage() {
         paidDate: toDate(data.paidDate),
         notes: data.notes || '',
         createdAt: toDate(data.createdAt),
+        bankName: data.bankName || data.bank_name || '',
+        bankCode: data.bankCode || data.bank_code || '',
+        accountNumber: data.accountNumber || data.account_number || '',
+        accountName: data.accountName || data.account_name || '',
       }));
       entries.sort((a, b) => (b.period || '').localeCompare(a.period || '') || a.staffName.localeCompare(b.staffName));
       setPayrollEntries(entries);
@@ -158,7 +180,16 @@ export default function PayrollPage() {
       const docs = await fetchDocs(path);
       const staff = docs.map((data: any) => ({
         id: data.id,
-        ...data,
+        name: data.name || data.fullName || 'Staff',
+        role: data.role || 'Staff',
+        baseSalary: Number(data.baseSalary ?? data.salary) || 0,
+        salary: Number(data.salary ?? data.baseSalary) || 0,
+        active: data.active !== false,
+        status: data.status,
+        bankName: data.bankName || data.bank_name || '',
+        bankCode: data.bankCode || data.bank_code || '',
+        accountNumber: data.accountNumber || data.account_number || '',
+        accountName: data.accountName || data.account_name || '',
       })) as StaffMember[];
       setStaffMembers(
         staff.filter((s) => s.status !== 'removed' && s.status !== 'banned')
@@ -168,17 +199,28 @@ export default function PayrollPage() {
     }
   }, [businessId]);
 
+  const loadBanks = useCallback(async () => {
+    try {
+      const headers = await authHeaders();
+      const res = await fetch('/api/payroll/banks', { headers });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(json.banks)) setBanks(json.banks);
+    } catch (e) {
+      console.error('Failed to load banks', e);
+    }
+  }, [authHeaders]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setIsLoading(true);
-      await Promise.all([loadPayrollEntries(), loadStaffMembers(), loadWallet()]);
+      await Promise.all([loadPayrollEntries(), loadStaffMembers(), loadWallet(), loadBanks()]);
       if (!cancelled) setIsLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [loadPayrollEntries, loadStaffMembers, loadWallet]);
+  }, [loadPayrollEntries, loadStaffMembers, loadWallet, loadBanks]);
 
   const resetForm = () => {
     setFormData({
@@ -311,58 +353,124 @@ export default function PayrollPage() {
     [selectedEntries]
   );
 
+  const openBankModal = (staffId: string) => {
+    const s = staffMembers.find((x) => x.id === staffId);
+    setBankStaffId(staffId);
+    setBankForm({
+      bankCode: s?.bankCode || '',
+      bankName: s?.bankName || '',
+      accountNumber: s?.accountNumber || '',
+      accountName: s?.accountName || '',
+    });
+    setShowBankModal(true);
+  };
+
+  const resolveAccountName = async () => {
+    if (!bankForm.bankCode || bankForm.accountNumber.replace(/\D/g, '').length < 10) {
+      showToast('Select a bank and enter a 10-digit account number');
+      return;
+    }
+    setResolvingAccount(true);
+    try {
+      const headers = await authHeaders();
+      const res = await fetch('/api/payroll/resolve-account', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          bankCode: bankForm.bankCode,
+          accountNumber: bankForm.accountNumber,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Could not resolve account');
+      setBankForm((f) => ({ ...f, accountName: json.accountName || f.accountName }));
+      showToast(`Account name: ${json.accountName}`);
+    } catch (e: any) {
+      showToast(e?.message || 'Account resolve failed');
+    } finally {
+      setResolvingAccount(false);
+    }
+  };
+
+  const saveStaffBank = async () => {
+    if (!businessId || !bankStaffId) return;
+    const accountNumber = bankForm.accountNumber.replace(/\D/g, '');
+    if (!bankForm.bankCode || accountNumber.length < 10) {
+      showToast('Bank and 10-digit account number are required');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const bankName =
+        bankForm.bankName ||
+        banks.find((b) => b.code === bankForm.bankCode)?.name ||
+        '';
+      await updateDoc(`businesses/${businessId}/staff`, bankStaffId, {
+        bankCode: bankForm.bankCode,
+        bankName,
+        accountNumber,
+        accountName: bankForm.accountName || '',
+      });
+      showToast('Staff bank details saved');
+      setShowBankModal(false);
+      await loadStaffMembers();
+    } catch (e: any) {
+      showToast(e?.message || 'Failed to save bank details');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleBulkPay = async () => {
     if (!businessId || selectedEntries.length === 0) return;
     if (walletBalance < selectedTotal) {
       showToast('Insufficient Busmo wallet balance. Fund your wallet first.');
       return;
     }
+    // Require bank details on staff for each entry
+    for (const entry of selectedEntries) {
+      const staff = staffMembers.find((s) => s.id === entry.staffId);
+      const hasBank =
+        (entry.accountNumber && entry.bankCode) ||
+        (staff?.accountNumber && staff?.bankCode);
+      if (!hasBank) {
+        showToast(`Add bank details for ${entry.staffName} before paying`);
+        if (entry.staffId) openBankModal(entry.staffId);
+        return;
+      }
+    }
+
     setIsPaying(true);
     try {
       const headers = await authHeaders();
-      const debitRes = await fetch('/api/wallet/debit', {
+      const res = await fetch('/api/payroll/pay', {
         method: 'POST',
         headers,
         body: JSON.stringify({
           businessId,
-          amount: selectedTotal,
-          purpose: 'payroll',
-          description: `Salary payout (${selectedEntries.length} staff)`,
-          metadata: {
-            entryIds: selectedEntries.map((e) => e.id),
-            staffNames: selectedEntries.map((e) => e.staffName),
-          },
+          entryIds: selectedEntries.map((e) => e.id),
         }),
       });
-      const debitJson = await debitRes.json().catch(() => ({}));
-      if (!debitRes.ok) {
-        if (debitJson.error === 'insufficient_balance') {
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (json.error === 'insufficient_balance') {
           showToast('Insufficient Busmo wallet balance. Fund your wallet first.');
         } else {
-          throw new Error(debitJson.error || 'Wallet debit failed');
+          throw new Error(json.error || 'Payroll payout failed');
         }
         return;
       }
 
-      const payrollPath = `businesses/${businessId}/payroll`;
-      await runBatch(
-        selectedEntries.map((entry) => ({
-          type: 'update' as const,
-          path: payrollPath,
-          id: entry.id,
-          data: {
-            status: 'paid',
-            paidDate: new Date().toISOString(),
-            paidFromWallet: true,
-            walletReference: debitJson.reference || null,
-          },
-        }))
-      );
-
-      setWalletBalance(Number(debitJson.balance) || walletBalance - selectedTotal);
+      if (typeof json.balance === 'number') setWalletBalance(json.balance);
       setSelectedIds(new Set());
       setShowBulkConfirm(false);
-      showToast(`Paid ${selectedEntries.length} staff — ${formatMoney(selectedTotal)}`);
+      const paid = Number(json.paid) || 0;
+      const failed = Number(json.failed) || 0;
+      if (failed > 0) {
+        showToast(`Paid ${paid} staff. ${failed} failed — wallet refunded for failures.`);
+      } else {
+        showToast(`Paid ${paid} staff via Paystack — ${formatMoney(selectedTotal)}`);
+      }
       await Promise.all([loadPayrollEntries(), loadWallet()]);
     } catch (e: any) {
       console.error(e);
@@ -761,8 +869,9 @@ export default function PayrollPage() {
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <h3 className={styles.modalTitle}>Pay selected staff</h3>
             <p className={styles.modalDesc}>
-              You are about to pay <strong>{selectedEntries.length}</strong> staff a total of{' '}
-              <strong>{formatMoney(selectedTotal)}</strong> from your Busmo wallet.
+              You are about to transfer salaries to <strong>{selectedEntries.length}</strong> staff
+              (total <strong>{formatMoney(selectedTotal)}</strong>) from your Busmo wallet via Paystack
+              to each staff bank account.
             </p>
             <div className={styles.confirmBox}>
               <div>
@@ -779,11 +888,20 @@ export default function PayrollPage() {
               </p>
             )}
             <ul className={styles.confirmList}>
-              {selectedEntries.slice(0, 8).map((e) => (
-                <li key={e.id}>
-                  {e.staffName} — {formatMoney(e.netSalary)}
-                </li>
-              ))}
+              {selectedEntries.slice(0, 8).map((e) => {
+                const staff = staffMembers.find((s) => s.id === e.staffId);
+                const bank = e.accountNumber || staff?.accountNumber;
+                return (
+                  <li key={e.id}>
+                    {e.staffName} — {formatMoney(e.netSalary)}
+                    {bank ? (
+                      <span className={styles.muted}> · ···{String(bank).slice(-4)}</span>
+                    ) : (
+                      <span className={styles.errorText}> · no bank</span>
+                    )}
+                  </li>
+                );
+              })}
               {selectedEntries.length > 8 && <li>…and {selectedEntries.length - 8} more</li>}
             </ul>
             <div className={styles.modalActions}>
@@ -797,6 +915,112 @@ export default function PayrollPage() {
                 onClick={handleBulkPay}
               >
                 {isPaying ? 'Paying…' : `Pay ${formatMoney(selectedTotal)}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+
+      {showBankModal && (
+        <div className={styles.overlay} onClick={() => setShowBankModal(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <h3 className={styles.modalTitle}>Staff bank details</h3>
+            <p className={styles.modalDesc}>
+              Required for salary transfers. Account name should match the bank records.
+            </p>
+            <div className={styles.formGrid}>
+              <label className={styles.field}>
+                <span>Staff</span>
+                <select
+                  value={bankStaffId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setBankStaffId(id);
+                    const s = staffMembers.find((x) => x.id === id);
+                    setBankForm({
+                      bankCode: s?.bankCode || '',
+                      bankName: s?.bankName || '',
+                      accountNumber: s?.accountNumber || '',
+                      accountName: s?.accountName || '',
+                    });
+                  }}
+                >
+                  <option value="">Select staff</option>
+                  {staffMembers.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} {s.accountNumber ? '✓' : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={styles.field}>
+                <span>Bank</span>
+                <select
+                  value={bankForm.bankCode}
+                  onChange={(e) => {
+                    const code = e.target.value;
+                    const b = banks.find((x) => x.code === code);
+                    setBankForm((f) => ({
+                      ...f,
+                      bankCode: code,
+                      bankName: b?.name || f.bankName,
+                    }));
+                  }}
+                >
+                  <option value="">Select bank</option>
+                  {banks.map((b) => (
+                    <option key={b.code} value={b.code}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={styles.field}>
+                <span>Account number</span>
+                <input
+                  inputMode="numeric"
+                  maxLength={10}
+                  value={bankForm.accountNumber}
+                  onChange={(e) =>
+                    setBankForm((f) => ({
+                      ...f,
+                      accountNumber: e.target.value.replace(/\D/g, '').slice(0, 10),
+                    }))
+                  }
+                  placeholder="0123456789"
+                />
+              </label>
+              <label className={styles.field}>
+                <span>Account name</span>
+                <div className={styles.inlineRow}>
+                  <input
+                    value={bankForm.accountName}
+                    onChange={(e) => setBankForm((f) => ({ ...f, accountName: e.target.value }))}
+                    placeholder="As on bank account"
+                  />
+                  <button
+                    type="button"
+                    className={styles.btnSubtle}
+                    disabled={resolvingAccount}
+                    onClick={resolveAccountName}
+                  >
+                    {resolvingAccount ? '…' : 'Verify'}
+                  </button>
+                </div>
+              </label>
+            </div>
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.btnSubtle} onClick={() => setShowBankModal(false)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                disabled={isSaving || !bankStaffId}
+                onClick={saveStaffBank}
+              >
+                {isSaving ? 'Saving…' : 'Save bank details'}
               </button>
             </div>
           </div>

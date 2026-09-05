@@ -417,3 +417,40 @@
   .formGrid { grid-template-columns: 1fr; }
   .txItem { grid-template-columns: 1fr; gap: 4px; }
 }
+
+.inlineRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.inlineRow input {
+  flex: 1;
+}
+.muted {
+  color: var(--text-3, #847E74);
+  font-size: 12px;
+}
+.formGrid {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0 16px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2, #444);
+}
+.field input,
+.field select {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  background: var(--bg, #fff);
+  color: var(--text-1, #111);
+}
