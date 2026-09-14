@@ -196,15 +196,15 @@ export default function WalletPage() {
           <h2 className={styles.sectionTitle}>What you can pay for</h2>
           <ul className={styles.usesList}>
             <li>MO Sales & Ask MO credit packs</li>
-            <li>Staff payroll payouts</li>
+            <li>Staff payroll (open the Payroll page from the sidebar)</li>
             <li>Other Busmo paid features as they roll out</li>
           </ul>
           <div className={styles.linkRow}>
             <button type="button" className={styles.linkBtn} onClick={() => navigateTo?.('mo-sales')}>
-              MO Sales
+              Open MO Sales
             </button>
             <button type="button" className={styles.linkBtn} onClick={() => navigateTo?.('payroll')}>
-              Payroll
+              Open Payroll page
             </button>
           </div>
         </section>

@@ -29,7 +29,7 @@ export const NAV_ITEM_REQUIREMENTS: Record<string, {
   'ingredient-tracking': { requiredFeatures: ['Ingredient Tracking'], requiredCategories: ['restaurant', 'cafe'], requiredPlan: 'standard' },
   'expiry-alerts': { requiredFeatures: ['Expiry Alerts'], requiredCategories: ['grocery', 'pharmacy', 'supermarket', 'restaurant', 'cafe', 'healthcare'], requiredPlan: 'standard' },
   'production-tracking': { requiredFeatures: ['Production Tracking'], requiredCategories: ['manufacturing'], requiredPlan: 'pro' },
-  'payroll': { requiredFeatures: ['Payroll Management'], requiredPlan: 'pro' },
+  'payroll': { requiredFeatures: ['Payroll Management', 'Staff Management'] },
   'customer-management': { requiredFeatures: ['Customer Management'] },
   'supplier-management': { requiredFeatures: ['Supplier Management'], excludedCategories: ['education', 'services'] },
   'warehouse': { requiredCategories: ['retail', 'wholesale', 'distributor'], excludedCategories: ['restaurant', 'cafe', 'services', 'education', 'healthcare'] },
