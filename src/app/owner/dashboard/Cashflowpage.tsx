@@ -1015,7 +1015,7 @@ export default function Cashflowpage() {
                 <span className={`${styles.statIcon} ${styles.statIconGreen}`}><Banknote size={16} /></span>
               </div>
               <div className={styles.statValue} style={{ color: 'var(--green,#10B981)' }}>{formatMoney(stats.cashBalance)}</div>
-              <div className={styles.statHint}>Available now — cash + all bank balances (sales in, purchases &amp; expenses out)</div>
+              <div className={styles.statHint}>Cash + banks</div>
             </div>
             <div className={styles.statCard}>
               <div className={styles.statTop}>
