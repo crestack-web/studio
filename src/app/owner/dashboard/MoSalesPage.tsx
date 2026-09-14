@@ -12,6 +12,11 @@ import { getSupabase } from '@/lib/supabase';
 import styles from './MoSalesPage.module.css';
 import { CreditPurchaseModal } from '@/components/CreditPurchaseModal';
 import { MOLoadingSpinner } from '@/components/MOLoadingSpinner';
+import {
+  defaultTestQuestionForCategory,
+  normalizeBusinessCategory,
+  testQuestionsForCategory,
+} from './moSalesTestQuestions';
 
 type View = 'home' | 'inbox' | 'credits' | 'settings';
 
@@ -162,6 +167,80 @@ export default function MoSalesPage() {
   const { formatMoney } = useCurrency();
   const businessId = user?.businessId;
 
+  // Align Test MO prompts with the merchant's Busmo business category
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!businessId) {
+        const q = defaultTestQuestionForCategory('retail');
+        if (!cancelled) {
+          setBusinessCategory('retail');
+          setTestSuggestions(testQuestionsForCategory('retail'));
+          setTestQuestion((prev) => prev || q);
+        }
+        return;
+      }
+      try {
+        const supabase = getSupabase();
+        const { data } = await supabase
+          .from('businesses')
+          .select('category, industry, metadata, name')
+          .eq('id', businessId)
+          .maybeSingle();
+        const meta =
+          data?.metadata && typeof data.metadata === 'object'
+            ? (data.metadata as Record<string, unknown>)
+            : {};
+        const raw =
+          data?.category ||
+          data?.industry ||
+          meta.selectedCategory ||
+          meta.category ||
+          meta.businessCategory ||
+          meta.businessType ||
+          meta.business_type ||
+          'retail';
+        const normalized = normalizeBusinessCategory(raw);
+        const suggestions = testQuestionsForCategory(normalized);
+        if (cancelled) return;
+        setBusinessCategory(normalized);
+        setTestSuggestions(suggestions);
+        setTestQuestion((prev) => {
+          if (!prev.trim()) return suggestions[0];
+          // Replace defaults from other categories so Test MO stays relevant
+          const knownDefaults = new Set(
+            [
+              'Do you have black sneakers?',
+              ...testQuestionsForCategory('retail'),
+              ...testQuestionsForCategory('restaurant'),
+              ...testQuestionsForCategory('wholesale'),
+              ...testQuestionsForCategory('distributor'),
+              ...testQuestionsForCategory('service'),
+              ...testQuestionsForCategory('fashion'),
+              ...testQuestionsForCategory('electronics'),
+              ...testQuestionsForCategory('grocery'),
+              ...testQuestionsForCategory('manufacturing'),
+              ...testQuestionsForCategory('pharmacy'),
+            ].map((s) => s.trim())
+          );
+          if (knownDefaults.has(prev.trim()) && !suggestions.includes(prev)) {
+            return suggestions[0];
+          }
+          return prev;
+        });
+      } catch {
+        if (!cancelled) {
+          setTestSuggestions(testQuestionsForCategory('retail'));
+          setTestQuestion((prev) => prev || defaultTestQuestionForCategory('retail'));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [businessId]);
+
+
   const [view, setView] = useState<View>('home');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -195,7 +274,9 @@ export default function MoSalesPage() {
   const [humanHandoff, setHumanHandoff] = useState(true);
 
   const [betaDismissed, setBetaDismissed] = useState(false);
-  const [testQuestion, setTestQuestion] = useState('Do you have black sneakers?');
+  const [testQuestion, setTestQuestion] = useState('');
+  const [testSuggestions, setTestSuggestions] = useState<string[]>(() => testQuestionsForCategory('retail'));
+  const [businessCategory, setBusinessCategory] = useState('retail');
   const [testReply, setTestReply] = useState<string | null>(null);
   const [testLoading, setTestLoading] = useState(false);
   const [embeddedConfigured, setEmbeddedConfigured] = useState(false);
@@ -839,14 +920,30 @@ export default function MoSalesPage() {
           <section className={styles.card}>
             <h3 className={styles.cardTitleSm}>Test MO</h3>
             <p className={styles.muted}>
-              See how MO would respond to your customers using your real products.
-              This is a preview — it won&apos;t send a message to anyone.
+              Sample questions for your{' '}
+              <strong style={{ textTransform: 'capitalize' }}>{businessCategory}</strong> business.
+              MO uses your real catalog — this preview is not sent to customers.
             </p>
+            <div className={styles.chipRow} style={{ marginBottom: 10, flexWrap: 'wrap', gap: 8, display: 'flex' }}>
+              {testSuggestions.map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  className={testQuestion === q ? styles.chipActive : styles.chip}
+                  onClick={() => {
+                    setTestQuestion(q);
+                    setTestReply(null);
+                  }}
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
             <input
               className={styles.search}
               value={testQuestion}
               onChange={(e) => setTestQuestion(e.target.value)}
-              placeholder="e.g. Do you have black sneakers?"
+              placeholder={testSuggestions[0] || 'Ask a customer-style question…'}
             />
             <button
               type="button"
