@@ -1439,8 +1439,6 @@ export default function MoSalesPage() {
           </div>
         </div>
       )}
-    </div>
-
       <CreditPurchaseModal
         isOpen={showCreditPurchase}
         onClose={() => setShowCreditPurchase(false)}
@@ -1451,6 +1449,6 @@ export default function MoSalesPage() {
           showToast?.('Credits updated');
         }}
       />
-
+    </div>
   );
 }
