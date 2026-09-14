@@ -10,6 +10,7 @@ import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { getSupabase } from '@/lib/supabase';
 import styles from './MoSalesPage.module.css';
+import { CreditPurchaseModal } from '@/components/CreditPurchaseModal';
 import { MOLoadingSpinner } from '@/components/MOLoadingSpinner';
 
 type View = 'home' | 'inbox' | 'credits' | 'settings';
@@ -170,6 +171,10 @@ export default function MoSalesPage() {
   const [creditsLoading, setCreditsLoading] = useState(false);
   const [buyOpen, setBuyOpen] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [showCreditPurchase, setShowCreditPurchase] = useState(false);
+  /** User-account MO credits (same pool as Ask MO). -1 = unlimited */
+  const [accountCredits, setAccountCredits] = useState<number | null>(null);
+  const [accountCreditsConsumed, setAccountCreditsConsumed] = useState(0);
 
   const [inboxFilter, setInboxFilter] = useState<'all' | 'needs_you' | 'mo_handling'>('all');
   const [inboxQ, setInboxQ] = useState('');
@@ -236,6 +241,28 @@ export default function MoSalesPage() {
     }
   }, [businessId]);
 
+  const loadAccountCredits = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const supabase = getSupabase();
+      const { data: userRow } = await supabase
+        .from('users')
+        .select('metadata, plan')
+        .eq('id', user.id)
+        .maybeSingle();
+      const meta = (userRow?.metadata as Record<string, any>) || {};
+      let remaining = meta.moCreditsRemaining;
+      if (remaining === undefined || remaining === null) {
+        const plan = String(userRow?.plan || user?.plan || 'starter').toLowerCase();
+        remaining = plan === 'pro' ? -1 : 2000;
+      }
+      setAccountCredits(typeof remaining === 'number' ? remaining : Number(remaining) || 0);
+      setAccountCreditsConsumed(Number(meta.moCreditsConsumed) || 0);
+    } catch (e) {
+      console.error('[mo-sales] account credits load', e);
+    }
+  }, [user?.id, user?.plan]);
+
   const loadCredits = useCallback(async () => {
     if (!businessId) return;
     setCreditsLoading(true);
@@ -245,16 +272,18 @@ export default function MoSalesPage() {
         fetch(`/api/mo-sales/credits?businessId=${encodeURIComponent(businessId)}`, { headers }),
         fetch(`/api/mo-sales/credits/usage?businessId=${encodeURIComponent(businessId)}&limit=30`, { headers }),
       ]);
-      const cJson = await cRes.json();
-      const uJson = await uRes.json();
+      const cJson = await cRes.json().catch(() => ({}));
+      const uJson = await uRes.json().catch(() => ({}));
       if (cRes.ok) setCredits(cJson);
       if (uRes.ok) setUsageItems(uJson.items || []);
+      await loadAccountCredits();
     } catch {
       /* keep previous */
     } finally {
       setCreditsLoading(false);
     }
-  }, [businessId]);
+  }, [businessId, loadAccountCredits]);
+
 
   useEffect(() => { loadOverview(); }, [loadOverview]);
   useEffect(() => { if (view === 'credits' || view === 'home') loadCredits(); }, [view, loadCredits]);
@@ -682,7 +711,7 @@ export default function MoSalesPage() {
                   )}
                   {overview.credits.status === 'empty' && (
                     <div className={styles.creditWarn} style={{ marginTop: 8 }}>
-                      MO is paused — your credits have finished.
+                      MO is paused — your MO credits have finished. Top up to continue.
                     </div>
                   )}
                   {(overview.credits.status === 'low' || overview.credits.status === 'critical') && (
@@ -945,41 +974,78 @@ export default function MoSalesPage() {
 
       {view === 'credits' && (
         <section className={styles.creditsSection}>
+          <div className={styles.card} style={{ marginBottom: 16 }}>
+            <div className={styles.creditLabel}>Your MO credits</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+              <div>
+                <div className={styles.creditBalance} style={{ fontSize: '1.85rem', lineHeight: 1.2 }}>
+                  {creditsLoading && accountCredits === null
+                    ? '…'
+                    : accountCredits === null
+                      ? '—'
+                      : accountCredits === -1
+                        ? 'Unlimited'
+                        : Math.max(0, accountCredits).toLocaleString()}
+                </div>
+                <p className={styles.muted} style={{ marginTop: 6, maxWidth: 420 }}>
+                  Same credits as Ask MO. MO uses them for WhatsApp sales replies and in-app AI.
+                  {accountCredits !== null && accountCredits !== -1 ? (
+                    <> · Lifetime used: {accountCreditsConsumed.toLocaleString()}</>
+                  ) : null}
+                </p>
+                {accountCredits !== null && accountCredits !== -1 && accountCredits <= 0 && (
+                  <div className={styles.creditWarn} style={{ marginTop: 10 }}>
+                    Credits finished. Top up to continue MO Sales, Ask MO, and other MO features.
+                  </div>
+                )}
+                {accountCredits !== null && accountCredits !== -1 && accountCredits > 0 && accountCredits <= 100 && (
+                  <div className={styles.creditWarn} style={{ marginTop: 10 }}>
+                    Running low — top up before MO pauses.
+                  </div>
+                )}
+              </div>
+              {accountCredits !== -1 && (
+                <button
+                  type="button"
+                  className={styles.btnPrimary}
+                  onClick={() => setShowCreditPurchase(true)}
+                >
+                  {accountCredits !== null && accountCredits <= 0 ? 'Top up credits' : 'Buy MO credits'}
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              className={styles.btnGhost}
+              style={{ marginTop: 12 }}
+              onClick={() => loadCredits()}
+            >
+              Refresh balance
+            </button>
+          </div>
+
           {creditsLoading && !credits ? (
-            <div className={styles.muted}>Loading credits…</div>
-          ) : !credits || (credits.availableCredits === 0 && credits.usedCredits === 0 && credits.trialCredits === 0) ? (
-            <div className={styles.empty}>
-              <h2>Your MO Sales credits are waiting</h2>
-              <p>Start your free MO Sales trial and see how MO handles customer conversations for your business.</p>
-              <button type="button" className={styles.btnPrimary} onClick={() => loadCredits()}>
-                Start free trial
-              </button>
-              <p className={styles.muted} style={{ marginTop: 12 }}>
-                MO Credits are used when MO handles customer conversations automatically. Usage depends on how many customers message you.
-              </p>
-            </div>
-          ) : credits.status === 'empty' && credits.trialCreditsUsed >= credits.trialCredits && credits.purchasedCredits === 0 ? (
-            <div className={styles.empty}>
-              <h2>Your MO Sales trial is complete</h2>
-              <p>MO handled your customer conversations during your trial. Add credits to keep MO responding automatically.</p>
-              <p className={styles.muted}>Trial credits used: {credits.trialCreditsUsed}</p>
-              <button type="button" className={styles.btnPrimary} onClick={() => setBuyOpen(true)}>Buy MO Credits</button>
-              <button type="button" className={styles.btnGhost} style={{ marginLeft: 8 }} onClick={() => setView('inbox')}>View conversations</button>
-            </div>
+            <div className={styles.muted}>Loading usage…</div>
+          ) : !credits ? (
+            <div className={styles.muted}>Could not load WhatsApp usage details. Your account credit balance is shown above.</div>
           ) : (
             <>
               <div className={styles.creditHero}>
                 <div>
-                  <div className={styles.creditLabel}>MO Credits</div>
+                  <div className={styles.creditLabel}>MO Sales activity balance</div>
                   <div className={styles.creditBalance}>{credits.availableCredits.toLocaleString()}</div>
                   <div className={styles.muted}>
-                    ≈ {credits.estimatedResponsesRemaining.toLocaleString()} automatic replies remaining
+                    WhatsApp-side pool (synced with MO Sales replies)
                     {credits.status === 'trial' ? ' · FREE TRIAL' : ''}
+                    {credits.estimatedResponsesRemaining != null
+                      ? ` · ≈ ${credits.estimatedResponsesRemaining.toLocaleString()} replies`
+                      : ''}
                   </div>
                 </div>
                 <div className={styles.headerActions}>
-                  <button type="button" className={styles.btnPrimary} onClick={() => setBuyOpen(true)}>Buy Credits</button>
-                  <button type="button" className={styles.btnGhost} onClick={() => loadCredits()}>Refresh</button>
+                  <button type="button" className={styles.btnPrimary} onClick={() => setShowCreditPurchase(true)}>
+                    Top up
+                  </button>
                 </div>
               </div>
 
@@ -989,14 +1055,14 @@ export default function MoSalesPage() {
                     ? 'MO Sales is almost out of credits.'
                     : 'You’re running low on MO credits.'}
                   {' '}
-                  <button type="button" className={styles.linkBtn} onClick={() => setBuyOpen(true)}>Buy Credits</button>
+                  <button type="button" className={styles.linkBtn} onClick={() => setShowCreditPurchase(true)}>Buy Credits</button>
                 </div>
               )}
               {credits.status === 'empty' && (
                 <div className={styles.creditWarn}>
                   MO Sales has stopped responding automatically because your credits are finished.
                   {' '}
-                  <button type="button" className={styles.linkBtn} onClick={() => setBuyOpen(true)}>Buy Credits</button>
+                  <button type="button" className={styles.linkBtn} onClick={() => setShowCreditPurchase(true)}>Buy Credits</button>
                 </div>
               )}
 
@@ -1374,5 +1440,17 @@ export default function MoSalesPage() {
         </div>
       )}
     </div>
+
+      <CreditPurchaseModal
+        isOpen={showCreditPurchase}
+        onClose={() => setShowCreditPurchase(false)}
+        onSuccess={async () => {
+          setShowCreditPurchase(false);
+          await loadAccountCredits();
+          await loadCredits();
+          showToast?.('Credits updated');
+        }}
+      />
+
   );
 }

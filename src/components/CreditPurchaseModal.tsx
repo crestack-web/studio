@@ -99,7 +99,7 @@ export function CreditPurchaseModal({ isOpen, onClose, onSuccess }: CreditPurcha
             </div>
             <div>
               <h2>MO Credits</h2>
-              <p className={styles.headerSubtitle}>Buy credits for Ask MO</p>
+              <p className={styles.headerSubtitle}>Top up MO for Ask MO, MO Sales, and all MO features</p>
             </div>
           </div>
           <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close">
