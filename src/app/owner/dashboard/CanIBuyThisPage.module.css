@@ -1,11 +1,19 @@
 .page {
-  max-width: 560px;
-  margin: 0 auto;
-  padding: 16px 16px 40px;
+  max-width: none;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 14px;
   color: var(--text-1, #111827);
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 14px;
+  }
 }
 
 .header { display: flex; flex-direction: column; gap: 4px; }
