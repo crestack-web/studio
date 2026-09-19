@@ -49,11 +49,13 @@ import SuppliersPage from './SuppliersPage';
 import { WarehousePage } from './WarehousePage';
 import { StockTransfersPage } from './StockTransfersPage';
 import MoSalesPage from './MoSalesPage';
+import JobsPage from './JobsPage';
 import { usePageTracking } from '@/hooks/usePageTracking';
 import styles from './AppShell.module.css';
 
 const PAGE_COMPONENTS: Record<string, React.ComponentType> = {
   home: HomePage,
+  jobs: JobsPage,
   sale: RecordSalePage,
   inventory: InventoryPage,
   'add-product': AddProductPage,
