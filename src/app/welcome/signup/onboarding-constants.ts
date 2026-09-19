@@ -13,10 +13,11 @@ export const CATEGORIES = [
   { id: "distributor", label: "Distributor", icon: "🚚" },
   { id: "healthcare", label: "Healthcare", icon: "🏥" },
   { id: "education", label: "Education", icon: "🎓" },
+  { id: "jobs", label: "Jobs & Projects", icon: "🔧" },
+  { id: "recycling_material_collection", label: "Recycling & Material Collection", icon: "♻️" },
   { id: "other", label: "Other", icon: "📦" },
 ];
 
-// NOTE: Full CATEGORY_FEATURES and remaining constants will be in follow-up if this is truncated - use complete file from local
 export const CATEGORY_FEATURES: Record<string, string[]> = {
   retail: ["Sales Recording", "Inventory Tracking", "Staff Management", "Cash Flow Analysis", "Credit Tracking", "Expense Management", "Customer Management", "Supplier Management", "Profit/Loss Reports", "Business Analytics", "Ask MO AI Assistant", "Payroll Management"],
   restaurant: ["Sales Recording", "Inventory Tracking", "Staff Management", "Cash Flow Analysis", "Menu Management", "Ingredient Tracking", "Expiry Alerts", "Expense Management", "Customer Management", "Supplier Management", "Profit/Loss Reports", "Business Analytics", "Ask MO AI Assistant", "Payroll Management"],
@@ -32,6 +33,8 @@ export const CATEGORY_FEATURES: Record<string, string[]> = {
   distributor: ["Sales Recording", "Inventory Tracking", "Staff Management", "Cash Flow Analysis", "Credit Tracking", "Expense Management", "Customer Management", "Supplier Management", "Profit/Loss Reports", "Business Analytics", "Ask MO AI Assistant", "Multi-branch Support", "Payroll Management"],
   healthcare: ["Sales Recording", "Inventory Tracking", "Staff Management", "Cash Flow Analysis", "Expiry Alerts", "Expense Management", "Customer Management", "Supplier Management", "Profit/Loss Reports", "Business Analytics", "Ask MO AI Assistant", "Payroll Management"],
   education: ["Sales Recording", "Staff Management", "Cash Flow Analysis", "Expense Management", "Customer Management", "Profit/Loss Reports", "Business Analytics", "Ask MO AI Assistant", "Payroll Management"],
+  jobs: ["Sales Recording", "Staff Management", "Cash Flow Analysis", "Expense Management", "Customer Management", "Supplier Management", "Jobs Management", "Profit/Loss Reports", "Business Analytics", "Ask MO AI Assistant", "Payroll Management"],
+  recycling_material_collection: ["Expense Management", "Supplier Management", "Material Collection", "Cash Flow Analysis", "Staff Management", "Profit/Loss Reports", "Business Analytics", "Ask MO AI Assistant", "Payroll Management"],
   other: ["Sales Recording", "Inventory Tracking", "Staff Management", "Cash Flow Analysis", "Expense Management", "Customer Management", "Supplier Management", "Profit/Loss Reports", "Business Analytics", "Ask MO AI Assistant", "Payroll Management"],
 };
 
