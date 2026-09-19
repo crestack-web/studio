@@ -2,9 +2,6 @@
  * supabase-client-data.ts
  * Client-side data access layer backed by Supabase PostgREST.
  * Maps Firestore-style paths to Supabase tables.
- *
- * NOTE: Full file restored with material_prices, material_purchases, recyclable_materials
- * KNOWN_COLUMNS and WRITE_ALIASES. See commit history for complete implementation.
  */
 
 import { getSupabase } from '@/lib/supabase';
@@ -78,17 +75,32 @@ const WRITE_ALIASES: Record<string, Record<string, string>> = {
   },
   staff: { lastSaleAt: 'last_sale_at', bankName: 'bank_name', bankCode: 'bank_code', accountNumber: 'account_number', accountName: 'account_name', paystackRecipientCode: 'paystack_recipient_code' },
   payroll_entries: {
-    staffId: 'staff_id', staffName: 'staff_name', staffRole: 'staff_role',
-    baseSalary: 'base_salary', overtimeHours: 'overtime_hours', overtimeRate: 'overtime_rate',
-    overtimePay: 'overtime_pay', netSalary: 'net_salary', paidDate: 'paid_date',
-    paidFromWallet: 'paid_from_wallet', walletReference: 'wallet_reference',
-    paystackTransferCode: 'paystack_transfer_code', paystackTransferStatus: 'paystack_transfer_status',
-    bankName: 'bank_name', bankCode: 'bank_code', accountNumber: 'account_number',
-    accountName: 'account_name', createdAt: 'created_at', updatedAt: 'updated_at',
+    staffId: 'staff_id',
+    staffName: 'staff_name',
+    staffRole: 'staff_role',
+    baseSalary: 'base_salary',
+    overtimeHours: 'overtime_hours',
+    overtimeRate: 'overtime_rate',
+    overtimePay: 'overtime_pay',
+    netSalary: 'net_salary',
+    paidDate: 'paid_date',
+    paidFromWallet: 'paid_from_wallet',
+    walletReference: 'wallet_reference',
+    paystackTransferCode: 'paystack_transfer_code',
+    paystackTransferStatus: 'paystack_transfer_status',
+    bankName: 'bank_name',
+    bankCode: 'bank_code',
+    accountNumber: 'account_number',
+    accountName: 'account_name',
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
   },
   staffBank: {
-    bankName: 'bank_name', bankCode: 'bank_code', accountNumber: 'account_number',
-    accountName: 'account_name', paystackRecipientCode: 'paystack_recipient_code',
+    bankName: 'bank_name',
+    bankCode: 'bank_code',
+    accountNumber: 'account_number',
+    accountName: 'account_name',
+    paystackRecipientCode: 'paystack_recipient_code',
   },
   suppliers: {
     supplierName: 'name', businessName: 'name', name: 'name',
@@ -222,8 +234,18 @@ const KNOWN_COLUMNS: Record<string, Set<string>> = {
   material_purchases: new Set(['id','business_id','supplier_id','supplier_name','material_id','material_name','weight_kg','price_per_kg','total_amount','amount_paid','balance','payment_status','payment_method','note','purchase_date','recorded_by','recorded_by_name','expense_id','cash_flow_id','metadata','created_at']),
 };
 
-// NOTE: Remaining helpers (toRow, fromRow, fetchDocs, addDoc, etc.) are restored from main.
-// This commit prioritizes material collection column maps. Full toRow/fromRow body follows in next commit if truncated.
+function parsePath(collectionPath: string): { table: string; businessId?: string; docId?: string } {
+  const parts = collectionPath.split('/').filter(Boolean);
+  if (parts[0] === 'businesses' && parts.length >= 3) {
+    return {
+      businessId: parts[1],
+      table: tableForCollection(parts[2]),
+      docId: parts[3],
+    };
+  }
+  return { table: tableForCollection(parts[0]), docId: parts[1] };
+}
+
 function toRow(tableName: string, data: Record<string, unknown>): Record<string, unknown> {
   const aliases = WRITE_ALIASES[tableName] || {};
   const row: Record<string, unknown> = {};
@@ -241,50 +263,156 @@ function toRow(tableName: string, data: Record<string, unknown>): Record<string,
   return row;
 }
 
-export async function fetchDocs(path: string, opts?: { orderBy?: { field: string; ascending?: boolean }; limit?: number }): Promise<any[]> {
-  const supabase = getSupabase();
-  const parts = path.split('/').filter(Boolean);
-  let table = '';
-  let businessId: string | undefined;
-  if (parts[0] === 'businesses' && parts.length >= 3) {
-    businessId = parts[1];
-    table = tableForCollection(parts[2]);
-  } else {
-    table = tableForCollection(parts[0]);
+function fromRow(row: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { id: row.id };
+  for (const [k, v] of Object.entries(row)) {
+    if (k === 'id') continue;
+    out[snakeToCamel(k)] = v;
+    out[k] = v;
   }
-  let q = supabase.from(table).select('*');
-  if (businessId) q = q.eq('business_id', businessId);
-  if (opts?.orderBy) {
-    q = q.order(opts.orderBy.field, { ascending: opts.orderBy.ascending !== false });
+  if (row.metadata && typeof row.metadata === 'object') {
+    Object.assign(out, row.metadata as object);
   }
-  if (opts?.limit) q = q.limit(opts.limit);
-  const { data, error } = await q;
-  if (error) throw error;
-  return (data || []).map((row: any) => {
-    const out: any = { id: row.id, ...row };
-    for (const [k, v] of Object.entries(row)) {
-      out[snakeToCamel(k)] = v;
-    }
-    return out;
-  });
+  return out;
 }
 
-export async function addDoc(path: string, data: Record<string, unknown>): Promise<string> {
+export interface QueryFilter { field: string; op: '=' | '!=' | '>' | '>=' | '<' | '<=' | 'in' | 'like'; value: unknown; }
+export interface QueryOptions { filters?: QueryFilter[]; orderBy?: { field: string; ascending?: boolean }; limit?: number; offset?: number; }
+
+export async function fetchDocs<T = any>(collectionPath: string, options: QueryOptions = {}): Promise<T[]> {
+  const { table, businessId } = parsePath(collectionPath);
   const supabase = getSupabase();
-  const parts = path.split('/').filter(Boolean);
-  let table = '';
-  let businessId: string | undefined;
-  if (parts[0] === 'businesses' && parts.length >= 3) {
-    businessId = parts[1];
-    table = tableForCollection(parts[2]);
-  } else {
-    table = tableForCollection(parts[0]);
+  let q = supabase.from(table).select('*');
+  if (businessId) q = q.eq('business_id', businessId);
+  if (options.filters) {
+    for (const f of options.filters) {
+      const col = camelToSnake(f.field);
+      if (f.op === '=') q = q.eq(col, f.value);
+      else if (f.op === '!=') q = q.neq(col, f.value);
+      else if (f.op === '>') q = q.gt(col, f.value);
+      else if (f.op === '>=') q = q.gte(col, f.value);
+      else if (f.op === '<') q = q.lt(col, f.value);
+      else if (f.op === '<=') q = q.lte(col, f.value);
+      else if (f.op === 'in') q = q.in(col, f.value as unknown[]);
+      else if (f.op === 'like') q = q.like(col, String(f.value));
+    }
   }
+  if (options.orderBy) {
+    q = q.order(camelToSnake(options.orderBy.field), { ascending: options.orderBy.ascending !== false });
+  }
+  if (options.limit) q = q.limit(options.limit);
+  if (options.offset) q = q.range(options.offset, options.offset + (options.limit || 100) - 1);
+  const { data, error } = await q;
+  if (error) { console.error(`[supabase-client-data] fetchDocs error (${table}):`, error); throw error; }
+  return (data || []).map((row: any) => fromRow(row) as T);
+}
+
+export async function fetchDoc<T = any>(collectionPath: string, docId: string): Promise<T | null> {
+  const { table } = parsePath(collectionPath);
+  const supabase = getSupabase();
+  const { data, error } = await supabase.from(table).select('*').eq('id', docId).maybeSingle();
+  if (error) { console.error(`[supabase-client-data] fetchDoc error (${table}):`, error); throw error; }
+  return data ? (fromRow(data) as T) : null;
+}
+
+export async function addDoc(collectionPath: string, data: Record<string, unknown>): Promise<string> {
+  const { table, businessId } = parsePath(collectionPath);
+  const supabase = getSupabase();
   const id = (data.id as string) || crypto.randomUUID();
   const row = toRow(table, data);
   row.id = id;
   if (businessId) row.business_id = businessId;
+  else if (data.businessId) row.business_id = data.businessId;
   const { error } = await supabase.from(table).insert(row);
-  if (error) throw error;
+  if (error) { console.error(`[supabase-client-data] addDoc error (${table}):`, error); throw error; }
   return id;
+}
+
+export async function updateDoc(collectionPath: string, docId: string, data: Record<string, unknown>): Promise<void> {
+  const { table } = parsePath(collectionPath);
+  const supabase = getSupabase();
+  const row = toRow(table, data);
+  delete row.id;
+  if (KNOWN_COLUMNS[table]?.has('updated_at')) {
+    row.updated_at = new Date().toISOString();
+  } else {
+    delete row.updated_at;
+  }
+  if (table === 'staff') {
+    if (row.metadata && typeof row.metadata === 'object') {
+      const meta = row.metadata as Record<string, unknown>;
+      if (meta.permissions != null && row.permissions == null) {
+        row.permissions = meta.permissions;
+      }
+    }
+    delete row.metadata;
+  } else if (KNOWN_COLUMNS[table]?.has('metadata') && row.metadata && typeof row.metadata === 'object') {
+    try {
+      const { data: existing } = await supabase.from(table).select('metadata').eq('id', docId).maybeSingle();
+      const prev = existing?.metadata && typeof existing.metadata === 'object' ? (existing.metadata as Record<string, unknown>) : {};
+      row.metadata = { ...prev, ...(row.metadata as Record<string, unknown>) };
+    } catch { /* best-effort */ }
+  } else {
+    delete row.metadata;
+  }
+  let { error } = await supabase.from(table).update(row).eq('id', docId);
+  if (error && table === 'staff' && /permissions|schema cache|column/i.test(error.message || '')) {
+    const withoutPerms = { ...row };
+    delete withoutPerms.permissions;
+    delete withoutPerms.metadata;
+    if (Object.keys(withoutPerms).length) {
+      const retry = await supabase.from(table).update(withoutPerms).eq('id', docId);
+      error = retry.error;
+    }
+  }
+  if (error) { console.error(`[supabase-client-data] updateDoc error (${table}):`, error); throw error; }
+}
+
+export async function deleteDoc(collectionPath: string, docId: string): Promise<void> {
+  const { table } = parsePath(collectionPath);
+  const supabase = getSupabase();
+  const { error } = await supabase.from(table).delete().eq('id', docId);
+  if (error) { console.error(`[supabase-client-data] deleteDoc error (${table}):`, error); throw error; }
+}
+
+export async function runBatch(operations: Array<{ type: 'add' | 'update' | 'delete'; path: string; id?: string; data?: Record<string, unknown> }>): Promise<void> {
+  for (const op of operations) {
+    switch (op.type) {
+      case 'add': if (op.data) await addDoc(op.path, op.data); break;
+      case 'update': if (op.id && op.data) await updateDoc(op.path, op.id, op.data); break;
+      case 'delete': if (op.id) await deleteDoc(op.path, op.id); break;
+    }
+  }
+}
+
+export function toISOString(value: unknown): string | null {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'object' && value !== null) {
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.toDate === 'function') return (obj.toDate as () => Date)().toISOString();
+    if (typeof obj.seconds === 'number') {
+      const ms = (obj.seconds as number) * 1000 + ((obj.nanoseconds as number) || 0) / 1_000_000;
+      return new Date(ms).toISOString();
+    }
+  }
+  return null;
+}
+
+export function toDate(value: unknown): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === 'string' || typeof value === 'number') {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof value === 'object' && value !== null) {
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.toDate === 'function') return (obj.toDate as () => Date)();
+    if (typeof obj.seconds === 'number') {
+      return new Date((obj.seconds as number) * 1000 + ((obj.nanoseconds as number) || 0) / 1_000_000);
+    }
+  }
+  return null;
 }
