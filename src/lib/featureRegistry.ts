@@ -5,8 +5,6 @@
 
 import { PageId } from '@/app/owner/dashboard/types';
 
-// ── Type Definitions ───────────────────────
-
 export type Plan = 'starter' | 'standard' | 'pro';
 
 export type BusinessCategory =
@@ -24,6 +22,8 @@ export type BusinessCategory =
   | 'distributor'
   | 'healthcare'
   | 'education'
+  | 'jobs'
+  | 'recycling_material_collection'
   | 'other';
 
 export type FeatureCategory =
@@ -64,10 +64,7 @@ export interface FeatureAccessResult {
   requiredPlan?: Plan;
 }
 
-// ── Feature Registry ─────────────────────────
-
 export const FEATURE_REGISTRY: Record<string, Feature> = {
-  // ── Core Inventory Features ───────────────
   'inventory-tracking': {
     id: 'inventory-tracking',
     name: 'Inventory Tracking',
@@ -104,8 +101,6 @@ export const FEATURE_REGISTRY: Record<string, Feature> = {
     isProOnly: true,
     isStandardOrPro: false,
   },
-
-  // ── Sales Features ────────────────────────
   'sales-recording': {
     id: 'sales-recording',
     name: 'Sales Recording',
@@ -130,8 +125,6 @@ export const FEATURE_REGISTRY: Record<string, Feature> = {
     isProOnly: false,
     isStandardOrPro: false,
   },
-
-  // ── Analytics Features ────────────────────
   'reports-analytics': {
     id: 'reports-analytics',
     name: 'Reports & Analytics',
@@ -168,8 +161,6 @@ export const FEATURE_REGISTRY: Record<string, Feature> = {
     isProOnly: false,
     isStandardOrPro: false,
   },
-
-  // ── AI Features ──────────────────────────
   'ask-mo-ai-assistant': {
     id: 'ask-mo-ai-assistant',
     name: 'Ask MO AI Assistant',
@@ -182,8 +173,6 @@ export const FEATURE_REGISTRY: Record<string, Feature> = {
     isProOnly: false,
     isStandardOrPro: false,
   },
-
-  // ── Operations Features ────────────────────
   'supplier-management': {
     id: 'supplier-management',
     name: 'Supplier Management',
@@ -220,8 +209,6 @@ export const FEATURE_REGISTRY: Record<string, Feature> = {
     isProOnly: false,
     isStandardOrPro: false,
   },
-
-  // ── Financial Features ────────────────────
   'credit-tracking': {
     id: 'credit-tracking',
     name: 'Credit Tracking',
@@ -283,8 +270,6 @@ export const FEATURE_REGISTRY: Record<string, Feature> = {
     isProOnly: false,
     isStandardOrPro: true,
   },
-
-  // ── HR Features ───────────────────────────
   'staff-management': {
     id: 'staff-management',
     name: 'Staff Management',
@@ -333,8 +318,6 @@ export const FEATURE_REGISTRY: Record<string, Feature> = {
     isProOnly: true,
     isStandardOrPro: false,
   },
-
-  // ── Restaurant Features ───────────────────
   'menu-management': {
     id: 'menu-management',
     name: 'Menu Management',
@@ -361,8 +344,6 @@ export const FEATURE_REGISTRY: Record<string, Feature> = {
     isProOnly: false,
     isStandardOrPro: true,
   },
-
-  // ── Manufacturing Features ────────────────
   'production-tracking': {
     id: 'production-tracking',
     name: 'Production Tracking',
@@ -376,8 +357,6 @@ export const FEATURE_REGISTRY: Record<string, Feature> = {
     isProOnly: true,
     isStandardOrPro: false,
   },
-
-  // ── Marketing Features ───────────────────
   'email-campaigns': {
     id: 'email-campaigns',
     name: 'Email Campaigns',
@@ -390,8 +369,6 @@ export const FEATURE_REGISTRY: Record<string, Feature> = {
     isProOnly: true,
     isStandardOrPro: false,
   },
-
-  // ── Advanced Features ────────────────────
   'audit-trail': {
     id: 'audit-trail',
     name: 'Audit Trail',
@@ -429,8 +406,6 @@ export const FEATURE_REGISTRY: Record<string, Feature> = {
     isProOnly: false,
     isStandardOrPro: false,
   },
-
-  // ── Growth & Services ────────────────────
   'access-capital': {
     id: 'access-capital',
     name: 'Access Capital',
@@ -467,116 +442,92 @@ export const FEATURE_REGISTRY: Record<string, Feature> = {
     isProOnly: false,
     isStandardOrPro: false,
   },
+  'jobs-management': {
+    id: 'jobs-management',
+    name: 'Jobs Management',
+    description: 'Track jobs/projects, costs, payments, materials and margins',
+    icon: 'Briefcase',
+    category: 'operations',
+    pageId: 'jobs',
+    requiredPlans: ['starter', 'standard', 'pro'],
+    requiredCategories: ['jobs'],
+    isOptional: true,
+    isProOnly: false,
+    isStandardOrPro: false,
+  },
+  'material-collection': {
+    id: 'material-collection',
+    name: 'Material Collection',
+    description: 'Record supplier weigh-ins, pay by kg, track material purchases',
+    icon: 'Recycle',
+    category: 'operations',
+    pageId: 'recycling',
+    requiredPlans: ['starter', 'standard', 'pro'],
+    requiredCategories: ['recycling_material_collection'],
+    isOptional: true,
+    isProOnly: false,
+    isStandardOrPro: false,
+  },
 };
 
-// ── Helper Functions ───────────────────────
-
-/**
- * Get feature by ID
- */
 export function getFeature(featureId: string): Feature | undefined {
   return FEATURE_REGISTRY[featureId];
 }
 
-/**
- * Get all features
- */
 export function getAllFeatures(): Feature[] {
   return Object.values(FEATURE_REGISTRY);
 }
 
-/**
- * Get features by category
- */
 export function getFeaturesByCategory(category: FeatureCategory): Feature[] {
   return Object.values(FEATURE_REGISTRY).filter(f => f.category === category);
 }
 
-/**
- * Get features by plan
- */
 export function getFeaturesByPlan(plan: Plan): Feature[] {
-  return Object.values(FEATURE_REGISTRY).filter(f => 
+  return Object.values(FEATURE_REGISTRY).filter(f =>
     f.requiredPlans.includes(plan) && !f.excludedPlans?.includes(plan)
   );
 }
 
-/**
- * Get features by business category
- */
 export function getFeaturesByBusinessCategory(category: BusinessCategory): Feature[] {
   return Object.values(FEATURE_REGISTRY).filter(f => {
-    // Include if no category restrictions
     if (!f.requiredCategories && !f.excludedCategories) return true;
-    
-    // Include if in required categories
     if (f.requiredCategories && f.requiredCategories.includes(category)) return true;
-    
-    // Exclude if in excluded categories
     if (f.excludedCategories && f.excludedCategories.includes(category)) return false;
-    
-    // Include if no required categories specified
     if (!f.requiredCategories) return true;
-    
     return false;
   });
 }
 
-/**
- * Check if feature is allowed for business category
- */
 export function isFeatureAllowedForCategory(
   featureId: string,
   businessCategory: BusinessCategory
 ): boolean {
   const feature = getFeature(featureId);
   if (!feature) return false;
-  
-  // If no category restrictions, allow
   if (!feature.requiredCategories && !feature.excludedCategories) return true;
-  
-  // Check excluded categories
   if (feature.excludedCategories?.includes(businessCategory)) return false;
-  
-  // Check required categories
   if (feature.requiredCategories && !feature.requiredCategories.includes(businessCategory)) {
     return false;
   }
-  
   return true;
 }
 
-/**
- * Check if feature is allowed for plan
- */
 export function isFeatureAllowedForPlan(featureId: string, plan: Plan): boolean {
   const feature = getFeature(featureId);
   if (!feature) return false;
-  
-  // Check excluded plans
   if (feature.excludedPlans?.includes(plan)) return false;
-  
-  // Check required plans
   return feature.requiredPlans.includes(plan);
 }
 
-/**
- * Check if feature dependencies are met
- */
 export function areFeatureDependenciesMet(
   featureId: string,
   enabledFeatures: Set<string>
 ): boolean {
   const feature = getFeature(featureId);
   if (!feature || !feature.dependencies) return true;
-  
   return feature.dependencies.every(dep => enabledFeatures.has(dep));
 }
 
-/**
- * Complete feature access check
- * Formula: categoryAllowed && planAllowed && userEnabled && dependenciesMet
- */
 export function checkFeatureAccess(
   featureId: string,
   userPlan: Plan,
@@ -584,23 +535,15 @@ export function checkFeatureAccess(
   enabledFeatures: Set<string>
 ): FeatureAccessResult {
   const feature = getFeature(featureId);
-  
   if (!feature) {
-    return {
-      eligible: false,
-      reason: 'Feature not found in registry',
-    };
+    return { eligible: false, reason: 'Feature not found in registry' };
   }
-  
-  // Check category
   if (!isFeatureAllowedForCategory(featureId, businessCategory)) {
     return {
       eligible: false,
       reason: `This feature is not available for ${businessCategory} businesses`,
     };
   }
-  
-  // Check plan
   if (!isFeatureAllowedForPlan(featureId, userPlan)) {
     const requiredPlan = feature.requiredPlans[0];
     return {
@@ -610,81 +553,47 @@ export function checkFeatureAccess(
       requiredPlan,
     };
   }
-  
-  // Check if user has enabled the feature
   if (feature.isOptional && !enabledFeatures.has(featureId)) {
-    return {
-      eligible: false,
-      reason: 'This feature is not enabled in your settings',
-    };
+    return { eligible: false, reason: 'This feature is not enabled in your settings' };
   }
-  
-  // Check dependencies
   if (!areFeatureDependenciesMet(featureId, enabledFeatures)) {
-    return {
-      eligible: false,
-      reason: 'Required features are not enabled',
-    };
+    return { eligible: false, reason: 'Required features are not enabled' };
   }
-  
-  return {
-    eligible: true,
-  };
+  return { eligible: true };
 }
 
-/**
- * Get recommended features for business category
- */
 export function getRecommendedFeatures(category: BusinessCategory): Feature[] {
   const categoryFeatures = getFeaturesByBusinessCategory(category);
   return categoryFeatures.filter(f => !f.isProOnly);
 }
 
-/**
- * Get pro-only features
- */
 export function getProOnlyFeatures(): Feature[] {
   return Object.values(FEATURE_REGISTRY).filter(f => f.isProOnly);
 }
 
-/**
- * Get standard-or-pro features
- */
 export function getStandardOrProFeatures(): Feature[] {
   return Object.values(FEATURE_REGISTRY).filter(f => f.isStandardOrPro);
 }
 
-/**
- * Get credit layer eligible features
- */
 export function getCreditLayerEligibleFeatures(): Feature[] {
   return Object.values(FEATURE_REGISTRY).filter(f => f.isCreditLayerEligible);
 }
 
-/**
- * Get feature by page ID
- */
 export function getFeatureByPageId(pageId: PageId): Feature | undefined {
   return Object.values(FEATURE_REGISTRY).find(f => f.pageId === pageId);
 }
 
-/**
- * Get all page IDs for enabled features
- */
 export function getEnabledPageIds(
   userPlan: Plan,
   businessCategory: BusinessCategory,
   enabledFeatures: Set<string>
 ): PageId[] {
-  const allFeatures = getAllFeatures();
   const enabledPageIds: PageId[] = [];
-  
-  for (const feature of allFeatures) {
+  for (const feature of Object.values(FEATURE_REGISTRY)) {
     const access = checkFeatureAccess(feature.id, userPlan, businessCategory, enabledFeatures);
     if (access.eligible && feature.pageId) {
       enabledPageIds.push(feature.pageId);
     }
   }
-  
   return enabledPageIds;
 }
