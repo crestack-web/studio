@@ -2,15 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { getSupabase, isSupabaseConfigured, getSupabaseConfigErrorMessage } from "@/lib/supabase";
+import { getAppOrigin } from "@/lib/site-url";
 import posthog from 'posthog-js';
 
-// Helper function to get device information
 function getDeviceInfo() {
   const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
   let device = 'Unknown';
   let browser = 'Unknown';
-
-  // Detect device type
   if (userAgent.includes('Mobile') || userAgent.includes('Android') || userAgent.includes('iPhone')) {
     device = 'Mobile';
   } else if (userAgent.includes('Tablet') || userAgent.includes('iPad')) {
@@ -18,8 +16,6 @@ function getDeviceInfo() {
   } else {
     device = 'Desktop';
   }
-
-  // Detect browser
   if (userAgent.includes('Chrome')) {
     browser = 'Chrome';
   } else if (userAgent.includes('Firefox')) {
@@ -29,11 +25,9 @@ function getDeviceInfo() {
   } else if (userAgent.includes('Edge')) {
     browser = 'Edge';
   }
-
   return { device, browser };
 }
 
-// ── App Logo ─────────────────────────────────
 function AppLogo({ size = 50 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -63,7 +57,6 @@ function AppLogo({ size = 50 }: { size?: number }) {
   );
 }
 
-// ── Field ────────────────────────────────────
 function Field({
   label, id, type = "text", value, onChange, placeholder, autoComplete,
 }: {
@@ -73,20 +66,15 @@ function Field({
   const [focused, setFocused] = useState(false);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <label
-        htmlFor={id}
-        style={{ fontSize: 13, fontWeight: 600, color: "#555568", letterSpacing: "0.025em" }}
-      >
+      <label htmlFor={id} style={{ fontSize: 13, fontWeight: 600, color: "#555568", letterSpacing: "0.025em" }}>
         {label}
       </label>
-      <div
-        style={{
+      <div style={{
           display: "flex", alignItems: "center", borderRadius: 12, overflow: "hidden",
           background: "white", transition: "all 0.2s",
           border: `1.5px solid ${focused ? "#6B3FE7" : "#E8E8F0"}`,
           boxShadow: focused ? "0 0 0 3px rgba(107,63,231,0.12)" : "none",
-        }}
-      >
+        }}>
         <input
           id={id} type={type} value={value} autoComplete={autoComplete}
           onChange={(e) => onChange(e.target.value)}
@@ -104,7 +92,6 @@ function Field({
   );
 }
 
-// ── Primary Button ────────────────────────────
 function PrimaryBtn({ children, onClick, disabled = false }: {
   children: React.ReactNode; onClick?: () => void; disabled?: boolean;
 }) {
@@ -142,25 +129,20 @@ function PrimaryBtn({ children, onClick, disabled = false }: {
   );
 }
 
-// ── Shell ───────────────────────────────────
 function LoginShell({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      style={{
+    <div style={{
         minHeight: "100vh",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: "32px 16px",
         background: "radial-gradient(ellipse 80% 55% at 50% -10%, rgba(107,63,231,0.07) 0%, transparent 65%), #F4F4F8",
         fontFamily: "'DM Sans', system-ui, sans-serif",
-      }}
-    >
-      {/* Dot grid */}
+      }}>
       <div style={{
         position: "fixed", inset: 0, pointerEvents: "none", opacity: 0.6,
         backgroundImage: "radial-gradient(circle, rgba(107,63,231,0.12) 1px, transparent 1px)",
         backgroundSize: "28px 28px",
       }} />
-
       <div style={{ position: "relative", width: "100%", maxWidth: 460, zIndex: 1,
         display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{
@@ -179,16 +161,12 @@ function LoginShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ══════════════════════════════════════════════
-// ROOT
-// ══════════════════════════════════════════════
 export default function BusmoLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Handle OAuth callback - redirect if session exists
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
     try {
@@ -197,12 +175,8 @@ export default function BusmoLogin() {
         if (session?.user) {
           window.location.href = '/owner';
         }
-      }).catch(() => {
-        // leave user on login form
-      });
-    } catch {
-      // env missing — page still renders
-    }
+      }).catch(() => {});
+    } catch {}
   }, []);
 
   const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && password.length >= 6;
@@ -226,10 +200,8 @@ export default function BusmoLogin() {
       const user = data.user;
       if (!user) throw new Error('No user returned');
 
-      // Read role from Supabase user_metadata (not Firestore)
       const role = (user.user_metadata?.role as string) || 'Owner';
 
-      // Send login alert only for unrecognized devices
       try {
         const deviceInfo = getDeviceInfo();
         const deviceFingerprint = `${deviceInfo.device}-${deviceInfo.browser}`;
@@ -240,7 +212,6 @@ export default function BusmoLogin() {
         } catch { /* ignore */ }
 
         if (!knownDevices.includes(deviceFingerprint)) {
-          // New device — send alert and remember it
           knownDevices.push(deviceFingerprint);
           try {
             localStorage.setItem(knownDevicesKey, JSON.stringify(knownDevices));
@@ -260,9 +231,7 @@ export default function BusmoLogin() {
             }),
           }).catch(() => {});
         }
-      } catch {
-        // ignore
-      }
+      } catch {}
 
       try {
         posthog.identify(user.id, {
@@ -270,14 +239,11 @@ export default function BusmoLogin() {
           role,
         });
         posthog.capture('user_logged_in', { authentication_method: 'password', role });
-      } catch {
-        // analytics must not block login
-      }
+      } catch {}
 
       if (['Staff', 'Cashier', 'Manager', 'Store manager', 'Seller'].includes(role)) {
         window.location.href = '/staff/home';
       } else {
-        // Owner, Admin, or any unknown role → owner dashboard
         window.location.href = '/owner';
       }
     } catch (err: any) {
@@ -287,9 +253,7 @@ export default function BusmoLogin() {
         try {
           const supabase = getSupabase();
           await supabase.auth.resend({ email, type: 'signup' });
-        } catch {
-          // ignore resend errors
-        }
+        } catch {}
       } else if (msg.includes('Invalid login credentials') || msg.includes('Invalid')) {
         setError("Invalid email or password. If you recently joined, try resetting your password below.");
       } else {
@@ -308,10 +272,13 @@ export default function BusmoLogin() {
         throw new Error(getSupabaseConfigErrorMessage());
       }
       const supabase = getSupabase();
+      const next = encodeURIComponent('/owner');
+      const redirectTo = `${getAppOrigin()}/auth/callback?next=${next}`;
       const { error: authError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/owner`,
+          redirectTo,
+          queryParams: { prompt: 'select_account' },
         },
       });
 
