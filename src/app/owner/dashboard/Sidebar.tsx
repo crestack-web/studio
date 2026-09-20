@@ -508,47 +508,6 @@ export function Sidebar() {
                 style={{ width: '40px', height: '40px', objectFit: 'contain' }}
               />
             </div>
-            {!sidebarCollapsed && <span className={styles.logoText}>Busmo</span>}
-          </div>
-          <button type="button" className={styles.collapseBtn} onClick={toggleSidebar} aria-label="Collapse sidebar">
-            {sidebarCollapsed ? '»' : '«'}
-          </button>
-        </div>
-
-        <div className={styles.scroll}>
-          {filteredNavSections.map((section) => (
-            <div key={String(section.label)} className={styles.sectionWrap}>
-              {!sidebarCollapsed && (
-                <div className={styles.sectionLabel}>{translateNav(section.label)}</div>
-              )}
-              <ul className={styles.navList}>
-                {section.items.map((item) => {
-                  const isActive =
-                    activePage === item.id ||
-                    (item.id === 'mo' && activePage === 'mo-mobile');
-                  const badge =
-                    item.id === 'staff' && staffCount > 0 ? staffCount : item.badge;
-                  return (
-    <>
-      {sidebarOpen && <div className={styles.overlay} onClick={closeSidebar} />}
-
-      <aside
-        className={[
-          styles.sidebar,
-          sidebarCollapsed ? styles.collapsed : '',
-          sidebarOpen ? styles.open : '',
-        ].join(' ')}
-        aria-label="Main navigation"
-      >
-        <div className={styles.top}>
-          <div className={styles.logoWrap}>
-            <div className={styles.logoIcon}>
-              <img
-                src="/email-logo.png"
-                alt="Busmo Logo"
-                style={{ width: '40px', height: '40px', objectFit: 'contain' }}
-              />
-            </div>
             <span className={styles.logoText}>Busmo</span>
           </div>
           <button
@@ -592,7 +551,7 @@ export function Sidebar() {
                         <span
                           className={[
                             styles.navIcon,
-                            styles[iconClass as keyof typeof styles] || '',
+                            (styles as Record<string, string>)[String(iconClass)] || '',
                           ]
                             .filter(Boolean)
                             .join(' ')}
