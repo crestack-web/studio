@@ -201,6 +201,26 @@ export function SupplierManagementPage() {
         analytics: ['warranty_claims', 'defect_rates', 'support_response_time'],
         insights: ['quality_metrics', 'warranty_optimization', 'support_efficiency'],
       },
+      jobs: {
+        category: 'jobs',
+        enabledFeatures: ['project_tracking', 'material_procurement', 'credit_management'],
+        customFields: [
+          { name: 'trade_type', type: 'text', required: false },
+          { name: 'lead_time_days', type: 'number', required: false },
+        ],
+        analytics: ['project_spend', 'supplier_reliability', 'material_cost'],
+        insights: ['cost_optimization', 'supplier_comparison', 'material_planning'],
+      },
+      recycling_material_collection: {
+        category: 'recycling_material_collection',
+        enabledFeatures: ['weigh_in_procurement', 'price_per_kg', 'credit_management'],
+        customFields: [
+          { name: 'material_type', type: 'text', required: false },
+          { name: 'price_per_kg', type: 'number', required: false },
+        ],
+        analytics: ['volume_by_material', 'supplier_spend', 'price_trends'],
+        insights: ['price_negotiation', 'volume_optimization', 'supplier_reliability'],
+      },
     };
     
     return featuresMap[category] || featuresMap.retail;
@@ -447,120 +467,50 @@ export function SupplierManagementPage() {
 
   const filteredSuppliers = suppliers.filter(supplier => {
     const matchesSearch = supplier.supplierName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         supplier.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         supplier.phone.includes(searchQuery);
+      supplier.businessName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (supplier.phone && supplier.phone.includes(searchQuery));
     const matchesStatus = filterStatus === 'all' || supplier.status === filterStatus;
     const matchesCategory = filterCategory === 'all' || supplier.category === filterCategory;
     return matchesSearch && matchesStatus && matchesCategory;
   });
 
-  const getPaymentTermsLabel = (terms: PaymentTerms, customDays?: number) => {
-    const labels: Record<PaymentTerms, string> = {
-      cash: 'Cash on Delivery',
-      net_7: 'Net 7 days',
-      net_14: 'Net 14 days',
-      net_30: 'Net 30 days',
-      net_60: 'Net 60 days',
-      net_90: 'Net 90 days',
-      custom: customDays ? `Net ${customDays} days` : 'Custom',
-    };
-    return labels[terms];
-  };
-
-  const getCreditUtilizationColor = (utilization: number) => {
-    if (utilization >= 90) return 'red';
-    if (utilization >= 70) return 'orange';
-    return 'green';
-  };
-
   if (isLoading) {
     return (
-      <div className={styles.loadingState}>
-        <div className="text-center">
-          <div className={styles.loadingSpinner}></div>
-          <p className={styles.loadingText}>Loading suppliers...</p>
-        </div>
+      <div className={styles.container}>
+        <div className={styles.loading}>Loading suppliers...</div>
       </div>
     );
   }
 
   return (
-    <div className={styles.wrapper}>
-      <div className={styles.pageHeader}>
+    <div className={styles.container}>
+      <div className={styles.header}>
         <div>
-          <h1 className={styles.pageTitle}>Supplier Management</h1>
-          <p className={styles.pageDesc}>Manage your suppliers, credit limits, and payment terms</p>
+          <h1 className={styles.title}>Supplier Management</h1>
+          <p className={styles.subtitle}>Manage suppliers, credit limits, and payment terms</p>
         </div>
-        <Button onClick={() => { setShowForm(true); resetForm(); }}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Supplier
+        <Button onClick={() => { resetForm(); setShowForm(true); }}>
+          <Plus size={16} /> Add Supplier
         </Button>
       </div>
 
-      {/* Summary Cards */}
-      <div className={styles.summaryCards}>
-        <div className={styles.summaryCard}>
-          <Building2 className={styles.summaryIcon} />
-          <div>
-            <p className={styles.summaryLabel}>Total Suppliers</p>
-            <p className={styles.summaryValue}>{suppliers.length}</p>
-          </div>
-        </div>
-        
-        <div className={styles.summaryCard}>
-          <TrendingUp className={styles.summaryIcon} style={{ color: 'var(--green)' }} />
-          <div>
-            <p className={styles.summaryLabel}>Active Suppliers</p>
-            <p className={styles.summaryValue}>{suppliers.filter(s => s.status === 'active').length}</p>
-          </div>
-        </div>
-        
-        <div className={styles.summaryCard}>
-          <DollarSign className={styles.summaryIcon} style={{ color: 'var(--purple)' }} />
-          <div>
-            <p className={styles.summaryLabel}>Total Outstanding</p>
-            <p className={styles.summaryValue}>{formatMoney(suppliers.reduce((sum, s) => sum + s.currentBalance, 0))}</p>
-          </div>
-        </div>
-        
-        <div className={styles.summaryCard}>
-          <AlertTriangle className={styles.summaryIcon} style={{ color: suppliers.filter(s => s.creditUtilization >= 90).length > 0 ? 'var(--red)' : 'var(--text-3)' }} />
-          <div>
-            <p className={styles.summaryLabel}>High Credit Utilization</p>
-            <p className={styles.summaryValue}>{suppliers.filter(s => s.creditUtilization >= 90).length}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
       <div className={styles.filters}>
-        <div className={styles.searchWrapper}>
-          <Search className={styles.searchIcon} />
+        <div className={styles.searchBox}>
+          <Search size={16} />
           <input
             type="text"
             placeholder="Search suppliers..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className={styles.searchInput}
           />
         </div>
-        
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value as SupplierStatus | 'all')}
-          className={styles.filterSelect}
-        >
+        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as SupplierStatus | 'all')}>
           <option value="all">All Status</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
           <option value="blocked">Blocked</option>
         </select>
-        
-        <select
-          value={filterCategory}
-          onChange={(e) => setFilterCategory(e.target.value as SupplierCategory | 'all')}
-          className={styles.filterSelect}
-        >
+        <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value as SupplierCategory | 'all')}>
           <option value="all">All Categories</option>
           <option value="general">General</option>
           <option value="food">Food</option>
@@ -577,372 +527,126 @@ export function SupplierManagementPage() {
         </select>
       </div>
 
-      {/* Supplier Form Modal */}
+      <div className={styles.list}>
+        {filteredSuppliers.length === 0 ? (
+          <div className={styles.empty}>
+            <Building2 size={48} />
+            <p>No suppliers found</p>
+            <Button onClick={() => { resetForm(); setShowForm(true); }}>Add your first supplier</Button>
+          </div>
+        ) : (
+          filteredSuppliers.map(supplier => (
+            <Card key={supplier.id} className={styles.supplierCard}>
+              <div className={styles.supplierHeader}>
+                <div>
+                  <h3>{supplier.supplierName}</h3>
+                  <p className={styles.businessName}>{supplier.businessName}</p>
+                </div>
+                <div className={styles.actions}>
+                  <button onClick={() => handleEdit(supplier)} title="Edit"><Edit size={16} /></button>
+                  <button onClick={() => handleDeleteSupplier(supplier.id)} title="Delete"><Trash2 size={16} /></button>
+                </div>
+              </div>
+              <div className={styles.supplierMeta}>
+                {supplier.phone && <span><Phone size={14} /> {supplier.phone}</span>}
+                {supplier.email && <span><Mail size={14} /> {supplier.email}</span>}
+                <span className={styles.badge}>{supplier.status}</span>
+                <span className={styles.badge}>{supplier.category}</span>
+              </div>
+              <div className={styles.financials}>
+                <div>
+                  <span className={styles.label}>Balance</span>
+                  <span className={styles.value}>{formatMoney(supplier.currentBalance)}</span>
+                </div>
+                <div>
+                  <span className={styles.label}>Credit Limit</span>
+                  <span className={styles.value}>{formatMoney(supplier.creditLimit)}</span>
+                </div>
+                <div>
+                  <span className={styles.label}>Terms</span>
+                  <span className={styles.value}>{supplier.paymentTerms}</span>
+                </div>
+              </div>
+            </Card>
+          ))
+        )}
+      </div>
+
       {showForm && (
-        <div className={styles.modalOverlay}>
+        <div className={styles.modal}>
           <div className={styles.modalContent}>
-            <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>
-                {editingSupplier ? 'Edit Supplier' : 'Add New Supplier'}
-              </h2>
-              <button onClick={() => { setShowForm(false); resetForm(); }} className={styles.closeButton}>✕</button>
+            <h2>{editingSupplier ? 'Edit Supplier' : 'Add Supplier'}</h2>
+            <div className={styles.formGrid}>
+              <label>Supplier Name *
+                <input value={formData.supplierName} onChange={e => setFormData({...formData, supplierName: e.target.value})} />
+              </label>
+              <label>Business Name *
+                <input value={formData.businessName} onChange={e => setFormData({...formData, businessName: e.target.value})} />
+              </label>
+              <label>Phone *
+                <input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+              </label>
+              <label>Email
+                <input value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+              </label>
+              <label>Address
+                <input value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
+              </label>
+              <label>Category
+                <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value as SupplierCategory})}>
+                  <option value="general">General</option>
+                  <option value="food">Food</option>
+                  <option value="beverages">Beverages</option>
+                  <option value="dairy">Dairy</option>
+                  <option value="pharmaceutical">Pharmaceutical</option>
+                  <option value="cosmetics">Cosmetics</option>
+                  <option value="electronics">Electronics</option>
+                  <option value="clothing">Clothing</option>
+                  <option value="raw_materials">Raw Materials</option>
+                  <option value="equipment">Equipment</option>
+                  <option value="services">Services</option>
+                  <option value="other">Other</option>
+                </select>
+              </label>
+              <label>Payment Terms
+                <select value={formData.paymentTerms} onChange={e => setFormData({...formData, paymentTerms: e.target.value as PaymentTerms})}>
+                  <option value="cash">Cash</option>
+                  <option value="net_7">Net 7</option>
+                  <option value="net_14">Net 14</option>
+                  <option value="net_30">Net 30</option>
+                  <option value="net_60">Net 60</option>
+                  <option value="net_90">Net 90</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </label>
+              <label>Credit Limit
+                <input type="number" value={formData.creditLimit} onChange={e => setFormData({...formData, creditLimit: Number(e.target.value)})} />
+              </label>
+              {!editingSupplier && (
+                <label>Opening Balance
+                  <input type="number" value={formData.openingBalance} onChange={e => setFormData({...formData, openingBalance: Number(e.target.value)})} />
+                </label>
+              )}
+              <label>Status
+                <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as SupplierStatus})}>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="blocked">Blocked</option>
+                </select>
+              </label>
+              <label>Notes
+                <textarea value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} />
+              </label>
             </div>
-            
-            <div className={styles.form}>
-              <div className={styles.formSection}>
-                <h3 className={styles.formSectionTitle}>Basic Information</h3>
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Supplier Name *</label>
-                    <input
-                      type="text"
-                      className={styles.formInput}
-                      value={formData.supplierName}
-                      onChange={(e) => setFormData({ ...formData, supplierName: e.target.value })}
-                      placeholder="Contact person name"
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Business Name *</label>
-                    <input
-                      type="text"
-                      className={styles.formInput}
-                      value={formData.businessName}
-                      onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                      placeholder="Company name"
-                    />
-                  </div>
-                </div>
-                
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Phone *</label>
-                    <input
-                      type="tel"
-                      className={styles.formInput}
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="+234 XXX XXX XXXX"
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Email</label>
-                    <input
-                      type="email"
-                      className={styles.formInput}
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="email@example.com"
-                    />
-                  </div>
-                </div>
-                
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Address</label>
-                  <input
-                    type="text"
-                    className={styles.formInput}
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    placeholder="Full address"
-                  />
-                </div>
-              </div>
-              
-              <div className={styles.formSection}>
-                <h3 className={styles.formSectionTitle}>Payment & Credit</h3>
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Payment Terms</label>
-                    <select
-                      className={styles.formInput}
-                      value={formData.paymentTerms}
-                      onChange={(e) => setFormData({ ...formData, paymentTerms: e.target.value as PaymentTerms })}
-                    >
-                      <option value="cash">Cash on Delivery</option>
-                      <option value="net_7">Net 7 days</option>
-                      <option value="net_14">Net 14 days</option>
-                      <option value="net_30">Net 30 days</option>
-                      <option value="net_60">Net 60 days</option>
-                      <option value="net_90">Net 90 days</option>
-                      <option value="custom">Custom</option>
-                    </select>
-                  </div>
-                  {formData.paymentTerms === 'custom' && (
-                    <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>Custom Days</label>
-                      <input
-                        type="number"
-                        className={styles.formInput}
-                        value={formData.customPaymentDays}
-                        onChange={(e) => setFormData({ ...formData, customPaymentDays: parseInt(e.target.value) })}
-                        placeholder="30"
-                      />
-                    </div>
-                  )}
-                </div>
-                
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Credit Limit</label>
-                    <input
-                      type="number"
-                      className={styles.formInput}
-                      value={formData.creditLimit}
-                      onChange={(e) => setFormData({ ...formData, creditLimit: parseFloat(e.target.value) })}
-                      placeholder="0.00"
-                    />
-                  </div>
-                  {!editingSupplier && (
-                    <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>Opening Balance</label>
-                      <input
-                        type="number"
-                        className={styles.formInput}
-                        value={formData.openingBalance}
-                        onChange={(e) => setFormData({ ...formData, openingBalance: parseFloat(e.target.value) })}
-                        placeholder="0.00"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              <div className={styles.formSection}>
-                <h3 className={styles.formSectionTitle}>Classification</h3>
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Category</label>
-                    <select
-                      className={styles.formInput}
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value as SupplierCategory })}
-                    >
-                      <option value="general">General</option>
-                      <option value="food">Food</option>
-                      <option value="beverages">Beverages</option>
-                      <option value="dairy">Dairy</option>
-                      <option value="pharmaceutical">Pharmaceutical</option>
-                      <option value="cosmetics">Cosmetics</option>
-                      <option value="electronics">Electronics</option>
-                      <option value="clothing">Clothing</option>
-                      <option value="raw_materials">Raw Materials</option>
-                      <option value="equipment">Equipment</option>
-                      <option value="services">Services</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Status</label>
-                    <select
-                      className={styles.formInput}
-                      value={formData.status}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value as SupplierStatus })}
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                      <option value="blocked">Blocked</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              
-              <div className={styles.formSection}>
-                <h3 className={styles.formSectionTitle}>Bank Information (Optional)</h3>
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Bank Name</label>
-                    <input
-                      type="text"
-                      className={styles.formInput}
-                      value={formData.bankName}
-                      onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
-                      placeholder="Bank name"
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Account Number</label>
-                    <input
-                      type="text"
-                      className={styles.formInput}
-                      value={formData.bankAccountNumber}
-                      onChange={(e) => setFormData({ ...formData, bankAccountNumber: e.target.value })}
-                      placeholder="Account number"
-                    />
-                  </div>
-                </div>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Account Name</label>
-                  <input
-                    type="text"
-                    className={styles.formInput}
-                    value={formData.bankAccountName}
-                    onChange={(e) => setFormData({ ...formData, bankAccountName: e.target.value })}
-                    placeholder="Account holder name"
-                  />
-                </div>
-              </div>
-              
-              <div className={styles.formSection}>
-                <h3 className={styles.formSectionTitle}>Contact Person (Optional)</h3>
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Name</label>
-                    <input
-                      type="text"
-                      className={styles.formInput}
-                      value={formData.contactPersonName}
-                      onChange={(e) => setFormData({ ...formData, contactPersonName: e.target.value })}
-                      placeholder="Contact person name"
-                    />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Phone</label>
-                    <input
-                      type="tel"
-                      className={styles.formInput}
-                      value={formData.contactPersonPhone}
-                      onChange={(e) => setFormData({ ...formData, contactPersonPhone: e.target.value })}
-                      placeholder="Contact person phone"
-                    />
-                  </div>
-                </div>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Email</label>
-                  <input
-                    type="email"
-                    className={styles.formInput}
-                    value={formData.contactPersonEmail}
-                    onChange={(e) => setFormData({ ...formData, contactPersonEmail: e.target.value })}
-                    placeholder="Contact person email"
-                  />
-                </div>
-              </div>
-              
-              <div className={styles.formSection}>
-                <h3 className={styles.formSectionTitle}>Additional Information</h3>
-                <div className={styles.formRow}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Tax ID</label>
-                    <input
-                      type="text"
-                      className={styles.formInput}
-                      value={formData.taxId}
-                      onChange={(e) => setFormData({ ...formData, taxId: e.target.value })}
-                      placeholder="Tax identification number"
-                    />
-                  </div>
-                </div>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Notes</label>
-                  <textarea
-                    className={styles.formTextarea}
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="Additional notes about this supplier..."
-                    rows={3}
-                  />
-                </div>
-              </div>
-              
-              <div className={styles.formActions}>
-                <Button variant="subtle" onClick={() => { setShowForm(false); resetForm(); }}>
-                  Cancel
-                </Button>
-                <Button onClick={editingSupplier ? handleUpdateSupplier : handleCreateSupplier}>
-                  {editingSupplier ? 'Update Supplier' : 'Create Supplier'}
-                </Button>
-              </div>
+            <div className={styles.modalActions}>
+              <Button variant="secondary" onClick={() => { setShowForm(false); resetForm(); }}>Cancel</Button>
+              <Button onClick={editingSupplier ? handleUpdateSupplier : handleCreateSupplier}>
+                {editingSupplier ? 'Update' : 'Create'}
+              </Button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Suppliers Table */}
-      <div className={styles.tableContainer}>
-        <table className={styles.table}>
-          <thead className={styles.tableHead}>
-            <tr>
-              <th className={styles.tableHeader}>Supplier</th>
-              <th className={styles.tableHeader}>Contact</th>
-              <th className={styles.tableHeader}>Category</th>
-              <th className={styles.tableHeader}>Payment Terms</th>
-              <th className={styles.tableHeader}>Credit Limit</th>
-              <th className={styles.tableHeader}>Current Balance</th>
-              <th className={styles.tableHeader}>Credit Utilization</th>
-              <th className={styles.tableHeader}>Status</th>
-              <th className={styles.tableHeader}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredSuppliers.map(supplier => (
-              <tr key={supplier.id} className={styles.tableRow}>
-                <td className={styles.tableCell}>
-                  <div className={styles.supplierName}>{supplier.supplierName}</div>
-                  <div className={styles.businessName}>{supplier.businessName}</div>
-                </td>
-                <td className={styles.tableCell}>
-                  <div className={styles.contactInfo}>
-                    <Phone className="w-4 h-4" style={{ color: 'var(--text-3)' }} />
-                    <span>{supplier.phone}</span>
-                  </div>
-                  {supplier.email && (
-                    <div className={styles.contactInfo}>
-                      <Mail className="w-4 h-4" style={{ color: 'var(--text-3)' }} />
-                      <span>{supplier.email}</span>
-                    </div>
-                  )}
-                </td>
-                <td className={styles.tableCell} style={{ textTransform: 'capitalize' }}>{supplier.category.replace('_', ' ')}</td>
-                <td className={styles.tableCell}>{getPaymentTermsLabel(supplier.paymentTerms, supplier.customPaymentDays)}</td>
-                <td className={styles.tableCell}>{formatMoney(supplier.creditLimit)}</td>
-                <td className={styles.tableCell}>{formatMoney(supplier.currentBalance)}</td>
-                <td className={styles.tableCell}>
-                  <span className={`${styles.utilizationBadge} ${styles[getCreditUtilizationColor(supplier.creditUtilization)]}`}>
-                    {supplier.creditUtilization.toFixed(1)}%
-                  </span>
-                </td>
-                <td className={styles.tableCell}>
-                  <span className={`${styles.statusBadge} ${styles[supplier.status]}`}>
-                    {supplier.status}
-                  </span>
-                </td>
-                <td className={styles.tableCell}>
-                  <div className={styles.actionButtons}>
-                    <button
-                      onClick={() => handleEdit(supplier)}
-                      className={styles.actionButton}
-                      title="Edit"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteSupplier(supplier.id)}
-                      className={styles.actionButton}
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        
-        {filteredSuppliers.length === 0 && (
-          <div className={styles.emptyState}>
-            <Building2 className={styles.emptyStateIcon} />
-            <p>No suppliers found</p>
-            <p className="text-sm" style={{ color: 'var(--text-3)' }}>
-              {suppliers.length === 0 
-                ? 'Add your first supplier to get started' 
-                : 'Try adjusting your search or filters'}
-            </p>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
-
