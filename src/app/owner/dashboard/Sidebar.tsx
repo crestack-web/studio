@@ -281,7 +281,7 @@ export function Sidebar() {
           businessId: businessId ? String(businessId).slice(0, 8) + '…' : null,
         });
 
-        // Always union category default features for specialty categories so gated nav stays available
+        // Union category default features for specialty categories so their own nav stays available
         const categoryDefaults = CATEGORY_FEATURES[resolvedCategory] || CATEGORY_FEATURES.other || [];
         const forceCategoryDefaults = [
           'restaurant', 'cafe', 'jobs', 'recycling_material_collection',
@@ -294,7 +294,19 @@ export function Sidebar() {
           features = Array.from(merged);
         }
 
-        const normalizedFeatures = features.map((f: string) => normalizeFeatureName(String(f)));
+        // Never carry specialty module features onto unrelated categories
+        const specialtyOnly = new Set(['material-collection', 'jobs-management']);
+        let normalizedFeatures = features.map((f: string) => normalizeFeatureName(String(f)));
+        if (
+          resolvedCategory !== 'recycling_material_collection' &&
+          resolvedCategory !== 'jobs'
+        ) {
+          normalizedFeatures = normalizedFeatures.filter((f) => !specialtyOnly.has(f));
+        } else if (resolvedCategory === 'recycling_material_collection') {
+          normalizedFeatures = normalizedFeatures.filter((f) => f !== 'jobs-management');
+        } else if (resolvedCategory === 'jobs') {
+          normalizedFeatures = normalizedFeatures.filter((f) => f !== 'material-collection');
+        }
         setSelectedFeatures(normalizedFeatures);
         setFeaturePreferences(prefs);
         const access = resolveUserAccess(ownerDoc || { metadata: meta, plan: (user as any)?.plan });
@@ -386,6 +398,22 @@ export function Sidebar() {
 
     const normalizedPlan = userPlan as Plan;
     const normalizedCategory = (userCategory || 'other') as BusinessCategory;
+
+    // Specialty modules only for their category — never leak onto other businesses
+    if (itemId === 'recycling' || itemId === 'jobs') {
+      const allowed =
+        itemId === 'recycling'
+          ? ['recycling_material_collection']
+          : ['jobs'];
+      if (!allowed.includes(normalizedCategory)) return false;
+    }
+
+    // Enforce requiredCategories before feature/trial shortcuts
+    if (requirements.requiredCategories && requirements.requiredCategories.length > 0) {
+      if (!requirements.requiredCategories.includes(normalizedCategory)) {
+        return false;
+      }
+    }
 
     const categoryDefaults = (
       CATEGORY_FEATURES[normalizedCategory] ||
