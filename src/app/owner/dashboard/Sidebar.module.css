@@ -489,3 +489,12 @@
   color: var(--text-3);
   white-space: nowrap;
 }
+
+/* Ensure iconClass tokens paint the colored tile */
+.home, .navIcon.home { background: var(--purple-lt); color: var(--purple); }
+.sale, .navIcon.sale { background: var(--green-bg); color: var(--green); }
+.cashflow, .navIcon.cashflow { background: var(--teal-bg); color: var(--teal); }
+.mo, .navIcon.mo { background: var(--purple-lt); color: var(--purple); }
+.ni-jobs, .navIcon.ni-jobs { background: var(--blue-bg); color: var(--blue); }
+.ni-recycle, .navIcon.ni-recycle { background: var(--green-bg); color: var(--green); }
+.ni-template, .navIcon.ni-template { background: var(--purple-lt); color: var(--purple); }

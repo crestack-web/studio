@@ -5,7 +5,7 @@ import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { NAV_SECTIONS, NAV_ITEM_REQUIREMENTS } from './navItems';
 import type { PageId, NavSection } from './index';
-import { MoIcon, NavIcons } from './NavIcons';
+import { NavIcons } from './NavIcons';
 import styles from './Sidebar.module.css';
 import { getAuthCurrentUser } from '@/lib/supabase-auth';
 import { getSupabase } from '@/lib/supabase';
@@ -529,28 +529,84 @@ export function Sidebar() {
                   const badge =
                     item.id === 'staff' && staffCount > 0 ? staffCount : item.badge;
                   return (
-                    <li key={item.id}>
+    <>
+      {sidebarOpen && <div className={styles.overlay} onClick={closeSidebar} />}
+
+      <aside
+        className={[
+          styles.sidebar,
+          sidebarCollapsed ? styles.collapsed : '',
+          sidebarOpen ? styles.open : '',
+        ].join(' ')}
+        aria-label="Main navigation"
+      >
+        <div className={styles.top}>
+          <div className={styles.logoWrap}>
+            <div className={styles.logoIcon}>
+              <img
+                src="/email-logo.png"
+                alt="Busmo Logo"
+                style={{ width: '40px', height: '40px', objectFit: 'contain' }}
+              />
+            </div>
+            <span className={styles.logoText}>Busmo</span>
+          </div>
+          <button
+            type="button"
+            className={styles.collapseBtn}
+            onClick={toggleSidebar}
+            aria-label="Toggle sidebar"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+        </div>
+
+        <div className={styles.scroll}>
+          {filteredNavSections.map((section) => (
+            <div key={String(section.label)}>
+              <div className={styles.sectionWrap}>
+                <span className={styles.sectionLabel} suppressHydrationWarning>
+                  {translateNav(section.label)}
+                </span>
+              </div>
+              <ul className={styles.navList} role="list">
+                {section.items.map((item) => {
+                  const isActive =
+                    activePage === item.id ||
+                    (item.id === 'mo' && activePage === 'mo-mobile');
+                  const iconClass = item.iconClass || item.id;
+                  return (
+                    <li key={item.id} className={styles.navItem}>
                       <button
                         type="button"
-                        className={[styles.navItem, isActive ? styles.active : ''].join(' ')}
+                        className={[styles.navLink, isActive ? styles.active : ''].join(' ')}
+                        data-tip={translateNav(item.tip || item.label)}
                         onClick={() => {
                           handleNavigate(item.id as PageId);
                           closeSidebar();
                         }}
-                        title={item.tip}
+                        aria-current={isActive ? 'page' : undefined}
                       >
-                        <span className={styles.navIcon}>
-                          {item.iconClass === 'mo' ? (
-                            <MoIcon />
-                          ) : (
-                            (NavIcons as any)[item.iconClass] || null
-                          )}
+                        <span
+                          className={[
+                            styles.navIcon,
+                            styles[iconClass as keyof typeof styles] || '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                        >
+                          <NavIcons id={item.id} />
                         </span>
-                        {!sidebarCollapsed && (
-                          <span className={styles.navLabel}>{translateNav(item.label)}</span>
+                        <span className={styles.navLabel} suppressHydrationWarning>
+                          {translateNav(item.label)}
+                        </span>
+                        {item.id === 'staff' && staffCount > 0 && (
+                          <span className={styles.badge}>{staffCount}</span>
                         )}
-                        {!sidebarCollapsed && badge != null && badge !== '' && (
-                          <span className={styles.badge}>{badge}</span>
+                        {item.badge != null && item.id !== 'staff' && (
+                          <span className={styles.badge}>{item.badge}</span>
                         )}
                       </button>
                     </li>
@@ -574,14 +630,12 @@ export function Sidebar() {
             >
               {!user.photoURL && user.avatarContent}
             </div>
-            {!sidebarCollapsed && (
-              <div className={styles.userInfo}>
-                <div className={styles.userName}>{user.name}</div>
-                <div className={styles.userRole}>
-                  {user.role} · {user.plan}
-                </div>
+            <div className={styles.userInfo}>
+              <div className={styles.userName}>{user.name}</div>
+              <div className={styles.userRole}>
+                {user.role} · {user.plan}
               </div>
-            )}
+            </div>
           </button>
         </div>
       </aside>
