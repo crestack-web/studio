@@ -26,6 +26,16 @@ export type IngredientUnit = 'Kg' | 'Gram' | 'Liter' | 'Bottle' | 'Pack' | 'Cart
 export function categoryLooksLikeRestaurant(category: unknown): boolean {
   const c = String(category || '').toLowerCase().trim();
   if (!c) return false;
+  // Never treat recycling / jobs as restaurant
+  if (
+    c.includes('recycling') ||
+    c.includes('material_collection') ||
+    c.includes('material collection') ||
+    c === 'jobs' ||
+    c.includes('jobs &')
+  ) {
+    return false;
+  }
   return (
     c === 'restaurant' ||
     c === 'resturant' ||
@@ -77,6 +87,20 @@ export async function isRestaurantBusiness(businessId: string): Promise<boolean>
         meta.business_type,
       ];
 
+      // Explicit non-restaurant categories win
+      const explicitNonRestaurant = candidates.some((v) => {
+        const c = String(v || '').toLowerCase();
+        return (
+          c.includes('recycling') ||
+          c.includes('material_collection') ||
+          c.includes('material collection') ||
+          c === 'jobs' ||
+          c.includes('jobs &') ||
+          c.includes('project')
+        );
+      });
+      if (explicitNonRestaurant) return false;
+
       if (candidates.some((v) => categoryLooksLikeRestaurant(v))) {
         return true;
       }
@@ -116,13 +140,11 @@ export async function isRestaurantBusiness(businessId: string): Promise<boolean>
 }
 
 /**
- * Canonical category id for nav (restaurant | cafe | retail | …).
+ * Canonical category id for nav (restaurant | cafe | retail | recycling_material_collection | …).
  */
 export async function resolveBusinessCategoryId(businessId: string): Promise<string> {
   if (!businessId) return 'other';
   try {
-    if (await isRestaurantBusiness(businessId)) return 'restaurant';
-
     const supabase = getSupabase();
     const { data } = await supabase
       .from('businesses')
@@ -136,7 +158,23 @@ export async function resolveBusinessCategoryId(businessId: string): Promise<str
         : {};
     const raw = String(
       data?.category || data?.industry || meta.selectedCategory || meta.category || 'other'
-    ).toLowerCase();
+    ).toLowerCase().trim();
+
+    // Explicit category ids first (before restaurant heuristic)
+    if (
+      raw === 'recycling_material_collection' ||
+      raw.includes('recycling') ||
+      raw.includes('material_collection') ||
+      raw.includes('material collection') ||
+      raw.includes('pet collection')
+    ) {
+      return 'recycling_material_collection';
+    }
+    if (raw === 'jobs' || raw.includes('jobs &') || (raw.includes('project') && raw.includes('job'))) {
+      return 'jobs';
+    }
+
+    if (await isRestaurantBusiness(businessId)) return 'restaurant';
 
     if (raw.includes('cafe') || raw.includes('café')) return 'cafe';
     if (raw.includes('grocery')) return 'grocery';
