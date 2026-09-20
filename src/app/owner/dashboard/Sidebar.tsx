@@ -37,8 +37,10 @@ export function Sidebar() {
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
   const [featurePreferences, setFeaturePreferences] = useState<Record<string, boolean>>({});
   const [userPlan, setUserPlan] = useState<string>('starter');
+  /** True during trial OR post-trial grace extension — unlocks Standard-tier nav */
   const [isInTrial, setIsInTrial] = useState(false);
 
+  // Normalize feature name to registry format (legacy names → kebab-case)
   const normalizeFeatureName = (name: string): string => {
     const nameMap: Record<string, string> = {
       'Sales Recording': 'sales-recording',
@@ -71,6 +73,7 @@ export function Sidebar() {
     return nameMap[name] || name.toLowerCase().replace(/\s+/g, '-');
   };
 
+  /** Map onboarding label or id → canonical category id used by nav filters */
   const normalizeCategoryId = (raw?: string | null): string => {
     if (!raw) return 'other';
     const v = String(raw).trim().toLowerCase();
@@ -80,17 +83,7 @@ export function Sidebar() {
       'healthcare', 'education', 'jobs', 'recycling_material_collection', 'other',
     ];
     if (ids.includes(v)) return v;
-    if (
-      v.includes('recycling') ||
-      v.includes('material_collection') ||
-      v.includes('material collection') ||
-      v.includes('pet collection')
-    ) {
-      return 'recycling_material_collection';
-    }
-    if (v === 'jobs' || v.includes('jobs &') || v.includes('jobs and projects')) {
-      return 'jobs';
-    }
+    // Fuzzy restaurant / cafe first (common mis-labels after migration)
     if (
       v.includes('restaurant') ||
       v.includes('resturant') ||
@@ -103,6 +96,17 @@ export function Sidebar() {
     }
     if (v.includes('cafe') || v.includes('café') || v.includes('coffee')) {
       return 'cafe';
+    }
+    if (
+      v.includes('recycling') ||
+      v.includes('material_collection') ||
+      v.includes('material collection') ||
+      v.includes('pet collection')
+    ) {
+      return 'recycling_material_collection';
+    }
+    if (v === 'jobs' || v.includes('jobs &') || v.includes('jobs and projects')) {
+      return 'jobs';
     }
     const labelMap: Record<string, string> = {
       'retail shop': 'retail',
@@ -128,6 +132,7 @@ export function Sidebar() {
     return 'other';
   };
 
+  // Load staff count, category, features, and plan from Supabase (not Firebase)
   useEffect(() => {
     const loadUserData = async () => {
       try {
@@ -197,6 +202,7 @@ export function Sidebar() {
             ? (prefsRaw as Record<string, boolean>)
             : {};
 
+        // Collect category signals from user + business
         const candidates: string[] = [];
         const pushCandidate = (v: unknown) => {
           if (v == null) return;
@@ -233,6 +239,7 @@ export function Sidebar() {
           }
         }
 
+        // Prefer explicit specialty categories, then restaurant/cafe
         let resolvedCategory = 'other';
         const normalizedCandidates = candidates.map((c) => normalizeCategoryId(c));
         if (normalizedCandidates.includes('recycling_material_collection')) {
@@ -253,7 +260,10 @@ export function Sidebar() {
             const fromBiz = await resolveBusinessCategoryId(businessId);
             if (fromBiz && fromBiz !== 'other') {
               resolvedCategory = fromBiz;
-            } else if (resolvedCategory !== 'recycling_material_collection' && resolvedCategory !== 'jobs') {
+            } else if (
+              resolvedCategory !== 'recycling_material_collection' &&
+              resolvedCategory !== 'jobs'
+            ) {
               const restaurant = await isRestaurantBusiness(businessId);
               if (restaurant && resolvedCategory !== 'cafe') {
                 resolvedCategory = 'restaurant';
@@ -271,6 +281,7 @@ export function Sidebar() {
           businessId: businessId ? String(businessId).slice(0, 8) + '…' : null,
         });
 
+        // Always union category default features for specialty categories so gated nav stays available
         const categoryDefaults = CATEGORY_FEATURES[resolvedCategory] || CATEGORY_FEATURES.other || [];
         const forceCategoryDefaults = [
           'restaurant', 'cafe', 'jobs', 'recycling_material_collection',
@@ -289,6 +300,13 @@ export function Sidebar() {
         const access = resolveUserAccess(ownerDoc || { metadata: meta, plan: (user as any)?.plan });
         setUserPlan(access.effectivePlanForNav);
         setIsInTrial(access.hasFullAccess);
+        console.info('[Sidebar] access', {
+          plan: access.plan,
+          effectivePlanForNav: access.effectivePlanForNav,
+          status: access.subscriptionStatus || null,
+          hasFullAccess: access.hasFullAccess,
+          trialEnd: access.trialEndDate?.toISOString?.() || null,
+        });
 
         if (businessId) {
           try {
@@ -304,14 +322,25 @@ export function Sidebar() {
         }
       } catch (error) {
         console.error('Error loading user data:', error);
+        try {
+          const savedStaff = localStorage.getItem('staff-members');
+          if (savedStaff) {
+            const parsedStaff = JSON.parse(savedStaff);
+            setStaffCount(parsedStaff.length);
+          }
+        } catch {
+          /* ignore */
+        }
       }
     };
 
     loadUserData();
   }, [user?.id, user?.businessId]);
 
+  // Detect mobile device
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
 
+  // Translation map for nav items
   const translateNav = (key: string): string => {
     const map: { [key: string]: string } = {
       'Main': t('nav.section.main'),
@@ -350,6 +379,7 @@ export function Sidebar() {
     return map[key] || key;
   };
 
+  // Check if a nav item should be visible based on user's category, features, and plan
   const isNavItemVisible = (itemId: string): boolean => {
     const requirements = NAV_ITEM_REQUIREMENTS[itemId];
     if (!requirements) return true;
@@ -478,37 +508,48 @@ export function Sidebar() {
                 style={{ width: '40px', height: '40px', objectFit: 'contain' }}
               />
             </div>
-            <span className={styles.logoText}>Busmo</span>
+            {!sidebarCollapsed && <span className={styles.logoText}>Busmo</span>}
           </div>
-          <button className={styles.collapseBtn} onClick={toggleSidebar} aria-label="Toggle sidebar">
+          <button type="button" className={styles.collapseBtn} onClick={toggleSidebar} aria-label="Collapse sidebar">
             {sidebarCollapsed ? '»' : '«'}
           </button>
         </div>
 
-        <nav className={styles.nav}>
+        <div className={styles.scroll}>
           {filteredNavSections.map((section) => (
-            <div key={String(section.label)} className={styles.section}>
-              <div className={styles.sectionLabel}>{translateNav(section.label)}</div>
-              <ul className={styles.list}>
+            <div key={String(section.label)} className={styles.sectionWrap}>
+              {!sidebarCollapsed && (
+                <div className={styles.sectionLabel}>{translateNav(section.label)}</div>
+              )}
+              <ul className={styles.navList}>
                 {section.items.map((item) => {
-                  const isActive = activePage === item.id || (item.id === 'mo' && activePage === 'mo-mobile');
+                  const isActive =
+                    activePage === item.id ||
+                    (item.id === 'mo' && activePage === 'mo-mobile');
                   const badge =
-                    item.id === 'staff' && staffCount > 0
-                      ? staffCount
-                      : item.badge;
+                    item.id === 'staff' && staffCount > 0 ? staffCount : item.badge;
                   return (
                     <li key={item.id}>
                       <button
                         type="button"
-                        className={[styles.item, isActive ? styles.active : ''].join(' ')}
-                        onClick={() => handleNavigate(item.id as PageId)}
+                        className={[styles.navItem, isActive ? styles.active : ''].join(' ')}
+                        onClick={() => {
+                          handleNavigate(item.id as PageId);
+                          closeSidebar();
+                        }}
                         title={item.tip}
                       >
-                        <span className={styles.icon}>
-                          {item.iconClass === 'mo' ? <MoIcon /> : (NavIcons as any)[item.iconClass] || null}
+                        <span className={styles.navIcon}>
+                          {item.iconClass === 'mo' ? (
+                            <MoIcon />
+                          ) : (
+                            (NavIcons as any)[item.iconClass] || null
+                          )}
                         </span>
-                        <span className={styles.label}>{translateNav(item.label)}</span>
-                        {badge != null && badge !== '' && (
+                        {!sidebarCollapsed && (
+                          <span className={styles.navLabel}>{translateNav(item.label)}</span>
+                        )}
+                        {!sidebarCollapsed && badge != null && badge !== '' && (
                           <span className={styles.badge}>{badge}</span>
                         )}
                       </button>
@@ -518,19 +559,29 @@ export function Sidebar() {
               </ul>
             </div>
           ))}
-        </nav>
+        </div>
 
-        <div className={styles.bottom}>
-          <button type="button" className={styles.userBtn} onClick={openAvatarModal}>
-            <div className={styles.avatar} style={user.avatarStyle}>
-              {user.avatarContent}
+        <div className={styles.userArea}>
+          <button type="button" className={styles.userInner} onClick={openAvatarModal}>
+            <div
+              className={styles.avatar}
+              style={{
+                background: user.photoURL
+                  ? `url(${user.photoURL}) center/cover`
+                  : user.avatarStyle?.background,
+                color: user.photoURL ? 'transparent' : user.avatarStyle?.color,
+              }}
+            >
+              {!user.photoURL && user.avatarContent}
             </div>
-            <div className={styles.userMeta}>
-              <div className={styles.userName}>{user.shortName || user.name}</div>
-              <div className={styles.userRole}>
-                {user.role} · {user.plan}
+            {!sidebarCollapsed && (
+              <div className={styles.userInfo}>
+                <div className={styles.userName}>{user.name}</div>
+                <div className={styles.userRole}>
+                  {user.role} · {user.plan}
+                </div>
               </div>
-            </div>
+            )}
           </button>
         </div>
       </aside>
