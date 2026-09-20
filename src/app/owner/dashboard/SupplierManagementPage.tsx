@@ -639,7 +639,7 @@ export function SupplierManagementPage() {
               </label>
             </div>
             <div className={styles.modalActions}>
-              <Button variant="secondary" onClick={() => { setShowForm(false); resetForm(); }}>Cancel</Button>
+              <Button variant="ghost" onClick={() => { setShowForm(false); resetForm(); }}>Cancel</Button>
               <Button onClick={editingSupplier ? handleUpdateSupplier : handleCreateSupplier}>
                 {editingSupplier ? 'Update' : 'Create'}
               </Button>
