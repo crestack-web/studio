@@ -136,6 +136,15 @@ const WRITE_ALIASES: Record<string, Record<string, string>> = {
     materialId: 'material_id', pricePerUnit: 'price_per_unit',
     effectiveFrom: 'effective_from', createdBy: 'created_by',
   },
+  material_sales: {
+    materialId: 'material_id', materialName: 'material_name',
+    buyerName: 'buyer_name', weightKg: 'weight_kg',
+    sellPricePerKg: 'sell_price_per_kg', costPerKg: 'cost_per_kg',
+    revenue: 'revenue', costOfGoods: 'cost_of_goods', profit: 'profit',
+    amountReceived: 'amount_received', paymentMethod: 'payment_method',
+    saleDate: 'sale_date', recordedBy: 'recorded_by',
+    recordedByName: 'recorded_by_name', saleId: 'sale_id',
+  },
   material_purchases: {
     supplierId: 'supplier_id', supplierName: 'supplier_name',
     materialId: 'material_id', materialName: 'material_name',
@@ -232,6 +241,7 @@ const KNOWN_COLUMNS: Record<string, Set<string>> = {
   recyclable_materials: new Set(['id','business_id','name','unit','active','metadata','created_at','updated_at']),
   material_prices: new Set(['id','business_id','material_id','price_per_unit','effective_from','created_by','metadata','created_at']),
   material_purchases: new Set(['id','business_id','supplier_id','supplier_name','material_id','material_name','weight_kg','price_per_kg','total_amount','amount_paid','balance','payment_status','payment_method','note','purchase_date','recorded_by','recorded_by_name','expense_id','cash_flow_id','metadata','created_at']),
+  material_sales: new Set(['id','business_id','material_id','material_name','buyer_name','weight_kg','sell_price_per_kg','cost_per_kg','revenue','cost_of_goods','profit','amount_received','payment_method','sale_date','note','recorded_by','recorded_by_name','sale_id','metadata','created_at']),
 };
 
 function parsePath(collectionPath: string): { table: string; businessId?: string; docId?: string } {

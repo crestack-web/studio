@@ -11,13 +11,17 @@ import {
   derivePaymentStatus,
   paymentStatusLabel,
   validatePurchaseInput,
+  avgCostPerKg,
+  calcMaterialStockKg,
+  calcSaleProfit,
+  validateSaleInput,
   type MaterialPaymentStatus,
 } from '@/lib/recycling';
 import { Plus, Scale, ArrowLeft } from 'lucide-react';
 import styles from './RecyclingPage.module.css';
 
 const num = (v: unknown) => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
-type View = 'dashboard' | 'purchase' | 'suppliers' | 'prices' | 'supplier';
+type View = 'dashboard' | 'purchase' | 'sell' | 'suppliers' | 'prices' | 'supplier';
 
 export default function RecyclingPage() {
   const { user, showToast } = useApp();
@@ -30,9 +34,20 @@ export default function RecyclingPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [purchases, setPurchases] = useState<any[]>([]);
+  const [sales, setSales] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [materials, setMaterials] = useState<any[]>([]);
   const [prices, setPrices] = useState<Record<string, number>>({});
+  const [sellForm, setSellForm] = useState({
+    materialId: '',
+    buyerName: '',
+    weightKg: '',
+    sellPricePerKg: '',
+    amountReceived: '',
+    paymentMethod: 'cash',
+    note: '',
+    saleDate: new Date().toISOString().slice(0, 10),
+  });
   const [newMaterialName, setNewMaterialName] = useState('');
   const [newMaterialUnit, setNewMaterialUnit] = useState('kg');
 
@@ -54,8 +69,9 @@ export default function RecyclingPage() {
     if (!businessId) return;
     setLoading(true);
     try {
-      const [purchaseRows, supplierRows, materialRows, priceRows] = await Promise.all([
+      const [purchaseRows, saleRows, supplierRows, materialRows, priceRows] = await Promise.all([
         fetchDocs(`businesses/${businessId}/materialPurchases`, { orderBy: { field: 'created_at', ascending: false } }),
+        fetchDocs(`businesses/${businessId}/materialSales`, { orderBy: { field: 'created_at', ascending: false } }).catch(() => []),
         fetchDocs(`businesses/${businessId}/suppliers`),
         fetchDocs(`businesses/${businessId}/recyclableMaterials`),
         fetchDocs(`businesses/${businessId}/materialPrices`, { orderBy: { field: 'effective_from', ascending: false } }),
@@ -121,6 +137,32 @@ export default function RecyclingPage() {
       monthKg: sumKg(purchases.filter((p) => String(p.purchaseDate).slice(0, 7) === todayStr.slice(0, 7))),
     };
   }, [purchases, todayStr]);
+
+  const stockByMaterial = useMemo(() => {
+    return materials.map((m) => {
+      const pRows = purchases.filter((p) => p.materialId === m.id);
+      const sRows = sales.filter((s) => s.materialId === m.id);
+      const availableKg = calcMaterialStockKg(pRows, sRows);
+      const costPerKg = avgCostPerKg(pRows);
+      const inventoryValue = Math.round(availableKg * costPerKg * 100) / 100;
+      return {
+        ...m,
+        availableKg,
+        costPerKg,
+        inventoryValue,
+      };
+    });
+  }, [materials, purchases, sales]);
+
+  const profitMetrics = useMemo(() => {
+    const stockKg = stockByMaterial.reduce((a, m) => a + m.availableKg, 0);
+    const stockValue = stockByMaterial.reduce((a, m) => a + m.inventoryValue, 0);
+    const soldKg = sales.reduce((a, s) => a + num(s.weightKg), 0);
+    const revenue = sales.reduce((a, s) => a + num(s.revenue), 0);
+    const profit = sales.reduce((a, s) => a + num(s.profit), 0);
+    return { stockKg, stockValue, soldKg, revenue, profit };
+  }, [stockByMaterial, sales]);
+
 
   const supplierStats = useCallback((supplierId: string) => {
     const rows = purchases.filter((p) => p.supplierId === supplierId);
@@ -195,6 +237,108 @@ export default function RecyclingPage() {
       await loadAll();
     } catch (e: any) {
       showToast(e?.message || 'Could not remove material');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+
+  const handleRecordSale = async () => {
+    if (!businessId) return;
+    const mid = sellForm.materialId;
+    const stock = stockByMaterial.find((m) => m.id === mid);
+    const weightKg = num(sellForm.weightKg);
+    const sellPricePerKg = num(sellForm.sellPricePerKg);
+    const availableKg = stock?.availableKg ?? 0;
+    const err = validateSaleInput({
+      materialId: mid,
+      weightKg,
+      sellPricePerKg,
+      availableKg,
+    });
+    if (err) { showToast(err); return; }
+    if (saving) return;
+    setSaving(true);
+    try {
+      const material = materials.find((m) => m.id === mid);
+      const costPerKg = stock?.costPerKg ?? 0;
+      const { revenue, costOfGoods, profit } = calcSaleProfit(weightKg, sellPricePerKg, costPerKg);
+      const received =
+        sellForm.amountReceived === '' ? revenue : num(sellForm.amountReceived);
+
+      let saleId: string | null = null;
+      try {
+        saleId = await addDoc(`businesses/${businessId}/sales`, {
+          totalRevenue: revenue,
+          total: revenue,
+          totalProfit: profit,
+          profit,
+          paymentMethod: sellForm.paymentMethod,
+          createdBy: actorId,
+          soldByName: actorName,
+          products: [
+            {
+              name: material?.name || 'Material',
+              productName: material?.name || 'Material',
+              quantity: weightKg,
+              price: sellPricePerKg,
+              costPrice: costPerKg,
+              total: revenue,
+            },
+          ],
+          items: [
+            {
+              name: material?.name || 'Material',
+              quantity: weightKg,
+              price: sellPricePerKg,
+              costPrice: costPerKg,
+            },
+          ],
+          metadata: {
+            source: 'material_sale',
+            materialId: mid,
+            weightKg,
+            sellPricePerKg,
+            costPerKg,
+            buyerName: sellForm.buyerName.trim() || null,
+          },
+        });
+      } catch { /* non-blocking for inventory record */ }
+
+      await addDoc(`businesses/${businessId}/materialSales`, {
+        materialId: mid,
+        materialName: material?.name || '',
+        buyerName: sellForm.buyerName.trim() || null,
+        weightKg,
+        sellPricePerKg,
+        costPerKg,
+        revenue,
+        costOfGoods,
+        profit,
+        amountReceived: received,
+        paymentMethod: sellForm.paymentMethod,
+        note: sellForm.note.trim() || null,
+        saleDate: sellForm.saleDate,
+        recordedBy: actorId,
+        recordedByName: actorName,
+        saleId,
+      });
+
+      showToast(
+        profit >= 0
+          ? `Sold ${weightKg} kg · profit ${profit.toLocaleString()}`
+          : `Sold ${weightKg} kg · loss recorded`
+      );
+      setSellForm((f) => ({
+        ...f,
+        weightKg: '',
+        amountReceived: '',
+        note: '',
+      }));
+      await loadAll();
+      setView('dashboard');
+    } catch (e: any) {
+      showToast(e?.message || 'Could not record sale');
     } finally {
       setSaving(false);
     }
@@ -370,6 +514,119 @@ export default function RecyclingPage() {
     );
   }
 
+
+  if (view === 'sell') {
+    const mid = sellForm.materialId;
+    const stock = stockByMaterial.find((m) => m.id === mid);
+    const w = num(sellForm.weightKg);
+    const sp = num(sellForm.sellPricePerKg);
+    const cost = stock?.costPerKg ?? 0;
+    const preview = calcSaleProfit(w, sp, cost);
+    return (
+      <div className={styles.page}>
+        <div className={styles.pageHeader}>
+          <button type="button" className={styles.backBtn} onClick={() => setView('dashboard')} aria-label="Back">
+            <ArrowLeft size={16} /><span>Back</span>
+          </button>
+          <div className={styles.pageHeaderText}>
+            <h1 className={styles.title}>Sell materials</h1>
+            <p className={styles.sub}>Record a sale to a buyer · stock &amp; profit update live</p>
+          </div>
+        </div>
+        <div className={styles.panel} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <label className={styles.field}>
+            <span>Material in stock</span>
+            <select
+              value={sellForm.materialId}
+              onChange={(e) => {
+                const id = e.target.value;
+                setSellForm((f) => ({ ...f, materialId: id }));
+              }}
+            >
+              <option value="">Select material</option>
+              {stockByMaterial.map((m) => (
+                <option key={m.id} value={m.id} disabled={m.availableKg <= 0}>
+                  {m.name} · {m.availableKg.toFixed(1)} kg · avg cost {formatMoney(m.costPerKg)}/kg
+                </option>
+              ))}
+            </select>
+          </label>
+          {stock && (
+            <div className={styles.sub}>
+              Available <strong>{stock.availableKg.toFixed(2)} kg</strong>
+              {' · '}Avg buy cost <strong>{formatMoney(stock.costPerKg)}/kg</strong>
+            </div>
+          )}
+          <label className={styles.field}>
+            <span>Buyer (optional)</span>
+            <input
+              value={sellForm.buyerName}
+              onChange={(e) => setSellForm((f) => ({ ...f, buyerName: e.target.value }))}
+              placeholder="Recycler / company name"
+            />
+          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <label className={styles.field}>
+              <span>Weight (kg)</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={sellForm.weightKg}
+                onChange={(e) => setSellForm((f) => ({ ...f, weightKg: e.target.value }))}
+              />
+            </label>
+            <label className={styles.field}>
+              <span>Sell price / kg</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={sellForm.sellPricePerKg}
+                onChange={(e) => setSellForm((f) => ({ ...f, sellPricePerKg: e.target.value }))}
+              />
+            </label>
+          </div>
+          <div className={styles.totalBox}>
+            <div className={styles.totalLabel}>Sale preview</div>
+            <div className={styles.totalValue}>{formatMoney(preview.revenue)}</div>
+            <div className={styles.sub} style={{ marginTop: 6 }}>
+              Cost {formatMoney(preview.costOfGoods)} ·{' '}
+              <strong style={{ color: preview.profit >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                Profit {formatMoney(preview.profit)}
+              </strong>
+            </div>
+          </div>
+          <label className={styles.field}>
+            <span>Amount received</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder={String(preview.revenue || '')}
+              value={sellForm.amountReceived}
+              onChange={(e) => setSellForm((f) => ({ ...f, amountReceived: e.target.value }))}
+            />
+          </label>
+          <label className={styles.field}>
+            <span>Payment</span>
+            <select
+              value={sellForm.paymentMethod}
+              onChange={(e) => setSellForm((f) => ({ ...f, paymentMethod: e.target.value }))}
+            >
+              <option value="cash">Cash</option>
+              <option value="transfer">Transfer</option>
+              <option value="pos">POS</option>
+            </select>
+          </label>
+          <button type="button" className={styles.btnPrimary} disabled={saving} onClick={handleRecordSale}>
+            {saving ? 'Saving…' : 'Confirm sale'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (view === 'prices') {
     return (
       <div className={styles.page}>
@@ -519,7 +776,7 @@ export default function RecyclingPage() {
     <div className={styles.page}>
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>Recycling</h1>
+          <h1 className={styles.title}>Material collection</h1>
           <p className={styles.sub}>Material collection · weigh · pay</p>
         </div>
         <button type="button" className={styles.btnPrimary} onClick={() => setView('purchase')}><Scale size={16} /> Record Purchase</button>
@@ -533,9 +790,58 @@ export default function RecyclingPage() {
         <div className={styles.metric}><div className={styles.metricLabel}>PET kg</div><div className={styles.metricValue}>{metrics.petKg.toFixed(1)}</div></div>
         <div className={styles.metric}><div className={styles.metricLabel}>Avg PET / kg</div><div className={styles.metricValue}>{formatMoney(metrics.avgPet)}</div></div>
       </div>
+      <div className={styles.metrics}>
+        <div className={styles.metric}><div className={styles.metricLabel}>Stock kg</div><div className={styles.metricValue}>{profitMetrics.stockKg.toFixed(1)}</div></div>
+        <div className={styles.metric}><div className={styles.metricLabel}>Stock value</div><div className={styles.metricValue}>{formatMoney(profitMetrics.stockValue)}</div></div>
+        <div className={styles.metric}><div className={styles.metricLabel}>Sold kg</div><div className={styles.metricValue}>{profitMetrics.soldKg.toFixed(1)}</div></div>
+        <div className={styles.metric}><div className={styles.metricLabel}>Sale revenue</div><div className={styles.metricValue}>{formatMoney(profitMetrics.revenue)}</div></div>
+        <div className={styles.metric}><div className={styles.metricLabel}>Gross profit</div><div className={styles.metricValue} style={{ color: profitMetrics.profit >= 0 ? 'var(--green)' : 'var(--red)' }}>{formatMoney(profitMetrics.profit)}</div></div>
+      </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button type="button" className={styles.btnGhost} onClick={() => setView('suppliers')}>Suppliers</button>
-        <button type="button" className={styles.btnGhost} onClick={() => setView('prices')}>Prices / kg</button>
+        <button type="button" className={styles.btnGhost} onClick={() => setView('prices')}>Buy prices / kg</button>
+        <button type="button" className={styles.btnGhost} onClick={() => setView('sell')}>Sell materials</button>
+      </div>
+      <div className={styles.panel}>
+        <div style={{ fontWeight: 700, marginBottom: 10 }}>Stock on hand</div>
+        <div className={styles.list}>
+          {stockByMaterial.map((m) => (
+            <div key={m.id} className={styles.row} style={{ cursor: 'default' }}>
+              <div>
+                <div style={{ fontWeight: 600 }}>{m.name}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                  Avg buy {formatMoney(m.costPerKg)}/kg · value {formatMoney(m.inventoryValue)}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', fontWeight: 700 }}>{m.availableKg.toFixed(1)} kg</div>
+            </div>
+          ))}
+          {!stockByMaterial.length && <div className={styles.empty}>Add materials and record purchases to build stock.</div>}
+        </div>
+      </div>
+      <div className={styles.panel}>
+        <div style={{ fontWeight: 700, marginBottom: 10 }}>Recent sales</div>
+        <div className={styles.list}>
+          {sales.slice(0, 10).map((r) => (
+            <div key={r.id} className={styles.row} style={{ cursor: 'default' }}>
+              <div>
+                <div style={{ fontWeight: 600 }}>{r.materialName} · {r.weightKg} kg</div>
+                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                  {String(r.saleDate || '').slice(0, 10)}
+                  {r.buyerName ? ` · ${r.buyerName}` : ''}
+                  {' · '}sold {formatMoney(r.sellPricePerKg)}/kg
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontWeight: 700 }}>{formatMoney(r.revenue)}</div>
+                <div style={{ fontSize: 12, color: num(r.profit) >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                  {formatMoney(r.profit)} profit
+                </div>
+              </div>
+            </div>
+          ))}
+          {!sales.length && <div className={styles.empty}>No sales yet. When a buyer takes materials, use Sell materials.</div>}
+        </div>
       </div>
       <div className={styles.panel}>
         <div style={{ fontWeight: 700, marginBottom: 10 }}>Recent purchases</div>

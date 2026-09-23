@@ -58,3 +58,66 @@ export function validatePurchaseInput(input: {
   if (Number(input.amountPaid) > total + 0.01) return 'Amount paid cannot exceed total';
   return null;
 }
+
+
+/** Weighted average buy cost per kg from purchases for a material. */
+export function avgCostPerKg(
+  purchases: Array<{ materialId?: string; weightKg?: number; totalAmount?: number; pricePerKg?: number }>
+): number {
+  let kg = 0;
+  let spend = 0;
+  for (const p of purchases) {
+    const w = Number(p.weightKg) || 0;
+    const s =
+      Number(p.totalAmount) ||
+      (Number(p.pricePerKg) || 0) * w ||
+      0;
+    if (w <= 0) continue;
+    kg += w;
+    spend += s;
+  }
+  if (kg <= 0) return 0;
+  return Math.round((spend / kg) * 10000) / 10000;
+}
+
+export function calcMaterialStockKg(
+  purchases: Array<{ weightKg?: number }>,
+  sales: Array<{ weightKg?: number }>
+): number {
+  const inKg = purchases.reduce((a, p) => a + (Number(p.weightKg) || 0), 0);
+  const outKg = sales.reduce((a, s) => a + (Number(s.weightKg) || 0), 0);
+  return Math.round((inKg - outKg) * 1000) / 1000;
+}
+
+export function calcSaleRevenue(weightKg: number, sellPricePerKg: number): number {
+  return Math.round((Number(weightKg) || 0) * (Number(sellPricePerKg) || 0) * 100) / 100;
+}
+
+export function calcSaleProfit(
+  weightKg: number,
+  sellPricePerKg: number,
+  costPerKg: number
+): { revenue: number; costOfGoods: number; profit: number } {
+  const revenue = calcSaleRevenue(weightKg, sellPricePerKg);
+  const costOfGoods = Math.round((Number(weightKg) || 0) * (Number(costPerKg) || 0) * 100) / 100;
+  return {
+    revenue,
+    costOfGoods,
+    profit: Math.round((revenue - costOfGoods) * 100) / 100,
+  };
+}
+
+export function validateSaleInput(input: {
+  materialId?: string | null;
+  weightKg: number;
+  sellPricePerKg: number;
+  availableKg: number;
+}): string | null {
+  if (!input.materialId) return 'Material is required';
+  if (!(Number(input.weightKg) > 0)) return 'Weight must be greater than 0 kg';
+  if (Number(input.sellPricePerKg) < 0) return 'Sell price cannot be negative';
+  if (Number(input.weightKg) > Number(input.availableKg) + 0.001) {
+    return `Only ${Number(input.availableKg).toFixed(2)} kg available in stock`;
+  }
+  return null;
+}
