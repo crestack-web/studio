@@ -17,6 +17,7 @@ import {
   Sun, Moon, Monitor, LogOut,
 } from 'lucide-react';
 import styles from './SettingsPage.module.css';
+import { CATEGORY_FEATURES } from '@/app/welcome/signup/onboarding-constants';
 
 function Toggle({ checked, onChange, id }: { checked: boolean; onChange: (v: boolean) => void; id: string }) {
   return (
@@ -46,11 +47,23 @@ const WAREHOUSE_CATEGORIES = new Set([
 ]);
 
 const CATEGORY_OPTIONS: [string, string][] = [
-  ['retail', 'Retail'], ['restaurant', 'Restaurant'], ['cafe', 'Cafe'],
-  ['grocery', 'Grocery'], ['supermarket', 'Supermarket'], ['wholesale', 'Wholesale'],
-  ['distributor', 'Distributor'], ['fashion', 'Fashion'], ['electronics', 'Electronics'],
-  ['pharmacy', 'Pharmacy'], ['manufacturing', 'Manufacturing'], ['services', 'Services'],
-  ['healthcare', 'Healthcare'], ['education', 'Education'], ['other', 'Other'],
+  ['retail', 'Retail'],
+  ['restaurant', 'Restaurant'],
+  ['cafe', 'Cafe'],
+  ['grocery', 'Grocery'],
+  ['supermarket', 'Supermarket'],
+  ['wholesale', 'Wholesale'],
+  ['distributor', 'Distributor'],
+  ['fashion', 'Fashion'],
+  ['electronics', 'Electronics'],
+  ['pharmacy', 'Pharmacy'],
+  ['manufacturing', 'Manufacturing'],
+  ['services', 'Services'],
+  ['healthcare', 'Healthcare'],
+  ['education', 'Education'],
+  ['jobs', 'Jobs & Projects'],
+  ['recycling_material_collection', 'Recycling & Material Collection'],
+  ['other', 'Other'],
 ];
 
 export default function SettingsPage() {
@@ -72,9 +85,49 @@ export default function SettingsPage() {
 
   useEffect(() => {
     (async () => {
+      if (!user.businessId) return;
+      try {
+        const supabase = getSupabase();
+        const { data } = await supabase
+          .from('businesses')
+          .select('name, business_name, category, industry, phone, email, address, metadata')
+          .eq('id', user.businessId)
+          .maybeSingle();
+        if (data) {
+          const meta =
+            data.metadata && typeof data.metadata === 'object'
+              ? (data.metadata as Record<string, unknown>)
+              : {};
+          const category = String(
+            data.category ||
+              data.industry ||
+              meta.selectedCategory ||
+              meta.category ||
+              ''
+          );
+          setBiz({
+            name: String(data.name || data.business_name || ''),
+            category,
+            phone: String(data.phone || ''),
+            email: String(data.email || ''),
+            address: String(data.address || ''),
+          });
+          const mode = meta.inventoryDeductionMode || meta.inventory_deduction_mode;
+          if (mode === 'warehouse' || mode === 'immediate') {
+            setInventoryDeductionMode(mode);
+          }
+          const receipt = meta.receiptType || meta.receipt_type;
+          if (receipt === 'supermarket' || receipt === 'invoice') {
+            setReceiptTypeSetting(receipt);
+          }
+          return;
+        }
+      } catch (e) {
+        console.error('[settings] supabase business load', e);
+      }
+      // Fallback: legacy Firebase doc if still present
       try {
         const { firestore } = initializeFirebase();
-        if (!user.businessId) return;
         const businessDoc = await getDoc(doc(firestore, 'businesses', user.businessId));
         if (businessDoc.exists()) {
           const data = businessDoc.data();
@@ -152,6 +205,110 @@ export default function SettingsPage() {
       window.location.href = '/login';
     } catch {
       showToast(t('toast.loggedOutFailed'));
+    }
+  };
+
+
+  const saveBusinessSettings = async () => {
+    if (!user.businessId) {
+      showToast('Business not loaded yet');
+      return;
+    }
+    const category = String(biz.category || '').trim();
+    if (!category) {
+      showToast('Select a business category');
+      return;
+    }
+    try {
+      const supabase = getSupabase();
+      const featureLabels = CATEGORY_FEATURES[category] || CATEGORY_FEATURES.other || [];
+
+      // Update business row
+      const { data: existingBiz } = await supabase
+        .from('businesses')
+        .select('metadata')
+        .eq('id', user.businessId)
+        .maybeSingle();
+      const prevMeta =
+        existingBiz?.metadata && typeof existingBiz.metadata === 'object'
+          ? { ...(existingBiz.metadata as Record<string, unknown>) }
+          : {};
+      const nextBizMeta = {
+        ...prevMeta,
+        selectedCategory: category,
+        category,
+        categoryLabel:
+          CATEGORY_OPTIONS.find(([id]) => id === category)?.[1] || category,
+      };
+
+      const { error: bizErr } = await supabase
+        .from('businesses')
+        .update({
+          name: biz.name || undefined,
+          category,
+          industry: category,
+          phone: biz.phone || null,
+          email: biz.email || null,
+          address: biz.address || null,
+          metadata: nextBizMeta,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.businessId);
+      if (bizErr) throw bizErr;
+
+      // Update owner user metadata so Sidebar/feature gating refreshes
+      if (user.id) {
+        const { data: userRow } = await supabase
+          .from('users')
+          .select('metadata')
+          .eq('id', user.id)
+          .maybeSingle();
+        const umeta =
+          userRow?.metadata && typeof userRow.metadata === 'object'
+            ? { ...(userRow.metadata as Record<string, unknown>) }
+            : {};
+        const nextUserMeta = {
+          ...umeta,
+          selectedCategory: category,
+          category,
+          businessCategory: category,
+          selectedFeatures: featureLabels,
+          features: featureLabels,
+        };
+        const { error: userErr } = await supabase
+          .from('users')
+          .update({
+            metadata: nextUserMeta,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', user.id);
+        if (userErr) console.warn('[settings] user meta update', userErr.message);
+      }
+
+      // Best-effort client mirror for immediate UI
+      try {
+        localStorage.setItem('selectedCategory', category);
+        localStorage.setItem('busmo_category', category);
+        localStorage.setItem('selectedFeatures', JSON.stringify(featureLabels));
+      } catch {
+        /* ignore */
+      }
+
+      showToast(
+        category === 'recycling_material_collection'
+          ? 'Category updated — Material Collection is now available in the sidebar'
+          : category === 'jobs'
+            ? 'Category updated — Jobs & Projects is now available in the sidebar'
+            : 'Business settings saved'
+      );
+
+      // Reload so Sidebar re-resolves category + features
+      if (typeof window !== 'undefined') {
+        window.setTimeout(() => window.location.reload(), 600);
+      }
+    } catch (e: any) {
+      console.error('[settings] save business', e);
+      showToast(e?.message || 'Failed to save business settings');
     }
   };
 
@@ -341,7 +498,7 @@ export default function SettingsPage() {
             </button>
           </div>
 
-          <button className={styles.saveBtn} onClick={() => showToast(t('settings.changesSaved'))}>
+          <button type="button" className={styles.saveBtn} onClick={saveBusinessSettings}>
             {t('common.save')} {t('settings.section.business')}
           </button>
         </Section>
