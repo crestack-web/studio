@@ -108,9 +108,9 @@ export default function SettingsPage() {
           setBiz({
             name: String(data.name || data.business_name || ''),
             category,
-            phone: String(data.phone || ''),
-            email: String(data.email || ''),
-            address: String(data.address || ''),
+            phone: String(data.phone || meta.phone || ''),
+            email: String(data.email || meta.email || ''),
+            address: String(data.address || meta.address || ''),
           });
           const mode = meta.inventoryDeductionMode || meta.inventory_deduction_mode;
           if (mode === 'warehouse' || mode === 'immediate') {
@@ -209,6 +209,8 @@ export default function SettingsPage() {
   };
 
 
+  const [savingBusiness, setSavingBusiness] = useState(false);
+
   const saveBusinessSettings = async () => {
     if (!user.businessId) {
       showToast('Business not loaded yet');
@@ -219,73 +221,44 @@ export default function SettingsPage() {
       showToast('Select a business category');
       return;
     }
+    setSavingBusiness(true);
     try {
       const supabase = getSupabase();
-      const featureLabels = CATEGORY_FEATURES[category] || CATEGORY_FEATURES.other || [];
-
-      // Update business row
-      const { data: existingBiz } = await supabase
-        .from('businesses')
-        .select('metadata')
-        .eq('id', user.businessId)
-        .maybeSingle();
-      const prevMeta =
-        existingBiz?.metadata && typeof existingBiz.metadata === 'object'
-          ? { ...(existingBiz.metadata as Record<string, unknown>) }
-          : {};
-      const nextBizMeta = {
-        ...prevMeta,
-        selectedCategory: category,
-        category,
-        categoryLabel:
-          CATEGORY_OPTIONS.find(([id]) => id === category)?.[1] || category,
-      };
-
-      const { error: bizErr } = await supabase
-        .from('businesses')
-        .update({
-          name: biz.name || undefined,
-          category,
-          industry: category,
-          phone: biz.phone || null,
-          email: biz.email || null,
-          address: biz.address || null,
-          metadata: nextBizMeta,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.businessId);
-      if (bizErr) throw bizErr;
-
-      // Update owner user metadata so Sidebar/feature gating refreshes
-      if (user.id) {
-        const { data: userRow } = await supabase
-          .from('users')
-          .select('metadata')
-          .eq('id', user.id)
-          .maybeSingle();
-        const umeta =
-          userRow?.metadata && typeof userRow.metadata === 'object'
-            ? { ...(userRow.metadata as Record<string, unknown>) }
-            : {};
-        const nextUserMeta = {
-          ...umeta,
-          selectedCategory: category,
-          category,
-          businessCategory: category,
-          selectedFeatures: featureLabels,
-          features: featureLabels,
-        };
-        const { error: userErr } = await supabase
-          .from('users')
-          .update({
-            metadata: nextUserMeta,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', user.id);
-        if (userErr) console.warn('[settings] user meta update', userErr.message);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        showToast('Please sign in again to save settings');
+        return;
       }
 
-      // Best-effort client mirror for immediate UI
+      const categoryLabel =
+        CATEGORY_OPTIONS.find(([id]) => id === category)?.[1] || category;
+
+      const res = await fetch('/api/owner/business-settings', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          businessId: user.businessId,
+          name: biz.name,
+          category,
+          categoryLabel,
+          phone: biz.phone,
+          email: biz.email,
+          address: biz.address,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error || `Save failed (${res.status})`);
+      }
+
+      const featureLabels: string[] = Array.isArray(json.features)
+        ? json.features
+        : CATEGORY_FEATURES[category] || CATEGORY_FEATURES.other || [];
+
       try {
         localStorage.setItem('selectedCategory', category);
         localStorage.setItem('busmo_category', category);
@@ -302,13 +275,14 @@ export default function SettingsPage() {
             : 'Business settings saved'
       );
 
-      // Reload so Sidebar re-resolves category + features
       if (typeof window !== 'undefined') {
-        window.setTimeout(() => window.location.reload(), 600);
+        window.setTimeout(() => window.location.reload(), 700);
       }
     } catch (e: any) {
       console.error('[settings] save business', e);
       showToast(e?.message || 'Failed to save business settings');
+    } finally {
+      setSavingBusiness(false);
     }
   };
 
@@ -498,8 +472,8 @@ export default function SettingsPage() {
             </button>
           </div>
 
-          <button type="button" className={styles.saveBtn} onClick={saveBusinessSettings}>
-            {t('common.save')} {t('settings.section.business')}
+          <button type="button" className={styles.saveBtn} disabled={savingBusiness} onClick={saveBusinessSettings}>
+            {savingBusiness ? 'Saving…' : `${t('common.save')} ${t('settings.section.business')}`}
           </button>
         </Section>
       )}
