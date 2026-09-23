@@ -207,8 +207,14 @@ export default function RecyclingPage() {
   if (view === 'purchase') {
     return (
       <div className={styles.page}>
-        <button type="button" className={styles.btnGhost} onClick={() => setView('dashboard')}><ArrowLeft size={16} /> Back</button>
-        <h1 className={styles.title}>Record Purchase</h1>
+        <div className={styles.pageHeader}>
+          <button type="button" className={styles.backBtn} onClick={() => setView('dashboard')} aria-label="Back">
+            <ArrowLeft size={16} /><span>Back</span>
+          </button>
+          <div className={styles.pageHeaderText}>
+            <h1 className={styles.title}>Record purchase</h1>
+          </div>
+        </div>
         <p className={styles.sub}>Weigh · price · pay — while the supplier waits.</p>
         <div className={styles.panel} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div className={styles.field}>
@@ -283,16 +289,34 @@ export default function RecyclingPage() {
   if (view === 'prices') {
     return (
       <div className={styles.page}>
-        <button type="button" className={styles.btnGhost} onClick={() => setView('dashboard')}><ArrowLeft size={16} /> Back</button>
-        <h1 className={styles.title}>Buying prices</h1>
-        <p className={styles.sub}>Current price/kg. Old purchases keep their historical price.</p>
+        <div className={styles.pageHeader}>
+          <button type="button" className={styles.backBtn} onClick={() => setView('dashboard')} aria-label="Back">
+            <ArrowLeft size={16} />
+            <span>Back</span>
+          </button>
+          <div className={styles.pageHeaderText}>
+            <h1 className={styles.title}>Buying prices</h1>
+            <p className={styles.sub}>Price/kg · history kept on old buys</p>
+          </div>
+        </div>
         <div className={styles.list}>
           {materials.map((m) => (
-            <div key={m.id} className={styles.panel} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <div style={{ flex: 1 }}><div style={{ fontWeight: 700 }}>{m.name}</div><div style={{ fontSize: 12, color: '#8888A0' }}>per {m.unit}</div></div>
-              <input type="number" step="0.01" min="0" style={{ width: 110, padding: '10px 12px', borderRadius: 10, border: '1.5px solid #E8E8F0', fontSize: 15 }}
-                value={priceEdits[m.id] ?? ''} onChange={(e) => setPriceEdits((p) => ({ ...p, [m.id]: e.target.value }))} />
-              <button type="button" className={styles.btnGhost} disabled={saving} onClick={() => handleSavePrice(m.id)}>Save</button>
+            <div key={m.id} className={`${styles.panel} ${styles.priceRow}`}>
+              <div className={styles.priceInfo}>
+                <div className={styles.priceName}>{m.name}</div>
+                <div className={styles.priceUnit}>per {m.unit}</div>
+              </div>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                className={styles.priceInput}
+                value={priceEdits[m.id] ?? ''}
+                onChange={(e) => setPriceEdits((p) => ({ ...p, [m.id]: e.target.value }))}
+              />
+              <button type="button" className={styles.btnGhost} disabled={saving} onClick={() => handleSavePrice(m.id)}>
+                Save
+              </button>
             </div>
           ))}
         </div>
@@ -306,9 +330,15 @@ export default function RecyclingPage() {
     if (view === 'supplier' && selected && stats) {
       return (
         <div className={styles.page}>
-          <button type="button" className={styles.btnGhost} onClick={() => { setView('suppliers'); setSelectedSupplierId(null); }}><ArrowLeft size={16} /> Suppliers</button>
-          <h1 className={styles.title}>{selected.name}</h1>
-          <p className={styles.sub}>{selected.phone}</p>
+          <div className={styles.pageHeader}>
+            <button type="button" className={styles.backBtn} onClick={() => { setView('suppliers'); setSelectedSupplierId(null); }} aria-label="Back">
+              <ArrowLeft size={16} /><span>Back</span>
+            </button>
+            <div className={styles.pageHeaderText}>
+              <h1 className={styles.title}>{selected.name}</h1>
+              <p className={styles.sub}>{selected.phone}</p>
+            </div>
+          </div>
           <div className={styles.metrics}>
             <div className={styles.metric}><div className={styles.metricLabel}>Total kg</div><div className={styles.metricValue}>{stats.totalKg.toFixed(1)}</div></div>
             <div className={styles.metric}><div className={styles.metricLabel}>Total paid</div><div className={styles.metricValue}>{formatMoney(stats.totalPaid)}</div></div>
@@ -319,7 +349,7 @@ export default function RecyclingPage() {
               <div key={r.id} className={styles.row} style={{ cursor: 'default' }}>
                 <div>
                   <div style={{ fontWeight: 600 }}>{r.materialName} · {r.weightKg} kg</div>
-                  <div style={{ fontSize: 12, color: '#8888A0' }}>{String(r.purchaseDate).slice(0, 10)} · {formatMoney(r.pricePerKg)}/kg · {r.recordedByName || '—'}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{String(r.purchaseDate).slice(0, 10)} · {formatMoney(r.pricePerKg)}/kg · {r.recordedByName || '—'}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}><div style={{ fontWeight: 700 }}>{formatMoney(r.totalAmount)}</div>{statusBadge(r.paymentStatus)}</div>
               </div>
@@ -343,7 +373,7 @@ export default function RecyclingPage() {
               <div key={s.id} className={styles.row} onClick={() => { setSelectedSupplierId(s.id); setView('supplier'); }}>
                 <div>
                   <div style={{ fontWeight: 700 }}>{s.name}</div>
-                  <div style={{ fontSize: 12, color: '#8888A0' }}>{st.totalKg.toFixed(1)} kg · {formatMoney(st.totalPaid)} · {st.count} deliveries</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{st.totalKg.toFixed(1)} kg · {formatMoney(st.totalPaid)} · {st.count} deliveries</div>
                 </div>
               </div>
             );
@@ -393,7 +423,7 @@ export default function RecyclingPage() {
             <div key={r.id} className={styles.row} style={{ cursor: 'default' }}>
               <div>
                 <div style={{ fontWeight: 600 }}>{r.supplierName} · {r.materialName}</div>
-                <div style={{ fontSize: 12, color: '#8888A0' }}>{String(r.purchaseDate).slice(0, 10)} · {r.weightKg} kg · {formatMoney(r.pricePerKg)}/kg{r.recordedByName ? ` · ${r.recordedByName}` : ''}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{String(r.purchaseDate).slice(0, 10)} · {r.weightKg} kg · {formatMoney(r.pricePerKg)}/kg{r.recordedByName ? ` · ${r.recordedByName}` : ''}</div>
               </div>
               <div style={{ textAlign: 'right' }}><div style={{ fontWeight: 700 }}>{formatMoney(r.totalAmount)}</div>{statusBadge(r.paymentStatus)}</div>
             </div>
