@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
-import { fetchDocs, addDoc } from '@/lib/supabase-client-data';
+import { fetchDocs, addDoc, updateDoc } from '@/lib/supabase-client-data';
 import {
   DEFAULT_RECYCLABLE_MATERIALS,
   calcPurchaseTotal,
@@ -33,6 +33,9 @@ export default function RecyclingPage() {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [materials, setMaterials] = useState<any[]>([]);
   const [prices, setPrices] = useState<Record<string, number>>({});
+  const [newMaterialName, setNewMaterialName] = useState('');
+  const [newMaterialUnit, setNewMaterialUnit] = useState('kg');
+
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
   const [form, setForm] = useState({
     supplierId: '', materialId: '', weightKg: '', pricePerKg: '', amountPaid: '',
@@ -57,7 +60,9 @@ export default function RecyclingPage() {
         fetchDocs(`businesses/${businessId}/recyclableMaterials`),
         fetchDocs(`businesses/${businessId}/materialPrices`, { orderBy: { field: 'effective_from', ascending: false } }),
       ]);
-      let mats = (materialRows || []).map((m: any) => ({
+      let mats = (materialRows || [])
+        .filter((m: any) => m.active !== false && m.is_active !== false)
+        .map((m: any) => ({
         id: String(m.id), name: String(m.name || ''), unit: m.unit || 'kg', active: m.active !== false,
       }));
       if (!mats.length) {
@@ -136,6 +141,50 @@ export default function RecyclingPage() {
     finally { setSaving(false); }
   };
 
+
+  const handleAddMaterial = async () => {
+    if (!businessId) return;
+    const name = newMaterialName.trim();
+    if (!name) { showToast('Enter a material name'); return; }
+    if (saving) return;
+    setSaving(true);
+    try {
+      const unit = (newMaterialUnit.trim() || 'kg').toLowerCase();
+      await addDoc(`businesses/${businessId}/recyclableMaterials`, {
+        name,
+        unit,
+        active: true,
+      });
+      setNewMaterialName('');
+      setNewMaterialUnit('kg');
+      showToast(`${name} added`);
+      await loadAll();
+    } catch (e: any) {
+      showToast(e?.message || 'Could not add material');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemoveMaterial = async (materialId: string, materialName: string) => {
+    if (!businessId || !materialId) return;
+    if (typeof window !== 'undefined' && !window.confirm(`Remove ${materialName} from your list?`)) return;
+    if (saving) return;
+    setSaving(true);
+    try {
+      await updateDoc(`businesses/${businessId}/recyclableMaterials`, materialId, {
+        active: false,
+        is_active: false,
+      });
+      showToast(`${materialName} removed`);
+      await loadAll();
+    } catch (e: any) {
+      showToast(e?.message || 'Could not remove material');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSavePrice = async (materialId: string) => {
     if (!businessId) return;
     const val = num(priceEdits[materialId]);
@@ -163,20 +212,24 @@ export default function RecyclingPage() {
       const paymentStatus = derivePaymentStatus(totalAmount, paid);
       let expenseId: string | null = null;
       let cashFlowId: string | null = null;
+      // Single money-out record: expense only (statement/cashflow must not double-count)
       if (paid > 0) {
         try {
           expenseId = await addDoc(`businesses/${businessId}/expenses`, {
-            category: `Material · ${material?.name || 'Recycling'}`, amount: paid,
-            description: `${material?.name} ${weight} kg from ${supplier?.name}`, paymentMethod: form.paymentMethod, createdBy: actorId,
-            metadata: { source: 'material_purchase', weightKg: weight, pricePerKg },
+            category: `Material · ${material?.name || 'Recycling'}`,
+            amount: paid,
+            description: `${material?.name} ${weight} kg from ${supplier?.name}`,
+            paymentMethod: form.paymentMethod,
+            createdBy: actorId,
+            metadata: {
+              source: 'material_purchase',
+              weightKg: weight,
+              pricePerKg,
+              supplierId: form.supplierId,
+            },
           });
         } catch { /* */ }
-        try {
-          cashFlowId = await addDoc(`businesses/${businessId}/cashFlow`, {
-            type: 'outflow', amount: paid, category: 'material_purchase',
-            description: `Material purchase · ${material?.name} · ${weight} kg · ${supplier?.name}`, entryDate: form.purchaseDate,
-          });
-        } catch { /* */ }
+        cashFlowId = null;
       }
       await addDoc(`businesses/${businessId}/materialPurchases`, {
         supplierId: form.supplierId, supplierName: supplier?.name || '', materialId: form.materialId, materialName: material?.name || '',
@@ -299,26 +352,63 @@ export default function RecyclingPage() {
             <p className={styles.sub}>Price/kg · history kept on old buys</p>
           </div>
         </div>
+        <div className={styles.panel} style={{ marginBottom: 12 }}>
+          <div className={styles.priceName} style={{ marginBottom: 8 }}>Add material</div>
+          <div className={styles.priceRow}>
+            <input
+              type="text"
+              className={styles.priceInput}
+              style={{ flex: 1, width: 'auto', minWidth: 0 }}
+              placeholder="e.g. PET Bottles"
+              value={newMaterialName}
+              onChange={(e) => setNewMaterialName(e.target.value)}
+            />
+            <input
+              type="text"
+              className={styles.priceInput}
+              style={{ width: 64 }}
+              placeholder="unit"
+              value={newMaterialUnit}
+              onChange={(e) => setNewMaterialUnit(e.target.value)}
+            />
+            <button type="button" className={styles.btnPrimary} disabled={saving} onClick={handleAddMaterial}>
+              Add
+            </button>
+          </div>
+        </div>
         <div className={styles.list}>
-          {materials.map((m) => (
-            <div key={m.id} className={`${styles.panel} ${styles.priceRow}`}>
-              <div className={styles.priceInfo}>
-                <div className={styles.priceName}>{m.name}</div>
-                <div className={styles.priceUnit}>per {m.unit}</div>
+          {materials.length === 0 ? (
+            <div className={styles.empty}>No materials yet. Add what you collect above.</div>
+          ) : (
+            materials.map((m) => (
+              <div key={m.id} className={`${styles.panel} ${styles.priceRow}`}>
+                <div className={styles.priceInfo}>
+                  <div className={styles.priceName}>{m.name}</div>
+                  <div className={styles.priceUnit}>per {m.unit}</div>
+                </div>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className={styles.priceInput}
+                  value={priceEdits[m.id] ?? ''}
+                  onChange={(e) => setPriceEdits((p) => ({ ...p, [m.id]: e.target.value }))}
+                />
+                <button type="button" className={styles.btnGhost} disabled={saving} onClick={() => handleSavePrice(m.id)}>
+                  Save
+                </button>
+                <button
+                  type="button"
+                  className={styles.btnGhost}
+                  disabled={saving}
+                  onClick={() => handleRemoveMaterial(m.id, m.name)}
+                  aria-label={`Remove ${m.name}`}
+                >
+                  Remove
+                </button>
               </div>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                className={styles.priceInput}
-                value={priceEdits[m.id] ?? ''}
-                onChange={(e) => setPriceEdits((p) => ({ ...p, [m.id]: e.target.value }))}
-              />
-              <button type="button" className={styles.btnGhost} disabled={saving} onClick={() => handleSavePrice(m.id)}>
-                Save
-              </button>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     );

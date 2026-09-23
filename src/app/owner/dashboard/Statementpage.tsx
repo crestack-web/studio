@@ -364,11 +364,20 @@ export function StatementPage() {
           const amount = Number(data.amount) || Number(data.moneyOut) || Number(data.moneyIn) || 0;
           if (amount <= 0) continue;
           const category = String(data.category || '').toLowerCase();
+          const desc = String(data.description || '').toLowerCase();
+          const metaSrc = String(
+            data.metadata?.source || data.source || ''
+          ).toLowerCase();
+          // Skip mirrors of expenses / material purchases (avoid double money-out)
           if (
             category === 'expense' ||
             category === 'purchase' ||
             category === 'purchases' ||
             category === 'stock' ||
+            category === 'material_purchase' ||
+            category === 'material-purchase' ||
+            metaSrc === 'material_purchase' ||
+            desc.includes('material purchase') ||
             data.expenseId ||
             data.expense_id
           ) {
