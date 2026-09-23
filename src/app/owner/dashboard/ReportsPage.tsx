@@ -25,6 +25,9 @@ type BusinessModel =
   | 'manufacturing'
   | 'services'
   | 'education'
+  | 'jobs'
+  | 'recycling'
+  | 'healthcare'
   | 'other';
 
 interface SaleRow {
@@ -67,6 +70,11 @@ interface Insights {
   expenseCats: Array<{ category: string; amount: number; pct: number }>;
   inventoryValue: number;
   productsTracked: number;
+  materialKg: number;
+  materialSpend: number;
+  materialPaid: number;
+  topMaterials: Array<{ name: string; kg: number; spend: number; paid: number }>;
+  topSuppliers: Array<{ name: string; kg: number; spend: number; trips: number }>;
 }
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -126,6 +134,9 @@ function modelLabel(m: BusinessModel): string {
     manufacturing: 'Manufacturing',
     services: 'Services',
     education: 'Education',
+    jobs: 'Jobs & projects',
+    recycling: 'Material collection',
+    healthcare: 'Healthcare',
     other: 'General business',
   };
   return labels[m];
@@ -531,6 +542,76 @@ export function ReportsPage() {
         0
       );
 
+      // Material collection (recycling) — period-scoped
+      let materialKg = 0;
+      let materialSpend = 0;
+      let materialPaid = 0;
+      let topMaterials: Insights['topMaterials'] = [];
+      let topSuppliers: Insights['topSuppliers'] = [];
+      try {
+        const matRows = await fetchDocs(`businesses/${businessId}/materialPurchases`, {
+          orderBy: { field: 'created_at', ascending: false },
+        });
+        const inRange = (matRows || []).filter((row: any) => {
+          const raw =
+            row.purchaseDate ||
+            row.purchase_date ||
+            row.createdAt ||
+            row.created_at;
+          if (!raw) return true;
+          const d = new Date(raw);
+          if (Number.isNaN(d.getTime())) return true;
+          // reuse same range as sales: period already applied upstream via rangeStart/rangeEnd if available
+          return true;
+        });
+        // Filter by period dates when start/end known from state
+        const rangeStart = startDate ? new Date(startDate) : null;
+        const rangeEnd = endDate ? new Date(endDate) : null;
+        if (rangeEnd) rangeEnd.setHours(23, 59, 59, 999);
+        const scoped = inRange.filter((row: any) => {
+          if (!rangeStart && !rangeEnd) return true;
+          const raw =
+            row.purchaseDate ||
+            row.purchase_date ||
+            row.createdAt ||
+            row.created_at;
+          if (!raw) return true;
+          const d = new Date(raw);
+          if (Number.isNaN(d.getTime())) return true;
+          if (rangeStart && d < rangeStart) return false;
+          if (rangeEnd && d > rangeEnd) return false;
+          return true;
+        });
+        const matMap: Record<string, { name: string; kg: number; spend: number; paid: number }> = {};
+        const supMap: Record<string, { name: string; kg: number; spend: number; trips: number }> = {};
+        scoped.forEach((row: any) => {
+          const kg = Number(row.weightKg ?? row.weight_kg ?? 0) || 0;
+          const spend = Number(row.totalAmount ?? row.total_amount ?? 0) || 0;
+          const paid = Number(row.amountPaid ?? row.amount_paid ?? 0) || 0;
+          materialKg += kg;
+          materialSpend += spend;
+          materialPaid += paid;
+          const mName = String(row.materialName ?? row.material_name ?? 'Material');
+          if (!matMap[mName]) matMap[mName] = { name: mName, kg: 0, spend: 0, paid: 0 };
+          matMap[mName].kg += kg;
+          matMap[mName].spend += spend;
+          matMap[mName].paid += paid;
+          const sName = String(row.supplierName ?? row.supplier_name ?? 'Supplier');
+          if (!supMap[sName]) supMap[sName] = { name: sName, kg: 0, spend: 0, trips: 0 };
+          supMap[sName].kg += kg;
+          supMap[sName].spend += spend;
+          supMap[sName].trips += 1;
+        });
+        topMaterials = Object.values(matMap)
+          .sort((a, b) => b.kg - a.kg)
+          .slice(0, 8);
+        topSuppliers = Object.values(supMap)
+          .sort((a, b) => b.spend - a.spend)
+          .slice(0, 8);
+      } catch (e) {
+        console.warn('[reports] material purchases', e);
+      }
+
       setInsights({
         revenue,
         cogs,
@@ -550,6 +631,11 @@ export function ReportsPage() {
         expenseCats,
         inventoryValue,
         productsTracked: products.length,
+        materialKg,
+        materialSpend,
+        materialPaid,
+        topMaterials,
+        topSuppliers,
       });
     } catch (error) {
       console.error('Error loading insights:', error);
@@ -565,8 +651,14 @@ export function ReportsPage() {
   }, [businessId, loadInsights]);
 
   const copy = useMemo(() => useCaseCopy(businessModel), [businessModel]);
-  const showInventory = INVENTORY_MODELS.has(businessModel) || businessModel === 'other';
+  const showInventory =
+    (INVENTORY_MODELS.has(businessModel) ||
+      businessModel === 'other' ||
+      businessModel === 'healthcare') &&
+    !['recycling', 'jobs', 'services', 'education'].includes(businessModel);
   const showFoodHints = FOOD_MODELS.has(businessModel);
+  const showMaterial = businessModel === 'recycling';
+
   const maxDayRevenue = insights
     ? Math.max(...insights.dayPattern.map((d) => d.revenue), 1)
     : 1;
@@ -722,6 +814,76 @@ export function ReportsPage() {
               <span className={styles.kpiValue}>{insights.expenseRatio.toFixed(1)}%</span>
               <span className={styles.kpiHint}>of revenue</span>
             </div>
+            
+            {showMaterial && insights && (
+              <>
+                <article className={styles.module}>
+                  <header className={styles.moduleHead}>
+                    <h2 className={styles.moduleTitle}>Collection volume</h2>
+                    <span className={styles.moduleHint}>Kg bought in this period</span>
+                  </header>
+                  <div className={styles.kpiRow} style={{ margin: 0 }}>
+                    <div className={styles.kpi}>
+                      <div className={styles.kpiLabel}>Total kg</div>
+                      <div className={styles.kpiValue}>{insights.materialKg.toFixed(1)}</div>
+                    </div>
+                    <div className={styles.kpi}>
+                      <div className={styles.kpiLabel}>Spend</div>
+                      <div className={styles.kpiValue}>{formatMoney(insights.materialSpend)}</div>
+                    </div>
+                    <div className={styles.kpi}>
+                      <div className={styles.kpiLabel}>Paid out</div>
+                      <div className={styles.kpiValue}>{formatMoney(insights.materialPaid)}</div>
+                    </div>
+                  </div>
+                </article>
+
+                <article className={styles.module}>
+                  <header className={styles.moduleHead}>
+                    <h2 className={styles.moduleTitle}>Materials</h2>
+                    <span className={styles.moduleHint}>By weight collected</span>
+                  </header>
+                  {insights.topMaterials.length === 0 ? (
+                    <p className={styles.emptyModule}>No material purchases in this period.</p>
+                  ) : (
+                    <ul className={styles.rankList}>
+                      {insights.topMaterials.map((m) => (
+                        <li key={m.name} className={styles.rankItem}>
+                          <div className={styles.rankBody}>
+                            <span className={styles.rankName}>{m.name}</span>
+                            <span className={styles.rankMeta}>{formatMoney(m.spend)} spend</span>
+                          </div>
+                          <span className={styles.rankAmount}>{m.kg.toFixed(1)} kg</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </article>
+
+                <article className={styles.module}>
+                  <header className={styles.moduleHead}>
+                    <h2 className={styles.moduleTitle}>Suppliers</h2>
+                    <span className={styles.moduleHint}>Who you buy from most</span>
+                  </header>
+                  {insights.topSuppliers.length === 0 ? (
+                    <p className={styles.emptyModule}>No supplier activity in this period.</p>
+                  ) : (
+                    <ul className={styles.rankList}>
+                      {insights.topSuppliers.map((s) => (
+                        <li key={s.name} className={styles.rankItem}>
+                          <div className={styles.rankBody}>
+                            <span className={styles.rankName}>{s.name}</span>
+                            <span className={styles.rankMeta}>{s.trips} trips · {s.kg.toFixed(1)} kg</span>
+                          </div>
+                          <span className={styles.rankAmount}>{formatMoney(s.spend)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </article>
+              </>
+            )}
+
             {showInventory && (
               <div className={styles.kpi}>
                 <span className={styles.kpiLabel}>Stock at cost</span>

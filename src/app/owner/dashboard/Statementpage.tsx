@@ -54,6 +54,74 @@ const DEFAULT_BUSINESS: BusinessInfo = {
   country: 'Nigeria',
 };
 
+type StmtCategory =
+  | 'retail'
+  | 'restaurant'
+  | 'cafe'
+  | 'recycling'
+  | 'jobs'
+  | 'services'
+  | 'wholesale'
+  | 'other';
+
+function normalizeStmtCategory(raw: string | undefined | null): StmtCategory {
+  const c = (raw || '').toLowerCase().trim();
+  if (c.includes('recycl') || c.includes('material_collection') || c.includes('material collection')) {
+    return 'recycling';
+  }
+  if (c.includes('restaurant')) return 'restaurant';
+  if (c.includes('cafe') || c.includes('café')) return 'cafe';
+  if (c === 'jobs' || c.includes('jobs &') || c.includes('jobs and')) return 'jobs';
+  if (c.includes('service')) return 'services';
+  if (c.includes('wholesale') || c.includes('distribut')) return 'wholesale';
+  if (
+    c.includes('retail') ||
+    c.includes('shop') ||
+    c.includes('grocery') ||
+    c.includes('super')
+  ) {
+    return 'retail';
+  }
+  return 'other';
+}
+
+function statementTypesForCategory(cat: StmtCategory): string[] {
+  if (cat === 'recycling') {
+    return ['Full Summary', 'Collections', 'Expenses Only', 'Profit & Loss'];
+  }
+  if (cat === 'restaurant' || cat === 'cafe' || cat === 'services' || cat === 'jobs') {
+    return ['Full Summary', 'Sales Only', 'Expenses Only', 'Profit & Loss'];
+  }
+  return STATEMENT_TYPES;
+}
+
+function ledgerFiltersForCategory(
+  cat: StmtCategory
+): Array<{ id: 'all' | 'sale' | 'expense' | 'purchase' | 'stock' | 'collection'; label: string }> {
+  if (cat === 'recycling') {
+    return [
+      { id: 'all', label: 'All' },
+      { id: 'collection', label: 'Collections' },
+      { id: 'expense', label: 'Expenses' },
+      { id: 'sale', label: 'Sales' },
+    ];
+  }
+  if (cat === 'restaurant' || cat === 'cafe') {
+    return [
+      { id: 'all', label: 'All' },
+      { id: 'sale', label: 'Sales' },
+      { id: 'expense', label: 'Expenses' },
+    ];
+  }
+  return [
+    { id: 'all', label: 'All' },
+    { id: 'sale', label: 'Sales' },
+    { id: 'expense', label: 'Expenses' },
+    { id: 'purchase', label: 'Purchases' },
+    { id: 'stock', label: 'Stock' },
+  ];
+}
+
 // Helper to get default date range (current month)
 function getDefaultDateRange() {
   const now = new Date();
@@ -78,7 +146,8 @@ export function StatementPage() {
   const generatedDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
   const [stmtType, setStmtType] = useState('Full Summary');
-  const [ledgerFilter, setLedgerFilter] = useState<'all' | 'sale' | 'expense' | 'purchase' | 'stock'>('all');
+  const [stmtCategory, setStmtCategory] = useState<StmtCategory>('other');
+  const [ledgerFilter, setLedgerFilter] = useState<'all' | 'sale' | 'expense' | 'purchase' | 'stock' | 'collection'>('all');
   const [ledgerSearch, setLedgerSearch] = useState('');
   const [activePreset, setActivePreset] = useState<'this_month' | 'last_month' | 'last_30' | 'this_year' | 'custom'>('this_month');
   const [downloading, setDownloading] = useState(false);
@@ -154,6 +223,36 @@ export function StatementPage() {
 
         console.log('[Statement] loading for businessId:', businessId);
 
+        try {
+          const { data: bizRow } = await getSupabase()
+            .from('businesses')
+            .select('category, metadata')
+            .eq('id', businessId)
+            .maybeSingle();
+          const meta =
+            bizRow?.metadata && typeof bizRow.metadata === 'object'
+              ? (bizRow.metadata as Record<string, unknown>)
+              : {};
+          const catRaw = String(
+            bizRow?.category ||
+              meta.selectedCategory ||
+              meta.category ||
+              ''
+          );
+          const normalized = normalizeStmtCategory(catRaw);
+          setStmtCategory(normalized);
+          DEFAULT_BUSINESS.category =
+            catRaw ||
+            (normalized === 'recycling'
+              ? 'Material collection'
+              : normalized === 'restaurant'
+                ? 'Restaurant'
+                : DEFAULT_BUSINESS.category);
+        } catch {
+          /* keep default */
+        }
+
+
         const rangeStartMs = new Date(startDate + 'T00:00:00').getTime();
         const rangeEndMs = new Date(endDate + 'T23:59:59.999').getTime();
 
@@ -195,7 +294,7 @@ export function StatementPage() {
           });
 
         const listLimit = 500;
-        const [salesDocs, expensesDocs, purchaseDocs, bankTxDocs, cashFlowDocs, productsDocs] =
+        const [salesDocs, expensesDocs, purchaseDocs, bankTxDocs, cashFlowDocs, productsDocs, materialDocs] =
           await Promise.all([
             fetchDocs(`businesses/${businessId}/sales`, {
               orderBy: { field: 'created_at', ascending: false },
@@ -218,6 +317,10 @@ export function StatementPage() {
               limit: listLimit,
             }),
             fetchDocs(`businesses/${businessId}/products`),
+            fetchDocs(`businesses/${businessId}/materialPurchases`, {
+              orderBy: { field: 'created_at', ascending: false },
+              limit: listLimit,
+            }).catch(() => []),
           ]);
 
         console.log('[Statement] fetched counts', {
@@ -285,6 +388,11 @@ export function StatementPage() {
         for (const data of rangedExpenses) {
           const amount = Number(data.amount) || 0;
           if (amount <= 0) continue;
+          const src = String(
+            data.metadata?.source || data.source || ''
+          ).toLowerCase();
+          // Material purchases appear as Collection rows — skip expense mirrors
+          if (src === 'material_purchase') continue;
           const ms = eventMs(data);
           totalExpenses += amount;
           const category = data.category || data.metadata?.category || 'Expense';
@@ -327,6 +435,37 @@ export function StatementPage() {
             type: 'Purchase',
             description: `Purchase ${note}${method !== 'cash' ? ` (${method})` : ''}`,
             debit: amount,
+            credit: 0,
+            balance: 0,
+          });
+        }
+
+
+        // Material collection purchases (recycling)
+        const rangedMaterials = applyRange(materialDocs || []);
+        for (const data of rangedMaterials) {
+          const amount =
+            Number(data.totalAmount ?? data.total_amount ?? data.amountPaid ?? data.amount_paid ?? 0) || 0;
+          if (amount <= 0) continue;
+          const ms = eventMs({
+            ...data,
+            date: data.purchaseDate || data.purchase_date || data.createdAt || data.created_at,
+          });
+          // Count toward expenses only if not already mirrored as expense with source material_purchase
+          // Paid portion is the cash impact; total is the collection value.
+          const paid = Number(data.amountPaid ?? data.amount_paid ?? amount) || 0;
+          totalPurchases += amount;
+          const matName = String(data.materialName ?? data.material_name ?? 'Material');
+          const kg = Number(data.weightKg ?? data.weight_kg ?? 0) || 0;
+          const supplier = String(data.supplierName ?? data.supplier_name ?? '');
+          ledger.push({
+            id: `mat-${data.id}`,
+            date: fmtDate(ms),
+            sortAt: ms || 0,
+            ref: `MAT-${String(data.id || '').substring(0, 6).toUpperCase()}`,
+            type: 'Collection',
+            description: `${matName}${kg ? ` · ${kg} kg` : ''}${supplier ? ` · ${supplier}` : ''}`,
+            debit: paid > 0 ? paid : amount,
             credit: 0,
             balance: 0,
           });
@@ -599,6 +738,7 @@ export function StatementPage() {
     if (ledgerFilter === 'sale' && tx.type !== 'Sale') return false;
     if (ledgerFilter === 'expense' && !/expense|money out|cash out/i.test(tx.type)) return false;
     if (ledgerFilter === 'purchase' && tx.type !== 'Purchase') return false;
+    if (ledgerFilter === 'collection' && tx.type !== 'Collection') return false;
     if (
       ledgerFilter === 'stock' &&
       tx.type !== 'Stock' &&
@@ -607,13 +747,14 @@ export function StatementPage() {
       return false;
     }
     if (stmtType === 'Sales Only' && tx.type !== 'Sale') return false;
+    if (stmtType === 'Collections' && tx.type !== 'Collection') return false;
     if (
       stmtType === 'Expenses Only' &&
-      !/expense|purchase|money out|cash out/i.test(tx.type)
+      !/expense|purchase|collection|money out|cash out/i.test(tx.type)
     ) {
       return false;
     }
-    if (stmtType === 'Stock Movement' && tx.type === 'Sale') return false;
+    if (stmtType === 'Stock Movement' && (tx.type === 'Sale' || tx.type === 'Collection')) return false;
     if (ledgerSearch.trim()) {
       const q = ledgerSearch.trim().toLowerCase();
       const hay = `${tx.date} ${tx.ref} ${tx.type} ${tx.description}`.toLowerCase();
@@ -642,7 +783,13 @@ export function StatementPage() {
         <div className={styles.pageHeaderText}>
           <div className={styles.eyebrow}>Finance</div>
           <h1 className={styles.heading}>{t('statement.heading')}</h1>
-          <p className={styles.sub}>{t('statement.subheading')}</p>
+          <p className={styles.sub}>
+            {stmtCategory === 'recycling'
+              ? 'Collections, supplier payouts, and expenses for your material business — printable for records and funding.'
+              : stmtCategory === 'restaurant' || stmtCategory === 'cafe'
+                ? 'Sales, kitchen expenses, and profit for the period — ready to print or share.'
+                : t('statement.subheading')}
+          </p>
         </div>
         <div className={styles.headerActions}>
           <button type="button" className={styles.btnGhost} onClick={handlePrint}>
@@ -706,7 +853,7 @@ export function StatementPage() {
           </div>
         </div>
         <div className={styles.typeChips} role="group" aria-label="Statement type">
-          {STATEMENT_TYPES.map((type) => (
+          {statementTypesForCategory(stmtCategory).map((type) => (
             <button
               key={type}
               type="button"
@@ -995,18 +1142,12 @@ export function StatementPage() {
           <div className={styles.tableWrap}>
             <div className={styles.tableTop}>
               <div className={styles.ledgerFilters}>
-                {[
-                  { id: 'all' as const, label: t('statement.allTransactions') },
-                  { id: 'sale' as const, label: t('statement.salesOnly') },
-                  { id: 'expense' as const, label: t('statement.expensesOnly') },
-                  { id: 'purchase' as const, label: 'Purchases' },
-                  { id: 'stock' as const, label: t('statement.stockMovements') },
-                ].map((f) => (
+                {ledgerFiltersForCategory(stmtCategory).map((f) => (
                   <button
                     key={f.id}
                     type="button"
                     className={`${styles.ledgerChip} ${ledgerFilter === f.id ? styles.ledgerChipActive : ''}`}
-                    onClick={() => setLedgerFilter(f.id)}
+                    onClick={() => setLedgerFilter(f.id as typeof ledgerFilter)}
                   >
                     {f.label}
                   </button>
