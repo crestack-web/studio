@@ -185,6 +185,29 @@ export function NavIcons({ id, size = 14 }: NavIconsProps) {
       return <svg {...base} style={s}><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>;
     case 'archive':
       return <svg {...base} style={s}><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/><line x1="9" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="15" y2="12"/></svg>;
+    case 'recycling':
+    case 'ni-recycle':
+    case 'recycle':
+    case 'material-collection':
+      // Scale / weigh-in
+      return (
+        <svg {...base} style={s}>
+          <path d="M12 3v3" />
+          <path d="M5 9h14" />
+          <path d="M6 9l-2 12h16l-2-12" />
+          <path d="M9 9V7a3 3 0 016 0v2" />
+        </svg>
+      );
+    case 'jobs':
+    case 'ni-jobs':
+      return (
+        <svg {...base} style={s}>
+          <rect x="2" y="7" width="20" height="14" rx="2" />
+          <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" />
+          <path d="M12 12v4" />
+          <path d="M10 14h4" />
+        </svg>
+      );
     default:
       return <svg {...base} style={s}><circle cx="12" cy="12" r="5"/></svg>;
   }

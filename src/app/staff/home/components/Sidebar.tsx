@@ -17,6 +17,7 @@ import {
   Factory,
   Utensils,
   ArrowLeftRight,
+  Scale,
 } from 'lucide-react';
 import type { PageId, Permissions } from '../types';
 import { STAFF_PERMISSION_DEFS } from '@/lib/staffPermissions';
@@ -46,6 +47,7 @@ const ICONS: Record<string, React.ReactNode> = {
   production: <Factory size={20} />,
   menu: <Utensils size={20} />,
   transfers: <ArrowLeftRight size={20} />,
+  material: <Scale size={20} />,
   settings: <Settings size={20} />,
 };
 

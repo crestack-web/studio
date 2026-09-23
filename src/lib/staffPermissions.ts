@@ -18,7 +18,8 @@ export type StaffPermKey =
   | 'expiry'
   | 'production'
   | 'menu'
-  | 'transfers';
+  | 'transfers'
+  | 'material';
 
 export type StaffPageId =
   | 'home'
@@ -37,7 +38,8 @@ export type StaffPageId =
   | 'expiry'
   | 'production'
   | 'menu'
-  | 'transfers';
+  | 'transfers'
+  | 'material';
 
 export interface StaffPermissionDef {
   key: StaffPermKey;
@@ -201,6 +203,16 @@ export const STAFF_PERMISSION_DEFS: StaffPermissionDef[] = [
     page: 'transfers',
     categories: ['retail', 'wholesale', 'distributor', 'supermarket', 'grocery', 'manufacturing', 'other'],
   },
+
+  {
+    key: 'material',
+    label: 'Material collection',
+    description: 'Weigh-in PET and other materials at owner prices',
+    icon: '⚖️',
+    page: 'material',
+    categories: ['recycling_material_collection'],
+    defaultOn: true,
+  },
 ];
 
 /** Map free-text / onboarding labels to canonical category ids */
@@ -220,6 +232,10 @@ const CATEGORY_ALIASES: Record<string, string> = {
   coffee: 'cafe',
   coffee_shop: 'cafe',
   retail: 'retail',
+  recycling: 'recycling_material_collection',
+  recycling_material_collection: 'recycling_material_collection',
+  'material collection': 'recycling_material_collection',
+  'material_collection': 'recycling_material_collection',
   shop: 'retail',
   store: 'retail',
   grocery: 'grocery',
@@ -266,6 +282,10 @@ export function normalizeBusinessCategory(raw?: string | null): string {
   if (s.includes('fashion') || s.includes('cloth')) return 'fashion';
   if (s.includes('manufactur') || s.includes('factory')) return 'manufacturing';
   if (s.includes('retail') || s.includes('shop')) return 'retail';
+  if (s.includes('recycl') || s.includes('material_collection') || s.includes('material collection') || s.includes('pet')) {
+    return 'recycling_material_collection';
+  }
+  if (s === 'jobs' || s.includes('jobs &') || s.includes('jobs and')) return 'jobs';
 
   return s || 'other';
 }
@@ -284,6 +304,13 @@ export function getStaffPermissionsForCategory(category?: string | null): StaffP
   if ((cat === 'restaurant' || cat === 'cafe') && !matched.some((d) => d.key === 'menu')) {
     const menuDef = STAFF_PERMISSION_DEFS.find((d) => d.key === 'menu');
     if (menuDef) matched.push(menuDef);
+  }
+  if (
+    cat === 'recycling_material_collection' &&
+    !matched.some((d) => d.key === 'material')
+  ) {
+    const matDef = STAFF_PERMISSION_DEFS.find((d) => d.key === 'material');
+    if (matDef) matched.push(matDef);
   }
 
   // Stable order as defined
@@ -316,6 +343,9 @@ export function defaultStaffPermissions(category?: string | null): Record<string
   }
   // Always enable sales for any staff
   out.sale = true;
+  if (cat === 'recycling_material_collection') {
+    out.material = true;
+  }
   // Restaurant / cafe: menu is a core floor tool
   if (cat === 'restaurant' || cat === 'cafe') {
     out.menu = true;

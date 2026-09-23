@@ -32,6 +32,7 @@ import {
   MenuAssistPage,
   TransfersPage,
 } from './pages/ExtraFeaturePages';
+import MaterialCollectionPage from './pages/MaterialCollectionPage';
 import { useStaffWorkspaceOptional } from './StaffContext';
 import './busmo.css';
 import './sidebar-nav.css';
@@ -283,6 +284,15 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
           )}
           {page === 'menu' && (
             <MenuAssistPage hasAccess={!!permissions.menu} businessId={businessId} staffId={staff.id} staffName={staff.name} />
+          )}
+          {page === 'material' && (
+            <MaterialCollectionPage
+              hasAccess={!!permissions.material}
+              businessId={businessId}
+              staffId={staff.id}
+              staffName={staff.name}
+              currency={currency}
+            />
           )}
           {page === 'transfers' && (
             <TransfersPage hasAccess={!!permissions.transfers} businessId={businessId} staffId={staff.id} staffName={staff.name} />

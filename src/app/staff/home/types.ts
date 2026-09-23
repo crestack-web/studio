@@ -15,7 +15,8 @@ export type PageId =
   | 'expiry'
   | 'production'
   | 'menu'
-  | 'transfers';
+  | 'transfers'
+  | 'material';
 
 export interface Permissions {
   sale: boolean;
@@ -34,6 +35,7 @@ export interface Permissions {
   production?: boolean;
   menu?: boolean;
   transfers?: boolean;
+  material?: boolean;
   [key: string]: boolean | undefined;
 }
 
