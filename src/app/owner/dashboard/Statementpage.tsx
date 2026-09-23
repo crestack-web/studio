@@ -87,7 +87,7 @@ function normalizeStmtCategory(raw: string | undefined | null): StmtCategory {
 
 function statementTypesForCategory(cat: StmtCategory): string[] {
   if (cat === 'recycling') {
-    return ['Full Summary', 'Collections', 'Expenses Only', 'Profit & Loss'];
+    return ['Full Summary', 'Material buys', 'Material sales', 'Expenses Only', 'Profit & Loss'];
   }
   if (cat === 'restaurant' || cat === 'cafe' || cat === 'services' || cat === 'jobs') {
     return ['Full Summary', 'Sales Only', 'Expenses Only', 'Profit & Loss'];
@@ -101,9 +101,9 @@ function ledgerFiltersForCategory(
   if (cat === 'recycling') {
     return [
       { id: 'all', label: 'All' },
-      { id: 'collection', label: 'Collections' },
-      { id: 'expense', label: 'Expenses' },
-      { id: 'sale', label: 'Sales' },
+      { id: 'collection', label: 'Material buys' },
+      { id: 'sale', label: 'Material sales' },
+      { id: 'expense', label: 'Other expenses' },
     ];
   }
   if (cat === 'restaurant' || cat === 'cafe') {
@@ -294,7 +294,7 @@ export function StatementPage() {
           });
 
         const listLimit = 500;
-        const [salesDocs, expensesDocs, purchaseDocs, bankTxDocs, cashFlowDocs, productsDocs, materialDocs] =
+        const [salesDocs, expensesDocs, purchaseDocs, bankTxDocs, cashFlowDocs, productsDocs, materialDocs, materialSaleDocs] =
           await Promise.all([
             fetchDocs(`businesses/${businessId}/sales`, {
               orderBy: { field: 'created_at', ascending: false },
@@ -318,6 +318,10 @@ export function StatementPage() {
             }),
             fetchDocs(`businesses/${businessId}/products`),
             fetchDocs(`businesses/${businessId}/materialPurchases`, {
+              orderBy: { field: 'created_at', ascending: false },
+              limit: listLimit,
+            }).catch(() => []),
+            fetchDocs(`businesses/${businessId}/materialSales`, {
               orderBy: { field: 'created_at', ascending: false },
               limit: listLimit,
             }).catch(() => []),
@@ -354,7 +358,8 @@ export function StatementPage() {
         let totalCOGS = 0;
         let totalPurchases = 0;
 
-        // Sales → credits
+        // Sales → credits (includes material outbound sales written to sales table)
+        const linkedMaterialSaleIds = new Set<string>();
         for (const data of rangedSales) {
           const amount =
             Number(
@@ -371,13 +376,25 @@ export function StatementPage() {
               return sum + costPrice * quantity;
             }, 0);
           }
+          const metaSrc = String(data.metadata?.source || data.source || '').toLowerCase();
+          const isMaterialSale = metaSrc === 'material_sale';
+          if (isMaterialSale) linkedMaterialSaleIds.add(String(data.id));
+          let description = `Sale (${products.length} items)`;
+          if (isMaterialSale && products.length) {
+            const p0 = products[0] || {};
+            const nm = p0.name || p0.productName || 'Material';
+            const qty = Number(p0.quantity || 0) || 0;
+            description = `Material sale · ${nm}${qty ? ` · ${qty} kg` : ''}`;
+          } else if (isMaterialSale) {
+            description = 'Material sale';
+          }
           ledger.push({
             id: `sale-${data.id}`,
             date: fmtDate(ms),
             sortAt: ms || 0,
             ref: `SALE-${String(data.id || '').substring(0, 6).toUpperCase()}`,
-            type: 'Sale',
-            description: `Sale (${products.length} items)`,
+            type: isMaterialSale ? 'Material sale' : 'Sale',
+            description,
             debit: 0,
             credit: amount,
             balance: 0,
@@ -441,7 +458,7 @@ export function StatementPage() {
         }
 
 
-        // Material collection purchases (recycling)
+        // Material buys (recycling weigh-in) — money out to suppliers
         const rangedMaterials = applyRange(materialDocs || []);
         for (const data of rangedMaterials) {
           const amount =
@@ -451,22 +468,54 @@ export function StatementPage() {
             ...data,
             date: data.purchaseDate || data.purchase_date || data.createdAt || data.created_at,
           });
-          // Count toward expenses only if not already mirrored as expense with source material_purchase
-          // Paid portion is the cash impact; total is the collection value.
           const paid = Number(data.amountPaid ?? data.amount_paid ?? amount) || 0;
           totalPurchases += amount;
           const matName = String(data.materialName ?? data.material_name ?? 'Material');
           const kg = Number(data.weightKg ?? data.weight_kg ?? 0) || 0;
           const supplier = String(data.supplierName ?? data.supplier_name ?? '');
+          const price = Number(data.pricePerKg ?? data.price_per_kg ?? 0) || 0;
           ledger.push({
-            id: `mat-${data.id}`,
+            id: `mat-buy-${data.id}`,
             date: fmtDate(ms),
             sortAt: ms || 0,
-            ref: `MAT-${String(data.id || '').substring(0, 6).toUpperCase()}`,
-            type: 'Collection',
-            description: `${matName}${kg ? ` · ${kg} kg` : ''}${supplier ? ` · ${supplier}` : ''}`,
+            ref: `BUY-${String(data.id || '').substring(0, 6).toUpperCase()}`,
+            type: 'Material buy',
+            description: `${matName}${kg ? ` · ${kg} kg` : ''}${price ? ` @ ${price}/kg` : ''}${supplier ? ` · ${supplier}` : ''}`,
             debit: paid > 0 ? paid : amount,
             credit: 0,
+            balance: 0,
+          });
+        }
+
+        // Material sells — only if not already counted via linked sales row
+        const rangedMaterialSales = applyRange(materialSaleDocs || []);
+        for (const data of rangedMaterialSales) {
+          const linked = String(data.saleId ?? data.sale_id ?? '');
+          if (linked && linkedMaterialSaleIds.has(linked)) continue;
+          // Also skip if we already pushed a sale with same material sale id pattern
+          const revenue =
+            Number(data.revenue ?? data.amountReceived ?? data.amount_received ?? 0) || 0;
+          if (revenue <= 0) continue;
+          const ms = eventMs({
+            ...data,
+            date: data.saleDate || data.sale_date || data.createdAt || data.created_at,
+          });
+          const matName = String(data.materialName ?? data.material_name ?? 'Material');
+          const kg = Number(data.weightKg ?? data.weight_kg ?? 0) || 0;
+          const buyer = String(data.buyerName ?? data.buyer_name ?? '');
+          const cogs = Number(data.costOfGoods ?? data.cost_of_goods ?? 0) || 0;
+          const profit = Number(data.profit ?? revenue - cogs) || 0;
+          totalRevenue += revenue;
+          totalCOGS += cogs;
+          ledger.push({
+            id: `mat-sale-${data.id}`,
+            date: fmtDate(ms),
+            sortAt: ms || 0,
+            ref: `MSL-${String(data.id || '').substring(0, 6).toUpperCase()}`,
+            type: 'Material sale',
+            description: `${matName}${kg ? ` · ${kg} kg` : ''}${buyer ? ` · ${buyer}` : ''} · profit ${profit}`,
+            debit: 0,
+            credit: revenue,
             balance: 0,
           });
         }
@@ -735,10 +784,22 @@ export function StatementPage() {
   }
 
   const filteredTransactions = transactions.filter((tx) => {
-    if (ledgerFilter === 'sale' && tx.type !== 'Sale') return false;
+    if (
+      ledgerFilter === 'sale' &&
+      tx.type !== 'Sale' &&
+      tx.type !== 'Material sale'
+    ) {
+      return false;
+    }
     if (ledgerFilter === 'expense' && !/expense|money out|cash out/i.test(tx.type)) return false;
     if (ledgerFilter === 'purchase' && tx.type !== 'Purchase') return false;
-    if (ledgerFilter === 'collection' && tx.type !== 'Collection') return false;
+    if (
+      ledgerFilter === 'collection' &&
+      tx.type !== 'Collection' &&
+      tx.type !== 'Material buy'
+    ) {
+      return false;
+    }
     if (
       ledgerFilter === 'stock' &&
       tx.type !== 'Stock' &&
@@ -746,15 +807,30 @@ export function StatementPage() {
     ) {
       return false;
     }
-    if (stmtType === 'Sales Only' && tx.type !== 'Sale') return false;
-    if (stmtType === 'Collections' && tx.type !== 'Collection') return false;
+    if (stmtType === 'Sales Only' && tx.type !== 'Sale' && tx.type !== 'Material sale') return false;
+    if (stmtType === 'Material sales' && tx.type !== 'Material sale') return false;
     if (
-      stmtType === 'Expenses Only' &&
-      !/expense|purchase|collection|money out|cash out/i.test(tx.type)
+      (stmtType === 'Collections' || stmtType === 'Material buys') &&
+      tx.type !== 'Collection' &&
+      tx.type !== 'Material buy'
     ) {
       return false;
     }
-    if (stmtType === 'Stock Movement' && (tx.type === 'Sale' || tx.type === 'Collection')) return false;
+    if (
+      stmtType === 'Expenses Only' &&
+      !/expense|purchase|material buy|collection|money out|cash out/i.test(tx.type)
+    ) {
+      return false;
+    }
+    if (
+      stmtType === 'Stock Movement' &&
+      (tx.type === 'Sale' ||
+        tx.type === 'Collection' ||
+        tx.type === 'Material sale' ||
+        tx.type === 'Material buy')
+    ) {
+      return false;
+    }
     if (ledgerSearch.trim()) {
       const q = ledgerSearch.trim().toLowerCase();
       const hay = `${tx.date} ${tx.ref} ${tx.type} ${tx.description}`.toLowerCase();
@@ -785,7 +861,7 @@ export function StatementPage() {
           <h1 className={styles.heading}>{t('statement.heading')}</h1>
           <p className={styles.sub}>
             {stmtCategory === 'recycling'
-              ? 'Collections, supplier payouts, and expenses for your material business — printable for records and funding.'
+              ? 'Material buys, material sales, stock costs, and profit for your collection business — printable for records and funding.'
               : stmtCategory === 'restaurant' || stmtCategory === 'cafe'
                 ? 'Sales, kitchen expenses, and profit for the period — ready to print or share.'
                 : t('statement.subheading')}
