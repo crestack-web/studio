@@ -499,7 +499,7 @@ export default function SuppliersPage() {
             ]
               .filter(Boolean)
               .join(' · '),
-            receivedBy: String(data.recordedBy ?? data.recorded_by ?? user?.id || ''),
+            receivedBy: String(data.recordedBy ?? data.recorded_by ?? (user?.id ?? '')),
             receivedByName: String(
               data.recordedByName ?? data.recorded_by_name ?? 'Material collection'
             ),
