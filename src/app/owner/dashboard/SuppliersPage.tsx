@@ -206,6 +206,42 @@ export default function SuppliersPage() {
         });
       });
 
+      // Fold material-collection purchase totals into supplier cards
+      try {
+        const allMat = await fetchDocs<Record<string, unknown>>(
+          `businesses/${bid}/materialPurchases`,
+          { orderBy: { field: 'created_at', ascending: false } }
+        );
+        const bySupplier: Record<string, { total: number; paid: number; count: number; last?: Date }> = {};
+        (allMat || []).forEach((row: Record<string, unknown>) => {
+          const sid = String(row.supplierId ?? row.supplier_id ?? '');
+          if (!sid) return;
+          const total = Number(row.totalAmount ?? row.total_amount ?? 0) || 0;
+          const paid = Number(row.amountPaid ?? row.amount_paid ?? 0) || 0;
+          const when = row.purchaseDate || row.purchase_date || row.createdAt || row.created_at;
+          const d = when ? new Date(String(when)) : undefined;
+          if (!bySupplier[sid]) bySupplier[sid] = { total: 0, paid: 0, count: 0 };
+          bySupplier[sid].total += total;
+          bySupplier[sid].paid += paid;
+          bySupplier[sid].count += 1;
+          if (d && (!bySupplier[sid].last || d > bySupplier[sid].last!)) {
+            bySupplier[sid].last = d;
+          }
+        });
+        suppliersList.forEach((s) => {
+          const m = bySupplier[s.id];
+          if (!m) return;
+          s.totalPurchases = (s.totalPurchases || 0) + m.total;
+          s.totalPayments = (s.totalPayments || 0) + m.paid;
+          s.purchaseCount = (s.purchaseCount || 0) + m.count;
+          if (m.last && (!s.lastPurchaseDate || m.last > s.lastPurchaseDate)) {
+            s.lastPurchaseDate = m.last;
+          }
+        });
+      } catch (e) {
+        console.warn('[suppliers] material totals', e);
+      }
+
       suppliersList.sort((a, b) => (b.totalPurchases || 0) - (a.totalPurchases || 0));
       setSuppliers(suppliersList);
     } catch (error) {
@@ -402,6 +438,83 @@ export default function SuppliersPage() {
             : createdAtDate,
         });
       });
+
+      // Material collection purchases for this supplier (recycling category)
+      try {
+        const materialRows = await fetchDocs<Record<string, unknown>>(
+          `businesses/${bid}/materialPurchases`,
+          {
+            filters: [{ field: 'supplierId', op: '=', value: supplier.id }],
+            orderBy: { field: 'created_at', ascending: false },
+          }
+        );
+        (materialRows || []).forEach((data: Record<string, unknown>) => {
+          const createdAtDate = data.createdAt
+            ? new Date(data.createdAt as string)
+            : data.purchaseDate
+              ? new Date(data.purchaseDate as string)
+              : data.purchase_date
+                ? new Date(data.purchase_date as string)
+                : new Date();
+          const total =
+            Number(data.totalAmount ?? data.total_amount ?? data.total ?? 0) || 0;
+          const weight =
+            Number(data.weightKg ?? data.weight_kg ?? 0) || 0;
+          const price =
+            Number(data.pricePerKg ?? data.price_per_kg ?? 0) || 0;
+          const materialName = String(
+            data.materialName ?? data.material_name ?? 'Material'
+          );
+          const paid =
+            Number(data.amountPaid ?? data.amount_paid ?? 0) || 0;
+          const status = String(data.paymentStatus ?? data.payment_status ?? '');
+          receiptsList.push({
+            id: `mat-${data.id}`,
+            businessId: bid,
+            supplierId: String(data.supplierId ?? data.supplier_id ?? supplier.id),
+            supplierName:
+              String(data.supplierName ?? data.supplier_name ?? '') ||
+              supplier.businessName ||
+              'Unknown Supplier',
+            purchaseOrderId: undefined,
+            receiptNumber: `MAT-${String(data.id || '').slice(0, 6).toUpperCase()}`,
+            items: [
+              {
+                productId: String(data.materialId ?? data.material_id ?? ''),
+                productName: materialName,
+                quantity: weight,
+                unitCost: price,
+                totalCost: total,
+              } as any,
+            ],
+            subtotal: total,
+            tax: 0,
+            total,
+            receivedDate: createdAtDate,
+            notes: [
+              weight ? `${weight} kg` : '',
+              paid ? `Paid ${paid}` : '',
+              status,
+              data.note ? String(data.note) : '',
+            ]
+              .filter(Boolean)
+              .join(' · '),
+            receivedBy: String(data.recordedBy ?? data.recorded_by ?? user?.id || ''),
+            receivedByName: String(
+              data.recordedByName ?? data.recorded_by_name ?? 'Material collection'
+            ),
+            createdAt: createdAtDate,
+            updatedAt: createdAtDate,
+          });
+        });
+      } catch (matErr) {
+        console.warn('[suppliers] material purchases load', matErr);
+      }
+
+      // Newest first
+      receiptsList.sort(
+        (a, b) => (b.receivedDate?.getTime?.() || 0) - (a.receivedDate?.getTime?.() || 0)
+      );
 
       setSupplierReceipts(receiptsList);
 

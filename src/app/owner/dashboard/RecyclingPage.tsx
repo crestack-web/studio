@@ -131,9 +131,24 @@ export default function RecyclingPage() {
     if (!businessId || !newSupplier.name.trim() || !newSupplier.phone.trim()) { showToast('Name and phone are required'); return; }
     setSaving(true);
     try {
+      const nm = newSupplier.name.trim();
       const id = await addDoc(`businesses/${businessId}/suppliers`, {
-        name: newSupplier.name.trim(), supplierName: newSupplier.name.trim(), businessName: newSupplier.name.trim(),
-        phone: newSupplier.phone.trim(), address: newSupplier.address.trim() || null, active: true, status: 'active',
+        name: nm,
+        supplierName: nm,
+        businessName: nm,
+        phone: newSupplier.phone.trim(),
+        address: newSupplier.address.trim() || null,
+        active: true,
+        status: 'active',
+        category: 'recycling',
+        totalPurchases: 0,
+        totalPayments: 0,
+        purchaseCount: 0,
+        paymentCount: 0,
+        currentBalance: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        metadata: { source: 'material_collection' },
       });
       showToast('Supplier created'); setShowNewSupplier(false); setNewSupplier({ name: '', phone: '', address: '' });
       await loadAll(); setForm((f) => ({ ...f, supplierId: id }));
@@ -236,6 +251,22 @@ export default function RecyclingPage() {
         weightKg: weight, pricePerKg, totalAmount, amountPaid: paid, balance, paymentStatus, paymentMethod: form.paymentMethod,
         note: form.note.trim() || null, purchaseDate: form.purchaseDate, recordedBy: actorId, recordedByName: actorName, expenseId, cashFlowId,
       });
+      // Keep shared Suppliers page in sync
+      try {
+        const prevTotal = num(supplier?.totalPurchases);
+        const prevPaid = num(supplier?.totalPayments);
+        const prevCount = num(supplier?.purchaseCount);
+        await updateDoc(`businesses/${businessId}/suppliers`, form.supplierId, {
+          totalPurchases: prevTotal + totalAmount,
+          totalPayments: prevPaid + paid,
+          purchaseCount: prevCount + 1,
+          lastPurchaseDate: form.purchaseDate || new Date().toISOString(),
+          currentBalance: Math.max(0, prevTotal + totalAmount - (prevPaid + paid)),
+          updatedAt: new Date().toISOString(),
+          category: supplier?.category || 'recycling',
+        });
+      } catch { /* non-blocking */ }
+
       try {
         await addDoc(`businesses/${businessId}/staffActivity`, {
           action: 'material_purchase', actionType: 'other',
