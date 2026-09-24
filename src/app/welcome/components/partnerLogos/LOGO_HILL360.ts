@@ -1,1 +1,1 @@
-export const LOGO_HILL360 = "data:image/webp;base64,UklGRrwXAABXRUJQVlA4ILAXAABwbgCdASr0AYgAPikShkIhIqGYWZ7EQAbEtY4ABxGXOrn7kTmaM/1Xj1fPd/T0oeV50S/MB5y3pH/12+6egB0uf9uwaH0iXWxE+cb/tzaTBvAC1hfomjxwowd2";
+export const LOGO_HILL360 = "data:image/webp;base64,UklGRjYOAABXRUJQVlA4ICYOAADwfQCdASq0AG4APpFCnEilpCMhKVVLYLASCU3cGAB7csdnGqO+liJTx1ji2MPUP+sd435rPORvFu3Yv834Ev1H/Mf23zv7EMxW4n+Nfh/+dw5+XP2CPyL+nf6L";
