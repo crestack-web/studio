@@ -3218,3 +3218,86 @@ footer { background: var(--black); padding: 48px 4% 24px; color: rgba(255,255,25
     animation-duration: 26s;
   }
 }
+
+
+/* ── Presence / countries ───────────────────── */
+.presence-section {
+  padding: 64px 20px 56px;
+  background: var(--bg, #fafafa);
+  border-top: 1px solid rgba(15, 15, 25, 0.06);
+}
+.presence-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 8px;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.presence-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 24px 16px;
+  background: #fff;
+  border: 1px solid rgba(15, 15, 25, 0.07);
+  border-radius: 18px;
+  box-shadow: 0 2px 10px rgba(15, 15, 25, 0.04);
+}
+.presence-card-open {
+  background: color-mix(in srgb, var(--purple-mid, #6B3FE7) 6%, #fff);
+  border-color: color-mix(in srgb, var(--purple-mid, #6B3FE7) 22%, transparent);
+}
+.presence-flag {
+  width: 80px;
+  height: auto;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  object-fit: cover;
+}
+.presence-africa {
+  color: var(--purple-mid, #6B3FE7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60px;
+}
+.presence-name {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--text-1, #0a0a0f);
+}
+.presence-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #059669;
+  background: color-mix(in srgb, #10b981 14%, transparent);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.presence-badge-open {
+  color: var(--purple-mid, #6B3FE7);
+  background: color-mix(in srgb, var(--purple-mid, #6B3FE7) 12%, transparent);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.8rem;
+}
+@media (max-width: 800px) {
+  .presence-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 420px) {
+  .presence-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .presence-flag {
+    width: 64px;
+  }
+}
