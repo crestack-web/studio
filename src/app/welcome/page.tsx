@@ -119,7 +119,7 @@ export default function WelcomePage() {
               </div>
               <div className="feat-card">
                 <div className="feat-icon"><Banknote {...iconProps} /></div>
-                <div className="feat-title">Cash &amp; transfers</div>
+                <div className="feat-title">Cash & transfers</div>
                 <div className="feat-desc">See expected collections against what was confirmed — cash, bank and POS in one view.</div>
               </div>
               <div className="feat-card">
@@ -138,7 +138,7 @@ export default function WelcomePage() {
             <div className="section-head center">
               <div className="section-label">Profit</div>
               <h2 className="section-title">
-                Stop guessing whether you&apos;re <em>actually making money.</em>
+                Stop guessing whether you're <em>actually making money.</em>
               </h2>
               <p className="section-sub">
                 Revenue is not the same as profit. Busmo connects sales, costs, inventory and expenses so you can see what the business is really making — in plain language.
@@ -173,7 +173,7 @@ export default function WelcomePage() {
               </div>
               <div className="feat-card">
                 <div className="feat-icon"><Package {...iconProps} /></div>
-                <div className="feat-title">Stock &amp; locations</div>
+                <div className="feat-title">Stock & locations</div>
                 <div className="feat-desc">Inventory and multi-location visibility where supported.</div>
               </div>
               <div className="feat-card">
@@ -211,7 +211,7 @@ export default function WelcomePage() {
               </div>
               <div className="feat-card">
                 <div className="feat-icon"><TrendingDown {...iconProps} /></div>
-                <div className="feat-title">Cost &amp; profit impact</div>
+                <div className="feat-title">Cost & profit impact</div>
                 <div className="feat-desc">Link product costs to what you actually earn.</div>
               </div>
               <div className="feat-card">
@@ -250,7 +250,6 @@ export default function WelcomePage() {
       </ScrollReveal>
 
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-
         <BuiltWithBusmo />
       </ScrollReveal>
 
@@ -306,7 +305,7 @@ export default function WelcomePage() {
             <div className="section-head center">
               <div className="section-label">Getting started</div>
               <h2 className="section-title">
-                We&apos;ll help you get your business <em>under control.</em>
+                We'll help you get your business <em>under control.</em>
               </h2>
               <p className="section-sub">
                 From setting up products and staff to configuring how you work day to day, Busmo can help you get started. Higher plans include assisted onboarding where available.
@@ -321,6 +320,10 @@ export default function WelcomePage() {
       </ScrollReveal>
 
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <PresenceSection />
+      </ScrollReveal>
+
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <div className="cta-banner">
           <h2>Know your numbers. Control your business.</h2>
           <p>Start with Busmo and see what is really happening inside your business.</p>
@@ -329,10 +332,6 @@ export default function WelcomePage() {
           </button>
           <div className="cta-note">3-day free trial · Works offline · Cancel anytime</div>
         </div>
-      </ScrollReveal>
-
-      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-        <PresenceSection />
       </ScrollReveal>
 
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
