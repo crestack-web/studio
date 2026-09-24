@@ -1,9 +1,7 @@
 "use client";
 
 import React from "react";
-import { LOGO_HILL360 } from "./partnerLogos/LOGO_HILL360";
-import { LOGO_CADBURY } from "./partnerLogos/LOGO_CADBURY";
-import { LOGO_BRONZE_PLATE } from "./partnerLogos/LOGO_BRONZE_PLATE";
+import { LOGO_HILL360, LOGO_CADBURY, LOGO_BRONZE_PLATE } from "./partnerLogos";
 
 const LOGOS = [
   { name: "Mudatex", src: "/partners/mudatex.jpg", alt: "Mudatex — Mudassir & Brothers" },
