@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { LOGO_BRONZE_PLATE, LOGO_DELIZZ } from "./partnerLogos";
+import { LOGO_BRONZE_PLATE, LOGO_DELIZZ, LOGO_MAMUDA } from "./partnerLogos";
 
 const LOGOS = [
   { name: "Mudatex", src: "/partners/mudatex.jpg", alt: "Mudatex — Mudassir & Brothers" },
@@ -9,6 +9,7 @@ const LOGOS = [
   { name: "Hill 360", src: "/partners/hill360.jpg", alt: "Hill 360" },
   { name: "Cadbury", src: "/partners/cadbury.jpg", alt: "Cadbury" },
   { name: "Delizz", src: LOGO_DELIZZ, alt: "Delizz Supermarket Ltd" },
+  { name: "Mamuda", src: LOGO_MAMUDA, alt: "Mamuda" },
   { name: "Chicken Republic", src: "/partners/chicken-republic.jpg", alt: "Chicken Republic" },
   { name: "Bronze Plate", src: LOGO_BRONZE_PLATE, alt: "Bronze Plate Bar & Restaurant" },
 ];
@@ -38,7 +39,7 @@ export const TrustedBySection: React.FC = () => (
               src={logo.src}
               alt={logo.alt}
               className="trusted-logo-img"
-              loading={i < 7 ? "eager" : "lazy"}
+              loading={i < 8 ? "eager" : "lazy"}
               decoding="async"
             />
           </div>
