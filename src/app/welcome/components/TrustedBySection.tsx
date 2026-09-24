@@ -1,13 +1,13 @@
 "use client";
 
 import React from "react";
-import { LOGO_HILL360, LOGO_CADBURY, LOGO_BRONZE_PLATE, LOGO_DELIZZ } from "./partnerLogos";
+import { LOGO_BRONZE_PLATE, LOGO_DELIZZ } from "./partnerLogos";
 
 const LOGOS = [
   { name: "Mudatex", src: "/partners/mudatex.jpg", alt: "Mudatex — Mudassir & Brothers" },
   { name: "ZAU", src: "/partners/zau.jpg", alt: "ZAU" },
-  { name: "Hill 360", src: LOGO_HILL360, alt: "Hill 360" },
-  { name: "Cadbury", src: LOGO_CADBURY, alt: "Cadbury" },
+  { name: "Hill 360", src: "/partners/hill360.jpg", alt: "Hill 360" },
+  { name: "Cadbury", src: "/partners/cadbury.jpg", alt: "Cadbury" },
   { name: "Delizz", src: LOGO_DELIZZ, alt: "Delizz Supermarket Ltd" },
   { name: "Chicken Republic", src: "/partners/chicken-republic.jpg", alt: "Chicken Republic" },
   { name: "Bronze Plate", src: LOGO_BRONZE_PLATE, alt: "Bronze Plate Bar & Restaurant" },
