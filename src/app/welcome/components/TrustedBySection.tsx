@@ -1,13 +1,17 @@
 "use client";
 
 import React from "react";
+import { LOGO_HILL360 } from "./partnerLogos/LOGO_HILL360";
+import { LOGO_CADBURY } from "./partnerLogos/LOGO_CADBURY";
+import { LOGO_BRONZE_PLATE } from "./partnerLogos/LOGO_BRONZE_PLATE";
 
 const LOGOS = [
   { name: "Mudatex", src: "/partners/mudatex.jpg", alt: "Mudatex — Mudassir & Brothers" },
   { name: "ZAU", src: "/partners/zau.jpg", alt: "ZAU" },
-  { name: "Hill 360 Supermarket", src: "/partners/hill360.jpg", alt: "Hill 360 Supermarket" },
-  { name: "Cadbury", src: "/partners/cadbury.jpg", alt: "Cadbury" },
+  { name: "Hill 360", src: LOGO_HILL360, alt: "Hill 360" },
+  { name: "Cadbury", src: LOGO_CADBURY, alt: "Cadbury" },
   { name: "Chicken Republic", src: "/partners/chicken-republic.jpg", alt: "Chicken Republic" },
+  { name: "Bronze Plate", src: LOGO_BRONZE_PLATE, alt: "Bronze Plate Bar & Restaurant" },
 ];
 
 /** Duplicate track for seamless infinite scroll */
@@ -35,7 +39,7 @@ export const TrustedBySection: React.FC = () => (
               src={logo.src}
               alt={logo.alt}
               className="trusted-logo-img"
-              loading={i < 5 ? "eager" : "lazy"}
+              loading={i < 6 ? "eager" : "lazy"}
               decoding="async"
             />
           </div>
@@ -43,7 +47,6 @@ export const TrustedBySection: React.FC = () => (
       </div>
     </div>
 
-    {/* Static grid fallback for reduced-motion / accessibility */}
     <div className="max-w trusted-logos-static" role="list">
       {LOGOS.map((logo) => (
         <div key={logo.name} className="trusted-logo-card" role="listitem">
