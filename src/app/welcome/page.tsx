@@ -83,6 +83,8 @@ export default function WelcomePage() {
       <Hero onNavigate={handleNavigate} onWatchDemo={() => setShowDemoVideo(true)} />
       <DemoVideoSection isVisible={showDemoVideo} onClose={() => setShowDemoVideo(false)} />
 
+      <TrustedBySection />
+
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <BeforeAfterComparison />
       </ScrollReveal>
@@ -247,7 +249,6 @@ export default function WelcomePage() {
       </ScrollReveal>
 
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-        <TrustedBySection />
 
         <BuiltWithBusmo />
       </ScrollReveal>
