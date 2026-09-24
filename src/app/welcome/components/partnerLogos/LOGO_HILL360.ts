@@ -1,1 +1,1 @@
-PLACEHOLDER
+export const LOGO_HILL360 = "data:image/webp;base64,UklGRrwXAABXRUJQVlA4ILAXAABwbgCdASr0AYgAPikShkIhIqGYWZ7EQAbEtY4ABxGXOrn7kTmaM/1Xj1fPd/T0oeV50S/MB5y3pH/12+6egB0uf9uwaH0iXWxE+cb/tzaTBvAC1hfomjxwowd2";
