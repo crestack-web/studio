@@ -1,14 +1,15 @@
 "use client";
 
 import React from "react";
+import { LOGO_HILL360, LOGO_CADBURY, LOGO_BRONZE_PLATE } from "./partnerLogos";
 
 const LOGOS = [
   { name: "Mudatex", src: "/partners/mudatex.jpg", alt: "Mudatex — Mudassir & Brothers" },
   { name: "ZAU", src: "/partners/zau.jpg", alt: "ZAU" },
-  { name: "Hill 360", src: "/partners/hill360.jpg", alt: "Hill 360" },
-  { name: "Cadbury", src: "/partners/cadbury.jpg", alt: "Cadbury" },
+  { name: "Hill 360", src: LOGO_HILL360, alt: "Hill 360" },
+  { name: "Cadbury", src: LOGO_CADBURY, alt: "Cadbury" },
   { name: "Chicken Republic", src: "/partners/chicken-republic.jpg", alt: "Chicken Republic" },
-  { name: "Bronze Plate", src: "/partners/bronze-plate.jpg", alt: "Bronze Plate Bar & Restaurant" },
+  { name: "Bronze Plate", src: LOGO_BRONZE_PLATE, alt: "Bronze Plate Bar & Restaurant" },
 ];
 
 /** Duplicate track for seamless infinite scroll */
