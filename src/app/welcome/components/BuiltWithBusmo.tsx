@@ -1,39 +1,91 @@
 "use client";
 
-import React from 'react';
+import React from "react";
+import { Heart, BookOpen, TrendingUp, Users } from "lucide-react";
 
-const STORIES = [
+const PILLARS = [
+  {
+    icon: BookOpen,
+    title: "Understand the numbers",
+    body: "We teach everyday operators how money moves through stock, sales, and expenses — in plain language, not accounting jargon.",
+  },
+  {
+    icon: TrendingUp,
+    title: "Run the day better",
+    body: "From recording a sale to knowing what is left in stock, we help people use simple systems so the business does not run on memory alone.",
+  },
+  {
+    icon: Users,
+    title: "Grow with support",
+    body: "Walkthroughs, community sessions, and hands-on guidance for owners who are building — not just buying software.",
+  },
+];
+
+/** Community / giving-back stories — education focused, not ideal-customer testimonials. */
+const COMMUNITY_STORIES = [
   {
     name: "Usama Idris Abdullahi",
-    business: "Founder of Goodboy Gnut",
-    videoUrl: "https://res.cloudinary.com/dzjoqbg2u/video/upload/v1783255044/good_boy_groundut_wjfjao.mp4",
-    thumbnail: "https://res.cloudinary.com/dzjoqbg2u/video/upload/v1783255044/good_boy_groundut_wjfjao.jpg",
-    quote: "Building my business with Busmo has transformed how I manage operations."
+    context: "Learning journey · Goodboy Gnut",
+    videoUrl:
+      "https://res.cloudinary.com/dzjoqbg2u/video/upload/v1783255044/good_boy_groundut_wjfjao.mp4",
+    thumbnail:
+      "https://res.cloudinary.com/dzjoqbg2u/video/upload/v1783255044/good_boy_groundut_wjfjao.jpg",
+    quote:
+      "Seeing how to track operations differently helped me think about the business beyond the daily hustle.",
   },
   {
     name: "Ibrahim Shu'aibu",
-    business: "OD of Gwanki Plastic Ltd",
-    videoUrl: "https://res.cloudinary.com/dzjoqbg2u/video/upload/v1784967502/ibrahim_shu_aibu_jrefpb.mp4",
-    thumbnail: "https://res.cloudinary.com/dzjoqbg2u/video/upload/v1784967502/ibrahim_shu_aibu_jrefpb.jpg",
-    quote: "Busmo has helped streamline our plastic manufacturing operations and inventory management."
-  }
+    context: "Learning journey · Gwanki Plastic Ltd",
+    videoUrl:
+      "https://res.cloudinary.com/dzjoqbg2u/video/upload/v1784967502/ibrahim_shu_aibu_jrefpb.mp4",
+    thumbnail:
+      "https://res.cloudinary.com/dzjoqbg2u/video/upload/v1784967502/ibrahim_shu_aibu_jrefpb.jpg",
+    quote:
+      "These sessions opened up how inventory and process discipline can protect a manufacturing floor.",
+  },
 ];
 
 export const BuiltWithBusmo: React.FC = () => (
-  <section className="built-with-busmo-section">
+  <section className="built-with-busmo-section community-giveback-section">
     <div className="max-w">
       <div className="section-head center">
-        <div className="section-label">Built With Busmo</div>
+        <div className="section-label">
+          <Heart size={14} style={{ display: "inline", marginRight: 6, verticalAlign: "middle" }} />
+          Giving back
+        </div>
         <h2 className="section-title">
-          Meet the entrepreneurs building <em style={{ color: 'var(--purple-mid)' }}>Africa's future.</em>
+          Helping communities <em style={{ color: "var(--purple-mid)" }}>understand, run &amp; grow.</em>
         </h2>
         <p className="section-sub">
-          Real stories from business owners transforming their operations with Busmo.
+          Busmo is more than a product. We invest time in teaching small operators how business systems
+          work — so more people can build with clarity, not guesswork. The stories below are from our
+          community education work; they are not meant as our primary customer case studies.
         </p>
       </div>
 
+      <div className="community-pillars">
+        {PILLARS.map((p) => {
+          const Icon = p.icon;
+          return (
+            <div key={p.title} className="community-pillar">
+              <div className="community-pillar-icon">
+                <Icon size={22} strokeWidth={2} />
+              </div>
+              <h3 className="community-pillar-title">{p.title}</h3>
+              <p className="community-pillar-body">{p.body}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="community-videos-label">From the community classroom</div>
+      <p className="community-videos-note">
+        These videos show people we support as they learn. Ideal Busmo users are owners ready to run
+        sales, stock, and cash daily — explore Trusted across Africa and product sections for that fit.
+      </p>
+
       <div className="stories-grid">
-        {STORIES.map((story, index) => (
+        {COMMUNITY_STORIES.map((story, index) => (
           <div key={index} className="story-card">
             <div className="story-video-wrapper">
               {story.videoUrl ? (
@@ -55,8 +107,8 @@ export const BuiltWithBusmo: React.FC = () => (
             </div>
             <div className="story-content">
               <h3 className="story-name">{story.name}</h3>
-              <div className="story-business">{story.business}</div>
-              <p className="story-quote">"{story.quote}"</p>
+              <div className="story-business">{story.context}</div>
+              <p className="story-quote">&ldquo;{story.quote}&rdquo;</p>
             </div>
           </div>
         ))}

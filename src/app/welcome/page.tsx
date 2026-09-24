@@ -26,6 +26,7 @@ import { OfflineSaleSection } from './components/OfflineSaleSection';
 import { HowBusmoWorks } from './components/HowBusmoWorks';
 import { IndustryUseCases } from './components/IndustryUseCases';
 import { BuiltWithBusmo } from './components/BuiltWithBusmo';
+import { TrustedBySection } from './components/TrustedBySection';
 import { MoSection } from './components/MoSection';
 import { PricingPreview } from './components/PricingPreview';
 import { BeforeAfterComparison } from './components/BeforeAfterComparison';
@@ -246,6 +247,8 @@ export default function WelcomePage() {
       </ScrollReveal>
 
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <TrustedBySection />
+
         <BuiltWithBusmo />
       </ScrollReveal>
 
