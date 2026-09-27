@@ -9,6 +9,13 @@ import '@/app/welcome/styles/globals.css';
 export default function PrivacyPage() {
   useEffect(() => {
     document.title = 'Privacy Policy — Busmo';
+    const style = document.createElement('style');
+    style.id = 'legal-page-nav-fix';
+    style.textContent = 'body { padding-top: 0 !important; } nav#main-nav { top: 0 !important; }';
+    document.head.appendChild(style);
+    return () => {
+      document.getElementById('legal-page-nav-fix')?.remove();
+    };
   }, []);
 
   const handleNavigate = (page: Page) => {
@@ -26,7 +33,7 @@ export default function PrivacyPage() {
     <main className="min-h-screen" style={{ background: 'var(--white, #fff)', color: 'var(--text-primary, #0A0A0F)' }}>
       <Navbar currentPage="home" onNavigate={handleNavigate} />
 
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '120px 24px 80px' }}>
+      <div style={{ maxWidth: 800, margin: '0 auto', padding: '100px 24px 80px' }}>
         <h1 style={{ fontFamily: 'var(--font-display, system-ui)', fontSize: 'clamp(1.75rem, 4vw, 2.25rem)', fontWeight: 700, marginBottom: 8 }}>
           Privacy Policy
         </h1>
