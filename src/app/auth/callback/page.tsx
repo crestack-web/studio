@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { getSupabase } from "@/lib/supabase";
-import { getAppOrigin, safeNextPath } from "@/lib/site-url";
+import { safeNextPath } from "@/lib/site-url";
 
 /**
  * Supabase OAuth / PKCE return URL.
  * Exchanges ?code= for a session, then redirects to `next` (default /owner).
  * Signup flow uses: /auth/callback?next=/welcome/signup?google=callback
+ *
+ * Always uses a same-origin relative redirect so we never jump to localhost
+ * after a successful Google sign-in on production.
  */
 export default function AuthCallbackPage() {
   const [message, setMessage] = useState("Completing sign-in...");
@@ -65,8 +68,8 @@ export default function AuthCallbackPage() {
 
         if (cancelled) return;
 
-        const dest = `${getAppOrigin()}${next}`;
-        window.location.replace(dest);
+        // Relative path only — stays on current host (never localhost).
+        window.location.replace(next);
       } catch (e: unknown) {
         const msg =
           e instanceof Error ? e.message : "Sign-in failed. Please try again.";
