@@ -1,14 +1,18 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  SHOWCASE_INVENTORY,
-  SHOWCASE_MONEY,
-  SHOWCASE_INSIGHTS,
-  SHOWCASE_DASHBOARD,
-} from "./productShowcase";
 
 type TabId = "stock" | "money" | "insights" | "dashboard";
+
+/** Full-quality Cloudinary product screenshots */
+const CLOUD = "https://res.cloudinary.com/dzjoqbg2u/image/upload/f_auto,q_auto";
+
+const SHOWCASE = {
+  stock: `${CLOUD}/v1790686392/Untitled_-_September_29_2026_at_12.40.58-1_wt7m0y.png`,
+  money: `${CLOUD}/v1790686392/Untitled_-_September_29_2026_at_12.40.58-4_tkqjdv.png`,
+  insights: `${CLOUD}/v1790686392/Untitled_-_September_29_2026_at_12.40.58-3_su3kyd.png`,
+  dashboard: `${CLOUD}/v1790686392/Untitled_-_September_29_2026_at_12.40.58-2_pdg4z1.png`,
+} as const;
 
 const TABS: { id: TabId; label: string; title: string; body: string; src: string }[] = [
   {
@@ -16,28 +20,28 @@ const TABS: { id: TabId; label: string; title: string; body: string; src: string
     label: "Stock Control",
     title: "Know what you have before the shelf goes empty.",
     body: "Track ingredients, products, reorder alerts, and stock value — so costs and margins stay honest.",
-    src: SHOWCASE_INVENTORY,
+    src: SHOWCASE.stock,
   },
   {
     id: "money",
     label: "Money Control",
     title: "Sales recorded. Cash matched.",
     body: "Reconcile cash, transfers, and POS against what should have come in — and surface shortages before they grow.",
-    src: SHOWCASE_MONEY,
+    src: SHOWCASE.money,
   },
   {
     id: "insights",
     label: "Insights",
     title: "See what is selling — and what is draining profit.",
     body: "Top sellers, busy days, expense pressure, and staff performance in plain language, not spreadsheets.",
-    src: SHOWCASE_INSIGHTS,
+    src: SHOWCASE.insights,
   },
   {
     id: "dashboard",
     label: "Dashboard",
     title: "One place for cash, margin, and stock truth.",
     body: "MO nudges, quick actions, and today's numbers — tuned to how your business actually runs.",
-    src: SHOWCASE_DASHBOARD,
+    src: SHOWCASE.dashboard,
   },
 ];
 
