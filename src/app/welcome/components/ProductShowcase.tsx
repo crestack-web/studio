@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 
 type TabId = "stock" | "money" | "insights" | "dashboard";
 
@@ -20,12 +20,52 @@ const TABS: { id: TabId; label: string; src: string }[] = [
   { id: "dashboard", label: "Dashboard", src: SHOWCASE.dashboard },
 ];
 
+const INTERVAL_MS = 4000;
+
 export const ProductShowcase: React.FC = () => {
   const [active, setActive] = useState<TabId>("stock");
+  const [paused, setPaused] = useState(false);
   const tab = TABS.find((t) => t.id === active) ?? TABS[0];
+  const resumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const goNext = useCallback(() => {
+    setActive((prev) => {
+      const i = TABS.findIndex((t) => t.id === prev);
+      return TABS[(i + 1) % TABS.length].id;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (paused) return;
+    const id = setInterval(goNext, INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [paused, goNext]);
+
+  useEffect(() => {
+    return () => {
+      if (resumeTimer.current) clearTimeout(resumeTimer.current);
+    };
+  }, []);
+
+  const selectTab = (id: TabId) => {
+    setActive(id);
+    setPaused(true);
+    if (resumeTimer.current) clearTimeout(resumeTimer.current);
+    // Resume auto-play a few seconds after manual pick
+    resumeTimer.current = setTimeout(() => setPaused(false), INTERVAL_MS * 2);
+  };
 
   return (
-    <section className="product-showcase" aria-label="Product showcase">
+    <section
+      className="product-showcase"
+      aria-label="Product showcase"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) setPaused(false);
+      }}
+    >
       <div className="ps-inner">
         <h2 className="ps-headline">
           Business owners
@@ -44,7 +84,7 @@ export const ProductShowcase: React.FC = () => {
               role="tab"
               aria-selected={active === t.id}
               className={`ps-tab${active === t.id ? " active" : ""}`}
-              onClick={() => setActive(t.id)}
+              onClick={() => selectTab(t.id)}
             >
               {t.label}
             </button>
@@ -161,6 +201,11 @@ export const ProductShowcase: React.FC = () => {
           display: block;
           width: 100%;
           height: auto;
+          animation: ps-fade 0.35s ease;
+        }
+        @keyframes ps-fade {
+          from { opacity: 0.4; }
+          to { opacity: 1; }
         }
         @media (max-width: 640px) {
           .product-showcase {
