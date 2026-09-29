@@ -4,7 +4,6 @@ import React, { useState } from "react";
 
 type TabId = "stock" | "money" | "insights" | "dashboard";
 
-/** Full-quality Cloudinary product screenshots */
 const CLOUD = "https://res.cloudinary.com/dzjoqbg2u/image/upload/f_auto,q_auto";
 
 const SHOWCASE = {
@@ -14,35 +13,11 @@ const SHOWCASE = {
   dashboard: `${CLOUD}/v1790686392/Untitled_-_September_29_2026_at_12.40.58-2_pdg4z1.png`,
 } as const;
 
-const TABS: { id: TabId; label: string; title: string; body: string; src: string }[] = [
-  {
-    id: "stock",
-    label: "Stock Control",
-    title: "Know what you have before the shelf goes empty.",
-    body: "Track ingredients, products, reorder alerts, and stock value — so costs and margins stay honest.",
-    src: SHOWCASE.stock,
-  },
-  {
-    id: "money",
-    label: "Money Control",
-    title: "Sales recorded. Cash matched.",
-    body: "Reconcile cash, transfers, and POS against what should have come in — and surface shortages before they grow.",
-    src: SHOWCASE.money,
-  },
-  {
-    id: "insights",
-    label: "Insights",
-    title: "See what is selling — and what is draining profit.",
-    body: "Top sellers, busy days, expense pressure, and staff performance in plain language, not spreadsheets.",
-    src: SHOWCASE.insights,
-  },
-  {
-    id: "dashboard",
-    label: "Dashboard",
-    title: "One place for cash, margin, and stock truth.",
-    body: "MO nudges, quick actions, and today's numbers — tuned to how your business actually runs.",
-    src: SHOWCASE.dashboard,
-  },
+const TABS: { id: TabId; label: string; src: string }[] = [
+  { id: "stock", label: "Stock Control", src: SHOWCASE.stock },
+  { id: "money", label: "Money Control", src: SHOWCASE.money },
+  { id: "insights", label: "Insights", src: SHOWCASE.insights },
+  { id: "dashboard", label: "Dashboard", src: SHOWCASE.dashboard },
 ];
 
 export const ProductShowcase: React.FC = () => {
@@ -52,39 +27,31 @@ export const ProductShowcase: React.FC = () => {
   return (
     <section className="product-showcase" aria-label="Product showcase">
       <div className="ps-inner">
-        <div className="ps-copy">
-          <div className="section-label">Built for operators</div>
-          <h2 className="ps-headline">
-            Business owners
-            <br />
-            <em>run on Busmo</em>
-          </h2>
-          <p className="ps-sub">
-            Sales, stock, cash, and profit in one system — so you can control the business even when you are not in the shop.
-          </p>
+        <h2 className="ps-headline">
+          Business owners
+          <br />
+          build on Busmo
+        </h2>
+        <p className="ps-sub">
+          Sales, stock, cash, and profit — controlled even when you're not in the shop.
+        </p>
 
-          <div className="ps-tabs" role="tablist" aria-label="Product areas">
-            {TABS.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                role="tab"
-                aria-selected={active === t.id}
-                className={`ps-tab${active === t.id ? " active" : ""}`}
-                onClick={() => setActive(t.id)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="ps-feature-text" key={tab.id}>
-            <h3 className="ps-feature-title">{tab.title}</h3>
-            <p className="ps-feature-body">{tab.body}</p>
-          </div>
+        <div className="ps-tabs" role="tablist" aria-label="Product areas">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={active === t.id}
+              className={`ps-tab${active === t.id ? " active" : ""}`}
+              onClick={() => setActive(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
-        <div className="ps-visual" aria-hidden={false}>
+        <div className="ps-visual">
           <div className="ps-glow" />
           <div className="ps-frame">
             <img
@@ -101,149 +68,122 @@ export const ProductShowcase: React.FC = () => {
 
       <style>{`
         .product-showcase {
-          padding: 72px 4% 88px;
-          background: linear-gradient(180deg, #fafafc 0%, #f4f0ff 45%, #fafafc 100%);
+          padding: 64px 5% 80px;
+          background: #fff;
           overflow: hidden;
         }
         .ps-inner {
-          max-width: 1120px;
+          max-width: 920px;
           margin: 0 auto;
-          display: grid;
-          grid-template-columns: 1fr 1.15fr;
-          gap: 48px;
-          align-items: center;
-        }
-        .ps-copy {
-          max-width: 440px;
+          text-align: center;
         }
         .ps-headline {
-          font-family: var(--font-display, "Clash Display", system-ui, sans-serif);
-          font-size: clamp(1.75rem, 4vw, 2.5rem);
+          font-family: var(--font-display, system-ui, -apple-system, sans-serif);
+          font-size: clamp(2rem, 5.5vw, 3.25rem);
           font-weight: 700;
-          line-height: 1.15;
-          color: var(--black, #0a0a0f);
-          margin: 12px 0 16px;
-          letter-spacing: -0.02em;
-        }
-        .ps-headline em {
-          font-style: normal;
-          color: var(--purple, #6b3fe7);
+          line-height: 1.12;
+          color: #0a0a0f;
+          margin: 0 0 16px;
+          letter-spacing: -0.03em;
         }
         .ps-sub {
-          font-size: 1.05rem;
-          line-height: 1.65;
-          color: var(--text-secondary, #555568);
-          margin-bottom: 28px;
+          font-size: clamp(1rem, 2.2vw, 1.2rem);
+          line-height: 1.55;
+          color: #555568;
+          margin: 0 auto 28px;
+          max-width: 420px;
         }
         .ps-tabs {
           display: flex;
-          flex-wrap: wrap;
+          flex-wrap: nowrap;
+          justify-content: center;
           gap: 8px;
-          margin-bottom: 28px;
+          margin-bottom: 36px;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+          padding: 2px 4px 8px;
+        }
+        .ps-tabs::-webkit-scrollbar {
+          display: none;
         }
         .ps-tab {
+          flex-shrink: 0;
           font-family: var(--font-body, system-ui, sans-serif);
-          font-size: 0.85rem;
-          font-weight: 600;
-          padding: 10px 16px;
+          font-size: 0.9rem;
+          font-weight: 500;
+          padding: 10px 18px;
           border-radius: 100px;
-          border: 1.5px solid var(--grey-200, #e8e8f0);
-          background: #fff;
-          color: var(--text-secondary, #555568);
+          border: none;
+          background: #f3f3f5;
+          color: #6b6b7b;
           cursor: pointer;
-          transition: all 0.2s ease;
+          transition: background 0.2s ease, color 0.2s ease;
+          white-space: nowrap;
         }
         .ps-tab:hover {
-          border-color: var(--purple, #6b3fe7);
-          color: var(--purple, #6b3fe7);
+          background: #ebeaf0;
+          color: #3a3a48;
         }
         .ps-tab.active {
-          background: var(--purple, #6b3fe7);
-          border-color: var(--purple, #6b3fe7);
-          color: #fff;
-          box-shadow: 0 4px 16px rgba(107, 63, 231, 0.28);
-        }
-        .ps-feature-title {
-          font-family: var(--font-display, system-ui, sans-serif);
-          font-size: 1.15rem;
-          font-weight: 700;
-          color: var(--black, #0a0a0f);
-          margin-bottom: 8px;
-          line-height: 1.35;
-        }
-        .ps-feature-body {
-          font-size: 0.95rem;
-          line-height: 1.6;
-          color: var(--text-secondary, #555568);
-          margin: 0;
+          background: #e8e0ff;
+          color: #5b2fd6;
+          font-weight: 600;
         }
         .ps-visual {
           position: relative;
-          min-height: 320px;
+          max-width: 720px;
+          margin: 0 auto;
         }
         .ps-glow {
           position: absolute;
-          inset: 10% -5% -5% 10%;
+          inset: 8% -8% -12% -8%;
           background: radial-gradient(
-            ellipse at 60% 40%,
-            rgba(107, 63, 231, 0.22) 0%,
-            rgba(139, 98, 240, 0.08) 45%,
+            ellipse at 50% 40%,
+            rgba(107, 63, 231, 0.28) 0%,
+            rgba(139, 98, 240, 0.1) 40%,
             transparent 70%
           );
-          filter: blur(24px);
+          filter: blur(28px);
           pointer-events: none;
+          border-radius: 40px;
         }
         .ps-frame {
           position: relative;
-          border-radius: 20px;
+          border-radius: 16px;
           overflow: hidden;
           background: #fff;
-          border: 1px solid rgba(107, 63, 231, 0.12);
           box-shadow:
-            0 4px 6px rgba(10, 10, 15, 0.04),
-            0 24px 64px rgba(107, 63, 231, 0.14),
-            0 0 0 1px rgba(255, 255, 255, 0.8) inset;
-          transform: perspective(1200px) rotateY(-2deg) rotateX(1deg);
-          transition: transform 0.4s ease;
-        }
-        .ps-frame:hover {
-          transform: perspective(1200px) rotateY(0deg) rotateX(0deg);
+            0 2px 8px rgba(10, 10, 15, 0.04),
+            0 20px 50px rgba(107, 63, 231, 0.12);
         }
         .ps-shot {
           display: block;
           width: 100%;
           height: auto;
-          vertical-align: top;
-        }
-        @media (max-width: 900px) {
-          .ps-inner {
-            grid-template-columns: 1fr;
-            gap: 36px;
-          }
-          .ps-copy {
-            max-width: 100%;
-            text-align: center;
-          }
-          .ps-tabs {
-            justify-content: center;
-          }
-          .ps-frame {
-            transform: none;
-          }
-          .ps-frame:hover {
-            transform: none;
-          }
         }
         @media (max-width: 640px) {
           .product-showcase {
-            padding: 48px 5% 56px;
+            padding: 48px 4% 56px;
           }
           .ps-headline {
-            font-size: 1.5rem;
+            font-size: 1.75rem;
+          }
+          .ps-sub {
+            font-size: 0.95rem;
+            margin-bottom: 22px;
+          }
+          .ps-tabs {
+            justify-content: flex-start;
+            margin-bottom: 28px;
+            gap: 6px;
           }
           .ps-tab {
-            font-size: 0.78rem;
-            padding: 8px 12px;
+            font-size: 0.82rem;
+            padding: 9px 14px;
+          }
+          .ps-frame {
+            border-radius: 12px;
           }
         }
       `}</style>
