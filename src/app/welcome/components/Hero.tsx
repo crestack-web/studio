@@ -1,7 +1,7 @@
 "use client";
 
-import React from 'react';
-import { Page } from '../types';
+import React from "react";
+import { Page } from "../types";
 
 interface HeroProps {
   onNavigate: (page: Page) => void;
@@ -12,32 +12,24 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate, onWatchDemo }) => {
   return (
     <div className="hero">
       <style>{`
-        .hero-desc-desktop { display: block; }
-        .hero-desc-mobile { display: none; }
-        .hero-control-line {
-          font-size: 0.95rem;
-          font-weight: 600;
-          color: var(--purple);
-          margin-bottom: 12px;
-          letter-spacing: 0.01em;
+        .hero-desc {
+          font-size: 1.05rem;
+          line-height: 1.55;
+          color: #555568;
+          margin: 0 0 22px;
+          max-width: 540px;
         }
         @media (max-width: 640px) {
-          .hero-desc-desktop { display: none; }
-          .hero-desc-mobile {
-            display: block;
-            font-size: 0.95rem;
-            line-height: 1.5;
-            margin-bottom: 20px;
-            max-width: 340px;
-          }
           .hero h1 {
             font-size: 1.35rem !important;
             line-height: 1.25 !important;
             margin-bottom: 10px !important;
           }
-          .hero-control-line {
-            font-size: 0.8rem;
-            margin-bottom: 8px;
+          .hero-desc {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 18px;
+            max-width: 340px;
           }
           .hero-cta {
             margin-bottom: 16px !important;
@@ -55,26 +47,15 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate, onWatchDemo }) => {
             <h1 style={{ margin: 0 }}>
               Control your business,
               <br />
-              <em>even when you&apos;re not there.</em>
+              <em>even when you're not there.</em>
             </h1>
 
-            <p className="hero-control-line">
-              Sales, stock, cash, staff, and profit — one system.
-            </p>
-
-            <p className="hero-desc-desktop">
-              Built for growing African businesses. See what sold, where the money
-              went, and whether you&apos;re actually making a profit — without
-              standing in the shop all day.
-            </p>
-
-            <p className="hero-desc-mobile">
-              See what sold, where the money went, and if you&apos;re making
-              profit — without being in the shop.
+            <p className="hero-desc">
+              Sales, stock, cash, staff, and profit in one system — built for growing African businesses. See what sold, where the money went, and whether you're actually making a profit.
             </p>
 
             <div className="hero-cta">
-              <button className="btn-primary btn-dominant" onClick={() => onNavigate('signup')}>
+              <button className="btn-primary btn-dominant" onClick={() => onNavigate("signup")}>
                 Start with Busmo
               </button>
               <button className="btn-outline" onClick={onWatchDemo}>
