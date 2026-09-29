@@ -27,6 +27,7 @@ import { HowBusmoWorks } from './components/HowBusmoWorks';
 import { IndustryUseCases } from './components/IndustryUseCases';
 import { BuiltWithBusmo } from './components/BuiltWithBusmo';
 import { TrustedBySection } from './components/TrustedBySection';
+import { ProductShowcase } from './components/ProductShowcase';
 import { MoSection } from './components/MoSection';
 import { PricingPreview } from './components/PricingPreview';
 import { BeforeAfterComparison } from './components/BeforeAfterComparison';
@@ -85,6 +86,10 @@ export default function WelcomePage() {
       <DemoVideoSection isVisible={showDemoVideo} onClose={() => setShowDemoVideo(false)} />
 
       <TrustedBySection />
+
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <ProductShowcase />
+      </ScrollReveal>
 
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <BeforeAfterComparison />
