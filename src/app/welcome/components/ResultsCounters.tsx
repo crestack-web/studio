@@ -87,15 +87,15 @@ export const ResultsCounters: React.FC = () => {
           obs.disconnect();
         }
       },
-      { threshold: 0.3 }
+      { threshold: 0.25 }
     );
     obs.observe(el);
     return () => obs.disconnect();
   }, []);
 
   return (
-    <section className="results-section" ref={ref}>
-      <div className="max-w">
+    <section className="results-section" ref={ref} aria-label="Owner results">
+      <div className="max-w results-inner">
         <div className="section-head center">
           <div className="section-label">Owner results</div>
           <h2 className="section-title">
@@ -111,13 +111,19 @@ export const ResultsCounters: React.FC = () => {
           ))}
         </div>
       </div>
-      <style jsx>{`
+
+      <style>{`
         .results-section {
-          padding: 64px 0;
+          padding: 64px 4% 72px;
+          background: linear-gradient(180deg, #fafafc 0%, #f4f0ff 50%, #fafafc 100%);
+        }
+        .results-inner {
+          max-width: 1120px;
+          margin: 0 auto;
         }
         .results-grid {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
+          grid-template-columns: repeat(4, minmax(0, 1fr));
           gap: 20px;
           margin-top: 8px;
         }
@@ -125,19 +131,24 @@ export const ResultsCounters: React.FC = () => {
           background: #fff;
           border: 1px solid #ede9fe;
           border-radius: 16px;
-          padding: 24px 20px;
+          padding: 28px 20px;
           text-align: center;
           box-shadow: 0 8px 24px rgba(107, 63, 231, 0.06);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .results-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 12px 32px rgba(107, 63, 231, 0.12);
         }
         .results-value {
-          font-size: 2rem;
+          font-size: 2.15rem;
           font-weight: 800;
           color: #6b3fe7;
           letter-spacing: -0.02em;
           line-height: 1.1;
         }
         .results-label {
-          margin-top: 8px;
+          margin-top: 10px;
           font-weight: 700;
           color: #0a0a0f;
           font-size: 0.95rem;
@@ -146,19 +157,26 @@ export const ResultsCounters: React.FC = () => {
           margin-top: 6px;
           font-size: 0.8rem;
           color: #6b7280;
-          line-height: 1.4;
+          line-height: 1.45;
         }
         @media (max-width: 900px) {
           .results-grid {
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(2, minmax(0, 1fr));
           }
         }
         @media (max-width: 520px) {
+          .results-section {
+            padding: 48px 5% 56px;
+          }
           .results-grid {
             grid-template-columns: 1fr;
+            gap: 14px;
           }
           .results-value {
-            font-size: 1.75rem;
+            font-size: 1.85rem;
+          }
+          .results-card {
+            padding: 22px 18px;
           }
         }
       `}</style>
