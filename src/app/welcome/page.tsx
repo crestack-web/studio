@@ -35,6 +35,8 @@ import { FAQSection } from './components/FAQSection';
 import { Footer } from './components/Footer';
 import { PresenceSection } from './components/PresenceSection';
 import { AnnouncementBar } from './components/AnnouncementBar';
+import { ResultsCounters } from './components/ResultsCounters';
+import { StickyMobileCTA } from './components/StickyMobileCTA';
 import './styles/globals.css';
 
 const iconProps = { size: 22, strokeWidth: 1.75, 'aria-hidden': true as const };
@@ -86,6 +88,10 @@ export default function WelcomePage() {
       <DemoVideoSection isVisible={showDemoVideo} onClose={() => setShowDemoVideo(false)} />
 
       <TrustedBySection />
+
+      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
+        <ResultsCounters />
+      </ScrollReveal>
 
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <ProductShowcase />
@@ -344,6 +350,7 @@ export default function WelcomePage() {
       </ScrollReveal>
 
       <AskMOSupportAgent />
+      <StickyMobileCTA />
     </main>
   );
 }
