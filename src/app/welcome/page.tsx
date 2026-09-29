@@ -36,7 +36,6 @@ import { Footer } from './components/Footer';
 import { PresenceSection } from './components/PresenceSection';
 import { AnnouncementBar } from './components/AnnouncementBar';
 import { ResultsCounters } from './components/ResultsCounters';
-import { StickyMobileCTA } from './components/StickyMobileCTA';
 import './styles/globals.css';
 
 const iconProps = { size: 22, strokeWidth: 1.75, 'aria-hidden': true as const };
@@ -350,7 +349,6 @@ export default function WelcomePage() {
       </ScrollReveal>
 
       <AskMOSupportAgent />
-      <StickyMobileCTA />
     </main>
   );
 }
