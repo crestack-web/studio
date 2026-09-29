@@ -7,8 +7,8 @@ const LOGOS = [
   { name: "Mudatex", src: "/partners/mudatex.jpg", alt: "Mudatex — Mudassir & Brothers" },
   { name: "ZAU", src: "/partners/zau.jpg", alt: "ZAU" },
   { name: "Hill 360", src: "/partners/hill360.jpg", alt: "Hill 360" },
-  { name: "Delizz", src: LOGO_DELIZZ, alt: "Delizz Supermarket Ltd" },
-  { name: "Mamuda", src: LOGO_MAMUDA, alt: "Mamuda" },
+  { name: "Delizz", src: LOGO_DELIZZ || "/partners/delizz.jpg", alt: "Delizz Supermarket Ltd" },
+  { name: "Mamuda", src: LOGO_MAMUDA || "/partners/mamuda.jpg", alt: "Mamuda" },
   { name: "Chicken Republic", src: "/partners/chicken-republic.jpg", alt: "Chicken Republic" },
 ];
 
@@ -33,12 +33,18 @@ export const TrustedBySection: React.FC = () => (
       <div className="trusted-marquee-track">
         {TRACK.map((logo, i) => (
           <div key={`${logo.name}-${i}`} className="trusted-logo-card">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={logo.src}
               alt={logo.alt}
               className="trusted-logo-img"
               loading={i < 6 ? "eager" : "lazy"}
               decoding="async"
+              onError={(e) => {
+                const el = e.currentTarget;
+                const card = el.closest(".trusted-logo-card") as HTMLElement | null;
+                if (card) card.style.display = "none";
+              }}
             />
           </div>
         ))}
@@ -48,7 +54,18 @@ export const TrustedBySection: React.FC = () => (
     <div className="max-w trusted-logos-static" role="list">
       {LOGOS.map((logo) => (
         <div key={logo.name} className="trusted-logo-card" role="listitem">
-          <img src={logo.src} alt={logo.alt} className="trusted-logo-img" loading="lazy" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={logo.src}
+            alt={logo.alt}
+            className="trusted-logo-img"
+            loading="lazy"
+            onError={(e) => {
+              const el = e.currentTarget;
+              const card = el.closest(".trusted-logo-card") as HTMLElement | null;
+              if (card) card.style.display = "none";
+            }}
+          />
         </div>
       ))}
     </div>
