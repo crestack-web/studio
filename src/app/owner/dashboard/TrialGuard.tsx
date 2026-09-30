@@ -8,7 +8,7 @@ import { BusmoLogoLoadingSpinner } from '@/components/BusmoLogoLoadingSpinner';
 /** Days of free access after trial ends before dashboard is gated */
 export const GRACE_PERIOD_DAYS = 3;
 /** Original trial length in days */
-export const TRIAL_DAYS = 3;
+export const TRIAL_DAYS = 14;
 
 interface TrialGuardProps {
   children: React.ReactNode;
@@ -286,7 +286,7 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
             Trial & Extension Ended
           </h2>
           <p className="text-[#555568] mb-6">
-            Your 3-day free trial and the extra 3-day extension have ended. Subscribe to keep
+            Your 14-day free trial and the extra 3-day extension have ended. Subscribe to keep
             access to your dashboard and all your business data.
           </p>
           <button
