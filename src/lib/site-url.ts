@@ -1,15 +1,14 @@
 /**
  * Canonical app origin for OAuth redirects and absolute links.
  *
- * Priority (client):
- * 1. window.location.origin when it is not localhost (production / preview)
- * 2. NEXT_PUBLIC_SITE_URL / NEXT_PUBLIC_APP_URL / NEXT_PUBLIC_BASE_URL when set
- * 3. Never force localhost if a non-localhost env URL exists
+ * Vercel: set NEXT_PUBLIC_APP_URL (or NEXT_PUBLIC_SITE_URL) to your live site
+ * e.g. https://busmo.io — plain APP_URL alone is not visible in the browser bundle
+ * unless you also set the NEXT_PUBLIC_ variant (or rely on window.location on prod).
  *
- * Priority (server):
- * 1. NEXT_PUBLIC_* site/app URL
- * 2. VERCEL_PROJECT_PRODUCTION_URL / VERCEL_URL
- * 3. http://localhost:3000 (dev only)
+ * Supabase Dashboard → Authentication → URL Configuration:
+ *   Site URL = https://your-production-domain
+ *   Redirect URLs include https://your-production-domain/auth/callback**
+ * If Site URL is still http://localhost:3000, Google OAuth will land on localhost.
  */
 
 function normalizeOrigin(raw: string): string {
@@ -23,20 +22,29 @@ function isLocalHost(url: string): boolean {
   return /localhost|127\.0\.0\.1/i.test(url);
 }
 
+/** Prefer non-localhost env URLs so OAuth never falls back to local Site URL. */
 function envOrigin(): string {
   if (typeof process === "undefined") return "";
+
+  // NEXT_PUBLIC_* is available in the browser after build; server-only names work on server.
   const candidates = [
     process.env.NEXT_PUBLIC_SITE_URL,
     process.env.NEXT_PUBLIC_APP_URL,
     process.env.NEXT_PUBLIC_BASE_URL,
+    process.env.SITE_URL,
+    process.env.APP_URL,
     process.env.VERCEL_PROJECT_PRODUCTION_URL,
     process.env.VERCEL_URL,
   ];
+
+  let localFallback = "";
   for (const c of candidates) {
     const n = normalizeOrigin(c || "");
-    if (n) return n;
+    if (!n) continue;
+    if (!isLocalHost(n)) return n;
+    if (!localFallback) localFallback = n;
   }
-  return "";
+  return localFallback;
 }
 
 export function getAppOrigin(): string {
@@ -45,13 +53,13 @@ export function getAppOrigin(): string {
   if (typeof window !== "undefined") {
     const origin = window.location.origin;
 
-    // Real deployed host (production or Vercel preview) — always trust the browser.
+    // Deployed host (production or Vercel preview) — trust the browser.
     if (!isLocalHost(origin)) {
       return origin;
     }
 
-    // Local browser, but env points at production → use env so OAuth does not
-    // send users to localhost after Google.
+    // Developing locally but env points at production → use production so
+    // Google/Supabase do not redirect to localhost after OAuth.
     if (fromEnv && !isLocalHost(fromEnv)) {
       return fromEnv;
     }
@@ -61,6 +69,13 @@ export function getAppOrigin(): string {
 
   if (fromEnv) return fromEnv;
   return "http://localhost:3000";
+}
+
+/** Absolute OAuth return URL for Supabase signInWithOAuth({ redirectTo }). */
+export function getOAuthCallbackUrl(nextPath: string): string {
+  const next = safeNextPath(nextPath, "/owner");
+  const origin = getAppOrigin();
+  return `${origin}/auth/callback?next=${encodeURIComponent(next)}`;
 }
 
 /** Safe internal path for post-OAuth redirect (blocks open redirects). */
