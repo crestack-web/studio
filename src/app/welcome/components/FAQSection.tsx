@@ -23,7 +23,7 @@ const FAQS = [
   },
   {
     q: 'How does the free trial work?',
-    a: 'All plans include a 3-day free trial. No credit card required to start. Cancel anytime.',
+    a: 'All plans include a 14-day free trial. No credit card required to start. Cancel anytime.',
   },
   {
     q: 'What is Mo-sell?',
