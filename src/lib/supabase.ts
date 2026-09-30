@@ -53,17 +53,22 @@ function createBrowserClient(): SupabaseClient {
     throw new Error(getSupabaseConfigErrorMessage());
   }
 
-  return createClient(normalizeUrl(supabaseUrl), supabaseAnonKey, {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      // OAuth return is handled only on /auth/callback via exchangeCodeForSession.
-      // detectSessionInUrl: true would also consume ?code= and cause
-      // "Unable to exchange external code" on the callback page.
-      detectSessionInUrl: false,
-      flowType: 'pkce',
-    },
-  });
+  // Prefer cookie-based PKCE client so /auth/callback (server) can exchange the code.
+  try {
+    const { createSupabaseBrowserClient } = require('@/lib/supabase-ssr') as {
+      createSupabaseBrowserClient: () => SupabaseClient;
+    };
+    return createSupabaseBrowserClient();
+  } catch {
+    return createClient(normalizeUrl(supabaseUrl), supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
+        flowType: 'pkce',
+      },
+    });
+  }
 }
 
 /**

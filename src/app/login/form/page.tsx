@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { getSupabase, isSupabaseConfigured, getSupabaseConfigErrorMessage } from "@/lib/supabase";
 import { getOAuthCallbackUrl } from "@/lib/site-url";
@@ -165,6 +166,13 @@ export default function BusmoLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const urlErr = searchParams.get("error");
+    if (urlErr) setError(urlErr);
+  }, [searchParams]);
+
+  const searchParams = useSearchParams();
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -284,7 +292,8 @@ export default function BusmoLogin() {
         options: {
           redirectTo,
           skipBrowserRedirect: false,
-          queryParams: { prompt: "select_account" },
+          queryParams: { prompt: "select_account", access_type: "online" },
+          scopes: "openid email profile",
         },
       });
 

@@ -389,7 +389,8 @@ export default function BusmoOnboarding() {
         options: {
           redirectTo,
           skipBrowserRedirect: false,
-          queryParams: { prompt: "select_account" },
+          queryParams: { prompt: "select_account", access_type: "online" },
+          scopes: "openid email profile",
         },
       });
       if (error) throw error;
