@@ -48,6 +48,21 @@ function asDate(value: unknown): Date | undefined {
   return Number.isNaN(d.getTime()) ? undefined : d;
 }
 
+/** Fire-and-forget: mark user as active for inactivity email cron */
+async function touchLastLogin(accessToken: string) {
+  try {
+    await fetch('/api/user/heartbeat', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+  } catch {
+    // non-blocking
+  }
+}
+
 export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
@@ -244,6 +259,9 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
         if (!session?.user) {
           router.replace('/login');
           return;
+        }
+        if (session.access_token) {
+          void touchLastLogin(session.access_token);
         }
         loadTrial(session.user.id);
       })
