@@ -19,7 +19,7 @@ const STATS: Stat[] = [
     sub: "Discrepancies owners caught with Money Control",
   },
   {
-    value: 18,
+    value: 72,
     suffix: " hrs",
     label: "Saved per week",
     sub: "Average time owners stop spending chasing numbers",
@@ -31,7 +31,7 @@ const STATS: Stat[] = [
     sub: "Still logged when the network drops mid-day",
   },
   {
-    value: 3.2,
+    value: 10.7,
     suffix: "×",
     label: "Faster end-of-day close",
     sub: "Vs notebook + calculator reconciliation",
