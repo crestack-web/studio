@@ -12,6 +12,7 @@ import {
   sendGraceReminderEmail,
   sendRenewalDueReminderEmail,
 } from './retention-emails';
+import { sendInactivitySalesReminderEmail } from './inactivity-emails';
 import { planDisplayName, getPlanById } from '@/lib/pricing';
 
 interface ScheduledTask {
@@ -32,9 +33,15 @@ export type RetentionUser = {
   trial_end_date: string | null;
   grace_end_date: string | null;
   subscription_end_date: string | null;
+  last_login_at?: string | null;
+  last_inactivity_email_sent_at?: string | null;
 };
 
 const GRACE_PERIOD_DAYS = 3;
+/** Hours without login before we nudge to record sales */
+const INACTIVITY_HOURS = 24;
+/** Don't re-send inactivity mail more often than this */
+const INACTIVITY_EMAIL_COOLDOWN_HOURS = 48;
 
 function dayCeil(from: Date, to: Date): number {
   return Math.ceil((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
@@ -71,7 +78,7 @@ export async function fetchRetentionUsers(filter: {
   const { data, error } = await sb
     .from('users')
     .select(
-      'id, email, full_name, business_id, plan, subscription_status, trial_end_date, grace_end_date, subscription_end_date'
+      'id, email, full_name, business_id, plan, subscription_status, trial_end_date, grace_end_date, subscription_end_date, last_login_at, last_inactivity_email_sent_at'
     )
     .in('subscription_status', filter.statuses)
     .not('email', 'is', null);
@@ -100,6 +107,8 @@ export async function fetchRetentionUsers(filter: {
       trial_end_date: (row.trial_end_date as string) || null,
       grace_end_date: (row.grace_end_date as string) || null,
       subscription_end_date: (row.subscription_end_date as string) || null,
+      last_login_at: (row.last_login_at as string) || null,
+      last_inactivity_email_sent_at: (row.last_inactivity_email_sent_at as string) || null,
     });
   }
 
@@ -112,6 +121,7 @@ export type RetentionRunResult = {
   graceExtensions: number;
   graceReminders: number;
   renewalReminders: number;
+  inactivityReminders: number;
   errors: string[];
 };
 
@@ -123,6 +133,7 @@ export async function runRetentionEmailJobs(): Promise<RetentionRunResult> {
     graceExtensions: 0,
     graceReminders: 0,
     renewalReminders: 0,
+    inactivityReminders: 0,
     errors: [],
   };
 
@@ -263,6 +274,51 @@ export async function runRetentionEmailJobs(): Promise<RetentionRunResult> {
     }
   } catch (e: any) {
     result.errors.push(`renewal-scan: ${e?.message || e}`);
+  }
+
+  // ── Inactivity: record sales nudge after 1+ day away ────────
+  try {
+    const activeUsers = await fetchRetentionUsers({
+      statuses: ['trial', 'grace', 'active'],
+    });
+    const inactivityMs = INACTIVITY_HOURS * 60 * 60 * 1000;
+    const cooldownMs = INACTIVITY_EMAIL_COOLDOWN_HOURS * 60 * 60 * 1000;
+    const sb = getSupabaseAdmin();
+
+    for (const u of activeUsers) {
+      const lastLogin = parseDate(u.last_login_at);
+      // Skip brand-new accounts with no login stamp yet (wait until first heartbeat)
+      if (!lastLogin) continue;
+
+      const awayMs = now.getTime() - lastLogin.getTime();
+      if (awayMs < inactivityMs) continue;
+
+      const lastSent = parseDate(u.last_inactivity_email_sent_at);
+      if (lastSent && now.getTime() - lastSent.getTime() < cooldownMs) continue;
+
+      const daysAway = Math.max(1, Math.floor(awayMs / (24 * 60 * 60 * 1000)));
+
+      try {
+        await sendInactivitySalesReminderEmail({
+          email: u.email,
+          name: displayName(u),
+          businessName: u.businessName,
+          daysAway,
+        });
+        await sb
+          .from('users')
+          .update({
+            last_inactivity_email_sent_at: now.toISOString(),
+            updated_at: now.toISOString(),
+          })
+          .eq('id', u.id);
+        result.inactivityReminders += 1;
+      } catch (e: any) {
+        result.errors.push(`inactivity ${u.email}: ${e?.message || e}`);
+      }
+    }
+  } catch (e: any) {
+    result.errors.push(`inactivity-scan: ${e?.message || e}`);
   }
 
   return result;
