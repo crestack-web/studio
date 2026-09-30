@@ -1,15 +1,19 @@
 /**
  * Canonical app origin for OAuth redirects and absolute links.
  *
- * Vercel: set NEXT_PUBLIC_APP_URL (or NEXT_PUBLIC_SITE_URL) to your live site
- * e.g. https://busmo.io — plain APP_URL alone is not visible in the browser bundle
- * unless you also set the NEXT_PUBLIC_ variant (or rely on window.location on prod).
+ * Supabase Dashboard → Authentication → URL Configuration (required for Google):
+ *   Site URL = https://www.busmo.io
+ *   Redirect URLs must include:
+ *     https://www.busmo.io/**
+ *     https://busmo.io/**
+ *     https://www.busmo.io/auth/callback**
+ *     http://localhost:3000/**   (dev only)
  *
- * Supabase Dashboard → Authentication → URL Configuration:
- *   Site URL = https://your-production-domain
- *   Redirect URLs include https://your-production-domain/auth/callback**
- * If Site URL is still http://localhost:3000, Google OAuth will land on localhost.
+ * If Site URL stays http://localhost:3000, Google OAuth will land on localhost
+ * even when the user started on production.
  */
+
+const PRODUCTION_ORIGIN = "https://www.busmo.io";
 
 function normalizeOrigin(raw: string): string {
   const cleaned = String(raw || "").trim().replace(/\/$/, "");
@@ -22,19 +26,28 @@ function isLocalHost(url: string): boolean {
   return /localhost|127\.0\.0\.1/i.test(url);
 }
 
+function isProductionRuntime(): boolean {
+  if (typeof process === "undefined") return false;
+  const v = String(process.env.VERCEL_ENV || process.env.NEXT_PUBLIC_VERCEL_ENV || "").toLowerCase();
+  if (v === "production") return true;
+  if (process.env.NODE_ENV === "production") return true;
+  return false;
+}
+
 /** Prefer non-localhost env URLs so OAuth never falls back to local Site URL. */
 function envOrigin(): string {
   if (typeof process === "undefined") return "";
 
-  // NEXT_PUBLIC_* is available in the browser after build; server-only names work on server.
   const candidates = [
     process.env.NEXT_PUBLIC_SITE_URL,
     process.env.NEXT_PUBLIC_APP_URL,
     process.env.NEXT_PUBLIC_BASE_URL,
     process.env.SITE_URL,
     process.env.APP_URL,
-    process.env.VERCEL_PROJECT_PRODUCTION_URL,
-    process.env.VERCEL_URL,
+    process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : "",
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "",
   ];
 
   let localFallback = "";
@@ -47,34 +60,51 @@ function envOrigin(): string {
   return localFallback;
 }
 
+/**
+ * Origin used for absolute links and OAuth redirectTo.
+ * Never returns localhost when running a production build or on a real host.
+ */
 export function getAppOrigin(): string {
   const fromEnv = envOrigin();
 
   if (typeof window !== "undefined") {
     const origin = window.location.origin;
 
-    // Deployed host (production or Vercel preview) — trust the browser.
+    // Live host (busmo.io, preview, etc.) — always trust the browser.
     if (!isLocalHost(origin)) {
       return origin;
     }
 
-    // Developing locally but env points at production → use production so
-    // Google/Supabase do not redirect to localhost after OAuth.
+    // Local browser, but env points at production → use production so OAuth
+    // does not bounce back to localhost after Google account selection.
     if (fromEnv && !isLocalHost(fromEnv)) {
       return fromEnv;
     }
 
+    // Local dev only
     return origin;
   }
 
+  // Server / build time
+  if (fromEnv && !isLocalHost(fromEnv)) return fromEnv;
+  if (isProductionRuntime()) return PRODUCTION_ORIGIN;
   if (fromEnv) return fromEnv;
-  return "http://localhost:3000";
+  return PRODUCTION_ORIGIN;
 }
 
 /** Absolute OAuth return URL for Supabase signInWithOAuth({ redirectTo }). */
 export function getOAuthCallbackUrl(nextPath: string): string {
   const next = safeNextPath(nextPath, "/owner");
-  const origin = getAppOrigin();
+  let origin = getAppOrigin();
+
+  // Final safety: never send Google/Supabase a localhost redirectTo in prod.
+  if (isLocalHost(origin) && isProductionRuntime()) {
+    origin = PRODUCTION_ORIGIN;
+  }
+  if (isLocalHost(origin) && typeof window !== "undefined" && !isLocalHost(window.location.origin)) {
+    origin = window.location.origin;
+  }
+
   return `${origin}/auth/callback?next=${encodeURIComponent(next)}`;
 }
 
@@ -88,5 +118,7 @@ export function safeNextPath(
   if (!t.startsWith("/") || t.startsWith("//") || t.includes("://")) {
     return fallback;
   }
+  // Block accidental localhost embedded in next
+  if (/localhost|127\.0\.0\.1/i.test(t)) return fallback;
   return t;
 }

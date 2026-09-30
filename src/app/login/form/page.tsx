@@ -272,12 +272,19 @@ export default function BusmoLogin() {
         throw new Error(getSupabaseConfigErrorMessage());
       }
       const supabase = getSupabase();
+      // Always compute on the client so production host is used (never localhost).
       const redirectTo = getOAuthCallbackUrl("/owner");
+      if (typeof window !== "undefined" && /localhost|127\.0\.0\.1/i.test(redirectTo)) {
+        throw new Error(
+          "Google sign-in is misconfigured (redirect points to localhost). Set NEXT_PUBLIC_APP_URL=https://www.busmo.io and Supabase Site URL to https://www.busmo.io, then try again."
+        );
+      }
       const { error: authError } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider: "google",
         options: {
           redirectTo,
-          queryParams: { prompt: 'select_account' },
+          skipBrowserRedirect: false,
+          queryParams: { prompt: "select_account" },
         },
       });
 

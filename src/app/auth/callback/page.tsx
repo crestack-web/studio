@@ -22,6 +22,21 @@ export default function AuthCallbackPage() {
     async function run() {
       try {
         const url = new URL(window.location.href);
+        // If OAuth incorrectly returned to localhost while a production app URL exists,
+        // stop and show a clear error instead of a broken local session.
+        if (/localhost|127\.0\.0\.1/i.test(url.hostname)) {
+          const prodHint =
+            (typeof process !== "undefined" &&
+              (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL)) ||
+            "https://www.busmo.io";
+          if (!cancelled) {
+            setError(
+              `Sign-in returned to localhost. In Supabase → Authentication → URL Configuration, set Site URL to ${prodHint.replace(/\/$/, "")} and add Redirect URLs for that domain, then try again from the live site.`
+            );
+            setMessage("");
+          }
+          return;
+        }
         const code = url.searchParams.get("code");
         const next = safeNextPath(url.searchParams.get("next"), "/owner");
         const oauthError =

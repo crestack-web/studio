@@ -379,16 +379,24 @@ export default function BusmoOnboarding() {
     try {
       const supabase = getSupabase();
       const redirectTo = getOAuthCallbackUrl("/welcome/signup?google=callback");
+      if (typeof window !== "undefined" && /localhost|127\.0\.0\.1/i.test(redirectTo)) {
+        throw new Error(
+          "Google sign-up is misconfigured (redirect points to localhost). Set NEXT_PUBLIC_APP_URL=https://www.busmo.io and Supabase Site URL to https://www.busmo.io."
+        );
+      }
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo,
+          skipBrowserRedirect: false,
           queryParams: { prompt: "select_account" },
         },
       });
       if (error) throw error;
-    } catch {
-      setError("Google sign-up failed. Please try again.");
+    } catch (e: unknown) {
+      const msg =
+        e instanceof Error ? e.message : "Google sign-up failed. Please try again.";
+      setError(msg);
       setIsLoading(false);
     }
   };
