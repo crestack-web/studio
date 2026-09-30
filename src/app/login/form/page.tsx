@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getSupabase, isSupabaseConfigured, getSupabaseConfigErrorMessage } from "@/lib/supabase";
-import { getAppOrigin } from "@/lib/site-url";
+import { getOAuthCallbackUrl } from "@/lib/site-url";
 import posthog from 'posthog-js';
 
 function getDeviceInfo() {
@@ -272,8 +272,7 @@ export default function BusmoLogin() {
         throw new Error(getSupabaseConfigErrorMessage());
       }
       const supabase = getSupabase();
-      const next = encodeURIComponent('/owner');
-      const redirectTo = `${getAppOrigin()}/auth/callback?next=${next}`;
+      const redirectTo = getOAuthCallbackUrl("/owner");
       const { error: authError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
