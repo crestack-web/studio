@@ -57,7 +57,11 @@ function createBrowserClient(): SupabaseClient {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: true,
+      // OAuth return is handled only on /auth/callback via exchangeCodeForSession.
+      // detectSessionInUrl: true would also consume ?code= and cause
+      // "Unable to exchange external code" on the callback page.
+      detectSessionInUrl: false,
+      flowType: 'pkce',
     },
   });
 }
