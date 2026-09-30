@@ -62,7 +62,7 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate, onWatchDemo }) => {
                 See how it works
               </button>
             </div>
-            <div className="hero-note">3-day free trial · Works offline · Cancel anytime</div>
+            <div className="hero-note">14-day free trial · Works offline · Cancel anytime</div>
           </div>
         </div>
       </div>
