@@ -67,7 +67,7 @@ export const BUSMO_PLANS: BusmoPlan[] = [
       'Ask MO AI assistant',
       'Limited staff access',
       'Mobile access',
-      '3-day free trial',
+      '14-day free trial',
     ],
   },
   {
@@ -89,7 +89,7 @@ export const BUSMO_PLANS: BusmoPlan[] = [
       'Menu, ingredients & expiry (restaurants)',
       'Advanced reporting',
       'More staff capacity',
-      '3-day free trial',
+      '14-day free trial',
     ],
   },
   {
@@ -110,7 +110,7 @@ export const BUSMO_PLANS: BusmoPlan[] = [
       'Centralized multi-branch reporting',
       'Priority support',
       'Assisted onboarding',
-      '3-day free trial',
+      '14-day free trial',
     ],
   },
 ];
