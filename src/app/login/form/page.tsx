@@ -163,17 +163,16 @@ function LoginShell({ children }: { children: React.ReactNode }) {
 }
 
 export default function BusmoLogin() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const urlErr = searchParams.get("error");
     if (urlErr) setError(urlErr);
   }, [searchParams]);
-
-  const searchParams = useSearchParams();
-  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;

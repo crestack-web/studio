@@ -12,6 +12,7 @@
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 
 let client: SupabaseClient | null = null;
 let initError: Error | null = null;
@@ -53,22 +54,8 @@ function createBrowserClient(): SupabaseClient {
     throw new Error(getSupabaseConfigErrorMessage());
   }
 
-  // Prefer cookie-based PKCE client so /auth/callback (server) can exchange the code.
-  try {
-    const { createSupabaseBrowserClient } = require('@/lib/supabase-ssr') as {
-      createSupabaseBrowserClient: () => SupabaseClient;
-    };
-    return createSupabaseBrowserClient();
-  } catch {
-    return createClient(normalizeUrl(supabaseUrl), supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: false,
-        flowType: 'pkce',
-      },
-    });
-  }
+  // Cookie-based PKCE so /auth/callback (server) can read the code_verifier.
+  return createSupabaseBrowserClient();
 }
 
 /**
