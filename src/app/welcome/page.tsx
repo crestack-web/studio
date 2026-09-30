@@ -340,7 +340,7 @@ export default function WelcomePage() {
           <button className="btn-white" onClick={() => handleNavigate('signup')}>
             Start with Busmo
           </button>
-          <div className="cta-note">3-day free trial · Works offline · Cancel anytime</div>
+          <div className="cta-note">14-day free trial · Works offline · Cancel anytime</div>
         </div>
       </ScrollReveal>
 
