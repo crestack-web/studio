@@ -28,7 +28,7 @@ export function PricingPreview({ onNavigate }: PricingPreviewProps) {
             Plans built for <em>business control</em>
           </h2>
           <p className="section-sub">
-            {POSITIONING.subhead} 3-day free trial on all plans.
+            {POSITIONING.subhead} 14-day free trial on all plans.
           </p>
         </div>
 
@@ -83,7 +83,7 @@ export function PricingPreview({ onNavigate }: PricingPreviewProps) {
             className="pricing-preview-all"
             onClick={() => { window.location.href = '/pricing'; }}
           >
-            View all plans &amp; details →
+            View all plans & details →
           </button>
         </div>
       </div>
