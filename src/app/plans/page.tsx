@@ -30,7 +30,6 @@ function PlansPageContent() {
   const [firestoreInstance, setFirestoreInstance] = useState<any>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
-  // Initialize Supabase + Firestore on client side only
   useEffect(() => {
     const initData = async () => {
       try {
@@ -121,8 +120,6 @@ const PlanCard = ({ plan, billingCycle, isSelected }: { plan: (typeof plans)[0],
     )
 }
 
-
-
     const handleContinue = async () => {
         if (!selectedPlan) {
             toast({
@@ -150,7 +147,7 @@ const PlanCard = ({ plan, billingCycle, isSelected }: { plan: (typeof plans)[0],
                 planId: selectedPlan,
                 status: 'trialing',
                 currentPeriodStart: serverTimestamp(),
-                currentPeriodEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+                currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days from now
                 createdAt: serverTimestamp(),
             });
             await batch.commit();
@@ -176,7 +173,7 @@ const PlanCard = ({ plan, billingCycle, isSelected }: { plan: (typeof plans)[0],
       <Card className="w-full max-w-4xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-headline">Choose Your Plan</CardTitle>
-          <CardDescription>All plans start with a 3-day free trial. No credit card needed.</CardDescription>
+          <CardDescription>All plans start with a 14-day free trial. No credit card needed.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
             <div className="flex justify-center">
