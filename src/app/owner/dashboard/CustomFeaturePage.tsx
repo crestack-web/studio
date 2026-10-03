@@ -200,6 +200,7 @@ export default function CustomFeaturePage() {
           records={records}
           loading={loading}
           error={null}
+          workspace
           internal={status !== 'published'}
           onCreate={
             status === 'published'
