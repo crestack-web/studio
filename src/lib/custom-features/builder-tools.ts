@@ -57,9 +57,24 @@ export async function toolValidateFeatureDefinition(
  * If a draft already exists for the same slug, updates it instead of overwriting published rows.
  */
 export async function toolCreateCustomFeatureDraft(
-  auth: ToolAuthContext,
-  definition: unknown
+  authOrOpts: ToolAuthContext | (ToolAuthContext & { definition: unknown }),
+  definitionArg?: unknown
 ): Promise<{ feature: CustomFeatureRow; created: boolean }> {
+  let auth: ToolAuthContext;
+  let definition: unknown;
+  if (
+    authOrOpts &&
+    typeof authOrOpts === 'object' &&
+    'definition' in authOrOpts &&
+    definitionArg === undefined
+  ) {
+    const o = authOrOpts as ToolAuthContext & { definition: unknown };
+    auth = { userId: o.userId, businessId: o.businessId };
+    definition = o.definition;
+  } else {
+    auth = authOrOpts as ToolAuthContext;
+    definition = definitionArg;
+  }
   const v = validateFeatureDefinition(definition);
   if (!v.ok) {
     throw new CustomFeatureError('Invalid feature definition', 400, v.issues);
@@ -86,7 +101,6 @@ export async function toolCreateCustomFeatureDraft(
     return { feature: updated, created: false };
   }
 
-  // Version above any published row for same slug so drafts do not collide
   const maxVersion = await maxVersionForSlug(auth.businessId, def.slug);
   def.version = Math.max(def.version || 1, maxVersion + 1);
   if (!def.id || def.id === 'proto-delivery-tracker') {
@@ -103,25 +117,84 @@ export async function toolCreateCustomFeatureDraft(
 }
 
 export async function toolGetCustomFeatureDraft(
-  auth: ToolAuthContext,
-  opts: { featureId?: string; slug?: string }
-): Promise<CustomFeatureRow | null> {
-  if (opts.featureId) {
-    const f = await getCustomFeature(auth.businessId, opts.featureId);
-    if (f && f.status === 'draft') return f;
-    return f;
+  authOrOpts:
+    | ToolAuthContext
+    | (ToolAuthContext & { featureId?: string; slug?: string }),
+  opts?: { featureId?: string; slug?: string }
+): Promise<{ feature: CustomFeatureRow | null } | CustomFeatureRow | null> {
+  let auth: ToolAuthContext;
+  let featureId: string | undefined;
+  let slug: string | undefined;
+  if (
+    authOrOpts &&
+    typeof authOrOpts === 'object' &&
+    ('featureId' in authOrOpts || 'slug' in authOrOpts) &&
+    opts === undefined
+  ) {
+    const o = authOrOpts as ToolAuthContext & {
+      featureId?: string;
+      slug?: string;
+    };
+    auth = { userId: o.userId, businessId: o.businessId };
+    featureId = o.featureId;
+    slug = o.slug;
+  } else {
+    auth = authOrOpts as ToolAuthContext;
+    featureId = opts?.featureId;
+    slug = opts?.slug;
   }
-  if (opts.slug) {
-    return findDraftBySlug(auth.businessId, opts.slug);
+
+  let feature: CustomFeatureRow | null = null;
+  if (featureId) {
+    const f = await getCustomFeature(auth.businessId, featureId);
+    feature = f || null;
+  } else if (slug) {
+    feature = await findDraftBySlug(auth.businessId, slug);
   }
-  return null;
+
+  if (opts === undefined && 'businessId' in (authOrOpts as any)) {
+    return { feature };
+  }
+  return feature;
 }
 
 export async function toolUpdateCustomFeatureDraft(
-  auth: ToolAuthContext,
-  opts: { featureId: string; definition: unknown }
-): Promise<CustomFeatureRow> {
-  const existing = await getCustomFeature(auth.businessId, opts.featureId);
+  authOrOpts:
+    | ToolAuthContext
+    | (ToolAuthContext & {
+        featureId: string;
+        definition: unknown;
+        changeNote?: string;
+      }),
+  opts?: { featureId: string; definition: unknown; changeNote?: string }
+): Promise<CustomFeatureRow | { feature: CustomFeatureRow }> {
+  let auth: ToolAuthContext;
+  let featureId: string;
+  let definition: unknown;
+  let objectForm = false;
+
+  if (
+    authOrOpts &&
+    typeof authOrOpts === 'object' &&
+    'featureId' in authOrOpts &&
+    'definition' in authOrOpts &&
+    opts === undefined
+  ) {
+    const o = authOrOpts as ToolAuthContext & {
+      featureId: string;
+      definition: unknown;
+    };
+    auth = { userId: o.userId, businessId: o.businessId };
+    featureId = o.featureId;
+    definition = o.definition;
+    objectForm = true;
+  } else {
+    auth = authOrOpts as ToolAuthContext;
+    featureId = opts!.featureId;
+    definition = opts!.definition;
+  }
+
+  const existing = await getCustomFeature(auth.businessId, featureId);
   if (!existing) throw new CustomFeatureError('Feature not found', 404);
   if (existing.status !== 'draft') {
     throw new CustomFeatureError(
@@ -130,13 +203,13 @@ export async function toolUpdateCustomFeatureDraft(
     );
   }
 
-  const v = validateFeatureDefinition(opts.definition);
+  const v = validateFeatureDefinition(definition);
   if (!v.ok) {
     throw new CustomFeatureError('Invalid feature definition', 400, v.issues);
   }
 
   const def = {
-    ...(opts.definition as BusmoFeatureDefinition),
+    ...(definition as BusmoFeatureDefinition),
     id: existing.id,
     businessId: auth.businessId,
     slug: existing.slug,
@@ -144,12 +217,13 @@ export async function toolUpdateCustomFeatureDraft(
     status: 'draft' as const,
   };
 
-  return updateDraftRow({
+  const feature = await updateDraftRow({
     businessId: auth.businessId,
     featureId: existing.id,
     userId: auth.userId,
     definition: def,
   });
+  return objectForm ? { feature } : feature;
 }
 
 /** List drafts for owner preview UI. */
@@ -161,19 +235,85 @@ export async function listDraftFeatures(
 }
 
 /**
+ * Plan mode: understand request, ask questions or return optimized prompt.
+ * Never creates a draft. Never publishes.
+ */
+export async function planFeatureFromNaturalLanguage(
+  userMessage: string,
+  opts?: { useLlm?: boolean }
+): Promise<{
+  result:
+    | NlBuildResult
+    | {
+        kind: 'plan';
+        summary: string;
+        optimizedPrompt: string;
+        suggestedName: string;
+      };
+}> {
+  const result = await naturalLanguageToFeatureDefinition(userMessage, opts);
+  if (result.kind === 'definition') {
+    const entity = result.definition.entities?.[0];
+    const fieldLabels =
+      entity?.fields?.map((f) => f.label).filter(Boolean).join(', ') ||
+      'key business fields';
+    const optimizedPrompt = [
+      `Build "${result.definition.name}" for my business.`,
+      result.definition.description || '',
+      entity ? `Track each ${entity.label.toLowerCase()} with: ${fieldLabels}.` : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    return {
+      result: {
+        kind: 'plan',
+        summary:
+          result.summary ||
+          `Plan ready: ${result.definition.name}. Switch to Builder to create the draft.`,
+        optimizedPrompt,
+        suggestedName: result.definition.name,
+      },
+    };
+  }
+  return { result };
+}
+
+/**
  * High-level MO entry: NL → validate → draft.
  * Does not publish.
  */
 export async function buildFeatureDraftFromNaturalLanguage(
-  auth: ToolAuthContext,
-  userMessage: string,
+  authOrOpts: ToolAuthContext | (ToolAuthContext & { message: string; useLlm?: boolean }),
+  userMessage?: string,
   opts?: { useLlm?: boolean }
 ): Promise<{
   result: NlBuildResult;
   feature?: CustomFeatureRow;
   created?: boolean;
 }> {
-  const result = await naturalLanguageToFeatureDefinition(userMessage, opts);
+  let auth: ToolAuthContext;
+  let message: string;
+  let useLlm: boolean | undefined;
+
+  if (
+    authOrOpts &&
+    typeof authOrOpts === 'object' &&
+    'message' in authOrOpts &&
+    typeof (authOrOpts as any).message === 'string'
+  ) {
+    const o = authOrOpts as ToolAuthContext & { message: string; useLlm?: boolean };
+    auth = { userId: o.userId, businessId: o.businessId };
+    message = o.message;
+    useLlm = o.useLlm;
+  } else {
+    auth = authOrOpts as ToolAuthContext;
+    message = String(userMessage || '');
+    useLlm = opts?.useLlm;
+  }
+
+  const result = await naturalLanguageToFeatureDefinition(message, {
+    useLlm,
+  });
   if (result.kind !== 'definition') {
     return { result };
   }
