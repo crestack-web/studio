@@ -76,58 +76,68 @@ function buildDefinition(opts: {
         fields: opts.fields,
       },
     ],
-    views: [
-      {
-        key: 'list',
-        type: 'table',
-        title: opts.entityLabel.endsWith('s')
-          ? opts.entityLabel
-          : `${opts.entityLabel}s`,
-        entity: opts.entityKey,
-        columns: opts.fields.slice(0, 8).map((f) => ({
-          field: f.key,
-          label: f.label,
-        })),
-      },
-      {
+    views: (() => {
+      const plural = opts.entityLabel.endsWith('s')
+        ? opts.entityLabel
+        : `${opts.entityLabel}s`;
+      const hasStatus = opts.fields.some(
+        (f) => f.type === 'status' || f.key === 'status'
+      );
+      const metricKeys = fieldKeys.filter((k) =>
+        [
+          'status',
+          'amount',
+          'quantity',
+          'waste',
+          'cost',
+          'weightKg',
+          'amountPaid',
+          'balance',
+          'quantityProduced',
+          'quantityBought',
+          'quantityUsed',
+        ].includes(k)
+      );
+      const views: BusmoFeatureDefinition['views'] = [
+        {
+          key: 'overview',
+          type: 'metrics',
+          title: 'Overview',
+          entity: opts.entityKey,
+          metricFields: metricKeys.length ? metricKeys : fieldKeys.slice(0, 3),
+        },
+        {
+          key: 'list',
+          type: 'table',
+          title: plural,
+          entity: opts.entityKey,
+          columns: opts.fields.slice(0, 8).map((f) => ({
+            field: f.key,
+            label: f.label,
+          })),
+        },
+      ];
+      if (hasStatus) {
+        views.push({
+          key: 'board',
+          type: 'cards',
+          title: 'By status',
+          entity: opts.entityKey,
+          columns: opts.fields.slice(0, 4).map((f) => ({
+            field: f.key,
+            label: f.label,
+          })),
+        });
+      }
+      views.push({
         key: 'create',
         type: 'form',
-        title: `New ${opts.entityLabel.toLowerCase()}`,
+        title: `Add ${opts.entityLabel.toLowerCase()}`,
         entity: opts.entityKey,
         formFields: fieldKeys,
-      },
-      {
-        key: 'summary',
-        type: 'metrics',
-        title: 'Summary',
-        entity: opts.entityKey,
-        metricFields: fieldKeys.filter((k) =>
-          [
-            'status',
-            'amount',
-            'quantity',
-            'waste',
-            'cost',
-            'weightKg',
-            'amountPaid',
-            'balance',
-          ].includes(k)
-        ).length
-          ? fieldKeys.filter((k) =>
-              [
-                'status',
-                'amount',
-                'quantity',
-                'waste',
-                'cost',
-                'weightKg',
-                'amountPaid',
-                'balance',
-              ].includes(k)
-            )
-          : fieldKeys.slice(0, 2),
-      },
-    ],
+      });
+      return views;
+    })(),
     actions: [
       {
         key: 'create',
@@ -313,7 +323,6 @@ export function heuristicNlToDefinition(userMessage: string): NlBuildResult {
           defaultValue: 'Pending',
         },
         { key: 'deliveryDate', label: 'Delivery date', type: 'date' },
-        { key: 'amount', label: 'Amount', type: 'currency' },
       ],
     });
     return {
@@ -473,7 +482,6 @@ export async function naturalLanguageToFeatureDefinition(
     return heuristic;
   }
 
-  // useLlm is not false here (handled above)
   if (!process.env.MISTRAL_API_KEY) {
     return heuristic;
   }
