@@ -48,9 +48,17 @@ export interface ProcessFieldHint {
     | 'textarea'
     | 'status'
     | 'select'
-    | 'boolean';
+    | 'boolean'
+    | 'relation';
   required?: boolean;
   options?: string[];
+  relationTarget?: 'supplier' | 'customer' | 'product' | 'material' | 'staff' | 'custom';
+  computed?: {
+    op: 'multiply' | 'add' | 'subtract' | 'divide';
+    inputs: string[];
+  };
+  autoFromAuth?: 'staff' | 'user';
+  hidden?: boolean;
 }
 
 export interface ProcessEntity {
