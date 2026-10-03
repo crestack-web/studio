@@ -201,6 +201,7 @@ export default function CustomFeaturePage() {
           loading={loading}
           error={null}
           workspace
+          businessId={businessId}
           internal={status !== 'published'}
           onCreate={
             status === 'published'
