@@ -167,7 +167,7 @@ export async function toolUpdateCustomFeatureDraft(
         changeNote?: string;
       }),
   opts?: { featureId: string; definition: unknown; changeNote?: string }
-): Promise<CustomFeatureRow | { feature: CustomFeatureRow }> {
+): Promise<CustomFeatureRow> {
   let auth: ToolAuthContext;
   let featureId: string;
   let definition: unknown;
@@ -223,7 +223,7 @@ export async function toolUpdateCustomFeatureDraft(
     userId: auth.userId,
     definition: def,
   });
-  return objectForm ? { feature } : feature;
+  return feature;
 }
 
 /** List drafts for owner preview UI. */
