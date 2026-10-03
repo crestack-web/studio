@@ -123,7 +123,9 @@ export async function createCustomFeature(opts: {
     throw new CustomFeatureError('Invalid feature definition', 400, v.issues);
   }
 
-  const id = opts.definition.id || randomUUID();
+  // Always allocate a new primary key on insert. Callers that need to update an
+  // existing row must use update paths (never re-insert with a known id).
+  const id = randomUUID();
   const version = opts.definition.version || 1;
   const status = opts.status || 'draft';
   const def: BusmoFeatureDefinition = {
@@ -155,7 +157,17 @@ export async function createCustomFeature(opts: {
     .insert(row)
     .select('*')
     .single();
-  if (error) throw new CustomFeatureError(error.message, 500);
+  if (error) {
+    // Surface a clearer message if a race still hits the pkey (should be rare).
+    const msg = error.message || '';
+    if (/custom_features_pkey|duplicate key/i.test(msg)) {
+      throw new CustomFeatureError(
+        'Could not create feature (id conflict). Please try again.',
+        409
+      );
+    }
+    throw new CustomFeatureError(msg, 500);
+  }
 
   // Snapshot version
   await admin().from('custom_feature_versions').insert({
