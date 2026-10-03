@@ -51,6 +51,7 @@ import { StockTransfersPage } from './StockTransfersPage';
 import MoSalesPage from './MoSalesPage';
 import JobsPage from './JobsPage';
 import InternalFeaturePrototypePage from './InternalFeaturePrototypePage';
+import BusinessBuilderPage from './BusinessBuilderPage';
 import RecyclingPage from './RecyclingPage';
 import { usePageTracking } from '@/hooks/usePageTracking';
 import styles from './AppShell.module.css';
@@ -60,12 +61,19 @@ const PAGE_COMPONENTS: Record<string, React.ComponentType> = {
   jobs: JobsPage,
   recycling: RecyclingPage,
   'feature-prototype': InternalFeaturePrototypePage,
+  'business-builder': BusinessBuilderPage,
   sale: RecordSalePage,
   inventory: InventoryPage,
   'add-product': AddProductPage,
   'add-expense': AddExpensePage,
   cashflow: Cashflowpage,
   statement: StatementPage,
+  staff: StaffPage,
+  referrals: ReferralsPage,
+  capital: CapitalPage,
+  settings: SettingsPage,
+  services: ServicesPage,
+  branches: BranchesPage,
   reports: ReportsPage,
   'bank-reconciliation': BankReconciliationPage,
   'money-control': MoneyControlPage,
@@ -74,15 +82,9 @@ const PAGE_COMPONENTS: Record<string, React.ComponentType> = {
   'staff-accountability': StaffAccountabilityPage,
   'money-leakage': MoneyLeakagePage,
   'payment-traceability': PaymentTraceabilityPage,
-  'credit-tracking': CreditTrackingPage,
-  services: ServicesPage,
-  staff: StaffPage,
-  settings: SettingsPage,
-  referrals: ReferralsPage,
-  capital: CapitalPage,
-  branches: BranchesPage,
-  'mo-mobile': MobileAskMOPage,
   mo: InlineAIChat,
+  'mo-mobile': MobileAskMOPage,
+  'credit-tracking': CreditTrackingPage,
   'menu-management': MenuManagementPage,
   'margin-calculator': MarginCalculatorPage,
   'can-i-buy': CanIBuyThisPage,
@@ -121,26 +123,23 @@ export function AppShell() {
 
   return (
     <div className={styles.shell}>
-      {!isMobileAskMO && <Sidebar />}
-
-      <div className={styles.main}>
-        {!isMobileAskMO && <Topbar />}
-        {!isMobileAskMO && <NotificationsPanel />}
-
-        <div className={[styles.pageArea, isFullHeight ? styles.fullHeight : '', isMobileAskMO ? styles.mobileAskMOPageArea : ''].join(' ')}>
-          <div className={[styles.page, isFullHeight ? styles.pageFullHeight : ''].join(' ')}>
-            {currentPage}
-          </div>
-        </div>
-
-        <MobileBottomNav />
-      </div>
-
-      <AvatarModal />
-      <Toast />
-      <DeviceNotificationsBridge />
       <NetworkStatusStyles />
       <NetworkStatus />
+      {!isMobileAskMO && <Sidebar />}
+      <div className={styles.main}>
+        {!isMobileAskMO && <Topbar />}
+        <NotificationBar />
+        <div className={isFullHeight ? styles.fullHeightContent : styles.content}>
+          {currentPage}
+        </div>
+        {!isMobileAskMO && <MobileBottomNav />}
+      </div>
+      <AvatarModal />
+      <Toast />
+      <NotificationsPanel />
+      <DeviceNotificationsBridge />
     </div>
   );
 }
+
+export default AppShell;
