@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { getSupabase, isSupabaseConfigured, getSupabaseConfigErrorMessage } from "@/lib/supabase";
 import { getOAuthCallbackUrl } from "@/lib/site-url";
 import posthog from 'posthog-js';
@@ -162,7 +162,7 @@ function LoginShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function BusmoLogin() {
+function BusmoLoginInner() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -444,5 +444,17 @@ export default function BusmoLogin() {
         </span>
       </div>
     </LoginShell>
+  );
+}
+
+export default function BusmoLogin() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F4F4F8" }}>
+        <p style={{ color: "#555568", fontSize: 14 }}>Loading…</p>
+      </div>
+    }>
+      <BusmoLoginInner />
+    </Suspense>
   );
 }

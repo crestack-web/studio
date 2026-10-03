@@ -28,16 +28,13 @@ async function userNeedsOnboarding(
   try {
     const { data: profile } = await supabase
       .from('users')
-      .select('business_id, businessId, onboarding_complete, onboardingComplete')
+      .select('business_id')
       .eq('id', user.id)
       .maybeSingle();
 
     if (profile) {
       const p = profile as Record<string, unknown>;
-      if (p.onboarding_complete === true || p.onboardingComplete === true) {
-        return false;
-      }
-      const bid = String(p.business_id || p.businessId || '').trim();
+      const bid = String(p.business_id || '').trim();
       if (bid) return false;
     }
   } catch {
