@@ -94,10 +94,10 @@ function buildDefinition(opts: {
         title: 'Summary',
         entity: opts.entityKey,
         metricFields: fieldKeys.filter((k) =>
-          ['status', 'amount', 'quantity', 'waste', 'cost'].includes(k)
+          ['status', 'amount', 'quantity', 'waste', 'cost', 'weightKg', 'amountPaid', 'balance'].includes(k)
         ).length
           ? fieldKeys.filter((k) =>
-              ['status', 'amount', 'quantity', 'waste', 'cost'].includes(k)
+              ['status', 'amount', 'quantity', 'waste', 'cost', 'weightKg', 'amountPaid', 'balance'].includes(k)
             )
           : fieldKeys.slice(0, 2),
       },
@@ -116,7 +116,7 @@ function isUnsupportedCodeRequest(text: string): boolean {
   );
 }
 
-/** Deterministic templates for common owner requests (Phase C fixtures). */
+/** Deterministic templates for common owner requests. */
 export function heuristicNlToDefinition(userMessage: string): NlBuildResult {
   const text = String(userMessage || '').trim();
   if (!text) {
@@ -135,6 +135,123 @@ export function heuristicNlToDefinition(userMessage: string): NlBuildResult {
   }
 
   const lower = text.toLowerCase();
+
+  // PET / recycling suppliers
+  if (/pet|recycl|bottle/.test(lower) && /supplier|weight|kg|price|bring|buy/.test(lower)) {
+    const def = buildDefinition({
+      name: 'PET Supplier Tracker',
+      description: 'Record supplier deliveries of PET bottles: weight, price per kg, amount paid and date.',
+      entityKey: 'supplier_delivery',
+      entityLabel: 'Supplier delivery',
+      navLabel: 'PET Suppliers',
+      fields: [
+        { key: 'supplierName', label: 'Supplier name', type: 'text', required: true },
+        { key: 'phone', label: 'Phone number', type: 'phone' },
+        { key: 'weightKg', label: 'Weight received (kg)', type: 'number', required: true },
+        { key: 'pricePerKg', label: 'Price per kg', type: 'currency', required: true },
+        { key: 'amountPaid', label: 'Amount paid', type: 'currency' },
+        { key: 'deliveryDate', label: 'Date', type: 'date', required: true },
+        { key: 'notes', label: 'Notes', type: 'textarea' },
+      ],
+    });
+    return {
+      kind: 'definition',
+      definition: def,
+      summary:
+        'DRAFT CREATED: PET Supplier Tracker. Preview before publishing — not live yet.',
+    };
+  }
+
+  // Roofing / aluminium jobs
+  if (/roof|aluminium|aluminum|job location/.test(lower) && /track|job|customer|need|want|run/.test(lower)) {
+    const def = buildDefinition({
+      name: 'Roofing Jobs',
+      description: 'Track roofing jobs: customer, location, materials, workers, amounts and balance.',
+      entityKey: 'roofing_job',
+      entityLabel: 'Job',
+      navLabel: 'Roofing Jobs',
+      fields: [
+        { key: 'customerName', label: 'Customer', type: 'text', required: true },
+        { key: 'jobLocation', label: 'Job location', type: 'textarea', required: true },
+        { key: 'materials', label: 'Materials', type: 'textarea' },
+        { key: 'workers', label: 'Workers', type: 'text' },
+        { key: 'amountAgreed', label: 'Amount agreed', type: 'currency', required: true },
+        { key: 'amountPaid', label: 'Amount paid', type: 'currency' },
+        { key: 'balance', label: 'Remaining balance', type: 'currency' },
+        {
+          key: 'status',
+          label: 'Status',
+          type: 'status',
+          options: ['Quoted', 'In Progress', 'Completed', 'Paid'],
+          defaultValue: 'Quoted',
+        },
+      ],
+    });
+    return {
+      kind: 'definition',
+      definition: def,
+      summary: 'DRAFT CREATED: Roofing Jobs. Preview before publishing.',
+    };
+  }
+
+  // Distributor credit / shops
+  if (
+    (/shop|distributor|credit/.test(lower) && /owe|bought|credit|sell|track|need|want/.test(lower)) ||
+    /each shop|still owe/.test(lower)
+  ) {
+    const def = buildDefinition({
+      name: 'Shop Credit Tracker',
+      description: 'Track what each shop bought, paid and still owes.',
+      entityKey: 'shop_credit',
+      entityLabel: 'Credit sale',
+      navLabel: 'Shop Credit',
+      fields: [
+        { key: 'shopName', label: 'Shop name', type: 'text', required: true },
+        { key: 'products', label: 'What they bought', type: 'textarea', required: true },
+        { key: 'amount', label: 'Amount', type: 'currency', required: true },
+        { key: 'amountPaid', label: 'Amount paid', type: 'currency' },
+        { key: 'balance', label: 'Still owes', type: 'currency' },
+        { key: 'saleDate', label: 'Date', type: 'date' },
+        {
+          key: 'status',
+          label: 'Payment status',
+          type: 'status',
+          options: ['Unpaid', 'Partial', 'Paid'],
+          defaultValue: 'Unpaid',
+        },
+      ],
+    });
+    return {
+      kind: 'definition',
+      definition: def,
+      summary: 'DRAFT CREATED: Shop Credit Tracker. Preview before publishing.',
+    };
+  }
+
+  // Restaurant ingredients / meal cost
+  if (/ingredient|meal cost|restaurant/.test(lower) && /track|buy|use|cost|need|want/.test(lower)) {
+    const def = buildDefinition({
+      name: 'Ingredient & Meal Cost',
+      description: 'Track ingredient purchases, usage and cost per meal.',
+      entityKey: 'ingredient_log',
+      entityLabel: 'Ingredient entry',
+      navLabel: 'Ingredients Cost',
+      fields: [
+        { key: 'ingredientName', label: 'Ingredient', type: 'text', required: true },
+        { key: 'quantityBought', label: 'Quantity bought', type: 'number' },
+        { key: 'amountPaid', label: 'Amount paid', type: 'currency', required: true },
+        { key: 'quantityUsed', label: 'Quantity used', type: 'number' },
+        { key: 'mealName', label: 'Meal', type: 'text' },
+        { key: 'mealCost', label: 'Cost of meal', type: 'currency' },
+        { key: 'entryDate', label: 'Date', type: 'date' },
+      ],
+    });
+    return {
+      kind: 'definition',
+      definition: def,
+      summary: 'DRAFT CREATED: Ingredient & Meal Cost. Preview before publishing.',
+    };
+  }
 
   // Delivery tracker
   if (
@@ -206,7 +323,7 @@ export function heuristicNlToDefinition(userMessage: string): NlBuildResult {
   }
 
   // Food batches / waste
-  if (/batch|ingredient|waste|food batch|quantity produced/.test(lower)) {
+  if (/batch|food batch|quantity produced/.test(lower) || (/waste/.test(lower) && /batch|ingredient/.test(lower))) {
     const def = buildDefinition({
       name: 'Batch Tracking',
       description: 'Track food batches: ingredients, quantity produced and waste.',
@@ -269,7 +386,7 @@ export function heuristicNlToDefinition(userMessage: string): NlBuildResult {
             options: ['New', 'In Progress', 'Done'],
           };
         }
-        if (/qty|quantity|count|number/.test(pl)) {
+        if (/qty|quantity|count|number|weight|kg/.test(pl)) {
           return { key, label: p, type: 'number' as const };
         }
         return { key, label: p, type: 'text' as const };
@@ -318,7 +435,6 @@ export async function naturalLanguageToFeatureDefinition(
           issues: v.issues,
         };
       }
-      // Force draft
       heuristic.definition.status = 'draft';
     }
     return heuristic;
