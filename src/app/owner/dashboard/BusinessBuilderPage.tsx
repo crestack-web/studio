@@ -361,7 +361,10 @@ export default function BusinessBuilderPage() {
         setDefinition(json.feature.definition);
         setChangeLines(json.changeLines || []);
         setEditText('');
-        setMoMessage(json.note || 'Draft updated.');
+        setMoMessage(
+          [json.note, json.notice].filter(Boolean).join(' ') || 'Draft updated.'
+        );
+        setMode('review');
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Update failed');
