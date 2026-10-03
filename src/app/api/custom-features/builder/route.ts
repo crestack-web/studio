@@ -16,7 +16,7 @@ import {
   toolUpdateCustomFeatureDraft,
   toolValidateFeatureDefinition,
 } from '@/lib/custom-features/builder-tools';
-import { applyDefinitionEdit } from '@/lib/custom-features/apply-definition-edit';
+import { refineDefinitionFromNaturalLanguage } from '@/lib/custom-features/refine-definition';
 import {
   formatChangeSummary,
   summarizeDefinitionChanges,
@@ -170,7 +170,14 @@ export async function POST(req: NextRequest) {
           forked = true;
         }
 
-        const applied = applyDefinitionEdit(working.definition, message);
+        const conversation = Array.isArray(body.conversation)
+          ? body.conversation
+              .map((m: any) => `${m.role || 'user'}: ${m.text || m.content || ''}`)
+              .join('\n')
+          : String(body.conversation || '');
+        const applied = refineDefinitionFromNaturalLanguage(working.definition, message, {
+          conversation,
+        });
         if (!applied.ok) {
           return NextResponse.json({
             ok: true,
@@ -190,6 +197,7 @@ export async function POST(req: NextRequest) {
           changes,
           changeLines: formatChangeSummary(changes),
           note: applied.note,
+          explanation: (applied as any).explanation,
           notice: forked
             ? 'Draft created from published tool and updated. Live version is unchanged until you publish again.'
             : 'DRAFT UPDATED — published version (if any) is unchanged.',
