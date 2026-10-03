@@ -50,8 +50,9 @@ import { StockTransfersPage } from './StockTransfersPage';
 import MoSalesPage from './MoSalesPage';
 import JobsPage from './JobsPage';
 import InternalFeaturePrototypePage from './InternalFeaturePrototypePage';
-import BusinessBuilderPage from './BusinessBuilderPage';
 import RecyclingPage from './RecyclingPage';
+import BusinessBuilderPage from './BusinessBuilderPage';
+import CustomFeaturePage from './CustomFeaturePage';
 import { usePageTracking } from '@/hooks/usePageTracking';
 import styles from './AppShell.module.css';
 
@@ -61,6 +62,7 @@ const PAGE_COMPONENTS: Record<string, React.ComponentType> = {
   recycling: RecyclingPage,
   'feature-prototype': InternalFeaturePrototypePage,
   'business-builder': BusinessBuilderPage,
+  'custom-feature': CustomFeaturePage,
   sale: RecordSalePage,
   inventory: InventoryPage,
   'add-product': AddProductPage,
@@ -102,56 +104,31 @@ const PAGE_COMPONENTS: Record<string, React.ComponentType> = {
 
 const FULL_HEIGHT_PAGES = new Set<string>(['mo', 'mo-mobile']);
 
-export function AppShell() {
+export default function AppShell() {
   const { activePage } = useApp();
   const isMobileAskMO = activePage === 'mo-mobile';
-
-  usePageTracking();
+  usePageTracking(String(activePage || 'home'));
 
   const PageComponent = PAGE_COMPONENTS[activePage];
-  const currentPage = PageComponent ? (
-    <PageComponent key={activePage} />
-  ) : (
-    <div className={styles.placeholder}>
-      <h2>Coming Soon</h2>
-      <p>This page is under construction.</p>
-    </div>
-  );
 
   const isFullHeight = FULL_HEIGHT_PAGES.has(activePage);
 
   return (
     <div className={styles.shell}>
-      {!isMobileAskMO && <Sidebar />}
-
-      <div className={styles.main}>
-        {!isMobileAskMO && <Topbar />}
-        {!isMobileAskMO && <NotificationsPanel />}
-
-        <div
-          className={[
-            styles.pageArea,
-            isFullHeight ? styles.fullHeight : '',
-            isMobileAskMO ? styles.mobileAskMOPageArea : '',
-          ].join(' ')}
-        >
-          <div
-            className={[styles.page, isFullHeight ? styles.pageFullHeight : ''].join(
-              ' '
-            )}
-          >
-            {currentPage}
-          </div>
-        </div>
-
-        <MobileBottomNav />
-      </div>
-
-      <AvatarModal />
-      <Toast />
-      <DeviceNotificationsBridge />
       <NetworkStatusStyles />
       <NetworkStatus />
+      <Sidebar />
+      <div className={styles.main}>
+        {!isMobileAskMO && <Topbar />}
+        <div className={[styles.content, isFullHeight ? styles.fullHeight : ''].join(' ')}>
+          {PageComponent ? <PageComponent key={activePage} /> : <HomePage />}
+        </div>
+      </div>
+      <MobileBottomNav />
+      <AvatarModal />
+      <Toast />
+      <NotificationsPanel />
+      <DeviceNotificationsBridge />
     </div>
   );
 }
