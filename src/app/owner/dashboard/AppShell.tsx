@@ -50,6 +50,7 @@ import { WarehousePage } from './WarehousePage';
 import { StockTransfersPage } from './StockTransfersPage';
 import MoSalesPage from './MoSalesPage';
 import JobsPage from './JobsPage';
+import InternalFeaturePrototypePage from './InternalFeaturePrototypePage';
 import RecyclingPage from './RecyclingPage';
 import { usePageTracking } from '@/hooks/usePageTracking';
 import styles from './AppShell.module.css';
@@ -58,6 +59,7 @@ const PAGE_COMPONENTS: Record<string, React.ComponentType> = {
   home: HomePage,
   jobs: JobsPage,
   recycling: RecyclingPage,
+  'feature-prototype': InternalFeaturePrototypePage,
   sale: RecordSalePage,
   inventory: InventoryPage,
   'add-product': AddProductPage,

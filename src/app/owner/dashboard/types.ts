@@ -53,7 +53,8 @@ export type PageId =
   | 'mo-sell'
   | 'mo-sales'
   | 'jobs'
-  | 'recycling';
+  | 'recycling'
+  | 'feature-prototype';
 
 // ── Navigation ──────────────────────────────
 export interface NavItem {
