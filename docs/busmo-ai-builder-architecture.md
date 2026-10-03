@@ -228,3 +228,34 @@ Owner language
 
 `node scripts/test-business-process-intelligence.mjs` — unseen businesses + clarification + unsupported.
 
+---
+
+## Phase F — Universal context-aware capabilities (FOUNDATION)
+
+**Status:** FOUNDATION IMPLEMENTED (2026-10-03)
+
+### Delivered
+
+| Capability | Path |
+|------------|------|
+| Relation targets on fields | `types.ts` `relationTarget`, `BusmoRelationTarget` |
+| Safe computed values | `computed.ts` (`multiply`/`add`/`subtract`/`divide`) |
+| Tenant entity lookup API | `GET /api/custom-features/entities` |
+| Business context summary | `business-context-provider.ts` |
+| Renderer lookups + live calc | `FeatureRenderer` `RecordForm` + `businessId` |
+| Pattern uses refs + computed | PET/recycling pattern → supplier/product relation + computed total/balance |
+
+### Preserved
+
+- Existing definitions without relation/computed still render
+- AI proposes → validate → draft → owner publish
+- Tenant isolation via `assertBusinessAccess`
+
+### Not yet (next increments)
+
+- Full history/timeline components
+- Price resolution cascade across modules
+- Compose over Sales/Inventory native modules instead of parallel records
+- Multi-line visit/settlement event groups
+- Charts / rich overview widgets
+
