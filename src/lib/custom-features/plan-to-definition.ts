@@ -32,13 +32,24 @@ function slugify(name: string): string {
 
 function mapField(h: ProcessFieldHint): FieldDefinition {
   const type = (h.type || 'text') as FieldType;
-  return {
+  const f: FieldDefinition = {
     key: h.key,
     label: h.label,
     type,
     required: h.required,
     options: h.options,
   };
+  const anyH = h as ProcessFieldHint & {
+    relationTarget?: FieldDefinition['relationTarget'];
+    computed?: FieldDefinition['computed'];
+    autoFromAuth?: FieldDefinition['autoFromAuth'];
+    hidden?: boolean;
+  };
+  if (anyH.relationTarget) f.relationTarget = anyH.relationTarget;
+  if (anyH.computed) f.computed = anyH.computed;
+  if (anyH.autoFromAuth) f.autoFromAuth = anyH.autoFromAuth;
+  if (anyH.hidden) f.hidden = anyH.hidden;
+  return f;
 }
 
 function pickPrimaryEvent(plan: BusinessProcessPlan) {
