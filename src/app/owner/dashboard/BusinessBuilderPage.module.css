@@ -1,7 +1,11 @@
 .root {
   max-width: 720px;
+  width: 100%;
   margin: 0 auto;
   padding: 16px 16px 96px;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  min-width: 0;
 }
 
 .hero {
@@ -35,6 +39,7 @@
 
 .modeRow {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin: 0 0 8px;
 }
@@ -101,6 +106,8 @@
   line-height: 1.45;
   color: #1f2937;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .inputCard {
@@ -109,10 +116,14 @@
   border: 1px solid #e5e7eb;
   padding: 14px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  max-width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .textarea {
   width: 100%;
+  max-width: 100%;
   min-height: 100px;
   border: none;
   resize: vertical;
@@ -121,6 +132,7 @@
   outline: none;
   font-family: inherit;
   color: #111827;
+  box-sizing: border-box;
 }
 
 .inputBar {
@@ -235,6 +247,8 @@
   line-height: 1.5;
   color: #1f2937;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .headerRow {
@@ -310,14 +324,20 @@
   padding: 10px 12px;
   font-size: 14px;
   font-family: inherit;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .previewWrap {
   margin: 16px 0;
   border: 1px solid #eee;
   border-radius: 16px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   background: #fff;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .history {
@@ -519,4 +539,71 @@
 
 :global([data-theme='dark']) .modalBackdrop {
   background: rgba(0, 0, 0, 0.65);
+}
+
+
+/* —— Mobile containment —— */
+@media (max-width: 640px) {
+  .root {
+    padding: 8px 0 88px;
+    max-width: 100%;
+  }
+
+  .title {
+    font-size: 1.25rem;
+  }
+
+  .inputCard,
+  .moCard,
+  .featureCard {
+    border-radius: 14px;
+  }
+
+  .inputBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .inputActions {
+    width: 100%;
+  }
+
+  .primaryBtn,
+  .secondaryBtn {
+    width: 100%;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  .headerRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  .actions .primaryBtn,
+  .actions .secondaryBtn {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .previewWrap {
+    border-radius: 12px;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .changeBox {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .modal {
+    max-width: calc(100vw - 32px);
+    margin: 16px;
+    box-sizing: border-box;
+  }
 }
