@@ -1,25 +1,25 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useApp } from './AppContext';
 import { Sidebar } from './Sidebar';
 import { Topbar } from './Topbar';
 import { MobileBottomNav } from './MobileBottomNav';
-import { HomePage }        from './HomePage';
-import { RecordSalePage }  from './RecordSalePage';
-import { ServicesPage }    from './ServicesPage';
-import { AddProductPage }  from './Addproductpage';
-import { AddExpensePage }  from './Addexpensepage';
-import Cashflowpage    from './Cashflowpage';
-import { StatementPage }   from './Statementpage';
-import StaffPage       from './StaffPage';
-import { ReferralsPage }   from './ReferralsPage';
+import { HomePage } from './HomePage';
+import { RecordSalePage } from './RecordSalePage';
+import { ServicesPage } from './ServicesPage';
+import { AddProductPage } from './Addproductpage';
+import { AddExpensePage } from './Addexpensepage';
+import Cashflowpage from './Cashflowpage';
+import { StatementPage } from './Statementpage';
+import StaffPage from './StaffPage';
+import { ReferralsPage } from './ReferralsPage';
 import CapitalPage from './CapitalPage';
-import InventoryPage       from './InventoryPage';
-import SettingsPage        from './SettingsPage';
+import InventoryPage from './InventoryPage';
+import SettingsPage from './SettingsPage';
 import MoSellPage from './MoSellPage';
-import { BranchesPage }    from './BranchesPage';
-import { ReportsPage }     from './ReportsPage';
+import { BranchesPage } from './BranchesPage';
+import { ReportsPage } from './ReportsPage';
 import { BankReconciliationPage } from './BankReconciliationPage';
 import MoneyControlPage from './MoneyControlPage';
 import BankStatementImportPage from './BankStatementImportPage';
@@ -30,9 +30,8 @@ import PaymentTraceabilityPage from './PaymentTraceabilityPage';
 import { MobileAskMOPage } from './MobileAskMOPage';
 import { InlineAIChat } from './InlineAIChat';
 import { CreditTrackingPage } from './CreditTrackingPage';
-import { AvatarModal }     from './AvatarModal';
-import { Toast }           from './Toast';
-import { NotificationBar } from './NotificationBar';
+import { AvatarModal } from './AvatarModal';
+import { Toast } from './Toast';
 import { NotificationsPanel } from './NotificationsPanel';
 import { DeviceNotificationsBridge } from './DeviceNotificationsBridge';
 import { NetworkStatus, NetworkStatusStyles } from '@/components/app/NetworkStatus';
@@ -129,8 +128,18 @@ export function AppShell() {
         {!isMobileAskMO && <Topbar />}
         {!isMobileAskMO && <NotificationsPanel />}
 
-        <div className={[styles.pageArea, isFullHeight ? styles.fullHeight : '', isMobileAskMO ? styles.mobileAskMOPageArea : ''].join(' ')}>
-          <div className={[styles.page, isFullHeight ? styles.pageFullHeight : ''].join(' ')}>
+        <div
+          className={[
+            styles.pageArea,
+            isFullHeight ? styles.fullHeight : '',
+            isMobileAskMO ? styles.mobileAskMOPageArea : '',
+          ].join(' ')}
+        >
+          <div
+            className={[styles.page, isFullHeight ? styles.pageFullHeight : ''].join(
+              ' '
+            )}
+          >
             {currentPage}
           </div>
         </div>
