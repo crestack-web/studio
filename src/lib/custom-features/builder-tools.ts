@@ -103,9 +103,9 @@ export async function toolCreateCustomFeatureDraft(
 
   const maxVersion = await maxVersionForSlug(auth.businessId, def.slug);
   def.version = Math.max(def.version || 1, maxVersion + 1);
-  if (!def.id || def.id === 'proto-delivery-tracker') {
-    def.id = randomUUID();
-  }
+  // Always mint a fresh primary key for new rows. Reusing an LLM/heuristic/prior
+  // definition.id causes: duplicate key value violates unique constraint "custom_features_pkey"
+  def.id = randomUUID();
 
   const feature = await createCustomFeature({
     businessId: auth.businessId,
