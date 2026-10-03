@@ -12,7 +12,7 @@ interface Stat {
 
 const STATS: Stat[] = [
   {
-    value: 29.8,
+    value: 186,
     prefix: "₦",
     suffix: "M+",
     label: "Stock loss found",
