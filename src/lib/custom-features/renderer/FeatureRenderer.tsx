@@ -1,14 +1,30 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { BusmoFeatureDefinition, EntityDefinition, ViewDefinition } from '../types';
 import { validateFeatureDefinition } from '../validate';
 import styles from './FeatureRenderer.module.css';
 
+export interface FeatureRecord {
+  id: string;
+  data: Record<string, unknown>;
+  status?: string | null;
+}
+
 export interface FeatureRendererProps {
   definition: BusmoFeatureDefinition;
-  recordsByEntity?: Record<string, Record<string, unknown>[]>;
+  /** Records for the active entity (generic — not feature-name specific). */
+  records?: FeatureRecord[];
   internal?: boolean;
+  loading?: boolean;
+  error?: string | null;
+  onCreate?: (entityKey: string, data: Record<string, unknown>) => Promise<void> | void;
+  onUpdate?: (
+    entityKey: string,
+    recordId: string,
+    data: Record<string, unknown>
+  ) => Promise<void> | void;
+  onDelete?: (entityKey: string, recordId: string) => Promise<void> | void;
 }
 
 function formatCell(value: unknown, type?: string): string {
@@ -29,8 +45,13 @@ function statusTone(status: string): string {
 
 export function FeatureRenderer({
   definition,
-  recordsByEntity = {},
+  records = [],
   internal = true,
+  loading,
+  error,
+  onCreate,
+  onUpdate,
+  onDelete,
 }: FeatureRendererProps) {
   const validation = useMemo(
     () => validateFeatureDefinition(definition),
@@ -39,6 +60,15 @@ export function FeatureRenderer({
   const [activeViewKey, setActiveViewKey] = useState(
     definition.views[0]?.key || ''
   );
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!editingId) return;
+    const formView = definition.views.find((v) => v.type === 'form');
+    if (formView) setActiveViewKey(formView.key);
+  }, [editingId, definition.views]);
 
   if (!validation.ok) {
     return (
@@ -59,12 +89,59 @@ export function FeatureRenderer({
     definition.views.find((v) => v.key === activeViewKey) || definition.views[0];
   const entity = definition.entities.find((e) => e.key === view?.entity);
 
+  async function handleCreate(entityKey: string, data: Record<string, unknown>) {
+    if (!onCreate) return;
+    setBusy(true);
+    setLocalError(null);
+    try {
+      await onCreate(entityKey, data);
+    } catch (e: unknown) {
+      setLocalError(e instanceof Error ? e.message : 'Create failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleUpdate(
+    entityKey: string,
+    recordId: string,
+    data: Record<string, unknown>
+  ) {
+    if (!onUpdate) return;
+    setBusy(true);
+    setLocalError(null);
+    try {
+      await onUpdate(entityKey, recordId, data);
+      setEditingId(null);
+    } catch (e: unknown) {
+      setLocalError(e instanceof Error ? e.message : 'Update failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDelete(entityKey: string, recordId: string) {
+    if (!onDelete) return;
+    if (typeof window !== 'undefined' && !window.confirm('Delete this record?')) {
+      return;
+    }
+    setBusy(true);
+    setLocalError(null);
+    try {
+      await onDelete(entityKey, recordId);
+    } catch (e: unknown) {
+      setLocalError(e instanceof Error ? e.message : 'Delete failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className={styles.root}>
       {internal && (
         <div className={styles.banner}>
-          Internal prototype — not a live product surface. Definition → validate →
-          render only.
+          Internal prototype — persisted feature definition + business-scoped
+          records. Not a live product surface.
         </div>
       )}
 
@@ -81,6 +158,14 @@ export function FeatureRenderer({
           <span className={styles.chip}>{definition.status}</span>
         </div>
       </header>
+
+      {(error || localError) && (
+        <div className={styles.banner} role="alert">
+          {error || localError}
+        </div>
+      )}
+
+      {loading && <p className={styles.note}>Loading…</p>}
 
       <nav className={styles.tabs} aria-label="Views">
         {definition.views.map((v) => (
@@ -99,7 +184,13 @@ export function FeatureRenderer({
         <ViewBody
           view={view}
           entity={entity}
-          rows={recordsByEntity[entity.key] || []}
+          records={records}
+          busy={busy}
+          editingId={editingId}
+          setEditingId={setEditingId}
+          onCreate={onCreate ? handleCreate : undefined}
+          onUpdate={onUpdate ? handleUpdate : undefined}
+          onDelete={onDelete ? handleDelete : undefined}
         />
       )}
     </div>
@@ -109,12 +200,30 @@ export function FeatureRenderer({
 function ViewBody({
   view,
   entity,
-  rows,
+  records,
+  busy,
+  editingId,
+  setEditingId,
+  onCreate,
+  onUpdate,
+  onDelete,
 }: {
   view: ViewDefinition;
   entity: EntityDefinition;
-  rows: Record<string, unknown>[];
+  records: FeatureRecord[];
+  busy: boolean;
+  editingId: string | null;
+  setEditingId: (id: string | null) => void;
+  onCreate?: (entityKey: string, data: Record<string, unknown>) => void;
+  onUpdate?: (
+    entityKey: string,
+    recordId: string,
+    data: Record<string, unknown>
+  ) => void;
+  onDelete?: (entityKey: string, recordId: string) => void;
 }) {
+  const rows = records.map((r) => ({ id: r.id, ...r.data }));
+
   if (view.type === 'metrics') {
     const byStatus: Record<string, number> = {};
     let totalAmount = 0;
@@ -127,11 +236,11 @@ function ViewBody({
       <div className={styles.metrics}>
         <div className={styles.metric}>
           <div className={styles.metricV}>{rows.length}</div>
-          <div className={styles.metricL}>Total deliveries</div>
+          <div className={styles.metricL}>Total records</div>
         </div>
         <div className={styles.metric}>
           <div className={styles.metricV}>₦{totalAmount.toLocaleString()}</div>
-          <div className={styles.metricL}>Amount on books</div>
+          <div className={styles.metricL}>Amount total</div>
         </div>
         {Object.entries(byStatus).map(([k, n]) => (
           <div className={styles.metric} key={k}>
@@ -147,20 +256,50 @@ function ViewBody({
     const fields = (view.formFields || entity.fields.map((f) => f.key))
       .map((k) => entity.fields.find((f) => f.key === k))
       .filter(Boolean);
+
+    const editing = editingId
+      ? records.find((r) => r.id === editingId)
+      : null;
+
     return (
       <form
         className={styles.form}
+        key={editingId || 'new'}
         onSubmit={(e) => {
           e.preventDefault();
+          if (busy) return;
+          const fd = new FormData(e.currentTarget);
+          const data: Record<string, unknown> = {};
+          for (const f of fields) {
+            if (!f) continue;
+            const raw = fd.get(f.key);
+            if (f.type === 'number' || f.type === 'currency') {
+              data[f.key] = raw === '' || raw == null ? null : Number(raw);
+            } else {
+              data[f.key] = raw == null ? '' : String(raw);
+            }
+          }
+          if (editing && onUpdate) {
+            onUpdate(entity.key, editing.id, data);
+          } else if (onCreate) {
+            onCreate(entity.key, data);
+            e.currentTarget.reset();
+          }
         }}
       >
         {fields.map((f) => {
           if (!f) return null;
+          const defaultVal =
+            editing?.data?.[f.key] ?? f.defaultValue ?? '';
           if (f.type === 'status' || f.type === 'select') {
             return (
               <label key={f.key}>
                 {f.label}
-                <select name={f.key} defaultValue={String(f.defaultValue ?? '')}>
+                <select
+                  name={f.key}
+                  defaultValue={String(defaultVal ?? '')}
+                  required={!!f.required}
+                >
                   {(f.options || []).map((o) => (
                     <option key={o} value={o}>
                       {o}
@@ -174,7 +313,12 @@ function ViewBody({
             return (
               <label key={f.key}>
                 {f.label}
-                <textarea name={f.key} rows={3} />
+                <textarea
+                  name={f.key}
+                  rows={3}
+                  defaultValue={String(defaultVal ?? '')}
+                  required={!!f.required}
+                />
               </label>
             );
           }
@@ -183,6 +327,12 @@ function ViewBody({
               {f.label}
               <input
                 name={f.key}
+                defaultValue={
+                  defaultVal == null || defaultVal === ''
+                    ? ''
+                    : String(defaultVal)
+                }
+                required={!!f.required}
                 type={
                   f.type === 'number' || f.type === 'currency'
                     ? 'number'
@@ -194,15 +344,24 @@ function ViewBody({
             </label>
           );
         })}
-        <button type="submit">Save (prototype — not persisted)</button>
-        <p className={styles.note}>
-          Form is structural only in this internal prototype. Persistence uses
-          custom_feature_records after the migration is applied.
-        </p>
+        <button type="submit" disabled={busy || (!onCreate && !onUpdate)}>
+          {editing ? 'Update record' : 'Save record'}
+        </button>
+        {editing && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => setEditingId(null)}
+            style={{ background: '#6b7280' }}
+          >
+            Cancel edit
+          </button>
+        )}
       </form>
     );
   }
 
+  // table
   const columns =
     view.columns ||
     entity.fields.map((f) => ({ field: f.key, label: f.label }));
@@ -215,16 +374,17 @@ function ViewBody({
             {columns.map((c) => (
               <th key={c.field}>{c.label || c.field}</th>
             ))}
+            {(onUpdate || onDelete) && <th>Actions</th>}
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={columns.length}>No records</td>
+              <td colSpan={columns.length + 1}>No records yet</td>
             </tr>
           ) : (
             rows.map((row) => (
-              <tr key={String(row.id || JSON.stringify(row))}>
+              <tr key={String(row.id)}>
                 {columns.map((c) => {
                   const field = entity.fields.find((f) => f.key === c.field);
                   const raw = row[c.field];
@@ -240,11 +400,42 @@ function ViewBody({
                     <td key={c.field}>{formatCell(raw, field?.type)}</td>
                   );
                 })}
+                {(onUpdate || onDelete) && (
+                  <td>
+                    {onUpdate && (
+                      <button
+                        type="button"
+                        className={styles.chip}
+                        disabled={busy}
+                        onClick={() => setEditingId(String(row.id))}
+                        style={{ cursor: 'pointer', marginRight: 6 }}
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button
+                        type="button"
+                        className={styles.chip}
+                        disabled={busy}
+                        onClick={() => onDelete(entity.key, String(row.id))}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </td>
+                )}
               </tr>
             ))
           )}
         </tbody>
       </table>
+      {editingId && onUpdate && (
+        <p className={styles.note}>
+          Editing record — open the form view to save changes, or cancel below.
+        </p>
+      )}
     </div>
   );
 }

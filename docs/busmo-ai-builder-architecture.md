@@ -309,3 +309,65 @@ No unrestricted DB, secrets, filesystem, or cross-tenant access.
 2. Add server routes `POST/GET /api/custom-features` with session business scope.
 3. Wire publish → Sidebar item from `published` rows only.
 4. Keep AI tools read-only until validate + draft flow is battle-tested.
+
+
+---
+
+## Phase B — Implemented (persistence + CRUD)
+
+**Status:** IMPLEMENTED (internal prototype only)
+
+### What works
+
+| Capability | Implementation |
+|------------|----------------|
+| Persist feature | `custom_features` via `createCustomFeature` |
+| Version snapshot | `custom_feature_versions` on create/publish |
+| Publish | `publishCustomFeature` — archives prior published same slug |
+| Load published | `getPublishedFeatureBySlug` |
+| Records CRUD | `create/update/delete/listFeatureRecord*` |
+| Server validation | `validateFeatureRecord` — unknown fields, types, enums, required |
+| API | `GET/POST /api/custom-features`, `GET/POST /api/custom-features/records` |
+| AuthZ | Bearer token + `assertBusinessAccess(userId, businessId)` before every op |
+| Renderer | Generic CRUD callbacks; no Delivery Tracker `if` branches |
+| Prototype page | Ensures published Delivery Tracker + loads/saves records |
+
+### Service layer
+
+`src/lib/custom-features/service.ts` — server-only, uses service role **after** caller has asserted membership.
+
+### Security model
+
+1. API authenticates JWT.
+2. API asserts business membership (owner / profile business_id / admin).
+3. All queries filter `business_id = authenticated business`.
+4. Cross-tenant featureId alone is insufficient — business_id must match.
+5. RLS policies remain on tables for direct client access paths.
+
+### Relationships (deferred)
+
+`relation` field type is accepted in definitions; no join resolution or FK enforcement in Phase B. Delivery Tracker uses plain text for Customer/Order/Driver.
+
+### Not implemented (FUTURE)
+
+- AI feature generation UI
+- Workflow runtime
+- Published features in default sidebar for all users
+- Soft-delete / audit log UI
+- Multi-entity forms with relation pickers
+
+### How to run prototype
+
+1. Apply `0020_custom_features_foundation.sql` in Supabase if not applied.
+2. Set `NEXT_PUBLIC_ENABLE_FEATURE_BUILDER_PROTOTYPE=true` on Vercel.
+3. Redeploy.
+4. Sign in as owner → open page `feature-prototype`.
+5. Create / edit / delete deliveries; refresh to confirm persistence.
+
+### Phase C recommendation
+
+Expose MO tools that **only** call:
+
+`validateFeatureDefinition` → `createCustomFeature` (draft) → human/publish → same record APIs.
+
+Never allow the model to write SQL or skip validation.
