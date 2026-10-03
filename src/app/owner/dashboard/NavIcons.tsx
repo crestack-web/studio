@@ -155,6 +155,7 @@ export function NavIcons({ id, size = 14 }: NavIconsProps) {
   }
 }
 
+// ── Stand-alone icon helpers ──────────────────
 export function MoIcon({ size = 18 }: { size?: number }) {
   return (
     <svg width={size * 2.5} height={size * 2.5} viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
