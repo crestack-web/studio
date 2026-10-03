@@ -8,13 +8,62 @@ import { getSupabase } from '@/lib/supabase';
 import { useApp } from './AppContext';
 import styles from './BusinessBuilderPage.module.css';
 
-const EXAMPLES = [
-  'Track the suppliers who bring PET bottles to my recycling business.',
-  'I need to track roofing jobs, customer payments and balances.',
-  'Create something to manage deliveries and drivers.',
-  'Track production batches and the cost of each batch.',
-  'I want to know how much each distributor owes me.',
+type ExampleItem = { text: string; categories?: string[] };
+
+/** Examples shown only when they match the business category (or are general). */
+const ALL_EXAMPLES: ExampleItem[] = [
+  {
+    text: 'Track the suppliers who bring PET bottles to my recycling business.',
+    categories: ['recycling_material_collection', 'recycling'],
+  },
+  {
+    text: 'I need to track roofing jobs, customer payments and balances.',
+    categories: ['jobs', 'services', 'construction'],
+  },
+  {
+    text: 'Create something to manage deliveries and drivers.',
+    categories: ['retail', 'wholesale', 'distributor', 'grocery', 'supermarket', 'fashion', 'electronics'],
+  },
+  {
+    text: 'Track production batches and the cost of each batch.',
+    categories: ['manufacturing', 'restaurant', 'cafe'],
+  },
+  {
+    text: 'I want to know how much each distributor owes me.',
+    categories: ['distributor', 'wholesale', 'retail'],
+  },
+  {
+    text: 'Track ingredient purchases, usage and cost per meal.',
+    categories: ['restaurant', 'cafe', 'grocery'],
+  },
+  {
+    text: 'Track customer jobs from request through completion.',
+    categories: ['jobs', 'services', 'fashion'],
+  },
+  {
+    text: 'Create a simple credit tracker for shops that buy from me.',
+    categories: ['wholesale', 'distributor', 'manufacturing'],
+  },
 ];
+
+function examplesForCategory(category: string): string[] {
+  const cat = (category || '').toLowerCase().trim();
+  if (!cat) {
+    return [
+      'Create something to manage deliveries and drivers.',
+      'Track customer jobs from request through completion.',
+      'Create a simple credit tracker for shops that buy from me.',
+    ];
+  }
+  const matched = ALL_EXAMPLES.filter(
+    (ex) => !ex.categories || ex.categories.some((c) => cat.includes(c) || c.includes(cat))
+  ).map((ex) => ex.text);
+  if (matched.length > 0) return matched.slice(0, 5);
+  return [
+    'Create something to manage deliveries and drivers.',
+    'Track customer jobs from request through completion.',
+  ];
+}
 
 const LOADING_STEPS = [
   'Understanding your business…',
@@ -38,6 +87,7 @@ type ViewMode = 'home' | 'review' | 'live' | 'published-success';
 export default function BusinessBuilderPage() {
   const { user } = useApp();
   const [businessId, setBusinessId] = useState(user?.businessId || '');
+  const [businessCategory, setBusinessCategory] = useState('');
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadStep, setLoadStep] = useState(0);
@@ -130,8 +180,40 @@ export default function BusinessBuilderPage() {
         }
       }
 
+      let category =
+        (typeof window !== 'undefined'
+          ? localStorage.getItem('busmo_category') ||
+            localStorage.getItem('selectedCategory') ||
+            ''
+          : '') || '';
+
+      if (bid) {
+        try {
+          const supabase = getSupabase();
+          const { data } = await supabase
+            .from('businesses')
+            .select('category, industry, metadata')
+            .eq('id', bid)
+            .maybeSingle();
+          if (data) {
+            const meta =
+              data.metadata && typeof data.metadata === 'object' ? data.metadata : {};
+            category = String(
+              data.category ||
+                data.industry ||
+                (meta as any).category ||
+                category ||
+                ''
+            ).trim();
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+
       if (cancelled) return;
       setBusinessId(bid);
+      setBusinessCategory(category);
       if (bid) void refreshHistory(bid);
     }
     void resolveBusinessId();
@@ -173,7 +255,15 @@ export default function BusinessBuilderPage() {
       const json = await res.json().catch(() => ({}));
       if (res.status === 401) throw new Error('Please sign in again.');
       if (res.status === 403) throw new Error('You do not have access to this business.');
-      if (!res.ok) throw new Error(json.error || 'Could not build this feature.');
+      if (!res.ok) {
+        const raw = String(json.error || '');
+        if (/custom_features|schema cache|does not exist|MISSING_CUSTOM_FEATURES/i.test(raw)) {
+          throw new Error(
+            'Business Builder is almost ready — the custom features database tables still need to be created. Ask your admin to run migration 0020_custom_features_foundation.sql in Supabase, then try again.'
+          );
+        }
+        throw new Error(raw || 'Could not build this feature.');
+      }
 
       if (json.result?.kind === 'clarification') {
         setMoMessage(json.result.question);
@@ -389,6 +479,7 @@ export default function BusinessBuilderPage() {
 
   const entity = definition?.entities?.[0];
   const status = feature?.status || definition?.status;
+  const categoryExamples = examplesForCategory(businessCategory);
 
   return (
     <div className={styles.root}>
@@ -452,22 +543,24 @@ export default function BusinessBuilderPage() {
             </div>
           </div>
 
-          <div className={styles.examples}>
-            <div className={styles.examplesLabel}>Try an example</div>
-            {EXAMPLES.map((ex) => (
-              <button
-                key={ex}
-                type="button"
-                className={styles.exampleChip}
-                onClick={() => {
-                  setPrompt(ex);
-                  void buildFromPrompt(ex);
-                }}
-              >
-                {ex}
-              </button>
-            ))}
-          </div>
+          {categoryExamples.length > 0 && (
+            <div className={styles.examples}>
+              <div className={styles.examplesLabel}>Try an example</div>
+              {categoryExamples.map((ex) => (
+                <button
+                  key={ex}
+                  type="button"
+                  className={styles.exampleChip}
+                  onClick={() => {
+                    setPrompt(ex);
+                    void buildFromPrompt(ex);
+                  }}
+                >
+                  {ex}
+                </button>
+              ))}
+            </div>
+          )}
         </>
       )}
 
