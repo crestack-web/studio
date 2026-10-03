@@ -46,17 +46,8 @@ function pickPrimaryEvent(plan: BusinessProcessPlan) {
 }
 
 function buildDescription(plan: BusinessProcessPlan): string {
-  const lines: string[] = [];
-  if (plan.goal) lines.push(plan.goal);
-  if (plan.assumptions.length) {
-    lines.push('Assumptions: ' + plan.assumptions.join(' '));
-  }
-  if (plan.businessQuestions.length) {
-    lines.push(
-      'Helps answer: ' + plan.businessQuestions.slice(0, 4).join(' · ')
-    );
-  }
-  return lines.join('\n');
+  // Keep stored description short — assumptions/questions belong in builder explanation only.
+  return (plan.goal || plan.summary || '').trim();
 }
 
 export function businessProcessPlanToDefinition(
