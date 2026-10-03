@@ -35,9 +35,7 @@ function cloneDef(def: BusmoFeatureDefinition): BusmoFeatureDefinition {
   return JSON.parse(JSON.stringify(def)) as BusmoFeatureDefinition;
 }
 
-/**
- * Heuristic NL edits on the primary entity.
- */
+/** Heuristic NL edits on the primary entity. */
 export function applyDefinitionEdit(
   current: BusmoFeatureDefinition,
   editMessage: string
@@ -59,7 +57,6 @@ export function applyDefinitionEdit(
 
   const lower = text.toLowerCase();
 
-  // Remove field
   const removeMatch =
     text.match(/remove\s+(?:the\s+)?([a-z0-9\s_-]{2,40})/i) ||
     text.match(/delete\s+(?:the\s+)?([a-z0-9\s_-]{2,40})/i);
@@ -76,13 +73,22 @@ export function applyDefinitionEdit(
     if (entity.fields.length === before) {
       return { ok: false, message: `I couldn’t find a field matching “${label}”.` };
     }
-    // Clean views
     for (const v of def.views || []) {
-      if (v.columns) v.columns = v.columns.filter((c) => entity.fields.some((f) => f.key === c.field));
-      if (v.formFields)
-        v.formFields = v.formFields.filter((k) => entity.fields.some((f) => f.key === k));
-      if (v.metricFields)
-        v.metricFields = v.metricFields.filter((k) => entity.fields.some((f) => f.key === k));
+      if (v.columns) {
+        v.columns = v.columns.filter((c) =>
+          entity.fields.some((f) => f.key === c.field)
+        );
+      }
+      if (v.formFields) {
+        v.formFields = v.formFields.filter((k) =>
+          entity.fields.some((f) => f.key === k)
+        );
+      }
+      if (v.metricFields) {
+        v.metricFields = v.metricFields.filter((k) =>
+          entity.fields.some((f) => f.key === k)
+        );
+      }
     }
     def.status = 'draft';
     const v = validateFeatureDefinition(def);
@@ -90,7 +96,6 @@ export function applyDefinitionEdit(
     return { ok: true, definition: def, note: `Removed ${label}` };
   }
 
-  // Add field(s)
   const addMatch =
     text.match(/add\s+(?:a\s+|the\s+)?(.+)/i) ||
     text.match(/include\s+(?:a\s+|the\s+)?(.+)/i) ||
@@ -100,7 +105,80 @@ export function applyDefinitionEdit(
   if (addMatch || /add |include |also /.test(lower)) {
     let payload = addMatch ? addMatch[1] : text;
     payload = payload
-      .replace(/\.?$/,'')
+      .replace(/\.?$/, '')
       .replace(/^(?:field|column)\s+/i, '')
+      .replace(/\s+please\.?$/i, '')
       .trim();
-    // strip trailing 
+
+    const parts = payload
+      .split(/,| and /i)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 1)
+      .slice(0, 5);
+
+    if (!parts.length) {
+      return { ok: false, message: 'Which field should I add?' };
+    }
+
+    const added: string[] = [];
+    for (const part of parts) {
+      const label = part
+        .replace(/^(?:supplier'?s?|customer'?s?)\s+/i, '')
+        .trim();
+      const key = slugKey(label);
+      if (entity.fields.some((f) => f.key === key)) continue;
+      const type = inferType(label);
+      const field: FieldDefinition = {
+        key,
+        label: label.replace(/\b\w/g, (c) => c.toUpperCase()),
+        type,
+      };
+      if (type === 'status') {
+        field.options = ['Pending', 'Paid', 'Partial', 'Overdue'];
+      }
+      entity.fields.push(field);
+      added.push(field.label);
+      for (const v of def.views || []) {
+        if (v.type === 'table') {
+          v.columns = v.columns || [];
+          v.columns.push({ field: key, label: field.label });
+        }
+        if (v.type === 'form') {
+          v.formFields = v.formFields || [];
+          v.formFields.push(key);
+        }
+        if (v.type === 'metrics' && (type === 'currency' || type === 'number')) {
+          v.metricFields = v.metricFields || [];
+          if (!v.metricFields.includes(key)) v.metricFields.push(key);
+        }
+      }
+    }
+
+    if (!added.length) {
+      return { ok: false, message: 'Those fields are already on the feature.' };
+    }
+
+    def.status = 'draft';
+    const v = validateFeatureDefinition(def);
+    if (!v.ok) return { ok: false, message: 'Update failed validation' };
+    return {
+      ok: true,
+      definition: def,
+      note: `Added ${added.join(', ')}`,
+    };
+  }
+
+  const rename = text.match(/rename\s+(?:to\s+)?["']?([^"']+)["']?/i);
+  if (rename) {
+    def.name = rename[1].trim();
+    def.navLabel = def.name;
+    def.status = 'draft';
+    return { ok: true, definition: def, note: `Renamed to ${def.name}` };
+  }
+
+  return {
+    ok: false,
+    message:
+      'Try something like “Add supplier location” or “Remove phone number”. I can only change fields within Busmo’s builder, not run custom code.',
+  };
+}
