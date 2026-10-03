@@ -65,80 +65,88 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: access.reason }, { status: 403 });
     }
 
-    const tool = String(body.tool || '').trim();
+    const auth = { userId: user.id, businessId };
+    const tool = String(body.tool || body.action || '').trim();
 
     switch (tool) {
       case 'get_feature_builder_context': {
-        return NextResponse.json({
-          ok: true,
-          context: toolGetFeatureBuilderContext({ userId: user.id, businessId }),
-        });
+        const data = await toolGetFeatureBuilderContext(auth);
+        return NextResponse.json({ ok: true, ...data });
       }
       case 'validate_feature_definition': {
-        const result = toolValidateFeatureDefinition(
-          { userId: user.id, businessId },
+        const result = await toolValidateFeatureDefinition(
+          auth,
           body.definition
         );
-        return NextResponse.json({ ok: true, result });
+        return NextResponse.json(result);
       }
       case 'create_custom_feature_draft': {
-        const result = await toolCreateCustomFeatureDraft({
-          businessId,
-          userId: user.id,
-          definition: body.definition,
+        const { feature, created } = await toolCreateCustomFeatureDraft(
+          auth,
+          body.definition
+        );
+        return NextResponse.json({
+          ok: true,
+          created,
+          feature,
+          notice: 'DRAFT CREATED — not published. Owner must preview and publish.',
         });
-        return NextResponse.json({ ok: true, ...result });
       }
       case 'get_custom_feature_draft': {
-        const result = await toolGetCustomFeatureDraft({
-          businessId,
-          userId: user.id,
+        const feature = await toolGetCustomFeatureDraft(auth, {
           featureId: body.featureId,
+          slug: body.slug,
         });
-        return NextResponse.json({ ok: true, ...result });
+        return NextResponse.json({ ok: true, feature });
       }
       case 'update_custom_feature_draft': {
-        const result = await toolUpdateCustomFeatureDraft({
-          businessId,
-          userId: user.id,
-          featureId: body.featureId,
+        const feature = await toolUpdateCustomFeatureDraft(auth, {
+          featureId: String(body.featureId || ''),
           definition: body.definition,
-          changeNote: body.changeNote,
         });
-        return NextResponse.json({ ok: true, ...result });
+        return NextResponse.json({
+          ok: true,
+          feature,
+          notice: 'DRAFT UPDATED — published version (if any) is unchanged.',
+        });
       }
+
       case 'plan_from_natural_language': {
-        const message = String(body.message || '').trim();
+        const message = String(body.message || body.userMessage || '').trim();
         if (!message) {
           return NextResponse.json(
             { error: 'message required' },
             { status: 400 }
           );
         }
-        const result = await planFeatureFromNaturalLanguage(message, {
+        const out = await planFeatureFromNaturalLanguage(message, {
           useLlm: body.useLlm !== false,
         });
-        return NextResponse.json({ ok: true, ...result });
+        return NextResponse.json({ ok: true, ...out });
       }
       case 'build_from_natural_language': {
-        const message = String(body.message || '').trim();
+        const message = String(body.message || body.userMessage || '').trim();
         if (!message) {
           return NextResponse.json(
             { error: 'message required' },
             { status: 400 }
           );
         }
-        const result = await buildFeatureDraftFromNaturalLanguage({
-          businessId,
-          userId: user.id,
-          message,
+        const out = await buildFeatureDraftFromNaturalLanguage(auth, message, {
           useLlm: body.useLlm !== false,
         });
-        return NextResponse.json({ ok: true, ...result });
+        return NextResponse.json({
+          ok: true,
+          ...out,
+          notice:
+            out.feature
+              ? 'DRAFT CREATED — not live until the owner publishes.'
+              : undefined,
+        });
       }
       case 'edit_draft_from_natural_language': {
         const featureId = String(body.featureId || '').trim();
-        const message = String(body.message || '').trim();
+        const message = String(body.message || body.userMessage || '').trim();
         if (!featureId || !message) {
           return NextResponse.json(
             { error: 'featureId and message required' },
@@ -149,41 +157,41 @@ export async function POST(req: NextRequest) {
         if (!existing) {
           return NextResponse.json({ error: 'Feature not found' }, { status: 404 });
         }
-        const def = (existing as any).definition;
-        if (!def) {
+        if (existing.status !== 'draft') {
+          // Continue editing: apply onto a draft copy path via update only if draft
           return NextResponse.json(
             {
               error:
-                'Feature has no definition to edit. Build a new draft instead.',
+                'Only draft features can be edited with MO. Open Continue editing on a published feature first.',
             },
             { status: 400 }
           );
         }
-        const edit = applyDefinitionEdit(def, message);
-        if (!edit.ok) {
+        const applied = applyDefinitionEdit(existing.definition, message);
+        if (!applied.ok) {
           return NextResponse.json({
             ok: true,
-            result: { kind: 'unsupported', message: edit.message },
+            result: { kind: 'unsupported', message: applied.message },
           });
         }
-        const updated = await toolUpdateCustomFeatureDraft({
-          businessId,
-          userId: user.id,
+        const before = existing.definition;
+        const feature = await toolUpdateCustomFeatureDraft(auth, {
           featureId,
-          definition: edit.definition,
-          changeNote: edit.note || 'draft-edit',
+          definition: applied.definition,
         });
-        const diffs = summarizeDefinitionChanges(def, edit.definition);
+        const changes = summarizeDefinitionChanges(before, feature.definition);
         return NextResponse.json({
           ok: true,
-          feature: (updated as any).feature || updated,
-          changeLines: edit.note ? [edit.note] : [],
-          note: edit.note || formatChangeSummary(diffs).join('; '),
+          feature,
+          changes,
+          changeLines: formatChangeSummary(changes),
+          note: applied.note,
+          notice: 'DRAFT UPDATED — published version (if any) is unchanged.',
         });
       }
       case 'list_drafts': {
         const drafts = await listDraftFeatures(businessId);
-        return NextResponse.json({ ok: true, features: drafts });
+        return NextResponse.json({ ok: true, drafts });
       }
       case 'list_features': {
         const features = await listCustomFeatures(businessId);
@@ -202,13 +210,17 @@ export async function POST(req: NextRequest) {
           featureId,
           userId: user.id,
         });
-        return NextResponse.json({ ok: true, feature });
+        return NextResponse.json({
+          ok: true,
+          feature,
+          notice: 'FEATURE PUBLISHED — now active for this business.',
+        });
       }
       default:
         return NextResponse.json(
           {
             error: 'Unknown tool',
-            supported: [
+            allowed: [
               'get_feature_builder_context',
               'validate_feature_definition',
               'create_custom_feature_draft',
