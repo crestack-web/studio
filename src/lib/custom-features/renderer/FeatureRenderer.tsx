@@ -222,7 +222,12 @@ function ViewBody({
   ) => void;
   onDelete?: (entityKey: string, recordId: string) => void;
 }) {
-  const rows = records.map((r) => ({ id: r.id, ...r.data }));
+  const rows: Array<Record<string, unknown> & { id: string }> = records.map(
+    (r) => ({
+      id: r.id,
+      ...r.data,
+    })
+  );
 
   if (view.type === 'metrics') {
     const byStatus: Record<string, number> = {};
