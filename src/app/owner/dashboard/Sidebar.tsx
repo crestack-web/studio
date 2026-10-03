@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { NAV_SECTIONS, NAV_ITEM_REQUIREMENTS } from './navItems';
+import { openCustomFeatureId } from './CustomFeaturePage';
 import type { PageId, NavSection } from './index';
 import { NavIcons } from './NavIcons';
 import styles from './Sidebar.module.css';
@@ -33,6 +34,8 @@ export function Sidebar() {
   } = useApp();
   const { t } = useTranslation();
   const [staffCount, setStaffCount] = useState(0);
+  const [customTools, setCustomTools] = useState<Array<{ id: string; name: string }>>([]);
+
   const [userCategory, setUserCategory] = useState<string | null>(null);
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
   const [featurePreferences, setFeaturePreferences] = useState<Record<string, boolean>>({});
@@ -502,6 +505,42 @@ export function Sidebar() {
     return true;
   };
 
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCustomTools() {
+      const bid = (user as any)?.businessId;
+      if (!bid) return;
+      try {
+        const { getSupabase } = await import('@/lib/supabase');
+        const supabase = getSupabase();
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        if (!token) return;
+        const res = await fetch('/api/custom-features/builder', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ tool: 'list_features', businessId: bid }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || cancelled) return;
+        const published = (json.features || [])
+          .filter((f: any) => f.status === 'published')
+          .map((f: any) => ({ id: f.id, name: f.name || f.slug }));
+        setCustomTools(published);
+      } catch {
+        /* ignore */
+      }
+    }
+    void loadCustomTools();
+    return () => {
+      cancelled = true;
+    };
+  }, [(user as any)?.businessId]);
+
   const filteredNavSections = NAV_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter((item) => isNavItemVisible(item.id)),
@@ -603,6 +642,38 @@ export function Sidebar() {
             </div>
           ))}
         </div>
+
+
+          {customTools.length > 0 && (
+            <div>
+              <div className={styles.sectionWrap}>
+                <span className={styles.sectionLabel}>My tools</span>
+              </div>
+              <ul className={styles.navList} role="list">
+                {customTools.map((tool) => (
+                  <li key={tool.id} className={styles.navItem}>
+                    <button
+                      type="button"
+                      className={[
+                        styles.navLink,
+                        activePage === 'custom-feature' ? styles.active : '',
+                      ].join(' ')}
+                      onClick={() => {
+                        openCustomFeatureId(tool.id);
+                        navigateTo('custom-feature' as any);
+                        closeSidebar();
+                      }}
+                    >
+                      <span className={styles.navIcon}>
+                        <NavIcons id="business-builder" size={16} />
+                      </span>
+                      <span className={styles.navLabel}>{tool.name}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
         <div className={styles.userArea}>
           <button type="button" className={styles.userInner} onClick={openAvatarModal}>
