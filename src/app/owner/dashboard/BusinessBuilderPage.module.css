@@ -409,3 +409,114 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+
+/* ── Dark mode ─────────────────────────────── */
+:global([data-theme='dark']) .title,
+:global([data-theme='dark']) .historyTitle,
+:global([data-theme='dark']) .featureCard h3,
+:global([data-theme='dark']) .modal h3 {
+  color: #f9fafb;
+}
+
+:global([data-theme='dark']) .sub,
+:global([data-theme='dark']) .modeHint,
+:global([data-theme='dark']) .hint,
+:global([data-theme='dark']) .featureCard p,
+:global([data-theme='dark']) .modal p {
+  color: #9ca3af;
+}
+
+:global([data-theme='dark']) .modePill {
+  background: #1f2937;
+  border-color: #374151;
+  color: #d1d5db;
+}
+
+:global([data-theme='dark']) .modePillActive {
+  background: #6B3FE7;
+  border-color: #6B3FE7;
+  color: #fff;
+}
+
+:global([data-theme='dark']) .threadMo,
+:global([data-theme='dark']) .inputCard,
+:global([data-theme='dark']) .moCard,
+:global([data-theme='dark']) .featureCard,
+:global([data-theme='dark']) .previewWrap,
+:global([data-theme='dark']) .modal {
+  background: #111827;
+  border-color: #374151;
+}
+
+:global([data-theme='dark']) .threadUser {
+  background: #1e1b4b;
+  border-color: #312e81;
+}
+
+:global([data-theme='dark']) .threadText,
+:global([data-theme='dark']) .moText,
+:global([data-theme='dark']) .textarea,
+:global([data-theme='dark']) .editInput,
+:global([data-theme='dark']) .fieldList,
+:global([data-theme='dark']) .steps {
+  color: #e5e7eb;
+}
+
+:global([data-theme='dark']) .textarea,
+:global([data-theme='dark']) .editInput {
+  background: #0b1220;
+  border-color: #374151;
+}
+
+:global([data-theme='dark']) .editInput {
+  border: 1px solid #374151;
+}
+
+:global([data-theme='dark']) .secondaryBtn {
+  background: #1f2937;
+  border-color: #374151;
+  color: #e5e7eb;
+}
+
+:global([data-theme='dark']) .changeBox {
+  background: #1f2937;
+  color: #e5e7eb;
+}
+
+:global([data-theme='dark']) .errorBox {
+  background: #450a0a;
+  border-color: #7f1d1d;
+  color: #fecaca;
+}
+
+:global([data-theme='dark']) .loadingBox {
+  background: #1f2937;
+  border-color: #374151;
+  color: #d1d5db;
+}
+
+:global([data-theme='dark']) .successBanner {
+  background: #064e3b;
+  border-color: #065f46;
+  color: #a7f3d0;
+}
+
+:global([data-theme='dark']) .badgeDraft {
+  background: #78350f;
+  color: #fde68a;
+}
+
+:global([data-theme='dark']) .badgePublished {
+  background: #064e3b;
+  color: #6ee7b7;
+}
+
+:global([data-theme='dark']) .badgeArchived {
+  background: #374151;
+  color: #d1d5db;
+}
+
+:global([data-theme='dark']) .modalBackdrop {
+  background: rgba(0, 0, 0, 0.65);
+}
