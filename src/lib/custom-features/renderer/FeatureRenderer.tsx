@@ -13,7 +13,6 @@ export interface FeatureRecord {
 
 export interface FeatureRendererProps {
   definition: BusmoFeatureDefinition;
-  /** Records for the active entity (generic — not feature-name specific). */
   records?: FeatureRecord[];
   internal?: boolean;
   loading?: boolean;
@@ -172,7 +171,7 @@ export function FeatureRenderer({
           <button
             key={v.key}
             type="button"
-            className={v.key === view?.key ? 'active' : undefined}
+            className={v.key === view?.key ? styles.active : undefined}
             onClick={() => setActiveViewKey(v.key)}
           >
             {v.title}
@@ -231,26 +230,121 @@ function ViewBody({
 
   if (view.type === 'metrics') {
     const byStatus: Record<string, number> = {};
-    let totalAmount = 0;
+    const moneyFields = entity.fields.filter(
+      (f) => f.type === 'currency' || /amount|price|cost|balance|paid/i.test(f.key)
+    );
+    const numberFields = entity.fields.filter(
+      (f) => f.type === 'number' && !moneyFields.some((m) => m.key === f.key)
+    );
+    const moneyTotals: Record<string, number> = {};
+    const numberTotals: Record<string, number> = {};
+    for (const f of moneyFields) moneyTotals[f.key] = 0;
+    for (const f of numberFields) numberTotals[f.key] = 0;
     for (const r of rows) {
       const st = String(r.status || 'Unknown');
       byStatus[st] = (byStatus[st] || 0) + 1;
-      totalAmount += Number(r.amount) || 0;
+      for (const f of moneyFields) moneyTotals[f.key] += Number(r[f.key]) || 0;
+      for (const f of numberFields) numberTotals[f.key] += Number(r[f.key]) || 0;
     }
     return (
       <div className={styles.metrics}>
         <div className={styles.metric}>
           <div className={styles.metricV}>{rows.length}</div>
-          <div className={styles.metricL}>Total records</div>
+          <div className={styles.metricL}>Total {entity.labelPlural || entity.label}</div>
         </div>
-        <div className={styles.metric}>
-          <div className={styles.metricV}>₦{totalAmount.toLocaleString()}</div>
-          <div className={styles.metricL}>Amount total</div>
-        </div>
+        {moneyFields.slice(0, 3).map((f) => (
+          <div className={styles.metric} key={f.key}>
+            <div className={styles.metricV}>₦{(moneyTotals[f.key] || 0).toLocaleString()}</div>
+            <div className={styles.metricL}>{f.label}</div>
+          </div>
+        ))}
+        {numberFields.slice(0, 2).map((f) => (
+          <div className={styles.metric} key={f.key}>
+            <div className={styles.metricV}>{(numberTotals[f.key] || 0).toLocaleString()}</div>
+            <div className={styles.metricL}>{f.label}</div>
+          </div>
+        ))}
         {Object.entries(byStatus).map(([k, n]) => (
           <div className={styles.metric} key={k}>
             <div className={styles.metricV}>{n}</div>
             <div className={styles.metricL}>{k}</div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (view.type === 'cards') {
+    const columns =
+      view.columns ||
+      entity.fields.slice(0, 5).map((f) => ({ field: f.key, label: f.label }));
+    const statusField = entity.fields.find(
+      (f) => f.type === 'status' || f.key === 'status'
+    );
+    const groups: Record<string, typeof rows> = {};
+    if (statusField) {
+      for (const r of rows) {
+        const st = String(r[statusField.key] || 'Unknown');
+        (groups[st] ||= []).push(r);
+      }
+    } else {
+      groups['All'] = rows;
+    }
+    return (
+      <div className={styles.cardsBoard}>
+        {Object.entries(groups).map(([group, groupRows]) => (
+          <div key={group} className={styles.cardColumn}>
+            <div className={styles.cardColumnTitle}>
+              {group} <span className={styles.chip}>{groupRows.length}</span>
+            </div>
+            {groupRows.map((row) => (
+              <div key={String(row.id)} className={styles.cardItem}>
+                {columns.map((c) => {
+                  const field = entity.fields.find((f) => f.key === c.field);
+                  const raw = row[c.field];
+                  if (field?.type === 'status') {
+                    const s = String(raw || '');
+                    return (
+                      <div key={c.field} className={styles.cardLine}>
+                        <span className={`${styles.st} ${statusTone(s)}`}>{s}</span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={c.field} className={styles.cardLine}>
+                      <span className={styles.cardLineLabel}>{c.label || c.field}</span>
+                      <span>{formatCell(raw, field?.type)}</span>
+                    </div>
+                  );
+                })}
+                {(onUpdate || onDelete) && (
+                  <div className={styles.cardActions}>
+                    {onUpdate && (
+                      <button
+                        type="button"
+                        className={styles.chip}
+                        disabled={busy}
+                        onClick={() => setEditingId(String(row.id))}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button
+                        type="button"
+                        className={styles.chip}
+                        disabled={busy}
+                        onClick={() => onDelete(entity.key, String(row.id))}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         ))}
       </div>
@@ -366,7 +460,6 @@ function ViewBody({
     );
   }
 
-  // table
   const columns =
     view.columns ||
     entity.fields.map((f) => ({ field: f.key, label: f.label }));
