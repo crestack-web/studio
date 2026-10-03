@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser, assertBusinessAccess } from '../../mo-sales/_auth';
-import { CustomFeatureError } from '@/lib/custom-features/service';
+import {
+  CustomFeatureError,
+  listCustomFeatures,
+  publishCustomFeature,
+  getCustomFeature,
+} from '@/lib/custom-features/service';
 import {
   buildFeatureDraftFromNaturalLanguage,
   listDraftFeatures,
@@ -10,7 +15,11 @@ import {
   toolUpdateCustomFeatureDraft,
   toolValidateFeatureDefinition,
 } from '@/lib/custom-features/builder-tools';
-import { publishCustomFeature } from '@/lib/custom-features/service';
+import { applyDefinitionEdit } from '@/lib/custom-features/apply-definition-edit';
+import {
+  formatChangeSummary,
+  summarizeDefinitionChanges,
+} from '@/lib/custom-features/definition-diff';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,23 +35,6 @@ function errRes(e: unknown) {
   return NextResponse.json({ error: 'Server error' }, { status: 500 });
 }
 
-/**
- * POST /api/custom-features/builder
- *
- * Tools (AI / MO):
- *  - get_feature_builder_context
- *  - validate_feature_definition
- *  - create_custom_feature_draft  (definition JSON)
- *  - get_custom_feature_draft
- *  - update_custom_feature_draft
- *  - build_from_natural_language  (NL → draft; never publish)
- *
- * Owner-only (not AI):
- *  - publish_draft  (explicit owner action)
- *  - list_drafts
- *
- * businessId must match authenticated membership (assertBusinessAccess).
- */
 export async function POST(req: NextRequest) {
   try {
     const user = await getAuthUser(req);
@@ -61,7 +53,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: access.reason }, { status: 403 });
     }
 
-    // Never trust model-supplied alternate business ids
     const auth = { userId: user.id, businessId };
     const tool = String(body.tool || body.action || '').trim();
 
@@ -78,7 +69,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(result);
       }
       case 'create_custom_feature_draft': {
-        // Force draft path even if definition.status is published
         const { feature, created } = await toolCreateCustomFeatureDraft(
           auth,
           body.definition
@@ -128,12 +118,60 @@ export async function POST(req: NextRequest) {
               : undefined,
         });
       }
+      case 'edit_draft_from_natural_language': {
+        const featureId = String(body.featureId || '').trim();
+        const message = String(body.message || body.userMessage || '').trim();
+        if (!featureId || !message) {
+          return NextResponse.json(
+            { error: 'featureId and message required' },
+            { status: 400 }
+          );
+        }
+        const existing = await getCustomFeature(businessId, featureId);
+        if (!existing) {
+          return NextResponse.json({ error: 'Feature not found' }, { status: 404 });
+        }
+        if (existing.status !== 'draft') {
+          // Continue editing: apply onto a draft copy path via update only if draft
+          return NextResponse.json(
+            {
+              error:
+                'Only draft features can be edited with MO. Open Continue editing on a published feature first.',
+            },
+            { status: 400 }
+          );
+        }
+        const applied = applyDefinitionEdit(existing.definition, message);
+        if (!applied.ok) {
+          return NextResponse.json({
+            ok: true,
+            result: { kind: 'unsupported', message: applied.message },
+          });
+        }
+        const before = existing.definition;
+        const feature = await toolUpdateCustomFeatureDraft(auth, {
+          featureId,
+          definition: applied.definition,
+        });
+        const changes = summarizeDefinitionChanges(before, feature.definition);
+        return NextResponse.json({
+          ok: true,
+          feature,
+          changes,
+          changeLines: formatChangeSummary(changes),
+          note: applied.note,
+          notice: 'DRAFT UPDATED — published version (if any) is unchanged.',
+        });
+      }
       case 'list_drafts': {
         const drafts = await listDraftFeatures(businessId);
         return NextResponse.json({ ok: true, drafts });
       }
+      case 'list_features': {
+        const features = await listCustomFeatures(businessId);
+        return NextResponse.json({ ok: true, features });
+      }
       case 'publish_draft': {
-        // Explicit owner action only — not exposed as an AI tool name in docs
         const featureId = String(body.featureId || '').trim();
         if (!featureId) {
           return NextResponse.json(
@@ -163,7 +201,9 @@ export async function POST(req: NextRequest) {
               'get_custom_feature_draft',
               'update_custom_feature_draft',
               'build_from_natural_language',
+              'edit_draft_from_natural_language',
               'list_drafts',
+              'list_features',
               'publish_draft',
             ],
           },
