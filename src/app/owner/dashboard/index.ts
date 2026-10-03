@@ -62,7 +62,6 @@ export type PageId =
   | 'business-builder'
   | 'custom-feature';
 
-// ── Navigation ──────────────────────────────
 export interface NavItem {
   id: PageId;
   label: string;
@@ -76,4 +75,31 @@ export interface NavSection {
   items: NavItem[];
   icon?: string;
   id?: string;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  shortName: string;
+  initials: string;
+  role: string;
+  plan: string;
+  avatarContent: string;
+  avatarStyle?: React.CSSProperties;
+  photoURL?: string;
+  businessId?: string;
+  email?: string;
+}
+
+export interface ToastState {
+  message: string;
+  visible: boolean;
+}
+
+export interface AvatarOption {
+  id: string;
+  type: 'color' | 'emoji';
+  content: string;
+  bg: string;
+  color: string;
 }
