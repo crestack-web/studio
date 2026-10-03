@@ -57,7 +57,7 @@ function ensureFieldOnViews(def: BusmoFeatureDefinition, field: FieldDefinition)
         v.columns.push({ field: field.key, label: field.label });
       }
     }
-    if (v.type === 'form') {
+    if (v.type === 'form' && !field.hidden) {
       v.formFields = v.formFields || [];
       if (!v.formFields.includes(field.key)) {
         v.formFields.push(field.key);
@@ -128,7 +128,7 @@ function applyCalculationEdit(
 ): ApplyEditResult | null {
   const lower = text.toLowerCase();
   const wantsCalc =
-    /calculat|auto[- ]?calc|automat|formula|multiply|times|\*|×|x\s|product of|equals?|should be|make total|total amount|balance|remaining|owe|derived|computed/i.test(
+    /calculat|auto[- ]?calc|automat|formula|multiply|times|\*|×|x\s|product of|equals?|should be|make total|total amount|balance|remaining|owe|derived|computed|profit|margin|overview|dashboard|metric/i.test(
       lower
     );
   if (!wantsCalc) return null;
@@ -357,9 +357,127 @@ function applyCalculationEdit(
     note = `Job cost is calculated as ${m} + ${l}.`;
   }
 
+
+  // Profit / margin = revenue − cost
+  if (/profit|margin/i.test(lower)) {
+    let revenue =
+      findFieldKey(entity, [
+        'agreed_amount',
+        'amount',
+        'total_amount',
+        'selling_price',
+        'charge',
+        'price',
+      ]) || null;
+    let cost =
+      findFieldKey(entity, [
+        'job_cost',
+        'total_cost',
+        'material_cost',
+        'cost',
+        'total_amount',
+      ]) || null;
+
+    // Prefer agreed − job_cost when both exist
+    const agreed = findFieldKey(entity, ['agreed_amount']);
+    const jobCost = findFieldKey(entity, ['job_cost', 'total_job_cost']);
+    if (agreed && jobCost) {
+      revenue = agreed;
+      cost = jobCost;
+    } else if (agreed && findFieldKey(entity, ['material_cost'])) {
+      // Ensure job_cost = material + labour if possible
+      const mat = findFieldKey(entity, ['material_cost']);
+      const lab = findFieldKey(entity, ['labour_cost', 'labor_cost']);
+      if (mat && lab) {
+        let jc = jobCost || 'job_cost';
+        let jcField = entity.fields.find((f) => f.key === jc);
+        if (!jcField) {
+          jcField = { key: 'job_cost', label: 'Total job cost', type: 'currency' };
+          entity.fields.push(jcField);
+          ensureFieldOnViews(def, jcField);
+          jc = jcField.key;
+        }
+        jcField.computed = { op: 'add', inputs: [mat, lab] };
+        cost = jc;
+        revenue = agreed;
+      }
+    }
+
+    if (!revenue) {
+      const f: FieldDefinition = {
+        key: 'agreed_amount',
+        label: 'Agreed amount',
+        type: 'currency',
+      };
+      entity.fields.push(f);
+      ensureFieldOnViews(def, f);
+      revenue = f.key;
+    }
+    if (!cost) {
+      const f: FieldDefinition = {
+        key: 'job_cost',
+        label: 'Total job cost',
+        type: 'currency',
+      };
+      entity.fields.push(f);
+      ensureFieldOnViews(def, f);
+      cost = f.key;
+    }
+
+    let profitKey = findFieldKey(entity, ['profit', 'margin', 'net_profit']) || 'profit';
+    let profitField = entity.fields.find((f) => f.key === profitKey);
+    if (!profitField) {
+      profitField = { key: profitKey, label: 'Profit', type: 'currency' };
+      entity.fields.push(profitField);
+    }
+    profitField.computed = {
+      op: 'subtract',
+      inputs: [revenue, cost],
+    };
+    // Show on overview metrics
+    for (const v of def.views || []) {
+      if (v.type === 'metrics') {
+        v.metricFields = v.metricFields || [];
+        if (!v.metricFields.includes(profitKey)) {
+          v.metricFields.unshift(profitKey);
+        }
+      }
+    }
+    // Keep formFields: computed is read-only in renderer
+    ensureFieldOnViews(def, profitField);
+    note = note
+      ? `${note} Profit is calculated as ${revenue} − ${cost} and shown on Overview.`
+      : `Profit is calculated automatically as ${revenue} − ${cost} and shown on Overview.`;
+  }
+
+  // "Show X on overview" without new nonsense fields
+  if (/show|display|put|add/.test(lower) && /overview|dashboard|metric/i.test(lower)) {
+    const overview = (def.views || []).find((v) => v.type === 'metrics');
+    if (overview) {
+      overview.metricFields = overview.metricFields || [];
+      const moneyKeys = entity.fields
+        .filter((f) => f.type === 'currency' || f.type === 'number')
+        .map((f) => f.key);
+      for (const k of moneyKeys) {
+        if (!overview.metricFields.includes(k)) overview.metricFields.push(k);
+      }
+      // Prefer profit first if present
+      if (entity.fields.some((f) => f.key === 'profit')) {
+        overview.metricFields = [
+          'profit',
+          ...overview.metricFields.filter((k) => k !== 'profit'),
+        ];
+      }
+      note = note
+        ? `${note} Overview metrics updated.`
+        : 'Overview now shows the key totals for this tool.';
+    }
+  }
+
   if (!note) return null;
   return finalize(def, note);
 }
+
 
 function trySemanticEdit(
   current: BusmoFeatureDefinition,
@@ -398,8 +516,58 @@ function trySemanticEdit(
   return { ok: true, definition: next, note };
 }
 
+function isInstructionPhrase(label: string): boolean {
+  const l = label.toLowerCase().trim();
+  if (!l) return true;
+  if (
+    /^(show|display|put|make|calculate|auto|automatic|automatically|overview|dashboard|metrics?|on overview|it on|profit automatically|auto calculation)/i.test(
+      l
+    )
+  ) {
+    return true;
+  }
+  if (
+    /\b(automatically|on overview|on the overview|on dashboard|show it|display it|auto calc|calculation)\b/i.test(
+      l
+    )
+  ) {
+    return true;
+  }
+  if (l.split(/\s+/).length > 4) return true; // long phrases are instructions, not field names
+  return false;
+}
+
+
+/** Remove fields that were wrongly created from instruction phrases. */
+function stripInstructionFields(def: BusmoFeatureDefinition): void {
+  const entity = primaryEntity(def);
+  if (!entity) return;
+  const junk =
+    /^(auto_?calculation|profit_automatically|show_it_on_overview|show_on_overview|automatically|on_overview)$/i;
+  const before = entity.fields.length;
+  entity.fields = entity.fields.filter((f) => {
+    if (junk.test(f.key) || isInstructionPhrase(f.label)) return false;
+    return true;
+  });
+  if (entity.fields.length === before) return;
+  for (const v of def.views || []) {
+    if (v.columns) {
+      v.columns = v.columns.filter((c) => entity.fields.some((f) => f.key === c.field));
+    }
+    if (v.formFields) {
+      v.formFields = v.formFields.filter((k) => entity.fields.some((f) => f.key === k));
+    }
+    if (v.metricFields) {
+      v.metricFields = v.metricFields.filter((k) => entity.fields.some((f) => f.key === k));
+    }
+  }
+}
+
 function parseLabelsToAdd(text: string): string[] {
-  const cleaned = text
+  // Strip instruction clauses that are not field names
+  let cleaned = text
+    .replace(/\b(show|display|put)\s+(it\s+)?on\s+(the\s+)?(overview|dashboard|metrics?)\b/gi, ' ')
+    .replace(/\b(automatically|auto[- ]?calculate|auto[- ]?calc)\b/gi, ' ')
     .replace(
       /^(please\s+)?(can you\s+)?(also\s+)?(add|include|put|track|need|want)\s+/i,
       ''
@@ -408,12 +576,12 @@ function parseLabelsToAdd(text: string): string[] {
     .replace(/\b(a|an|the|my|our)\b/gi, ' ')
     .trim();
 
-  // "add X and Y" / "add X, Y"
   const parts = cleaned
     .split(/\s*(?:,| and | & |\+)\s*/i)
     .map((s) => s.trim())
-    .filter((s) => s.length > 1 && s.length < 60)
-    .filter((s) => !/^(please|also|field|fields|to|the|feature)$/i.test(s));
+    .filter((s) => s.length > 1 && s.length < 40)
+    .filter((s) => !/^(please|also|field|fields|to|the|feature|it|on)$/i.test(s))
+    .filter((s) => !isInstructionPhrase(s));
 
   return parts.slice(0, 6);
 }
@@ -437,15 +605,19 @@ export function applyDefinitionEdit(
     };
   }
 
-  // 1) Calculations first
-  const calc = applyCalculationEdit(cloneDef(current), text);
+  // Clean prior mistaken instruction-as-field noise
+  const cleanedCurrent = cloneDef(current);
+  stripInstructionFields(cleanedCurrent);
+
+  // 1) Calculations / profit / overview first
+  const calc = applyCalculationEdit(cloneDef(cleanedCurrent), text);
   if (calc) return calc;
 
   // 2) Semantic process edits
-  const semantic = trySemanticEdit(current, text);
+  const semantic = trySemanticEdit(cleanedCurrent, text);
   if (semantic) return semantic;
 
-  const def = cloneDef(current);
+  const def = cloneDef(cleanedCurrent);
   const entity = primaryEntity(def);
   if (!entity) return { ok: false, message: 'No entity to edit.' };
 
@@ -502,10 +674,15 @@ export function applyDefinitionEdit(
     return finalize(def, `Renamed to ${def.name}`);
   }
 
-  // 5) Add fields (broad)
+  // 5) Add fields — only when user clearly names data fields, not instructions
+  const instructionHeavy =
+    /profit|margin|calculat|automat|overview|dashboard|metric|formula|balance|multiply|times/i.test(
+      text
+    );
   const wantsAdd =
-    /^(add|include|put|track|need|want|also)\b/i.test(text) ||
-    /\badd\b.+\b(field|column)?/i.test(text);
+    !instructionHeavy &&
+    (/^(add|include|track)\b/i.test(text) ||
+      /\badd\s+[\w\s]{1,30}$/i.test(text));
   if (wantsAdd) {
     const labels = parseLabelsToAdd(text);
     if (!labels.length) {
@@ -544,8 +721,13 @@ export function applyDefinitionEdit(
     return finalize(def, `Added ${added.join(', ')}`);
   }
 
-  // 6) Soft fallback: treat free text as "add field" if short
-  if (text.length < 40 && !/\?$/.test(text)) {
+  // 6) Soft fallback: only plain single field names (not instructions)
+  if (
+    text.length < 28 &&
+    !/\?$/.test(text) &&
+    !isInstructionPhrase(text) &&
+    !/calculat|profit|overview|automatic|show |display /i.test(text)
+  ) {
     const labels = parseLabelsToAdd(`add ${text}`);
     if (labels.length === 1) {
       const label = labels[0];
