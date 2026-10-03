@@ -184,3 +184,47 @@ Field types and views: see `ALLOWED_FIELD_TYPES` / `ALLOWED_VIEW_TYPES` in `type
 - No arbitrary code generation
 - Draft-first; human publish
 - Existing Ask MO and product modules intact
+
+---
+
+## Phase E — Business process intelligence (IMPLEMENTED)
+
+**Status:** IMPLEMENTED  
+**Date:** 2026-10-03
+
+Transforms NL→fields into: **conversation → business intent → process model → definition**.
+
+### New modules
+
+| Module | Role |
+|--------|------|
+| `business-process-types.ts` | `BusinessProcessPlan` IR (actors, events, calculations, questions, assumptions) |
+| `business-patterns.ts` | Reusable patterns: PET/recycling, supplier purchase, credit, jobs, delivery, production, service |
+| `process-planner.ts` | Plan from language; clarification; semantic process edits; conversation combine helper |
+| `plan-to-definition.ts` | Process plan → `BusmoFeatureDefinition` + owner explanation |
+| `quality-score.ts` | Internal scores (dev/test only) |
+
+### Pipeline
+
+```
+Owner language
+  → planBusinessProcess (BusinessProcessPlan)
+  → businessProcessPlanToDefinition
+  → validateFeatureDefinition
+  → draft (existing)
+  → FeatureRenderer / explanation
+  → owner publish (unchanged)
+```
+
+### Preserved
+
+- No arbitrary React/SQL/JS
+- No AI publish
+- Tenant `assertBusinessAccess`
+- Draft → owner publish only
+- Existing FeatureRenderer
+
+### Tests
+
+`node scripts/test-business-process-intelligence.mjs` — unseen businesses + clarification + unsupported.
+
