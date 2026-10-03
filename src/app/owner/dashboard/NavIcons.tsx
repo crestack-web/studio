@@ -60,7 +60,8 @@ export function NavIcons({ id, size = 14 }: NavIconsProps) {
       return <svg {...base} style={s}><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>;
     case 'mo':
     case 'mo-mobile':
-      return <svg {...base} style={s}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>;
+      // Real MO character icon (not a generic chat bubble)
+      return <MoIcon size={size <= 16 ? 8 : 12} />;
     case 'mo-sales':
       return <svg {...base} style={s}><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>;
     case 'mo-sell':
@@ -102,7 +103,15 @@ export function NavIcons({ id, size = 14 }: NavIconsProps) {
     case 'margin-calculator':
       return <svg {...base} style={s}><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>;
     case 'can-i-buy':
-      return <svg {...base} style={s}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
+      // Cart + check — “can I afford this purchase?”
+      return (
+        <svg {...base} style={s}>
+          <circle cx="9" cy="21" r="1" />
+          <circle cx="20" cy="21" r="1" />
+          <path d="M1 1h4l2.68 13.39a2 2 0 001.99 1.61h9.72a2 2 0 001.99-1.61L23 6H6" />
+          <path d="M9 11l2 2 4-4" />
+        </svg>
+      );
     case 'ingredient-tracking':
     case 'ni-ingredient':
       return <svg {...base} style={s}><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>;
