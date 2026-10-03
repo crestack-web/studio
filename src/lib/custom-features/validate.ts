@@ -1,6 +1,8 @@
 import {
   ALLOWED_FIELD_TYPES,
   ALLOWED_VIEW_TYPES,
+  ALLOWED_RELATION_TARGETS,
+  ALLOWED_COMPUTED_OPS,
   type BusmoFeatureDefinition,
   type FieldType,
   type ViewType,
@@ -74,6 +76,27 @@ export function validateFeatureDefinition(
               path: `${fp}.type`,
               message: `type must be one of: ${ALLOWED_FIELD_TYPES.join(', ')}`,
             });
+          }
+          if (f?.relationTarget && !ALLOWED_RELATION_TARGETS.includes(f.relationTarget as any)) {
+            issues.push({
+              path: `${fp}.relationTarget`,
+              message: `relationTarget must be one of: ${ALLOWED_RELATION_TARGETS.join(', ')}`,
+            });
+          }
+          if (f?.computed) {
+            const c = f.computed as any;
+            if (!c.op || !ALLOWED_COMPUTED_OPS.includes(c.op)) {
+              issues.push({
+                path: `${fp}.computed.op`,
+                message: `computed.op must be one of: ${ALLOWED_COMPUTED_OPS.join(', ')}`,
+              });
+            }
+            if (!Array.isArray(c.inputs) || c.inputs.length < 1) {
+              issues.push({
+                path: `${fp}.computed.inputs`,
+                message: 'computed.inputs must be a non-empty array of field keys',
+              });
+            }
           }
         });
       }
