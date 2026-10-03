@@ -8,6 +8,7 @@ import {
 } from '@/lib/custom-features/service';
 import {
   buildFeatureDraftFromNaturalLanguage,
+  planFeatureFromNaturalLanguage,
   listDraftFeatures,
   toolCreateCustomFeatureDraft,
   toolGetCustomFeatureDraft,
@@ -70,11 +71,14 @@ export async function POST(req: NextRequest) {
       case 'get_feature_builder_context': {
         return NextResponse.json({
           ok: true,
-          context: toolGetFeatureBuilderContext(),
+          context: toolGetFeatureBuilderContext({ userId: user.id, businessId }),
         });
       }
       case 'validate_feature_definition': {
-        const result = toolValidateFeatureDefinition(body.definition);
+        const result = toolValidateFeatureDefinition(
+          { userId: user.id, businessId },
+          body.definition
+        );
         return NextResponse.json({ ok: true, result });
       }
       case 'create_custom_feature_draft': {
@@ -88,6 +92,7 @@ export async function POST(req: NextRequest) {
       case 'get_custom_feature_draft': {
         const result = await toolGetCustomFeatureDraft({
           businessId,
+          userId: user.id,
           featureId: body.featureId,
         });
         return NextResponse.json({ ok: true, ...result });
@@ -99,6 +104,19 @@ export async function POST(req: NextRequest) {
           featureId: body.featureId,
           definition: body.definition,
           changeNote: body.changeNote,
+        });
+        return NextResponse.json({ ok: true, ...result });
+      }
+      case 'plan_from_natural_language': {
+        const message = String(body.message || '').trim();
+        if (!message) {
+          return NextResponse.json(
+            { error: 'message required' },
+            { status: 400 }
+          );
+        }
+        const result = await planFeatureFromNaturalLanguage(message, {
+          useLlm: body.useLlm !== false,
         });
         return NextResponse.json({ ok: true, ...result });
       }
@@ -158,7 +176,7 @@ export async function POST(req: NextRequest) {
         const diffs = summarizeDefinitionChanges(def, edit.definition);
         return NextResponse.json({
           ok: true,
-          feature: updated.feature,
+          feature: (updated as any).feature || updated,
           changeLines: edit.changeLines.length
             ? edit.changeLines
             : diffs.map((d) => d.message),
@@ -198,6 +216,7 @@ export async function POST(req: NextRequest) {
               'create_custom_feature_draft',
               'get_custom_feature_draft',
               'update_custom_feature_draft',
+              'plan_from_natural_language',
               'build_from_natural_language',
               'edit_draft_from_natural_language',
               'list_drafts',
