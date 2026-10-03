@@ -1,1 +1,80 @@
-PLACEHOLDER_CSS
+.root { padding: 16px 16px 40px; max-width: 1100px; margin: 0 auto; color: #0a0a0f; }
+.banner { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; margin-bottom: 16px; }
+.header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 16px; }
+.kicker { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6b3fe7; }
+.title { margin: 4px 0 6px; font-size: 1.5rem; font-weight: 800; }
+.desc { margin: 0; color: #6b7280; font-size: 0.92rem; }
+.meta { display: flex; gap: 8px; }
+.chip { font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: #f3f0ff; color: #6b3fe7; }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.tabs button { border: 1px solid #e5e7eb; background: #fff; border-radius: 999px; padding: 8px 14px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+.tabs button.active { background: #6b3fe7; border-color: #6b3fe7; color: #fff; }
+.error { padding: 24px; color: #b91c1c; }
+.tableWrap { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; }
+.tableWrap table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.tableWrap th, .tableWrap td { text-align: left; padding: 12px 14px; border-bottom: 1px solid #f3f4f6; }
+.tableWrap th { background: #fafafa; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; color: #6b7280; }
+.st { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
+.ok { background: #d1fae5; color: #065f46; }
+.warn { background: #fef3c7; color: #92400e; }
+.bad { background: #fee2e2; color: #991b1b; }
+.muted { background: #f3f4f6; color: #4b5563; }
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.metric { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
+.metricV { font-size: 1.4rem; font-weight: 800; }
+.metricL { font-size: 0.8rem; color: #6b7280; margin-top: 4px; }
+.form { max-width: 480px; display: grid; gap: 12px; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
+.form label { display: grid; gap: 4px; font-size: 0.85rem; font-weight: 600; }
+.form input, .form select, .form textarea { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; font: inherit; }
+.form button { margin-top: 4px; background: #6b3fe7; color: #fff; border: none; border-radius: 10px; padding: 12px; font-weight: 700; cursor: pointer; }
+.note { font-size: 0.8rem; color: #6b7280; margin-top: 8px; }
+
+.cardsBoard {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 0 12px;
+  align-items: flex-start;
+}
+.cardColumn {
+  min-width: 220px;
+  max-width: 280px;
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 10px;
+  flex-shrink: 0;
+}
+.cardColumnTitle {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cardItem {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 8px;
+}
+.cardLine {
+  font-size: 13px;
+  margin-bottom: 4px;
+  color: #1f2937;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cardLineLabel {
+  font-size: 11px;
+  color: #9ca3af;
+  font-weight: 600;
+}
+.cardActions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
