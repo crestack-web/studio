@@ -473,7 +473,8 @@ export async function naturalLanguageToFeatureDefinition(
     return heuristic;
   }
 
-  if (!process.env.MISTRAL_API_KEY || opts?.useLlm === false) {
+  // useLlm is not false here (handled above)
+  if (!process.env.MISTRAL_API_KEY) {
     return heuristic;
   }
 
