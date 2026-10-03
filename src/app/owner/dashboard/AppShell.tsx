@@ -50,9 +50,9 @@ import { StockTransfersPage } from './StockTransfersPage';
 import MoSalesPage from './MoSalesPage';
 import JobsPage from './JobsPage';
 import InternalFeaturePrototypePage from './InternalFeaturePrototypePage';
-import RecyclingPage from './RecyclingPage';
 import BusinessBuilderPage from './BusinessBuilderPage';
 import CustomFeaturePage from './CustomFeaturePage';
+import RecyclingPage from './RecyclingPage';
 import { usePageTracking } from '@/hooks/usePageTracking';
 import styles from './AppShell.module.css';
 
@@ -104,31 +104,56 @@ const PAGE_COMPONENTS: Record<string, React.ComponentType> = {
 
 const FULL_HEIGHT_PAGES = new Set<string>(['mo', 'mo-mobile']);
 
-export default function AppShell() {
+export function AppShell() {
   const { activePage } = useApp();
   const isMobileAskMO = activePage === 'mo-mobile';
-  usePageTracking(String(activePage || 'home'));
+
+  usePageTracking();
 
   const PageComponent = PAGE_COMPONENTS[activePage];
+  const currentPage = PageComponent ? (
+    <PageComponent key={activePage} />
+  ) : (
+    <div className={styles.placeholder}>
+      <h2>Coming Soon</h2>
+      <p>This page is under construction.</p>
+    </div>
+  );
 
   const isFullHeight = FULL_HEIGHT_PAGES.has(activePage);
 
   return (
     <div className={styles.shell}>
-      <NetworkStatusStyles />
-      <NetworkStatus />
-      <Sidebar />
+      {!isMobileAskMO && <Sidebar />}
+
       <div className={styles.main}>
         {!isMobileAskMO && <Topbar />}
-        <div className={[styles.content, isFullHeight ? styles.fullHeight : ''].join(' ')}>
-          {PageComponent ? <PageComponent key={activePage} /> : <HomePage />}
+        {!isMobileAskMO && <NotificationsPanel />}
+
+        <div
+          className={[
+            styles.pageArea,
+            isFullHeight ? styles.fullHeight : '',
+            isMobileAskMO ? styles.mobileAskMOPageArea : '',
+          ].join(' ')}
+        >
+          <div
+            className={[styles.page, isFullHeight ? styles.pageFullHeight : ''].join(
+              ' '
+            )}
+          >
+            {currentPage}
+          </div>
         </div>
+
+        <MobileBottomNav />
       </div>
-      <MobileBottomNav />
+
       <AvatarModal />
       <Toast />
-      <NotificationsPanel />
       <DeviceNotificationsBridge />
+      <NetworkStatusStyles />
+      <NetworkStatus />
     </div>
   );
 }
