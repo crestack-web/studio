@@ -15,6 +15,8 @@ export interface FeatureRendererProps {
   definition: BusmoFeatureDefinition;
   records?: FeatureRecord[];
   internal?: boolean;
+  /** Live workspace page: hide builder prose, kicker, and redundant meta. */
+  workspace?: boolean;
   loading?: boolean;
   error?: string | null;
   onCreate?: (entityKey: string, data: Record<string, unknown>) => Promise<void> | void;
@@ -46,6 +48,7 @@ export function FeatureRenderer({
   definition,
   records = [],
   internal = true,
+  workspace = false,
   loading,
   error,
   onCreate,
@@ -146,16 +149,20 @@ export function FeatureRenderer({
 
       <header className={styles.header}>
         <div>
-          <div className={styles.kicker}>Custom feature</div>
-          <h1 className={styles.title}>{definition.name}</h1>
-          {definition.description && (
-            <p className={styles.desc}>{definition.description}</p>
-          )}
+          {!workspace && <div className={styles.kicker}>Custom feature</div>}
+          {!workspace && <h1 className={styles.title}>{definition.name}</h1>}
+          {!workspace &&
+            definition.description &&
+            !/Assumptions:|Helps answer:/i.test(definition.description) && (
+              <p className={styles.desc}>{definition.description}</p>
+            )}
         </div>
-        <div className={styles.meta}>
-          <span className={styles.chip}>v{definition.version}</span>
-          <span className={styles.chip}>{definition.status}</span>
-        </div>
+        {!workspace && (
+          <div className={styles.meta}>
+            <span className={styles.chip}>v{definition.version}</span>
+            <span className={styles.chip}>{definition.status}</span>
+          </div>
+        )}
       </header>
 
       {(error || localError) && (
