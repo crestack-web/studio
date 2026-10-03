@@ -31,7 +31,18 @@ function errRes(e: unknown) {
       { status: e.status }
     );
   }
+  const msg = e instanceof Error ? e.message : String(e ?? '');
   console.error('[custom-features/builder]', e);
+  if (/custom_features|schema cache|PGRST205|does not exist/i.test(msg)) {
+    return NextResponse.json(
+      {
+        error:
+          'Custom features tables are not installed yet. Run supabase/migrations/0020_custom_features_foundation.sql in the Supabase SQL editor, then reload the schema cache (or wait a minute).',
+        code: 'MISSING_CUSTOM_FEATURES_TABLE',
+      },
+      { status: 503 }
+    );
+  }
   return NextResponse.json({ error: 'Server error' }, { status: 500 });
 }
 
@@ -48,79 +59,68 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'businessId required' }, { status: 400 });
     }
 
-    const access = await assertBusinessAccess(user.id, businessId);
+    const access = await assertBusinessAccess(user, businessId);
     if (!access.ok) {
       return NextResponse.json({ error: access.reason }, { status: 403 });
     }
 
-    const auth = { userId: user.id, businessId };
-    const tool = String(body.tool || body.action || '').trim();
+    const tool = String(body.tool || '').trim();
 
     switch (tool) {
       case 'get_feature_builder_context': {
-        const data = await toolGetFeatureBuilderContext(auth);
-        return NextResponse.json({ ok: true, ...data });
+        return NextResponse.json({
+          ok: true,
+          context: toolGetFeatureBuilderContext(),
+        });
       }
       case 'validate_feature_definition': {
-        const result = await toolValidateFeatureDefinition(
-          auth,
-          body.definition
-        );
-        return NextResponse.json(result);
+        const result = toolValidateFeatureDefinition(body.definition);
+        return NextResponse.json({ ok: true, result });
       }
       case 'create_custom_feature_draft': {
-        const { feature, created } = await toolCreateCustomFeatureDraft(
-          auth,
-          body.definition
-        );
-        return NextResponse.json({
-          ok: true,
-          created,
-          feature,
-          notice: 'DRAFT CREATED — not published. Owner must preview and publish.',
-        });
-      }
-      case 'get_custom_feature_draft': {
-        const feature = await toolGetCustomFeatureDraft(auth, {
-          featureId: body.featureId,
-          slug: body.slug,
-        });
-        return NextResponse.json({ ok: true, feature });
-      }
-      case 'update_custom_feature_draft': {
-        const feature = await toolUpdateCustomFeatureDraft(auth, {
-          featureId: String(body.featureId || ''),
+        const result = await toolCreateCustomFeatureDraft({
+          businessId,
+          userId: user.id,
           definition: body.definition,
         });
-        return NextResponse.json({
-          ok: true,
-          feature,
-          notice: 'DRAFT UPDATED — published version (if any) is unchanged.',
+        return NextResponse.json({ ok: true, ...result });
+      }
+      case 'get_custom_feature_draft': {
+        const result = await toolGetCustomFeatureDraft({
+          businessId,
+          featureId: body.featureId,
         });
+        return NextResponse.json({ ok: true, ...result });
+      }
+      case 'update_custom_feature_draft': {
+        const result = await toolUpdateCustomFeatureDraft({
+          businessId,
+          userId: user.id,
+          featureId: body.featureId,
+          definition: body.definition,
+          changeNote: body.changeNote,
+        });
+        return NextResponse.json({ ok: true, ...result });
       }
       case 'build_from_natural_language': {
-        const message = String(body.message || body.userMessage || '').trim();
+        const message = String(body.message || '').trim();
         if (!message) {
           return NextResponse.json(
             { error: 'message required' },
             { status: 400 }
           );
         }
-        const out = await buildFeatureDraftFromNaturalLanguage(auth, message, {
+        const result = await buildFeatureDraftFromNaturalLanguage({
+          businessId,
+          userId: user.id,
+          message,
           useLlm: body.useLlm !== false,
         });
-        return NextResponse.json({
-          ok: true,
-          ...out,
-          notice:
-            out.feature
-              ? 'DRAFT CREATED — not live until the owner publishes.'
-              : undefined,
-        });
+        return NextResponse.json({ ok: true, ...result });
       }
       case 'edit_draft_from_natural_language': {
         const featureId = String(body.featureId || '').trim();
-        const message = String(body.message || body.userMessage || '').trim();
+        const message = String(body.message || '').trim();
         if (!featureId || !message) {
           return NextResponse.json(
             { error: 'featureId and message required' },
@@ -131,41 +131,43 @@ export async function POST(req: NextRequest) {
         if (!existing) {
           return NextResponse.json({ error: 'Feature not found' }, { status: 404 });
         }
-        if (existing.status !== 'draft') {
-          // Continue editing: apply onto a draft copy path via update only if draft
+        const def = (existing as any).definition;
+        if (!def) {
           return NextResponse.json(
             {
               error:
-                'Only draft features can be edited with MO. Open Continue editing on a published feature first.',
+                'Feature has no definition to edit. Build a new draft instead.',
             },
             { status: 400 }
           );
         }
-        const applied = applyDefinitionEdit(existing.definition, message);
-        if (!applied.ok) {
+        const edit = applyDefinitionEdit(def, message);
+        if (edit.kind === 'unsupported') {
           return NextResponse.json({
             ok: true,
-            result: { kind: 'unsupported', message: applied.message },
+            result: { kind: 'unsupported', message: edit.message },
           });
         }
-        const before = existing.definition;
-        const feature = await toolUpdateCustomFeatureDraft(auth, {
+        const updated = await toolUpdateCustomFeatureDraft({
+          businessId,
+          userId: user.id,
           featureId,
-          definition: applied.definition,
+          definition: edit.definition,
+          changeNote: edit.changeLines.join('; '),
         });
-        const changes = summarizeDefinitionChanges(before, feature.definition);
+        const diffs = summarizeDefinitionChanges(def, edit.definition);
         return NextResponse.json({
           ok: true,
-          feature,
-          changes,
-          changeLines: formatChangeSummary(changes),
-          note: applied.note,
-          notice: 'DRAFT UPDATED — published version (if any) is unchanged.',
+          feature: updated.feature,
+          changeLines: edit.changeLines.length
+            ? edit.changeLines
+            : diffs.map((d) => d.message),
+          note: formatChangeSummary(diffs),
         });
       }
       case 'list_drafts': {
         const drafts = await listDraftFeatures(businessId);
-        return NextResponse.json({ ok: true, drafts });
+        return NextResponse.json({ ok: true, features: drafts });
       }
       case 'list_features': {
         const features = await listCustomFeatures(businessId);
@@ -184,17 +186,13 @@ export async function POST(req: NextRequest) {
           featureId,
           userId: user.id,
         });
-        return NextResponse.json({
-          ok: true,
-          feature,
-          notice: 'FEATURE PUBLISHED — now active for this business.',
-        });
+        return NextResponse.json({ ok: true, feature });
       }
       default:
         return NextResponse.json(
           {
             error: 'Unknown tool',
-            allowed: [
+            supported: [
               'get_feature_builder_context',
               'validate_feature_definition',
               'create_custom_feature_draft',
