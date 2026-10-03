@@ -1,5 +1,6 @@
 // ═══════════════════════════════════════════
-//  BUSMO — Shared TypeScript Types
+//  BUSMO — Shared TypeScript Types (dashboard index)
+//  Keep PageId in sync with types.ts + AppShell routes
 // ═══════════════════════════════════════════
 
 export type Theme = 'light' | 'dark' | 'system';
@@ -54,7 +55,11 @@ export type PageId =
   | 'expiry-alerts'
   | 'production-tracking'
   | 'audit-trail'
-  | 'staff-activity';
+  | 'staff-activity'
+  | 'jobs'
+  | 'recycling'
+  | 'feature-prototype'
+  | 'business-builder';
 
 // ── Navigation ──────────────────────────────
 export interface NavItem {
@@ -62,12 +67,14 @@ export interface NavItem {
   label: string;
   tip: string;
   iconClass: string;
-  badge?: number;
+  badge?: number | string;
 }
 
 export interface NavSection {
   label: string;
   items: NavItem[];
+  icon?: string;
+  id?: React.Key | null;
 }
 
 // ── User ────────────────────────────────────
@@ -79,9 +86,9 @@ export interface User {
   initials: string;
   role: string;
   plan: string;
-  avatarContent: string;   // emoji, initials, or img URL
+  avatarContent: string;
   avatarStyle?: React.CSSProperties;
-  photoURL?: string;       // uploaded profile picture URL
+  photoURL?: string;
 }
 
 // ── Metrics ─────────────────────────────────
