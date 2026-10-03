@@ -36,6 +36,7 @@ export const NAV_ITEM_REQUIREMENTS: Record<string, {
   'stock-transfers': { requiredFeatures: ['Warehouse Management'], requiredCategories: ['retail', 'wholesale', 'distributor'], excludedCategories: ['restaurant', 'cafe', 'services', 'education', 'healthcare'] },
   'jobs': { requiredFeatures: ['Jobs Management'], requiredCategories: ['jobs'] },
   'recycling': { requiredFeatures: ['Material Collection'], requiredCategories: ['recycling_material_collection'] },
+  'business-builder': {},
 };
 
 export const SIDEBAR_TRANSLATIONS: { [key: string]: { [key: string]: string } } = {
@@ -68,6 +69,7 @@ export const SIDEBAR_TRANSLATIONS: { [key: string]: { [key: string]: string } } 
   'Expiry Alerts': { en: 'Expiry Alerts', yo: 'Ìbànújẹ́ Akókò', ig: 'Ntịrị Mbụ', ha: 'Maye Mai ƙare', sw: 'Matangazo ya Muda', fr: 'Alertes Expiration', pt: 'Alertas Validade', pcm: 'Expiry Alerts' },
   'Production': { en: 'Production', yo: 'Ṣiṣe', ig: 'Mmepụta', ha: 'Samfura', sw: 'Uzalishaji', fr: 'Production', pt: 'Produção', pcm: 'Production' },
   'Payroll': { en: 'Payroll', yo: 'Isánwó', ig: 'Ụgwọ Ọrụ', ha: 'Alawar kuɗi', sw: 'Mshahara', fr: 'Paie', pt: 'Folha de Pagamento', pcm: 'Payroll' },
+  'Business Builder': { en: 'Business Builder', yo: 'Business Builder', ig: 'Business Builder', ha: 'Business Builder', sw: 'Business Builder', fr: 'Business Builder', pt: 'Business Builder', pcm: 'Business Builder' },
 };
 
 export function getSidebarTranslation(text: string, language: string = 'en'): string {
@@ -99,6 +101,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { id: 'ingredient-tracking', label: 'Ingredients', tip: 'Ingredients', iconClass: 'ni-ingredient' },
       { id: 'expiry-alerts', label: 'Expiry Alerts', tip: 'Expiry Alerts', iconClass: 'ni-expiry' },
       { id: 'production-tracking', label: 'Production', tip: 'Production', iconClass: 'ni-production', badge: 'Pro' },
+      { id: 'business-builder', label: 'Business Builder', tip: 'Build custom tools for your business', iconClass: 'business-builder' },
     ],
     icon: '',
     id: undefined
