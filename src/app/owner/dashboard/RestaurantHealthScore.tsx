@@ -53,11 +53,11 @@ function daysAgo(n: number) {
 
 function isNonRestaurantCategory(cat: string | undefined | null): boolean {
   if (!cat) return false;
-  const c = cat.toLowerCase();
+  const c = cat.toLowerCase().replace(/[_-]+/g, ' ').trim();
   return (
     c.includes('recycling') ||
-    c.includes('material_collection') ||
     c.includes('material collection') ||
+    c.includes('material_collection') ||
     c === 'jobs' ||
     c.includes('jobs &') ||
     c.includes('wholesale') ||
@@ -66,7 +66,15 @@ function isNonRestaurantCategory(cat: string | undefined | null): boolean {
     c.includes('pharmacy') ||
     c.includes('education') ||
     c.includes('fashion') ||
-    c.includes('electronic')
+    c.includes('electronic') ||
+    c.includes('retail') ||
+    c.includes('supermarket') ||
+    c.includes('grocery') ||
+    c.includes('services') ||
+    c.includes('construction') ||
+    c.includes('agriculture') ||
+    c.includes('logistics') ||
+    c.includes('transport')
   );
 }
 
@@ -147,8 +155,11 @@ export function RestaurantHealthScore({ businessId: propBusinessId }: { business
         }
         setBusinessId(bid);
 
-        let restaurant = false;
+        // Category gating — restaurant overview is ONLY for explicit restaurant-like
+        // categories. Never infer from products/features (that leaked the card onto
+        // recycling, retail, jobs, etc.).
         const categoryCandidates: string[] = [];
+        let primaryBusinessCategory = '';
         try {
           const { data: biz } = await getSupabase()
             .from('businesses')
@@ -156,6 +167,15 @@ export function RestaurantHealthScore({ businessId: propBusinessId }: { business
             .eq('id', bid)
             .maybeSingle();
           if (biz) {
+            primaryBusinessCategory = String(
+              (biz as any).category ||
+                (biz as any).selectedCategory ||
+                (biz as any).business_type ||
+                (biz as any).type ||
+                (biz as any).metadata?.category ||
+                (biz as any).metadata?.selectedCategory ||
+                ''
+            ).trim();
             categoryCandidates.push(
               String((biz as any).category || ''),
               String((biz as any).selectedCategory || ''),
@@ -190,49 +210,42 @@ export function RestaurantHealthScore({ businessId: propBusinessId }: { business
           /* ignore */
         }
 
-        const anyNonRestaurant = categoryCandidates.some((c) => isNonRestaurantCategory(c));
-        if (anyNonRestaurant) {
-          setIsRestaurant(false);
-          setMetrics(null);
-          return;
-        }
-
-        restaurant = categoryCandidates.some((c) => isRestaurantCategory(c));
-
-        const products = await fetchDocs(`businesses/${bid}/products`);
-        const hasKitchenItems = products.some((p: any) => {
-          const meta =
-            p.metadata && typeof p.metadata === 'object' ? p.metadata : {};
-          const pt = p.productType || meta.productType;
-          return pt === 'dish' || pt === 'ingredient';
-        });
-        if (hasKitchenItems && !anyNonRestaurant) restaurant = true;
-
+        let cachedCategory = '';
         try {
           if (typeof window !== 'undefined') {
-            const cached = localStorage.getItem('selectedCategory') || localStorage.getItem('busmo_category') || '';
-            if (isNonRestaurantCategory(cached)) {
-              setIsRestaurant(false);
-              setMetrics(null);
-              return;
-            }
-            if (isRestaurantCategory(cached)) restaurant = true;
-            const features = localStorage.getItem('selectedFeatures') || '';
-            if (/menu|ingredient|expiry/i.test(features) && !/material collection|recycling/i.test(features)) {
-              restaurant = true;
-            }
+            cachedCategory = (
+              localStorage.getItem('selectedCategory') ||
+              localStorage.getItem('busmo_category') ||
+              ''
+            ).trim();
+            if (cachedCategory) categoryCandidates.push(cachedCategory);
           }
         } catch {
           /* ignore */
         }
 
-        const anyCategory = categoryCandidates.some((c) => c && c.trim());
+        // Authoritative non-restaurant signal wins (recycling, jobs, wholesale, …)
+        const anyNonRestaurant = categoryCandidates.some((c) => isNonRestaurantCategory(c));
+        if (anyNonRestaurant || isNonRestaurantCategory(primaryBusinessCategory)) {
+          setIsRestaurant(false);
+          setMetrics(null);
+          return;
+        }
+
+        // Only show when category is explicitly restaurant/cafe/catering/etc.
+        // Do NOT infer from dish/ingredient products or selectedFeatures.
+        const restaurant =
+          isRestaurantCategory(primaryBusinessCategory) ||
+          categoryCandidates.some((c) => isRestaurantCategory(c));
+
         if (!restaurant) {
           setIsRestaurant(false);
           setMetrics(null);
           return;
         }
         setIsRestaurant(true);
+
+        const products = await fetchDocs(`businesses/${bid}/products`);
 
         const todayStart = startOfDay();
         const weekStart = daysAgo(7);
