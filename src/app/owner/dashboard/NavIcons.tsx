@@ -29,175 +29,98 @@ export function NavIcons({ id, size = 14 }: NavIconsProps) {
     case 'sales':
       return <svg {...base} style={s}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>;
     case 'inventory':
-      return <svg {...base} style={s}><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>;
+      return <svg {...base} style={s}><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>;
     case 'add-product':
-      // Plus in a box (add product)
-      return <svg {...base} style={s}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>;
+      return <svg {...base} style={s}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>;
     case 'add-expense':
-      // Minus in a box (add expense)
-      return <svg {...base} style={s}><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="8" y1="12" x2="16" y2="12"/></svg>;
+      return <svg {...base} style={s}><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>;
+    case 'cashflow':
+      return <svg {...base} style={s}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
     case 'statement':
-      // Document with lines (statement)
-      return <svg {...base} style={s}><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg>;
+      return <svg {...base} style={s}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>;
     case 'reports':
-      // Chart icon (P&L reports)
+    case 'ni-chart':
       return <svg {...base} style={s}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>;
     case 'bank-reconciliation':
-      // Bank/building icon
-      return <svg {...base} style={s}><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>;
+    case 'ni-bank':
+      return <svg {...base} style={s}><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20"/><path d="M6 16h4"/></svg>;
     case 'expenses':
-      return <svg {...base} style={s}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>;
-    case 'cashflow':
-      return <svg {...base} style={s}><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg>;
+      return <svg {...base} style={s}><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>;
     case 'market':
-      return <svg {...base} style={s}><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>;
+      return <svg {...base} style={s}><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>;
     case 'pay':
-      return <svg {...base} style={s}><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>;
+      return <svg {...base} style={s}><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>;
     case 'go':
-      return <svg {...base} style={s}><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>;
+      return <svg {...base} style={s}><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>;
     case 'capital':
-      return <svg {...base} style={s}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
+    case 'ni-fund':
+      return <svg {...base} style={s}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>;
     case 'referrals':
-      return <svg {...base} style={s}><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>;
+    case 'ni-gift':
+      return <svg {...base} style={s}><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>;
     case 'mo':
     case 'mo-mobile':
-      // Increase icon size and ensure no stroke/fill props are passed from base
-      return (
-        <svg width={size * 2} height={size * 2} style={{ width: size * 2, height: size * 2 }} viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="40" cy="40" r="38" fill="#162334"></circle>
-          <circle cx="40" cy="40" r="36" fill="none" stroke="#1DB954" strokeWidth="1.5"></circle>
-          <circle cx="40" cy="37" r="21" fill="#F5C9A0"></circle>
-          <path d="M19 33 C19 19 61 19 61 33 L61 26 C61 14 19 14 19 26 Z" fill="#2C1A0E"></path>
-          <ellipse cx="31" cy="36" rx="4" ry="4.5" fill="#1A2B3C"></ellipse>
-          <ellipse cx="49" cy="36" rx="4" ry="4.5" fill="#1A2B3C"></ellipse>
-          <circle cx="32.5" cy="34.5" r="1.5" fill="white"></circle>
-          <circle cx="50.5" cy="34.5" r="1.5" fill="white"></circle>
-          <path d="M30 43 Q40 50 50 43" stroke="#CC7A3A" strokeWidth="2" strokeLinecap="round" fill="none"></path>
-          <ellipse cx="23" cy="41" rx="4" ry="2.5" fill="#F4A535" opacity="0.35"></ellipse>
-          <ellipse cx="57" cy="41" rx="4" ry="2.5" fill="#F4A535" opacity="0.35"></ellipse>
-          <ellipse cx="40" cy="65" rx="16" ry="7" fill="#1DB954" opacity="0.9"></ellipse>
-          <rect x="32" y="58" width="16" height="9" rx="5" fill="#F5C9A0"></rect>
-          <polygon points="36,58 44,58 42,66 38,66" fill="#1DB954"></polygon>
-        </svg>
-      );
+      return <svg {...base} style={s}><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>;
     case 'mo-sales':
-      // WhatsApp-style chat — AI salesperson
-      return (
-        <svg {...base} style={s}>
-          <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
-          <path d="M8 12h.01M12 12h.01M16 12h.01" />
-        </svg>
-      );
+      return <svg {...base} style={s}><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>;
     case 'mo-sell':
-      // Storefront commerce hub
-      return (
-        <svg {...base} style={s}>
-          <path d="M3 9l1-4h16l1 4" />
-          <path d="M4 9h16v11a1 1 0 01-1 1H5a1 1 0 01-1-1V9z" />
-          <path d="M9 20v-6h6v6" />
-        </svg>
-      );
+      return <svg {...base} style={s}><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>;
     case 'wallet':
-      // Wallet
-      return (
-        <svg {...base} style={s}>
-          <rect x="2" y="6" width="20" height="14" rx="2" />
-          <path d="M2 10h20" />
-          <circle cx="17" cy="15" r="1.2" fill="currentColor" stroke="none" />
-        </svg>
-      );
+      return <svg {...base} style={s}><path d="M21 12V7H5a2 2 0 010-4h14v4"/><path d="M3 5v14a2 2 0 002 2h16v-5"/><path d="M18 12a2 2 0 000 4h4v-4z"/></svg>;
     case 'services':
-      return <svg {...base} style={s}><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>;
+    case 'ni-svc':
+      return <svg {...base} style={s}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>;
     case 'staff':
+    case 'ni-staff':
       return <svg {...base} style={s}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>;
     case 'settings':
-      return <svg {...base} style={s}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>;
+    case 'ni-set':
+      return <svg {...base} style={s}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>;
     case 'money-control':
-      return <svg {...base} style={s}><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>;
+    case 'ni-cash':
+      return <svg {...base} style={s}><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/></svg>;
     case 'credit-tracking':
-      return <svg {...base} style={s}><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="7" width="6" height="9" rx="1"/><path d="M9 12h6"/></svg>;
+    case 'ni-credit':
+      return <svg {...base} style={s}><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>;
     case 'email-campaigns':
       return <svg {...base} style={s}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>;
     case 'branches':
+    case 'ni-branch':
       return <svg {...base} style={s}><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 01-9 9"/></svg>;
     case 'supplier-management':
-      return <svg {...base} style={s}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>;
+    case 'ni-supplier':
+      return <svg {...base} style={s}><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>;
     case 'customer-management':
-      return <svg {...base} style={s}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>;
+    case 'ni-customer':
+      return <svg {...base} style={s}><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
     case 'payroll':
-      return <svg {...base} style={s}><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>;
+    case 'ni-payroll':
+      return <svg {...base} style={s}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3v4"/><path d="M8 3v4"/><path d="M2 11h20"/></svg>;
     case 'menu-management':
-      return <svg {...base} style={s}><path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/></svg>;
+    case 'ni-menu':
+      return <svg {...base} style={s}><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>;
     case 'margin-calculator':
-      // Calculator + trend — pricing / margin tool
-      return (
-        <svg {...base} style={s}>
-          <rect x="4" y="2" width="16" height="20" rx="2" />
-          <line x1="8" y1="6" x2="16" y2="6" />
-          <line x1="8" y1="10" x2="10" y2="10" />
-          <line x1="14" y1="10" x2="16" y2="10" />
-          <line x1="8" y1="14" x2="10" y2="14" />
-          <line x1="14" y1="14" x2="16" y2="14" />
-          <line x1="8" y1="18" x2="10" y2="18" />
-          <line x1="14" y1="18" x2="16" y2="18" />
-        </svg>
-      );
+      return <svg {...base} style={s}><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>;
     case 'can-i-buy':
-      // Shopping bag with check — owner purchase decision
-      return (
-        <svg {...base} style={s}>
-          <path d="M6 8h12l-1 13H7L6 8z" />
-          <path d="M9 8V6a3 3 0 016 0v2" />
-          <path d="M9 14l2 2 4-4" />
-        </svg>
-      );
+      return <svg {...base} style={s}><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
     case 'ingredient-tracking':
-      return <svg {...base} style={s}><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>;
+    case 'ni-ingredient':
+      return <svg {...base} style={s}><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>;
     case 'expiry-alerts':
+    case 'ni-expiry':
       return <svg {...base} style={s}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
     case 'production-tracking':
-      return <svg {...base} style={s}><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>;
+    case 'ni-production':
+      return <svg {...base} style={s}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
     case 'warehouse':
-      return <svg {...base} style={s}><path d="M3 3v61l7 3 7-3 7 3 7-3V3H3z"/><path d="M10 3v61M17 3v61M24 3v61"/></svg>;
+    case 'ni-warehouse':
+      return <svg {...base} style={s}><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>;
     case 'stock-transfers':
-      return <svg {...base} style={s}><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="17 8 12 3 7 8"/><polyline points="12 3 12 15"/></svg>;
-    case 'qr-code':
-      return <svg {...base} style={s}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>;
-    case 'settings':
-      return <svg {...base} style={s}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>;
-    case 'add':
-      return <svg {...base} style={s}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
-    case 'clipboard':
-      return <svg {...base} style={s}><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>;
-    case 'check-circle':
-      return <svg {...base} style={s}><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
-    case 'alert-triangle':
-      return <svg {...base} style={s}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
-    case 'package':
-      return <svg {...base} style={s}><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>;
-    case 'rotate':
-      return <svg {...base} style={s}><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>;
-    case 'box':
-      return <svg {...base} style={s}><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>;
-    case 'shop':
-      return <svg {...base} style={s}><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.29-.57A2 2 0 004.16 9H2M17 13l2.29-.57A2 2 0 0021.84 9H22M17 13l2-8h-9M17 13l2.29-.57A2 2 0 0021.84 9M9 21a1 1 0 100-2 1 1 0 000 2z"/><path d="M19 21a1 1 0 100-2 1 1 0 000 2z"/></svg>;
-    case 'truck':
-      return <svg {...base} style={s}><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>;
-    case 'archive':
-      return <svg {...base} style={s}><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/><line x1="9" y1="12" x2="9" y2="12"/><line x1="15" y1="12" x2="15" y2="12"/></svg>;
-    case 'recycling':
-    case 'ni-recycle':
-    case 'recycle':
-    case 'material-collection':
-      // Scale / weigh-in
-      return (
-        <svg {...base} style={s}>
-          <path d="M12 3v3" />
-          <path d="M5 9h14" />
-          <path d="M6 9l-2 12h16l-2-12" />
-          <path d="M9 9V7a3 3 0 016 0v2" />
-        </svg>
-      );
+    case 'ni-transfer':
+      return <svg {...base} style={s}><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>;
+    case 'document-templates':
+    case 'ni-template':
+      return <svg {...base} style={s}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>;
     case 'jobs':
     case 'ni-jobs':
       return (
@@ -206,6 +129,25 @@ export function NavIcons({ id, size = 14 }: NavIconsProps) {
           <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" />
           <path d="M12 12v4" />
           <path d="M10 14h4" />
+        </svg>
+      );
+    case 'recycling':
+    case 'ni-recycle':
+      return (
+        <svg {...base} style={s}>
+          <path d="M7 19H4.815a1.83 1.83 0 01-1.57-.881 1.785 1.785 0 01-.004-1.784L7.196 9.5" />
+          <path d="M11 19h8.203a1.83 1.83 0 001.556-.89 1.784 1.784 0 000-1.775l-1.226-2.12" />
+          <path d="M14 16l3 3 3-3" />
+          <path d="M8.293 13.596L7.196 9.5 3.1 10.598" />
+          <path d="M9.344 5.862l1.836-3.181a1.826 1.826 0 012.4-.681 1.785 1.785 0 01.873 1.08l.38 1.447" />
+          <path d="M14.344 4.5l3.5 1.5-.5 3.5" />
+        </svg>
+      );
+    case 'business-builder':
+      return (
+        <svg {...base} style={s} strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="16 18 22 12 16 6" />
+          <polyline points="8 6 2 12 8 18" />
         </svg>
       );
     default:
@@ -218,18 +160,10 @@ export function MoIcon({ size = 18 }: { size?: number }) {
   return (
     <svg width={size * 2.5} height={size * 2.5} viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="40" cy="37" r="21" fill="#F5C9A0"></circle>
-      <path d="M19 33 C19 19 61 19 61 33 L61 26 C61 14 19 14 19 26 Z" fill="#2C1A0E"></path>
-      <ellipse cx="31" cy="36" rx="4" ry="4.5" fill="#1A2B3C"></ellipse>
-      <ellipse cx="49" cy="36" rx="4" ry="4.5" fill="#1A2B3C"></ellipse>
-      <circle cx="32.5" cy="34.5" r="1.5" fill="white"></circle>
-      <circle cx="50.5" cy="34.5" r="1.5" fill="white"></circle>
-      <path d="M30 43 Q40 50 50 43" stroke="#CC7A3A" strokeWidth="2" strokeLinecap="round" fill="none"></path>
-      <ellipse cx="23" cy="41" rx="4" ry="2.5" fill="#F4A535" opacity="0.35"></ellipse>
-      <ellipse cx="57" cy="41" rx="4" ry="2.5" fill="#F4A535" opacity="0.35"></ellipse>
-      <ellipse cx="40" cy="65" rx="16" ry="7" fill="#1DB954" opacity="0.9"></ellipse>
-      <rect x="32" y="58" width="16" height="9" rx="5" fill="#F5C9A0"></rect>
-      <polygon points="36,58 44,58 42,66 38,66" fill="#1DB954"></polygon>
+      <ellipse cx="40" cy="58" rx="18" ry="8" fill="#6B3FE7" opacity="0.15"></ellipse>
+      <circle cx="33" cy="35" r="2.5" fill="#1A1A2E"></circle>
+      <circle cx="47" cy="35" r="2.5" fill="#1A1A2E"></circle>
+      <path d="M34 44c2 2.5 6 2.5 8 0" stroke="#1A1A2E" strokeWidth="1.5" strokeLinecap="round"></path>
     </svg>
   );
 }
-
