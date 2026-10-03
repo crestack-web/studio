@@ -296,7 +296,11 @@ export default function BusmoOnboarding() {
           try {
             const supabase = getSupabase();
             await supabase.auth.updateUser({
-              data: { businessId: userId },
+              data: {
+                businessId: userId,
+                onboardingComplete: true,
+                onboarding_complete: true,
+              },
             });
           } catch (e) {
             console.error("Failed to set businessId in Supabase metadata:", e);

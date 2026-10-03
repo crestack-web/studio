@@ -179,9 +179,16 @@ export default function BusmoLogin() {
     try {
       const supabase = getSupabase();
       supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user) {
-          window.location.href = '/owner';
+        if (!session?.user) return;
+        const meta = session.user.user_metadata || {};
+        const hasBiz = Boolean(meta.businessId || meta.business_id);
+        const done =
+          meta.onboardingComplete === true || meta.onboarding_complete === true;
+        if (!hasBiz && !done) {
+          window.location.href = '/welcome/signup?google=callback';
+          return;
         }
+        window.location.href = '/owner';
       }).catch(() => {});
     } catch {}
   }, []);
