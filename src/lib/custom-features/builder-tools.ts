@@ -249,6 +249,8 @@ export async function planFeatureFromNaturalLanguage(
         summary: string;
         optimizedPrompt: string;
         suggestedName: string;
+        explanation?: string;
+        processPlan?: import('./business-process-types').BusinessProcessPlan;
       };
 }> {
   const result = await naturalLanguageToFeatureDefinition(userMessage, opts);
