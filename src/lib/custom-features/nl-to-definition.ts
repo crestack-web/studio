@@ -1,12 +1,7 @@
 /**
  * Natural language → BusmoFeatureDefinition.
- * Heuristics handle common scenarios without an LLM (tests / offline).
- * Optional Mistral structured generation when MISTRAL_API_KEY is set and
- * heuristics return "needs_clarification" or "use_llm".
- *
- * Never publishes. Never executes code.
+ * Server-oriented (API / builder-tools). Never publishes. Never executes code.
  */
-import { randomUUID } from 'crypto';
 import type { BusmoFeatureDefinition, FieldDefinition } from './types';
 import { validateFeatureDefinition } from './validate';
 import { formatFeatureBuilderContextForPrompt } from './builder-context';
@@ -31,12 +26,25 @@ export type NlBuildResult =
       issues?: unknown;
     };
 
+function newId(): string {
+  try {
+    if (typeof globalThis !== 'undefined' && globalThis.crypto?.randomUUID) {
+      return globalThis.crypto.randomUUID();
+    }
+  } catch {
+    /* fall through */
+  }
+  return `feat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function slugify(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 48) || 'custom-feature';
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 48) || 'custom-feature'
+  );
 }
 
 function buildDefinition(opts: {
@@ -50,7 +58,7 @@ function buildDefinition(opts: {
   const slug = slugify(opts.name);
   const fieldKeys = opts.fields.map((f) => f.key);
   return {
-    id: randomUUID(),
+    id: newId(),
     slug,
     name: opts.name,
     description: opts.description,
@@ -94,16 +102,39 @@ function buildDefinition(opts: {
         title: 'Summary',
         entity: opts.entityKey,
         metricFields: fieldKeys.filter((k) =>
-          ['status', 'amount', 'quantity', 'waste', 'cost', 'weightKg', 'amountPaid', 'balance'].includes(k)
+          [
+            'status',
+            'amount',
+            'quantity',
+            'waste',
+            'cost',
+            'weightKg',
+            'amountPaid',
+            'balance',
+          ].includes(k)
         ).length
           ? fieldKeys.filter((k) =>
-              ['status', 'amount', 'quantity', 'waste', 'cost', 'weightKg', 'amountPaid', 'balance'].includes(k)
+              [
+                'status',
+                'amount',
+                'quantity',
+                'waste',
+                'cost',
+                'weightKg',
+                'amountPaid',
+                'balance',
+              ].includes(k)
             )
           : fieldKeys.slice(0, 2),
       },
     ],
     actions: [
-      { key: 'create', type: 'create', label: `Add ${opts.entityLabel.toLowerCase()}`, entity: opts.entityKey },
+      {
+        key: 'create',
+        type: 'create',
+        label: `Add ${opts.entityLabel.toLowerCase()}`,
+        entity: opts.entityKey,
+      },
       { key: 'update', type: 'update', label: 'Update', entity: opts.entityKey },
       { key: 'delete', type: 'delete', label: 'Delete', entity: opts.entityKey },
     ],
@@ -136,11 +167,11 @@ export function heuristicNlToDefinition(userMessage: string): NlBuildResult {
 
   const lower = text.toLowerCase();
 
-  // PET / recycling suppliers
   if (/pet|recycl|bottle/.test(lower) && /supplier|weight|kg|price|bring|buy/.test(lower)) {
     const def = buildDefinition({
       name: 'PET Supplier Tracker',
-      description: 'Record supplier deliveries of PET bottles: weight, price per kg, amount paid and date.',
+      description:
+        'Record supplier deliveries of PET bottles: weight, price per kg, amount paid and date.',
       entityKey: 'supplier_delivery',
       entityLabel: 'Supplier delivery',
       navLabel: 'PET Suppliers',
@@ -162,11 +193,14 @@ export function heuristicNlToDefinition(userMessage: string): NlBuildResult {
     };
   }
 
-  // Roofing / aluminium jobs
-  if (/roof|aluminium|aluminum|job location/.test(lower) && /track|job|customer|need|want|run/.test(lower)) {
+  if (
+    /roof|aluminium|aluminum|job location/.test(lower) &&
+    /track|job|customer|need|want|run/.test(lower)
+  ) {
     const def = buildDefinition({
       name: 'Roofing Jobs',
-      description: 'Track roofing jobs: customer, location, materials, workers, amounts and balance.',
+      description:
+        'Track roofing jobs: customer, location, materials, workers, amounts and balance.',
       entityKey: 'roofing_job',
       entityLabel: 'Job',
       navLabel: 'Roofing Jobs',
@@ -194,9 +228,9 @@ export function heuristicNlToDefinition(userMessage: string): NlBuildResult {
     };
   }
 
-  // Distributor credit / shops
   if (
-    (/shop|distributor|credit/.test(lower) && /owe|bought|credit|sell|track|need|want/.test(lower)) ||
+    (/shop|distributor|credit/.test(lower) &&
+      /owe|bought|credit|sell|track|need|want/.test(lower)) ||
     /each shop|still owe/.test(lower)
   ) {
     const def = buildDefinition({
@@ -228,8 +262,10 @@ export function heuristicNlToDefinition(userMessage: string): NlBuildResult {
     };
   }
 
-  // Restaurant ingredients / meal cost
-  if (/ingredient|meal cost|restaurant/.test(lower) && /track|buy|use|cost|need|want/.test(lower)) {
+  if (
+    /ingredient|meal cost|restaurant/.test(lower) &&
+    /track|buy|use|cost|need|want/.test(lower)
+  ) {
     const def = buildDefinition({
       name: 'Ingredient & Meal Cost',
       description: 'Track ingredient purchases, usage and cost per meal.',
@@ -253,14 +289,14 @@ export function heuristicNlToDefinition(userMessage: string): NlBuildResult {
     };
   }
 
-  // Delivery tracker
   if (
     /deliver/.test(lower) &&
     (/track|tracker|create|build|want|need/.test(lower) || lower.includes('delivery'))
   ) {
     const def = buildDefinition({
       name: 'Delivery Tracker',
-      description: 'Track deliveries with customer, order, driver, status, date and amount.',
+      description:
+        'Track deliveries with customer, order, driver, status, date and amount.',
       entityKey: 'delivery',
       entityLabel: 'Delivery',
       navLabel: 'Deliveries',
@@ -288,7 +324,6 @@ export function heuristicNlToDefinition(userMessage: string): NlBuildResult {
     };
   }
 
-  // Furniture / customer jobs
   if (
     (/furniture|job/.test(lower) && /track|create|build|want|need|customer/.test(lower)) ||
     /customer jobs?/.test(lower)
@@ -322,8 +357,10 @@ export function heuristicNlToDefinition(userMessage: string): NlBuildResult {
     };
   }
 
-  // Food batches / waste
-  if (/batch|food batch|quantity produced/.test(lower) || (/waste/.test(lower) && /batch|ingredient/.test(lower))) {
+  if (
+    /batch|food batch|quantity produced/.test(lower) ||
+    (/waste/.test(lower) && /batch|ingredient/.test(lower))
+  ) {
     const def = buildDefinition({
       name: 'Batch Tracking',
       description: 'Track food batches: ingredients, quantity produced and waste.',
@@ -353,7 +390,6 @@ export function heuristicNlToDefinition(userMessage: string): NlBuildResult {
     };
   }
 
-  // Vague stock
   if (/\bstock\b/.test(lower) && !/product|supplier|cost|price|quantity/.test(lower)) {
     return {
       kind: 'clarification',
@@ -362,7 +398,6 @@ export function heuristicNlToDefinition(userMessage: string): NlBuildResult {
     };
   }
 
-  // Generic "track X" with listed fields after "with"
   const withMatch = text.match(/with\s+(.+)/i);
   if (/track|create|build|feature/.test(lower) && withMatch) {
     const parts = withMatch[1]
@@ -392,8 +427,9 @@ export function heuristicNlToDefinition(userMessage: string): NlBuildResult {
         return { key, label: p, type: 'text' as const };
       });
       const nameGuess =
-        text.match(/(?:track|create|build)\s+(?:a\s+)?([a-z0-9\s-]{3,40}?)(?:\s+with|$)/i)?.[1]?.trim() ||
-        'Custom Tracker';
+        text
+          .match(/(?:track|create|build)\s+(?:a\s+)?([a-z0-9\s-]{3,40}?)(?:\s+with|$)/i)?.[1]
+          ?.trim() || 'Custom Tracker';
       const entityKey = slugify(nameGuess).replace(/-/g, '_') || 'record';
       const def = buildDefinition({
         name: nameGuess.replace(/\b\w/g, (c) => c.toUpperCase()),
@@ -417,9 +453,6 @@ export function heuristicNlToDefinition(userMessage: string): NlBuildResult {
   };
 }
 
-/**
- * Full pipeline: heuristic first; optional Mistral if still clarifying and key present.
- */
 export async function naturalLanguageToFeatureDefinition(
   userMessage: string,
   opts?: { useLlm?: boolean }
@@ -463,7 +496,10 @@ export async function naturalLanguageToFeatureDefinition(
         : JSON.stringify(res.choices?.[0]?.message?.content ?? '');
     const parsed = JSON.parse(content);
     if (parsed.type === 'clarification') {
-      return { kind: 'clarification', question: String(parsed.question || heuristic.question) };
+      return {
+        kind: 'clarification',
+        question: String(parsed.question || heuristic.question),
+      };
     }
     if (parsed.type === 'unsupported') {
       return {
@@ -473,7 +509,7 @@ export async function naturalLanguageToFeatureDefinition(
     }
     const definition = parsed.definition || parsed;
     definition.status = 'draft';
-    if (!definition.id) definition.id = randomUUID();
+    if (!definition.id) definition.id = newId();
     if (!definition.version) definition.version = 1;
     const v = validateFeatureDefinition(definition);
     if (!v.ok) {
