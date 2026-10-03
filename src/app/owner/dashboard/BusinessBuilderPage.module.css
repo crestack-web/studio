@@ -101,11 +101,6 @@
   min-height: 44px;
 }
 
-.dangerBtn {
-  composes: primaryBtn;
-  background: #059669;
-}
-
 .examples {
   margin-top: 18px;
   display: flex;
