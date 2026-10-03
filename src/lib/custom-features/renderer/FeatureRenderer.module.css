@@ -1,6 +1,23 @@
-.root { padding: 16px 16px 40px; max-width: 1100px; margin: 0 auto; color: #0a0a0f; }
+.root {
+  padding: 16px 16px 40px;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+  color: #0a0a0f;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  min-width: 0;
+}
 .banner { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; border-radius: 10px; padding: 10px 14px; font-size: 0.85rem; margin-bottom: 16px; }
-.header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 16px; }
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
 .kicker { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #6b3fe7; }
 .title { margin: 4px 0 6px; font-size: 1.5rem; font-weight: 800; }
 .desc { margin: 0; color: #6b7280; font-size: 0.92rem; }
@@ -10,7 +27,14 @@
 .tabs button { border: 1px solid #e5e7eb; background: #fff; border-radius: 999px; padding: 8px 14px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
 .tabs button.active { background: #6b3fe7; border-color: #6b3fe7; color: #fff; }
 .error { padding: 24px; color: #b91c1c; }
-.tableWrap { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; }
+.tableWrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  max-width: 100%;
+}
 .tableWrap table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 .tableWrap th, .tableWrap td { text-align: left; padding: 12px 14px; border-bottom: 1px solid #f3f4f6; }
 .tableWrap th { background: #fafafa; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; color: #6b7280; }
@@ -19,14 +43,51 @@
 .warn { background: #fef3c7; color: #92400e; }
 .bad { background: #fee2e2; color: #991b1b; }
 .muted { background: #f3f4f6; color: #4b5563; }
-.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  gap: 12px;
+  min-width: 0;
+}
 .metric { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
 .metricV { font-size: 1.4rem; font-weight: 800; }
 .metricL { font-size: 0.8rem; color: #6b7280; margin-top: 4px; }
-.form { max-width: 480px; display: grid; gap: 12px; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
-.form label { display: grid; gap: 4px; font-size: 0.85rem; font-weight: 600; }
-.form input, .form select, .form textarea { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; font: inherit; }
-.form button { margin-top: 4px; background: #6b3fe7; color: #fff; border: none; border-radius: 10px; padding: 12px; font-weight: 700; cursor: pointer; }
+.form {
+  max-width: 480px;
+  width: 100%;
+  display: grid;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px;
+  box-sizing: border-box;
+  min-width: 0;
+}
+.form label { display: grid; gap: 4px; font-size: 0.85rem; font-weight: 600; min-width: 0; }
+.form input,
+.form select,
+.form textarea {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.form button {
+  margin-top: 4px;
+  background: #6b3fe7;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
+}
 .note { font-size: 0.8rem; color: #6b7280; margin-top: 8px; }
 
 .cardsBoard {
@@ -77,4 +138,24 @@
   display: flex;
   gap: 6px;
   margin-top: 8px;
+}
+
+
+@media (max-width: 640px) {
+  .root {
+    padding: 12px 10px 32px;
+  }
+  .title {
+    font-size: 1.2rem;
+  }
+  .metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+  .cardColumn {
+    min-width: 200px;
+  }
+  .desc {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 }
