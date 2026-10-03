@@ -68,12 +68,6 @@ const PAGE_COMPONENTS: Record<string, React.ComponentType> = {
   'add-expense': AddExpensePage,
   cashflow: Cashflowpage,
   statement: StatementPage,
-  staff: StaffPage,
-  referrals: ReferralsPage,
-  capital: CapitalPage,
-  settings: SettingsPage,
-  services: ServicesPage,
-  branches: BranchesPage,
   reports: ReportsPage,
   'bank-reconciliation': BankReconciliationPage,
   'money-control': MoneyControlPage,
@@ -82,9 +76,15 @@ const PAGE_COMPONENTS: Record<string, React.ComponentType> = {
   'staff-accountability': StaffAccountabilityPage,
   'money-leakage': MoneyLeakagePage,
   'payment-traceability': PaymentTraceabilityPage,
-  mo: InlineAIChat,
-  'mo-mobile': MobileAskMOPage,
   'credit-tracking': CreditTrackingPage,
+  services: ServicesPage,
+  staff: StaffPage,
+  settings: SettingsPage,
+  referrals: ReferralsPage,
+  capital: CapitalPage,
+  branches: BranchesPage,
+  'mo-mobile': MobileAskMOPage,
+  mo: InlineAIChat,
   'menu-management': MenuManagementPage,
   'margin-calculator': MarginCalculatorPage,
   'can-i-buy': CanIBuyThisPage,
@@ -123,23 +123,26 @@ export function AppShell() {
 
   return (
     <div className={styles.shell}>
-      <NetworkStatusStyles />
-      <NetworkStatus />
       {!isMobileAskMO && <Sidebar />}
+
       <div className={styles.main}>
         {!isMobileAskMO && <Topbar />}
-        <NotificationBar />
-        <div className={isFullHeight ? styles.fullHeightContent : styles.content}>
-          {currentPage}
+        {!isMobileAskMO && <NotificationsPanel />}
+
+        <div className={[styles.pageArea, isFullHeight ? styles.fullHeight : '', isMobileAskMO ? styles.mobileAskMOPageArea : ''].join(' ')}>
+          <div className={[styles.page, isFullHeight ? styles.pageFullHeight : ''].join(' ')}>
+            {currentPage}
+          </div>
         </div>
-        {!isMobileAskMO && <MobileBottomNav />}
+
+        <MobileBottomNav />
       </div>
+
       <AvatarModal />
       <Toast />
-      <NotificationsPanel />
       <DeviceNotificationsBridge />
+      <NetworkStatusStyles />
+      <NetworkStatus />
     </div>
   );
 }
-
-export default AppShell;
