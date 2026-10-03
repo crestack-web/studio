@@ -8,63 +8,6 @@ import { getSupabase } from '@/lib/supabase';
 import { useApp } from './AppContext';
 import styles from './BusinessBuilderPage.module.css';
 
-type ExampleItem = { text: string; categories?: string[] };
-
-/** Examples shown only when they match the business category (or are general). */
-const ALL_EXAMPLES: ExampleItem[] = [
-  {
-    text: 'Track the suppliers who bring PET bottles to my recycling business.',
-    categories: ['recycling_material_collection', 'recycling'],
-  },
-  {
-    text: 'I need to track roofing jobs, customer payments and balances.',
-    categories: ['jobs', 'services', 'construction'],
-  },
-  {
-    text: 'Create something to manage deliveries and drivers.',
-    categories: ['retail', 'wholesale', 'distributor', 'grocery', 'supermarket', 'fashion', 'electronics'],
-  },
-  {
-    text: 'Track production batches and the cost of each batch.',
-    categories: ['manufacturing', 'restaurant', 'cafe'],
-  },
-  {
-    text: 'I want to know how much each distributor owes me.',
-    categories: ['distributor', 'wholesale', 'retail'],
-  },
-  {
-    text: 'Track ingredient purchases, usage and cost per meal.',
-    categories: ['restaurant', 'cafe', 'grocery'],
-  },
-  {
-    text: 'Track customer jobs from request through completion.',
-    categories: ['jobs', 'services', 'fashion'],
-  },
-  {
-    text: 'Create a simple credit tracker for shops that buy from me.',
-    categories: ['wholesale', 'distributor', 'manufacturing'],
-  },
-];
-
-function examplesForCategory(category: string): string[] {
-  const cat = (category || '').toLowerCase().trim();
-  if (!cat) {
-    return [
-      'Create something to manage deliveries and drivers.',
-      'Track customer jobs from request through completion.',
-      'Create a simple credit tracker for shops that buy from me.',
-    ];
-  }
-  const matched = ALL_EXAMPLES.filter(
-    (ex) => !ex.categories || ex.categories.some((c) => cat.includes(c) || c.includes(cat))
-  ).map((ex) => ex.text);
-  if (matched.length > 0) return matched.slice(0, 5);
-  return [
-    'Create something to manage deliveries and drivers.',
-    'Track customer jobs from request through completion.',
-  ];
-}
-
 const LOADING_STEPS = [
   'Understanding your business…',
   'Designing the tool…',
@@ -83,6 +26,7 @@ type FeatureRow = {
 };
 
 type ViewMode = 'home' | 'review' | 'live' | 'published-success';
+type ChatMsg = { role: 'user' | 'mo'; text: string };
 
 export default function BusinessBuilderPage() {
   const { user } = useApp();
@@ -101,6 +45,9 @@ export default function BusinessBuilderPage() {
   const [history, setHistory] = useState<FeatureRow[]>([]);
   const [mode, setMode] = useState<ViewMode>('home');
   const [showPublishModal, setShowPublishModal] = useState(false);
+  const [builderMode, setBuilderMode] = useState<'planner' | 'builder'>('builder');
+  const [thread, setThread] = useState<ChatMsg[]>([]);
+  const [optimizedPrompt, setOptimizedPrompt] = useState<string | null>(null);
 
   async function authHeaders(): Promise<HeadersInit> {
     const supabase = getSupabase();
@@ -233,22 +180,95 @@ export default function BusinessBuilderPage() {
     };
   }, [loading]);
 
-  const buildFromPrompt = async (text?: string) => {
+  const sendMessage = async (text?: string) => {
     const message = (text ?? prompt).trim();
     if (!businessId || !message) return;
     setLoading(true);
     setError(null);
     setMoMessage(null);
     setChangeLines([]);
+    setThread((prev) => [...prev, { role: 'user', text: message }]);
+    setPrompt('');
+
+    const historyText = [...thread, { role: 'user' as const, text: message }]
+      .map((m) => `${m.role === 'user' ? 'Owner' : 'MO'}: ${m.text}`)
+      .join('\n');
+    const contextualMessage =
+      thread.length > 0
+        ? `${historyText}\n\nLatest owner request: ${message}`
+        : message;
+
     try {
       const headers = await authHeaders();
+
+      if (builderMode === 'planner') {
+        const res = await fetch('/api/custom-features/builder', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            tool: 'plan_from_natural_language',
+            businessId,
+            message: contextualMessage,
+            useLlm: true,
+          }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (res.status === 401) throw new Error('Please sign in again.');
+        if (res.status === 403) throw new Error('You do not have access to this business.');
+        if (!res.ok) {
+          const raw = String(json.error || '');
+          if (/custom_features|schema cache|does not exist|MISSING_CUSTOM_FEATURES/i.test(raw)) {
+            throw new Error(
+              'Business Builder is almost ready — run migration 0020_custom_features_foundation.sql in Supabase, then try again.'
+            );
+          }
+          throw new Error(raw || 'Could not plan this feature.');
+        }
+
+        const r = json.result;
+        if (r?.kind === 'clarification') {
+          setThread((prev) => [...prev, { role: 'mo', text: r.question }]);
+          setMoMessage(r.question);
+          return;
+        }
+        if (r?.kind === 'unsupported') {
+          setThread((prev) => [...prev, { role: 'mo', text: r.message }]);
+          setMoMessage(r.message);
+          return;
+        }
+        if (r?.kind === 'invalid') {
+          setError('Busmo could not validate that plan. Try describing the fields more clearly.');
+          return;
+        }
+        if (r?.kind === 'plan') {
+          setOptimizedPrompt(r.optimizedPrompt);
+          const reply = `${r.summary}\n\nOptimized prompt ready. Switch to Builder and tap Build it — or edit the prompt first.`;
+          setThread((prev) => [...prev, { role: 'mo', text: reply }]);
+          setMoMessage(reply);
+          setPrompt(r.optimizedPrompt);
+          return;
+        }
+        if (r?.kind === 'definition') {
+          const name = r.definition?.name || 'your tool';
+          const opt = `Build "${name}" for my business. ${r.definition?.description || ''}`;
+          setOptimizedPrompt(opt);
+          setPrompt(opt);
+          const reply = `Plan ready for ${name}. Switch to Builder to create the draft.`;
+          setThread((prev) => [...prev, { role: 'mo', text: reply }]);
+          setMoMessage(reply);
+          return;
+        }
+        setMoMessage('Tell me a bit more about what you need to track.');
+        return;
+      }
+
       const res = await fetch('/api/custom-features/builder', {
         method: 'POST',
         headers,
         body: JSON.stringify({
           tool: 'build_from_natural_language',
           businessId,
-          message,
+          message: contextualMessage,
           useLlm: true,
         }),
       });
@@ -259,18 +279,20 @@ export default function BusinessBuilderPage() {
         const raw = String(json.error || '');
         if (/custom_features|schema cache|does not exist|MISSING_CUSTOM_FEATURES/i.test(raw)) {
           throw new Error(
-            'Business Builder is almost ready — the custom features database tables still need to be created. Ask your admin to run migration 0020_custom_features_foundation.sql in Supabase, then try again.'
+            'Business Builder is almost ready — run migration 0020_custom_features_foundation.sql in Supabase, then try again.'
           );
         }
         throw new Error(raw || 'Could not build this feature.');
       }
 
       if (json.result?.kind === 'clarification') {
+        setThread((prev) => [...prev, { role: 'mo', text: json.result.question }]);
         setMoMessage(json.result.question);
         setMode('home');
         return;
       }
       if (json.result?.kind === 'unsupported') {
+        setThread((prev) => [...prev, { role: 'mo', text: json.result.message }]);
         setMoMessage(json.result.message);
         setMode('home');
         return;
@@ -289,9 +311,12 @@ export default function BusinessBuilderPage() {
       setFeature(json.feature);
       setDefinition(json.feature.definition);
       setRecords([]);
-      setMoMessage(`Got it. I can build ${json.feature.name} for your business.`);
+      const okMsg = `Got it. I built ${json.feature.name} as a draft. Review it below, then publish when ready.`;
+      setMoMessage(okMsg);
+      setThread((prev) => [...prev, { role: 'mo', text: okMsg }]);
       setLoadStep(3);
       setMode('review');
+      setOptimizedPrompt(null);
       await refreshHistory(businessId);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.');
@@ -457,7 +482,7 @@ export default function BusinessBuilderPage() {
   const onKeyDown = (e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault();
-      void buildFromPrompt();
+      void sendMessage();
     }
   };
 
@@ -479,7 +504,6 @@ export default function BusinessBuilderPage() {
 
   const entity = definition?.entities?.[0];
   const status = feature?.status || definition?.status;
-  const categoryExamples = examplesForCategory(businessCategory);
 
   return (
     <div className={styles.root}>
@@ -513,6 +537,8 @@ export default function BusinessBuilderPage() {
                     setFeature(null);
                     setDefinition(null);
                     setPrompt('');
+                    setThread([]);
+                    setOptimizedPrompt(null);
                   }}
                 >
                   Continue building
@@ -521,10 +547,56 @@ export default function BusinessBuilderPage() {
             </div>
           )}
 
+          <div className={styles.modeRow}>
+            <button
+              type="button"
+              className={`${styles.modePill} ${builderMode === 'planner' ? styles.modePillActive : ''}`}
+              onClick={() => setBuilderMode('planner')}
+            >
+              Planner
+            </button>
+            <button
+              type="button"
+              className={`${styles.modePill} ${builderMode === 'builder' ? styles.modePillActive : ''}`}
+              onClick={() => setBuilderMode('builder')}
+            >
+              Builder
+            </button>
+          </div>
+          <p className={styles.modeHint}>
+            {builderMode === 'planner'
+              ? 'Planner asks questions and shapes a clear prompt. Nothing is published.'
+              : 'Builder turns your prompt into a draft tool you can review and publish.'}
+          </p>
+
+          {thread.length > 0 && (
+            <div className={styles.thread}>
+              {thread.map((m, i) => (
+                <div
+                  key={`${m.role}-${i}`}
+                  className={m.role === 'mo' ? styles.threadMo : styles.threadUser}
+                >
+                  <div className={styles.threadLabel}>
+                    {m.role === 'mo' ? 'MO' : 'You'}
+                  </div>
+                  <p className={styles.threadText}>{m.text}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className={styles.inputCard}>
             <textarea
               className={styles.textarea}
-              placeholder="What do you need Busmo to help you manage?"
+              placeholder={
+                builderMode === 'planner'
+                  ? thread.some((m) => m.role === 'mo')
+                    ? 'Reply to MO…'
+                    : 'Describe what you need. Planner will ask clarifying questions.'
+                  : thread.some((m) => m.role === 'mo')
+                    ? 'Reply to MO, or refine your prompt…'
+                    : 'What do you need Busmo to help you manage?'
+              }
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onKeyDown={onKeyDown}
@@ -532,35 +604,44 @@ export default function BusinessBuilderPage() {
             />
             <div className={styles.inputBar}>
               <span className={styles.hint}>⌘ / Ctrl + Enter</span>
-              <button
-                type="button"
-                className={styles.primaryBtn}
-                disabled={loading || !prompt.trim()}
-                onClick={() => void buildFromPrompt()}
-              >
-                Build it
-              </button>
+              <div className={styles.inputActions}>
+                {builderMode === 'builder' && prompt.trim() && (
+                  <button
+                    type="button"
+                    className={styles.secondaryBtn}
+                    disabled={loading}
+                    onClick={() => {
+                      setBuilderMode('planner');
+                      void sendMessage(prompt);
+                    }}
+                  >
+                    Optimize
+                  </button>
+                )}
+                {builderMode === 'planner' && optimizedPrompt && (
+                  <button
+                    type="button"
+                    className={styles.secondaryBtn}
+                    disabled={loading}
+                    onClick={() => {
+                      setBuilderMode('builder');
+                      setPrompt(optimizedPrompt);
+                    }}
+                  >
+                    Use in Builder
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={styles.primaryBtn}
+                  disabled={loading || !prompt.trim()}
+                  onClick={() => void sendMessage()}
+                >
+                  {builderMode === 'planner' ? 'Plan' : 'Build it'}
+                </button>
+              </div>
             </div>
           </div>
-
-          {categoryExamples.length > 0 && (
-            <div className={styles.examples}>
-              <div className={styles.examplesLabel}>Try an example</div>
-              {categoryExamples.map((ex) => (
-                <button
-                  key={ex}
-                  type="button"
-                  className={styles.exampleChip}
-                  onClick={() => {
-                    setPrompt(ex);
-                    void buildFromPrompt(ex);
-                  }}
-                >
-                  {ex}
-                </button>
-              ))}
-            </div>
-          )}
         </>
       )}
 
@@ -573,7 +654,7 @@ export default function BusinessBuilderPage() {
 
       {error && <div className={styles.errorBox}>{error}</div>}
 
-      {moMessage && mode === 'home' && !loading && (
+      {moMessage && mode === 'home' && !loading && thread.length === 0 && (
         <div className={styles.moCard}>
           <div className={styles.moLabel}>MO</div>
           <p className={styles.moText}>{moMessage}</p>
@@ -625,6 +706,9 @@ export default function BusinessBuilderPage() {
                     setMode('home');
                     setFeature(null);
                     setDefinition(null);
+                    setThread([]);
+                    setOptimizedPrompt(null);
+                    setPrompt('');
                   }}
                 >
                   New request
