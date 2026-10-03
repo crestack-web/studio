@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import type { BusmoFeatureDefinition, EntityDefinition, ViewDefinition } from '../types';
+import type { BusmoFeatureDefinition, EntityDefinition, ViewDefinition, BusmoRelationTarget } from '../types';
+import { applyComputedFields } from '../computed';
 import { validateFeatureDefinition } from '../validate';
 import styles from './FeatureRenderer.module.css';
 
@@ -17,6 +18,8 @@ export interface FeatureRendererProps {
   internal?: boolean;
   /** Live workspace page: hide builder prose, kicker, and redundant meta. */
   workspace?: boolean;
+  /** Tenant id for relation lookups (supplier, customer, product, staff). */
+  businessId?: string;
   loading?: boolean;
   error?: string | null;
   onCreate?: (entityKey: string, data: Record<string, unknown>) => Promise<void> | void;
@@ -49,6 +52,7 @@ export function FeatureRenderer({
   records = [],
   internal = true,
   workspace = false,
+  businessId,
   loading,
   error,
   onCreate,
@@ -96,7 +100,9 @@ export function FeatureRenderer({
     setBusy(true);
     setLocalError(null);
     try {
-      await onCreate(entityKey, data);
+      const ent = definition.entities.find((e) => e.key === entityKey);
+      const payload = ent ? applyComputedFields(ent.fields, data) : data;
+      await onCreate(entityKey, payload);
     } catch (e: unknown) {
       setLocalError(e instanceof Error ? e.message : 'Create failed');
     } finally {
@@ -113,7 +119,9 @@ export function FeatureRenderer({
     setBusy(true);
     setLocalError(null);
     try {
-      await onUpdate(entityKey, recordId, data);
+      const ent = definition.entities.find((e) => e.key === entityKey);
+      const payload = ent ? applyComputedFields(ent.fields, data) : data;
+      await onUpdate(entityKey, recordId, payload);
       setEditingId(null);
     } catch (e: unknown) {
       setLocalError(e instanceof Error ? e.message : 'Update failed');
@@ -194,6 +202,7 @@ export function FeatureRenderer({
           busy={busy}
           editingId={editingId}
           setEditingId={setEditingId}
+          businessId={businessId}
           onCreate={onCreate ? handleCreate : undefined}
           onUpdate={onUpdate ? handleUpdate : undefined}
           onDelete={onDelete ? handleDelete : undefined}
@@ -210,6 +219,7 @@ function ViewBody({
   busy,
   editingId,
   setEditingId,
+  businessId,
   onCreate,
   onUpdate,
   onDelete,
@@ -220,6 +230,7 @@ function ViewBody({
   busy: boolean;
   editingId: string | null;
   setEditingId: (id: string | null) => void;
+  businessId?: string;
   onCreate?: (entityKey: string, data: Record<string, unknown>) => void;
   onUpdate?: (
     entityKey: string,
@@ -359,111 +370,18 @@ function ViewBody({
   }
 
   if (view.type === 'form') {
-    const fields = (view.formFields || entity.fields.map((f) => f.key))
-      .map((k) => entity.fields.find((f) => f.key === k))
-      .filter(Boolean);
-
-    const editing = editingId
-      ? records.find((r) => r.id === editingId)
-      : null;
-
     return (
-      <form
-        className={styles.form}
-        key={editingId || 'new'}
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (busy) return;
-          const fd = new FormData(e.currentTarget);
-          const data: Record<string, unknown> = {};
-          for (const f of fields) {
-            if (!f) continue;
-            const raw = fd.get(f.key);
-            if (f.type === 'number' || f.type === 'currency') {
-              data[f.key] = raw === '' || raw == null ? null : Number(raw);
-            } else {
-              data[f.key] = raw == null ? '' : String(raw);
-            }
-          }
-          if (editing && onUpdate) {
-            onUpdate(entity.key, editing.id, data);
-          } else if (onCreate) {
-            onCreate(entity.key, data);
-            e.currentTarget.reset();
-          }
-        }}
-      >
-        {fields.map((f) => {
-          if (!f) return null;
-          const defaultVal =
-            editing?.data?.[f.key] ?? f.defaultValue ?? '';
-          if (f.type === 'status' || f.type === 'select') {
-            return (
-              <label key={f.key}>
-                {f.label}
-                <select
-                  name={f.key}
-                  defaultValue={String(defaultVal ?? '')}
-                  required={!!f.required}
-                >
-                  {(f.options || []).map((o) => (
-                    <option key={o} value={o}>
-                      {o}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            );
-          }
-          if (f.type === 'textarea') {
-            return (
-              <label key={f.key}>
-                {f.label}
-                <textarea
-                  name={f.key}
-                  rows={3}
-                  defaultValue={String(defaultVal ?? '')}
-                  required={!!f.required}
-                />
-              </label>
-            );
-          }
-          return (
-            <label key={f.key}>
-              {f.label}
-              <input
-                name={f.key}
-                defaultValue={
-                  defaultVal == null || defaultVal === ''
-                    ? ''
-                    : String(defaultVal)
-                }
-                required={!!f.required}
-                type={
-                  f.type === 'number' || f.type === 'currency'
-                    ? 'number'
-                    : f.type === 'date'
-                      ? 'date'
-                      : 'text'
-                }
-              />
-            </label>
-          );
-        })}
-        <button type="submit" disabled={busy || (!onCreate && !onUpdate)}>
-          {editing ? 'Update record' : 'Save record'}
-        </button>
-        {editing && (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => setEditingId(null)}
-            style={{ background: '#6b7280' }}
-          >
-            Cancel edit
-          </button>
-        )}
-      </form>
+      <RecordForm
+        entity={entity}
+        view={view}
+        records={records}
+        busy={busy}
+        editingId={editingId}
+        setEditingId={setEditingId}
+        businessId={businessId}
+        onCreate={onCreate}
+        onUpdate={onUpdate}
+      />
     );
   }
 
@@ -542,5 +460,234 @@ function ViewBody({
         </p>
       )}
     </div>
+  );
+}
+
+
+function RecordForm({
+  entity,
+  view,
+  records,
+  busy,
+  editingId,
+  setEditingId,
+  businessId,
+  onCreate,
+  onUpdate,
+}: {
+  entity: EntityDefinition;
+  view: ViewDefinition;
+  records: FeatureRecord[];
+  busy: boolean;
+  editingId: string | null;
+  setEditingId: (id: string | null) => void;
+  businessId?: string;
+  onCreate?: (entityKey: string, data: Record<string, unknown>) => void;
+  onUpdate?: (
+    entityKey: string,
+    recordId: string,
+    data: Record<string, unknown>
+  ) => void;
+}) {
+  const fields = (view.formFields || entity.fields.map((f) => f.key))
+    .map((k) => entity.fields.find((f) => f.key === k))
+    .filter(Boolean)
+    .filter((f) => f && !f.hidden && !f.autoFromAuth);
+
+  const editing = editingId
+    ? records.find((r) => r.id === editingId)
+    : null;
+
+  const [formData, setFormData] = useState<Record<string, unknown>>(() => {
+    const init: Record<string, unknown> = {};
+    for (const f of fields) {
+      if (!f) continue;
+      init[f.key] = editing?.data?.[f.key] ?? f.defaultValue ?? '';
+    }
+    return applyComputedFields(entity.fields, init);
+  });
+
+  const [entityOptions, setEntityOptions] = useState<
+    Record<string, Array<{ id: string; label: string; secondary?: string }>>
+  >({});
+
+  useEffect(() => {
+    if (!businessId) return;
+    let cancelled = false;
+    async function loadTargets() {
+      const targets = new Set<BusmoRelationTarget>();
+      for (const f of entity.fields) {
+        if (f.type === 'relation' && f.relationTarget && f.relationTarget !== 'custom') {
+          targets.add(f.relationTarget);
+        }
+      }
+      const { getSupabase } = await import('@/lib/supabase');
+      const supabase = getSupabase();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) return;
+      const next: Record<string, Array<{ id: string; label: string; secondary?: string }>> = {};
+      for (const target of targets) {
+        try {
+          const res = await fetch(
+            `/api/custom-features/entities?businessId=${encodeURIComponent(
+              businessId!
+            )}&target=${encodeURIComponent(target)}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          const json = await res.json().catch(() => ({}));
+          if (res.ok && !cancelled) {
+            next[target] = json.options || [];
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      if (!cancelled) setEntityOptions(next);
+    }
+    void loadTargets();
+    return () => {
+      cancelled = true;
+    };
+  }, [businessId, entity.fields]);
+
+  function setField(key: string, value: unknown) {
+    setFormData((prev) => {
+      const merged = { ...prev, [key]: value };
+      return applyComputedFields(entity.fields, merged);
+    });
+  }
+
+  return (
+    <form
+      className={styles.form}
+      key={editingId || 'new'}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (busy) return;
+        const data = applyComputedFields(entity.fields, formData);
+        if (editing && onUpdate) {
+          onUpdate(entity.key, editing.id, data);
+          setEditingId(null);
+        } else if (onCreate) {
+          onCreate(entity.key, data);
+          const reset: Record<string, unknown> = {};
+          for (const f of fields) {
+            if (!f) continue;
+            reset[f.key] = f.defaultValue ?? '';
+          }
+          setFormData(applyComputedFields(entity.fields, reset));
+        }
+      }}
+    >
+      {fields.map((f) => {
+        if (!f) return null;
+        const val = formData[f.key] ?? '';
+        if (f.computed) {
+          return (
+            <label key={f.key}>
+              {f.label}
+              <input
+                name={f.key}
+                value={val == null || val === '' ? '' : String(val)}
+                readOnly
+                title="Calculated automatically"
+              />
+            </label>
+          );
+        }
+        if (f.type === 'relation' && f.relationTarget) {
+          const opts = entityOptions[f.relationTarget] || [];
+          return (
+            <label key={f.key}>
+              {f.label}
+              <select
+                name={f.key}
+                value={String(val ?? '')}
+                required={!!f.required}
+                onChange={(e) => setField(f.key, e.target.value)}
+              >
+                <option value="">Select {f.label.toLowerCase()}…</option>
+                {opts.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                    {o.secondary ? ` — ${o.secondary}` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+          );
+        }
+        if (f.type === 'status' || f.type === 'select') {
+          return (
+            <label key={f.key}>
+              {f.label}
+              <select
+                name={f.key}
+                value={String(val ?? '')}
+                required={!!f.required}
+                onChange={(e) => setField(f.key, e.target.value)}
+              >
+                <option value="">Select…</option>
+                {(f.options || []).map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            </label>
+          );
+        }
+        if (f.type === 'textarea') {
+          return (
+            <label key={f.key}>
+              {f.label}
+              <textarea
+                name={f.key}
+                rows={3}
+                value={String(val ?? '')}
+                required={!!f.required}
+                onChange={(e) => setField(f.key, e.target.value)}
+              />
+            </label>
+          );
+        }
+        return (
+          <label key={f.key}>
+            {f.label}
+            <input
+              name={f.key}
+              value={val == null || val === '' ? '' : String(val)}
+              required={!!f.required}
+              type={
+                f.type === 'number' || f.type === 'currency'
+                  ? 'number'
+                  : f.type === 'date'
+                    ? 'date'
+                    : 'text'
+              }
+              onChange={(e) => {
+                const raw = e.target.value;
+                if (f.type === 'number' || f.type === 'currency') {
+                  setField(f.key, raw === '' ? '' : Number(raw));
+                } else {
+                  setField(f.key, raw);
+                }
+              }}
+            />
+          </label>
+        );
+      })}
+      <button type="submit" disabled={busy || (!onCreate && !onUpdate)}>
+        {editing
+          ? 'Save changes'
+          : `Record ${(entity.label || 'entry').toLowerCase()}`}
+      </button>
+      {editing && (
+        <button type="button" disabled={busy} onClick={() => setEditingId(null)}>
+          Cancel
+        </button>
+      )}
+    </form>
   );
 }
