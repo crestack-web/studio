@@ -357,8 +357,11 @@ export function applySemanticProcessEdit(
   editMessage: string
 ): { plan: BusinessProcessPlan; note: string } {
   const text = String(editMessage || '').trim();
-  let next = applyLanguageAdjustments({ ...plan, assumptions: [...plan.assumptions] }, text);
-  let note = 'Updated the business process model.';
+  let next = applyLanguageAdjustments(
+    { ...plan, assumptions: [...(plan.assumptions || [])] },
+    text
+  );
+  let notes: string[] = [];
 
   if (/don'?t buy|they bring|bring(s)? (the )?bottles|come to me/i.test(text)) {
     next = {
@@ -381,29 +384,133 @@ export function applySemanticProcessEdit(
     next.suggestedActions = next.suggestedActions.map((a) =>
       a.type === 'create' ? { ...a, label: 'Record supplier delivery' } : a
     );
-    note =
-      'Switched to a supplier-delivery model. You’ll log materials brought to you, not shop purchases.';
+    notes.push('Switched to a supplier-delivery model.');
   }
 
-  if (/don'?t pay immediately|pay later|on credit|not upfront/i.test(text)) {
+  if (/don'?t pay immediately|pay later|on credit|not upfront|owe|outstanding/i.test(text)) {
     next = applyLanguageAdjustments(next, 'payment balance credit outstanding');
-    note =
-      'Added payment tracking. Busmo will track amount paid and remaining balance.';
+    notes.push('Added payment tracking and balances.');
   }
 
-  if (/worker|which staff|who handled|technician/i.test(text)) {
+  if (/end of (the )?week|weekly settlement|settle later|pay at the end|batch payment/i.test(text)) {
+    next = {
+      ...next,
+      assumptions: [
+        ...next.assumptions,
+        'Deliveries can be recorded without immediate payment; settle balances later (e.g. weekly).',
+      ],
+      businessQuestions: [
+        ...new Set([
+          ...next.businessQuestions,
+          'What is outstanding this week?',
+          'Which suppliers need settlement?',
+          'How much is owed in total?',
+        ]),
+      ],
+      suggestedViews: [
+        ...next.suggestedViews.filter((v) => v.key !== 'settlements'),
+        {
+          key: 'settlements',
+          title: 'Settlements',
+          type: 'table',
+          answersQuestion: 'What is outstanding and ready to settle?',
+        },
+      ],
+    };
+    notes.push('Supports recording deliveries now and settling payments later.');
+  }
+
+  if (/two (different )?materials|multiple materials|more than one material|same visit/i.test(text)) {
+    next = {
+      ...next,
+      assumptions: [
+        ...next.assumptions,
+        'One visit may include multiple material lines; record each material as its own delivery line.',
+      ],
+      businessQuestions: [
+        ...new Set([
+          ...next.businessQuestions,
+          'What materials came in this visit?',
+        ]),
+      ],
+    };
+    notes.push('Supports multiple materials per visit as separate delivery lines.');
+  }
+
+  if (/worker|which staff|who handled|technician|assign staff/i.test(text)) {
     next = applyLanguageAdjustments(next, 'worker staff employee');
-    note = 'Added worker tracking so you can see who handled each job.';
+    notes.push('Added worker/staff tracking.');
   }
 
-  if (/location|address|where they/i.test(text) && next.events[0]) {
+  if (/location|address|where they|site/i.test(text) && next.events[0]) {
     const fields = [...(next.events[0].fieldHints || [])];
-    if (!fields.some((f) => f.key === 'location' || f.key === 'address')) {
+    if (!fields.some((f) => f.key === 'location' || f.key === 'address' || f.key === 'site')) {
       fields.push({ key: 'location', label: 'Location', type: 'text' });
       next.events = [{ ...next.events[0], fieldHints: fields }];
-      note = 'Added location so you can record where each entry is from.';
+      notes.push('Added location.');
     }
   }
 
-  return { plan: next, note };
+  if (/customer|client/i.test(text) && !/supplier/i.test(text)) {
+    if (!next.actors.some((a) => a.role === 'customer')) {
+      next.actors = [...next.actors, { key: 'customer', role: 'customer', label: 'Customer' }];
+    }
+    if (next.events[0]) {
+      const fields = [...(next.events[0].fieldHints || [])];
+      if (!fields.some((f) => /customer/i.test(f.key))) {
+        fields.unshift({
+          key: 'customer_id',
+          label: 'Customer',
+          type: 'relation',
+          required: true,
+          relationTarget: 'customer',
+        } as any);
+        next.events = [{ ...next.events[0], fieldHints: fields }];
+      }
+    }
+    notes.push('Added customer tracking.');
+  }
+
+  if (/status|pipeline|stages|workflow/i.test(text) && next.events[0]) {
+    const fields = [...(next.events[0].fieldHints || [])];
+    if (!fields.some((f) => f.type === 'status')) {
+      fields.push({
+        key: 'status',
+        label: 'Status',
+        type: 'status',
+        options: ['Open', 'In progress', 'Done', 'Cancelled'],
+      });
+      next.events = [{ ...next.events[0], fieldHints: fields }];
+      next.suggestedViews = [
+        ...next.suggestedViews,
+        {
+          key: 'by_status',
+          title: 'By status',
+          type: 'cards',
+          answersQuestion: 'What work is in each stage?',
+        },
+      ];
+      notes.push('Added status stages.');
+    }
+  }
+
+  if (/overview|dashboard|metrics|how much|summary/i.test(text)) {
+    next.suggestedViews = [
+      {
+        key: 'overview',
+        title: 'Overview',
+        type: 'metrics',
+        answersQuestion: 'How is this area performing?',
+      },
+      ...next.suggestedViews.filter((v) => v.key !== 'overview'),
+    ];
+    notes.push('Emphasized overview metrics.');
+  }
+
+  if (!notes.length) {
+    notes.push('Updated the business process model from your description.');
+  }
+
+  return { plan: next, note: notes.join(' ') };
 }
+
