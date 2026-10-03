@@ -323,6 +323,7 @@ export function heuristicNlToDefinition(userMessage: string): NlBuildResult {
           defaultValue: 'Pending',
         },
         { key: 'deliveryDate', label: 'Delivery date', type: 'date' },
+        { key: 'amount', label: 'Amount', type: 'currency' },
       ],
     });
     return {
