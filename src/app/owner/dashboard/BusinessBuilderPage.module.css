@@ -1,0 +1,392 @@
+.root {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 20px 16px 80px;
+  color: #0a0a0f;
+}
+
+.hero {
+  text-align: center;
+  padding: 28px 8px 8px;
+}
+
+.kicker {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b3fe7;
+  margin-bottom: 10px;
+}
+
+.title {
+  font-size: clamp(1.45rem, 4vw, 1.85rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+  margin: 0 0 10px;
+}
+
+.sub {
+  margin: 0 auto;
+  max-width: 520px;
+  color: #6b7280;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.inputCard {
+  margin-top: 24px;
+  background: #fff;
+  border: 1px solid #e8e8f0;
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: 0 8px 28px rgba(107, 63, 231, 0.08);
+}
+
+.textarea {
+  width: 100%;
+  min-height: 88px;
+  border: none;
+  resize: vertical;
+  font-size: 1rem;
+  font-family: inherit;
+  color: #0a0a0f;
+  outline: none;
+  background: transparent;
+}
+
+.inputBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.primaryBtn {
+  appearance: none;
+  border: none;
+  background: #6b3fe7;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 12px 20px;
+  border-radius: 12px;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.primaryBtn:disabled {
+  background: #c4b3f5;
+  cursor: not-allowed;
+}
+
+.secondaryBtn {
+  appearance: none;
+  border: 1.5px solid #e8e8f0;
+  background: #fff;
+  color: #0a0a0f;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.dangerBtn {
+  composes: primaryBtn;
+  background: #059669;
+}
+
+.examples {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.examplesLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #8888a0;
+}
+
+.exampleChip {
+  text-align: left;
+  border: 1px solid #e8e8f0;
+  background: #fafafa;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 0.88rem;
+  color: #374151;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.exampleChip:hover {
+  border-color: #d4c6ff;
+  background: #f8f5ff;
+}
+
+.loadingBox {
+  margin-top: 28px;
+  text-align: center;
+  padding: 32px 16px;
+  color: #6b3fe7;
+  font-weight: 600;
+}
+
+.pulse {
+  width: 36px;
+  height: 36px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: #e8e0ff;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(0.9); opacity: 0.7; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+
+.moCard {
+  margin-top: 20px;
+  background: #fff;
+  border: 1px solid #e8e8f0;
+  border-radius: 16px;
+  padding: 18px 16px;
+}
+
+.moLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #6b3fe7;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.moText {
+  margin: 8px 0 0;
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+
+.fieldList {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  color: #374151;
+  font-size: 0.92rem;
+  line-height: 1.7;
+}
+
+.steps {
+  margin: 14px 0 0;
+  padding-left: 18px;
+  color: #555568;
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.badgeDraft {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badgePublished {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badgeArchived {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.headerRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.changeBox {
+  margin: 12px 0;
+  background: #f3effe;
+  border-left: 3px solid #6b3fe7;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.88rem;
+  color: #4b27b0;
+}
+
+.errorBox {
+  margin-top: 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 0.9rem;
+}
+
+.history {
+  margin-top: 36px;
+}
+
+.historyTitle {
+  font-size: 1.05rem;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 640px) {
+  .cardGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.featureCard {
+  border: 1px solid #e8e8f0;
+  border-radius: 14px;
+  padding: 14px;
+  background: #fff;
+}
+
+.featureCard h3 {
+  margin: 0 0 4px;
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.featureCard p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.cardActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 15, 0.45);
+  z-index: 80;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+}
+
+@media (min-width: 640px) {
+  .modalBackdrop {
+    align-items: center;
+  }
+}
+
+.modal {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 18px;
+  padding: 22px 18px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+}
+
+.modal h3 {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.modal p {
+  margin: 0 0 16px;
+  color: #6b7280;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.modalActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.successBanner {
+  margin: 16px 0;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  border-radius: 12px;
+  padding: 14px;
+  font-weight: 600;
+}
+
+.previewWrap {
+  margin-top: 8px;
+  border: 1px solid #e8e8f0;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fafafa;
+}
+
+.editRow {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editInput {
+  width: 100%;
+  border: 1.5px solid #e8e8f0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+}
+
+.editInput:focus {
+  border-color: #6b3fe7;
+  box-shadow: 0 0 0 3px rgba(107, 63, 231, 0.12);
+}
