@@ -5,12 +5,22 @@
 import type { BusmoFeatureDefinition, FieldDefinition } from './types';
 import { validateFeatureDefinition } from './validate';
 import { formatFeatureBuilderContextForPrompt } from './builder-context';
+import { planBusinessProcess } from './process-planner';
+import {
+  businessProcessPlanToDefinition,
+  formatProcessExplanation,
+} from './plan-to-definition';
+import type { BusinessProcessPlan } from './business-process-types';
 
 export type NlBuildResult =
   | {
       kind: 'definition';
       definition: BusmoFeatureDefinition;
       summary: string;
+      /** Internal process plan (not required by UI). */
+      processPlan?: import('./business-process-types').BusinessProcessPlan;
+      /** Owner-facing explanation of understanding + assumptions. */
+      explanation?: string;
     }
   | {
       kind: 'clarification';
@@ -463,79 +473,117 @@ export function heuristicNlToDefinition(userMessage: string): NlBuildResult {
   };
 }
 
+/**
+ * Intelligence pipeline:
+ * language → BusinessProcessPlan → BusmoFeatureDefinition → validation.
+ * Optional LLM only enriches when process plan is thin and key is present.
+ */
 export async function naturalLanguageToFeatureDefinition(
   userMessage: string,
-  opts?: { useLlm?: boolean }
+  opts?: {
+    useLlm?: boolean;
+    priorPlan?: BusinessProcessPlan | null;
+    preferClarification?: boolean;
+  }
 ): Promise<NlBuildResult> {
-  const heuristic = heuristicNlToDefinition(userMessage);
-  if (heuristic.kind !== 'clarification' || opts?.useLlm === false) {
+  // 1) Process planner (actors, events, calculations, questions)
+  const planned = planBusinessProcess(userMessage, {
+    priorPlan: opts?.priorPlan || null,
+    preferClarification: opts?.preferClarification,
+  });
+
+  if (planned.kind === 'clarification') {
+    return { kind: 'clarification', question: planned.question };
+  }
+  if (planned.kind === 'unsupported') {
+    return { kind: 'unsupported', message: planned.message };
+  }
+
+  const plan = planned.plan;
+
+  // 2) Translate process model → feature definition
+  let definition = businessProcessPlanToDefinition(plan);
+  definition.status = 'draft';
+
+  let v = validateFeatureDefinition(definition);
+  if (!v.ok) {
+    // Fallback to legacy heuristics if plan translation failed validation
+    const heuristic = heuristicNlToDefinition(userMessage);
     if (heuristic.kind === 'definition') {
-      const v = validateFeatureDefinition(heuristic.definition);
-      if (!v.ok) {
+      const hv = validateFeatureDefinition(heuristic.definition);
+      if (hv.ok) {
+        heuristic.definition.status = 'draft';
         return {
-          kind: 'invalid',
-          message: 'Generated definition failed validation',
-          issues: v.issues,
+          ...heuristic,
+          processPlan: plan,
+          explanation: formatProcessExplanation(plan),
         };
       }
-      heuristic.definition.status = 'draft';
-    }
-    return heuristic;
-  }
-
-  if (!process.env.MISTRAL_API_KEY) {
-    return heuristic;
-  }
-
-  try {
-    const { getMistralClient, DEFAULT_MODEL } = await import('@/ai/mistral');
-    const client = getMistralClient();
-    const system = `${formatFeatureBuilderContextForPrompt()}\n\nRespond with JSON only: either {"type":"definition","definition":{...}} or {"type":"clarification","question":"..."} or {"type":"unsupported","message":"..."}.`;
-    const res = await client.chat.complete({
-      model: DEFAULT_MODEL,
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: userMessage },
-      ],
-      responseFormat: { type: 'json_object' } as any,
-      temperature: 0.2,
-    });
-    const content =
-      typeof res.choices?.[0]?.message?.content === 'string'
-        ? res.choices[0].message.content
-        : JSON.stringify(res.choices?.[0]?.message?.content ?? '');
-    const parsed = JSON.parse(content);
-    if (parsed.type === 'clarification') {
-      return {
-        kind: 'clarification',
-        question: String(parsed.question || heuristic.question),
-      };
-    }
-    if (parsed.type === 'unsupported') {
-      return {
-        kind: 'unsupported',
-        message: String(parsed.message || 'Unsupported request'),
-      };
-    }
-    const definition = parsed.definition || parsed;
-    definition.status = 'draft';
-    if (!definition.id) definition.id = newId();
-    if (!definition.version) definition.version = 1;
-    const v = validateFeatureDefinition(definition);
-    if (!v.ok) {
-      return {
-        kind: 'invalid',
-        message: 'AI definition failed Busmo validation',
-        issues: v.issues,
-      };
     }
     return {
-      kind: 'definition',
-      definition,
-      summary: `DRAFT CREATED: ${definition.name}. Preview before publishing — not live yet.`,
+      kind: 'invalid',
+      message: 'Generated definition failed validation',
+      issues: v.issues,
     };
-  } catch (e: any) {
-    console.warn('[nl-to-definition] LLM fallback failed', e?.message);
-    return heuristic;
   }
+
+  // 3) Optional LLM enrichment when confidence is low (never bypasses validation)
+  if (
+    opts?.useLlm !== false &&
+    plan.confidence < 0.55 &&
+    process.env.MISTRAL_API_KEY
+  ) {
+    try {
+      const { getMistralClient, DEFAULT_MODEL } = await import('@/ai/mistral');
+      const client = getMistralClient();
+      const system = `${formatFeatureBuilderContextForPrompt()}\n\nRespond with JSON only: either {"type":"definition","definition":{...}} or {"type":"clarification","question":"..."} or {"type":"unsupported","message":"..."}. Prefer event-style records (what happens) over empty contact lists.`;
+      const res = await client.chat.complete({
+        model: DEFAULT_MODEL,
+        messages: [
+          { role: 'system', content: system },
+          {
+            role: 'user',
+            content: `Business process summary: ${plan.summary}\nGoal: ${plan.goal}\nOwner request: ${userMessage}`,
+          },
+        ],
+        responseFormat: { type: 'json_object' } as any,
+        temperature: 0.2,
+      });
+      const content =
+        typeof res.choices?.[0]?.message?.content === 'string'
+          ? res.choices[0].message.content
+          : JSON.stringify(res.choices?.[0]?.message?.content ?? '');
+      const parsed = JSON.parse(content);
+      if (parsed.type === 'clarification') {
+        return {
+          kind: 'clarification',
+          question: String(parsed.question || 'Can you describe one real example of how this works day to day?'),
+        };
+      }
+      if (parsed.type === 'unsupported') {
+        return {
+          kind: 'unsupported',
+          message: String(parsed.message || 'Unsupported request'),
+        };
+      }
+      const llmDef = parsed.definition || parsed;
+      llmDef.status = 'draft';
+      if (!llmDef.id) llmDef.id = newId();
+      if (!llmDef.version) llmDef.version = 1;
+      const lv = validateFeatureDefinition(llmDef);
+      if (lv.ok) {
+        definition = llmDef;
+      }
+    } catch (e: any) {
+      console.warn('[nl-to-definition] LLM enrichment skipped', e?.message);
+    }
+  }
+
+  return {
+    kind: 'definition',
+    definition,
+    summary: `DRAFT CREATED: ${definition.name}. ${plan.summary} Preview before publishing — not live yet.`,
+    processPlan: plan,
+    explanation: formatProcessExplanation(plan),
+  };
 }
