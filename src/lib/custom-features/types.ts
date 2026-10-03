@@ -44,13 +44,43 @@ export type WorkflowActionType =
   | 'assign'
   | 'set_status';
 
+/** Canonical Busmo entities a field may reference (tenant-scoped). */
+export type BusmoRelationTarget =
+  | 'supplier'
+  | 'customer'
+  | 'product'
+  | 'material'
+  | 'staff'
+  | 'custom';
+
+/** Safe computed expression — whitelist only, never arbitrary JS. */
+export type ComputedOperator = 'multiply' | 'add' | 'subtract' | 'divide';
+
+export interface ComputedValueDef {
+  op: ComputedOperator;
+  /** Field keys on the same record used as inputs (left-to-right). */
+  inputs: string[];
+}
+
 export interface FieldDefinition {
   key: string;
   label: string;
   type: FieldType;
   required?: boolean;
   options?: string[];
+  /** Legacy: key of another entity in this feature definition. */
   relationEntity?: string;
+  /**
+   * Reference to a canonical Busmo entity (supplier, customer, product, staff, …).
+   * When set with type 'relation', the renderer shows a tenant-scoped lookup.
+   */
+  relationTarget?: BusmoRelationTarget;
+  /** Safe declarative calculation; field is read-only in forms when set. */
+  computed?: ComputedValueDef;
+  /** Hide from create form (e.g. auto staff). */
+  hidden?: boolean;
+  /** Auto-fill with authenticated staff/user when creating a record. */
+  autoFromAuth?: 'staff' | 'user';
   defaultValue?: string | number | boolean | null;
 }
 
@@ -133,6 +163,22 @@ export interface BusmoFeatureDefinition {
   navLabel?: string;
   iconKey?: string;
 }
+
+export const ALLOWED_RELATION_TARGETS: BusmoRelationTarget[] = [
+  'supplier',
+  'customer',
+  'product',
+  'material',
+  'staff',
+  'custom',
+];
+
+export const ALLOWED_COMPUTED_OPS: ComputedOperator[] = [
+  'multiply',
+  'add',
+  'subtract',
+  'divide',
+];
 
 export const ALLOWED_FIELD_TYPES: FieldType[] = [
   'text',
