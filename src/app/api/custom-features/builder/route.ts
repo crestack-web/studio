@@ -157,26 +157,30 @@ export async function POST(req: NextRequest) {
         if (!existing) {
           return NextResponse.json({ error: 'Feature not found' }, { status: 404 });
         }
+
+        // Published tools: fork a draft automatically so the owner can edit without a separate step.
+        let working = existing;
+        let forked = false;
         if (existing.status !== 'draft') {
-          // Continue editing: apply onto a draft copy path via update only if draft
-          return NextResponse.json(
-            {
-              error:
-                'Only draft features can be edited with MO. Open Continue editing on a published feature first.',
-            },
-            { status: 400 }
-          );
+          const { feature: draft } = await toolCreateCustomFeatureDraft(auth, {
+            ...existing.definition,
+            status: 'draft',
+          });
+          working = draft;
+          forked = true;
         }
-        const applied = applyDefinitionEdit(existing.definition, message);
+
+        const applied = applyDefinitionEdit(working.definition, message);
         if (!applied.ok) {
           return NextResponse.json({
             ok: true,
             result: { kind: 'unsupported', message: applied.message },
+            feature: working,
           });
         }
-        const before = existing.definition;
+        const before = working.definition;
         const feature = await toolUpdateCustomFeatureDraft(auth, {
-          featureId,
+          featureId: working.id,
           definition: applied.definition,
         });
         const changes = summarizeDefinitionChanges(before, feature.definition);
@@ -186,7 +190,9 @@ export async function POST(req: NextRequest) {
           changes,
           changeLines: formatChangeSummary(changes),
           note: applied.note,
-          notice: 'DRAFT UPDATED — published version (if any) is unchanged.',
+          notice: forked
+            ? 'Draft created from published tool and updated. Live version is unchanged until you publish again.'
+            : 'DRAFT UPDATED — published version (if any) is unchanged.',
         });
       }
       case 'list_drafts': {
