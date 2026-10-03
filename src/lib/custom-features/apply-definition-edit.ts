@@ -4,6 +4,40 @@
  */
 import type { BusmoFeatureDefinition, FieldDefinition, FieldType } from './types';
 import { validateFeatureDefinition } from './validate';
+import { planBusinessProcess, applySemanticProcessEdit } from './process-planner';
+import { businessProcessPlanToDefinition } from './plan-to-definition';
+
+function trySemanticEdit(
+  current: BusmoFeatureDefinition,
+  text: string
+): ApplyEditResult | null {
+  const semanticHit =
+    /don'?t buy|they bring|bring(s)? (the )?bottles|pay later|on credit|don'?t pay immediately|worker|which staff|who handled|technician|location|address/i.test(
+      text
+    );
+  if (!semanticHit) return null;
+
+  // Rebuild a plan from feature name/description + edit, then apply semantic transform
+  const seedText = [
+    current.name,
+    current.description || '',
+    text,
+  ].join('\n');
+  const planned = planBusinessProcess(seedText, { preferClarification: false });
+  if (planned.kind !== 'plan') return null;
+  const { plan, note } = applySemanticProcessEdit(planned.plan, text);
+  const next = businessProcessPlanToDefinition(plan);
+  // Preserve identity
+  next.id = current.id;
+  next.slug = current.slug;
+  next.version = current.version;
+  next.status = current.status === 'published' ? 'draft' : current.status;
+  next.businessId = current.businessId;
+  const v = validateFeatureDefinition(next);
+  if (!v.ok) return null;
+  return { ok: true, definition: next, note };
+}
+
 
 export type ApplyEditResult =
   | { ok: true; definition: BusmoFeatureDefinition; note?: string }
@@ -50,6 +84,10 @@ export function applyDefinitionEdit(
         'I can add that as a tracked field, but automated WhatsApp notifications and custom code aren’t available in this builder yet.',
     };
   }
+
+  // Semantic path: process plan → regenerate definition when the edit changes the model
+  const semantic = trySemanticEdit(current, text);
+  if (semantic) return semantic;
 
   const def = cloneDef(current);
   const entity = def.entities[0];
