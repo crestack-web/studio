@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useApp } from './AppContext';
 import { useTranslation } from './LangContext';
 import { NAV_SECTIONS, NAV_ITEM_REQUIREMENTS } from './navItems';
-import { openCustomFeatureId } from './CustomFeaturePage';
+import { openCustomFeatureId, readOpenCustomFeatureId } from './CustomFeaturePage';
 import type { PageId, NavSection } from './index';
 import { NavIcons } from './NavIcons';
 import styles from './Sidebar.module.css';
@@ -34,6 +34,7 @@ export function Sidebar() {
   } = useApp();
   const { t } = useTranslation();
   const [staffCount, setStaffCount] = useState(0);
+  const [activeCustomFeatureId, setActiveCustomFeatureId] = useState('');
   const [customTools, setCustomTools] = useState<Array<{ id: string; name: string }>>([]);
 
   const [userCategory, setUserCategory] = useState<string | null>(null);
@@ -541,6 +542,15 @@ export function Sidebar() {
     };
   }, [(user as any)?.businessId]);
 
+  // Highlight only the open custom tool — not every My tools item.
+  useEffect(() => {
+    if (activePage !== 'custom-feature') {
+      setActiveCustomFeatureId('');
+      return;
+    }
+    setActiveCustomFeatureId(readOpenCustomFeatureId());
+  }, [activePage, customTools]);
+
   const filteredNavSections = NAV_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter((item) => isNavItemVisible(item.id)),
@@ -656,10 +666,14 @@ export function Sidebar() {
                       type="button"
                       className={[
                         styles.navLink,
-                        activePage === 'custom-feature' ? styles.active : '',
+                        activePage === 'custom-feature' &&
+                        activeCustomFeatureId === tool.id
+                          ? styles.active
+                          : '',
                       ].join(' ')}
                       onClick={() => {
                         openCustomFeatureId(tool.id);
+                        setActiveCustomFeatureId(tool.id);
                         navigateTo('custom-feature' as any);
                         closeSidebar();
                       }}
