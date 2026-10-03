@@ -797,6 +797,7 @@ export default function BusinessBuilderPage() {
             <FeatureRenderer
               definition={definition}
               records={records}
+              businessId={businessId}
               loading={false}
               error={null}
               internal={status === 'draft'}
