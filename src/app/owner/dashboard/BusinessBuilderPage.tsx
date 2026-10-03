@@ -6,6 +6,7 @@ import type { BusmoFeatureDefinition } from '@/lib/custom-features/types';
 import type { FeatureRecord } from '@/lib/custom-features/renderer/FeatureRenderer';
 import { getSupabase } from '@/lib/supabase';
 import { useApp } from './AppContext';
+import { openCustomFeatureId } from './CustomFeaturePage';
 import styles from './BusinessBuilderPage.module.css';
 
 const LOADING_STEPS = [
@@ -29,7 +30,7 @@ type ViewMode = 'home' | 'review' | 'live' | 'published-success';
 type ChatMsg = { role: 'user' | 'mo'; text: string };
 
 export default function BusinessBuilderPage() {
-  const { user } = useApp();
+  const { user, navigateTo } = useApp() as { user: any; navigateTo: (p: string) => void };
   const [businessId, setBusinessId] = useState(user?.businessId || '');
   const [businessCategory, setBusinessCategory] = useState('');
   const [prompt, setPrompt] = useState('');
@@ -428,14 +429,14 @@ export default function BusinessBuilderPage() {
         setFeature(f);
         setDefinition(f.definition);
       }
-      const entityKey = (f.definition || row.definition)?.entities?.[0]?.key;
-      if (entityKey && (f.status === 'published' || row.status === 'published')) {
-        await loadRecords(businessId, row.id, entityKey);
-        setMode('live');
-      } else {
-        setRecords([]);
-        setMode('review');
+      const isPublished = f.status === 'published' || row.status === 'published';
+      if (isPublished) {
+        openCustomFeatureId(row.id);
+        navigateTo('custom-feature');
+        return;
       }
+      setRecords([]);
+      setMode('review');
       setMoMessage(null);
       setChangeLines([]);
     } catch (e: unknown) {
@@ -525,7 +526,10 @@ export default function BusinessBuilderPage() {
                 <button
                   type="button"
                   className={styles.primaryBtn}
-                  onClick={() => void openFeature(feature)}
+                  onClick={() => {
+                    openCustomFeatureId(feature.id);
+                    navigateTo('custom-feature');
+                  }}
                 >
                   Open feature
                 </button>
