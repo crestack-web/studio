@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'businessId required' }, { status: 400 });
     }
 
-    const access = await assertBusinessAccess(user, businessId);
+    const access = await assertBusinessAccess(user.id, businessId);
     if (!access.ok) {
       return NextResponse.json({ error: access.reason }, { status: 403 });
     }
