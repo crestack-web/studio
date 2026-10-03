@@ -334,10 +334,12 @@ export default function BusinessBuilderPage() {
     }
   };
 
-  const applyEdit = async () => {
-    if (!businessId || !feature || !editText.trim()) return;
+  const applyEdit = async (overrideText?: string) => {
+    const message = (overrideText ?? editText).trim();
+    if (!businessId || !feature || !message) return;
     setLoading(true);
     setError(null);
+    setThread((prev) => [...prev, { role: 'user', text: message }]);
     try {
       const headers = await authHeaders();
       const res = await fetch('/api/custom-features/builder', {
@@ -347,13 +349,16 @@ export default function BusinessBuilderPage() {
           tool: 'edit_draft_from_natural_language',
           businessId,
           featureId: feature.id,
-          message: editText.trim(),
+          message,
+          conversation: thread.concat([{ role: 'user', text: message }]),
         }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || 'Could not update the draft.');
       if (json.result?.kind === 'unsupported') {
-        setMoMessage(json.result.message);
+        const msg = json.result.message;
+        setThread((prev) => [...prev, { role: 'mo', text: msg }]);
+        setMoMessage(msg);
         return;
       }
       if (json.feature) {
@@ -361,10 +366,13 @@ export default function BusinessBuilderPage() {
         setDefinition(json.feature.definition);
         setChangeLines(json.changeLines || []);
         setEditText('');
-        setMoMessage(
-          [json.note, json.notice].filter(Boolean).join(' ') || 'Draft updated.'
-        );
+        if (json.explanation) setExplanation(json.explanation);
+        const reply =
+          [json.note, json.notice].filter(Boolean).join(' ') || 'Draft updated.';
+        setThread((prev) => [...prev, { role: 'mo', text: reply }]);
+        setMoMessage(reply);
         setMode('review');
+        await refreshHistory(businessId);
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Update failed');
@@ -767,26 +775,48 @@ export default function BusinessBuilderPage() {
               </div>
             )}
 
-            {status === 'draft' && (
+            {(mode === 'review' || mode === 'live') && (
               <div className={styles.editRow}>
-                <div className={styles.moLabel}>What would you like to change?</div>
-                <input
+                <div className={styles.moLabel}>Tell MO how to change this tool</div>
+                {thread.length > 0 && (
+                  <div className={styles.thread} style={{ marginBottom: 8 }}>
+                    {thread.slice(-6).map((m, i) => (
+                      <div
+                        key={`${m.role}-${i}-${m.text.slice(0, 12)}`}
+                        className={m.role === 'user' ? styles.threadUser : styles.threadMo}
+                      >
+                        <div className={styles.threadLabel}>
+                          {m.role === 'user' ? 'You' : 'MO'}
+                        </div>
+                        <p className={styles.threadText}>{m.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <textarea
                   className={styles.editInput}
-                  placeholder='e.g. "Add supplier location"'
+                  rows={3}
+                  placeholder='Describe any change — e.g. "Calculate total from kg × price", "We settle suppliers weekly", "Add customer and payment status", "Show jobs by stage"'
                   value={editText}
                   onChange={(e) => setEditText(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') void applyEdit();
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                      e.preventDefault();
+                      void applyEdit();
+                    }
                   }}
                 />
                 <button
                   type="button"
                   className={styles.secondaryBtn}
                   onClick={() => void applyEdit()}
-                  disabled={!editText.trim()}
+                  disabled={!editText.trim() || loading}
                 >
-                  Update draft
+                  Update with MO
                 </button>
+                <p className={styles.hint} style={{ margin: 0 }}>
+                  MO can change fields, calculations, statuses, and how the process works. Publish when it looks right. Live tools stay unchanged until you publish.
+                </p>
               </div>
             )}
           </div>
