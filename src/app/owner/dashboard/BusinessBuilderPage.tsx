@@ -49,6 +49,7 @@ export default function BusinessBuilderPage() {
   const [builderMode, setBuilderMode] = useState<'planner' | 'builder'>('builder');
   const [thread, setThread] = useState<ChatMsg[]>([]);
   const [optimizedPrompt, setOptimizedPrompt] = useState<string | null>(null);
+  const [explanation, setExplanation] = useState<string | null>(null);
 
   async function authHeaders(): Promise<HeadersInit> {
     const supabase = getSupabase();
@@ -312,6 +313,12 @@ export default function BusinessBuilderPage() {
       setFeature(json.feature);
       setDefinition(json.feature.definition);
       setRecords([]);
+      const expl =
+        json.result?.explanation ||
+        json.explanation ||
+        json.result?.processPlan && json.result?.summary ||
+        null;
+      setExplanation(typeof expl === 'string' ? expl : null);
       const okMsg = `Got it. I built ${json.feature.name} as a draft. Review it below, then publish when ready.`;
       setMoMessage(okMsg);
       setThread((prev) => [...prev, { role: 'mo', text: okMsg }]);
@@ -781,6 +788,11 @@ export default function BusinessBuilderPage() {
             )}
           </div>
 
+          {explanation && (
+            <div className={styles.changeBox} style={{ whiteSpace: 'pre-wrap', marginBottom: 12 }}>
+              {explanation}
+            </div>
+          )}
           <div className={styles.previewWrap}>
             <FeatureRenderer
               definition={definition}
