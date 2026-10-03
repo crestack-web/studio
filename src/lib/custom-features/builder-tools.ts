@@ -261,6 +261,9 @@ export async function planFeatureFromNaturalLanguage(
       `Build "${result.definition.name}" for my business.`,
       result.definition.description || '',
       entity ? `Track each ${entity.label.toLowerCase()} with: ${fieldLabels}.` : '',
+      result.processPlan?.assumptions?.length
+        ? `Assumptions: ${result.processPlan.assumptions.join(' ')}`
+        : '',
     ]
       .filter(Boolean)
       .join(' ');
@@ -268,10 +271,13 @@ export async function planFeatureFromNaturalLanguage(
       result: {
         kind: 'plan',
         summary:
+          result.explanation ||
           result.summary ||
           `Plan ready: ${result.definition.name}. Switch to Builder to create the draft.`,
         optimizedPrompt,
         suggestedName: result.definition.name,
+        explanation: result.explanation,
+        processPlan: result.processPlan,
       },
     };
   }
