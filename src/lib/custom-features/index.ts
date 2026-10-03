@@ -6,7 +6,6 @@ export {
   getFeatureBuilderContext,
   formatFeatureBuilderContextForPrompt,
 } from './builder-context';
-export {
-  heuristicNlToDefinition,
-  naturalLanguageToFeatureDefinition,
-} from './nl-to-definition';
+
+// naturalLanguageToFeatureDefinition lives in nl-to-definition.ts and may use
+// Node crypto / Mistral — import it only from server routes, not this barrel.
