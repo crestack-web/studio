@@ -1,11 +1,6 @@
 import '../welcome/styles/globals.css';
 
-export default function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <body>
-        {children}
-      </body>
-    </html>
-  );
+export default function VerifyLayout({ children }: { children: React.ReactNode }) {
+  // Root layout owns <html>/<body> + viewport meta (required for Safari mobile).
+  return <>{children}</>;
 }
