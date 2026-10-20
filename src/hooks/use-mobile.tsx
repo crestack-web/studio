@@ -3,8 +3,6 @@ import * as React from "react"
 /**
  * Must match CSS breakpoints used across the app:
  *   @media (max-width: 768px) { ... }
- * Using 767 (breakpoint - 1) caused JS to treat 768px as desktop while CSS
- * still applied mobile styles — and the opposite off-by-one on some devices.
  */
 export const MOBILE_BREAKPOINT = 768
 
@@ -13,14 +11,15 @@ function getMobileMql(): MediaQueryList | null {
   return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`)
 }
 
-/**
- * Reactive mobile detection via matchMedia (not a one-shot innerWidth read).
- * - null while unknown (SSR / before mount) so callers can avoid wrong redirects
- * - boolean after first client measurement
- */
+/** One-shot check for click handlers — same query as CSS. */
+export function isMobileViewport(): boolean {
+  const mql = getMobileMql()
+  return mql ? mql.matches : false
+}
+
+/** Reactive mobile detection via matchMedia. */
 export function useIsMobile(): boolean {
   const [isMobile, setIsMobile] = React.useState<boolean>(() => {
-    // Client first paint: read immediately so we don't flash desktop layout
     const mql = getMobileMql()
     return mql ? mql.matches : false
   })
@@ -32,13 +31,11 @@ export function useIsMobile(): boolean {
     const onChange = () => setIsMobile(mql.matches)
     onChange()
 
-    // Modern API
     if (typeof mql.addEventListener === "function") {
       mql.addEventListener("change", onChange)
       return () => mql.removeEventListener("change", onChange)
     }
 
-    // Safari < 14
     mql.addListener(onChange)
     return () => mql.removeListener(onChange)
   }, [])
@@ -47,7 +44,7 @@ export function useIsMobile(): boolean {
 }
 
 /**
- * Same as useIsMobile but returns null until the client has measured.
+ * Returns null until the client has measured.
  * Use when a wrong early value would navigate to the wrong page.
  */
 export function useIsMobileStrict(): boolean | null {
