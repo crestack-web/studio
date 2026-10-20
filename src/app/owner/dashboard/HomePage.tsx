@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from './AppContext';
+import { isMobileViewport } from '@/hooks/use-mobile';
 import { useTranslation } from './LangContext';
 import { useCurrency } from './CurrencyContext';
 import { fetchDocs } from '@/lib/supabase-client-data';
@@ -771,15 +772,11 @@ export function HomePage() {
                             /* ignore storage errors */
                           }
                           // Mobile bottom-nav Ask MO is mo-mobile; desktop sidebar uses mo
-                          const isMobile =
-                            typeof window !== 'undefined' && window.innerWidth <= 768;
-                          navigateTo(isMobile ? 'mo-mobile' : 'mo');
+                          navigateTo(isMobileViewport() ? 'mo-mobile' : 'mo');
                         } catch (err) {
                           console.error('[DailyCheck] open MO failed', err);
                           try {
-                            const isMobile =
-                              typeof window !== 'undefined' && window.innerWidth <= 768;
-                            navigateTo(isMobile ? 'mo-mobile' : 'mo');
+                            navigateTo(isMobileViewport() ? 'mo-mobile' : 'mo');
                           } catch {
                             /* ignore */
                           }
