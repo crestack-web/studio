@@ -1175,10 +1175,11 @@ footer { background: var(--black); padding: 48px 4% 24px; color: rgba(255,255,25
 }
 .nav-hamburger:hover { background: var(--grey-100); }
 
-@media(max-width: 768px) {
+/* 900px: catch Safari layout-viewport quirks and small tablets */
+@media (max-width: 900px) {
   .nav-links-desktop { display: none !important; }
   .nav-actions-desktop { display: none !important; }
-  .nav-hamburger { display: flex; align-items: center; justify-content: center; }
+  .nav-hamburger { display: flex !important; align-items: center; justify-content: center; }
 }
 
 .nav-mobile-drawer {
