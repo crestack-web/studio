@@ -54,7 +54,7 @@ export const AskMOSupportAgent = () => {
   const sessionIdRef = useRef('');
 
   useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
+    const check = () => setIsMobile(window.matchMedia('(max-width: 768px)').matches);
     check();
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
