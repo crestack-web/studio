@@ -1,49 +1,43 @@
-// src/app/layout.tsx
-// Update to ensure proper positioning of chat widget
-'use client';
-
+// src/app/layout.tsx — must be a Server Component so Next.js can emit
+// a real <meta name="viewport"> for Safari. Client-only root layouts often
+// leave Safari on the default ~980px layout width (desktop nav on phones).
 import { ReactNode } from 'react';
-import Script from 'next/script';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import { PwaRegister } from '@/components/app/pwa-register';
+import { RootClientShell } from '@/components/app/RootClientShell';
 
-export default function RootLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export const metadata: Metadata = {
+  title: 'Busmo — Business Control for Growing African Businesses',
+  description:
+    'Busmo helps growing businesses control sales, inventory, cash, staff and profit from one simple system.',
+  icons: {
+    icon: '/favicon.png',
+    apple: '/icon.png',
+  },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Busmo',
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#5717ee',
+};
+
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
-        <link rel="icon" href="/favicon.png" />
-        <link rel="apple-touch-icon" href="/icon.png" />
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#5717ee" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <Script
-          id="tiktok-pixel"
-          strategy="afterInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `
-              !function (w, d, t) {
-                w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(
-                var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js",o=n&&n.partner;ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=r,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};n=document.createElement("script")
-                ;n.type="text/javascript",n.async=!0,n.src=r+"?sdkid="+e+"&lib="+t;e=document.getElementsByTagName("script")[0];e.parentNode.insertBefore(n,e);
-
-
-                ttq.load('D9C1NKBC77UBS5FSD660');
-                ttq.page();
-              }(window, document, 'ttq');
-            `
-          }}
-        />
-      </head>
       <body className="min-h-screen">
-        <PwaRegister />
-        {children}
+        <RootClientShell>{children}</RootClientShell>
       </body>
     </html>
   );
