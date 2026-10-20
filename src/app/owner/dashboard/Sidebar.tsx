@@ -34,7 +34,6 @@ export function Sidebar() {
     activePage, navigateTo, user, openAvatarModal,
   } = useApp();
   const { t } = useTranslation();
-  const isMobile = useIsMobile();
   const [staffCount, setStaffCount] = useState(0);
   const [activeCustomFeatureId, setActiveCustomFeatureId] = useState('');
   const [customTools, setCustomTools] = useState<Array<{ id: string; name: string }>>([]);
@@ -43,8 +42,10 @@ export function Sidebar() {
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
   const [featurePreferences, setFeaturePreferences] = useState<Record<string, boolean>>({});
   const [userPlan, setUserPlan] = useState<string>('starter');
+  /** True during trial OR post-trial grace extension — unlocks Standard-tier nav */
   const [isInTrial, setIsInTrial] = useState(false);
 
+  // Normalize feature name to registry format (legacy names → kebab-case)
   const normalizeFeatureName = (name: string): string => {
     const nameMap: Record<string, string> = {
       'Sales Recording': 'sales-recording',
@@ -77,6 +78,7 @@ export function Sidebar() {
     return nameMap[name] || name.toLowerCase().replace(/\s+/g, '-');
   };
 
+  /** Map onboarding label or id → canonical category id used by nav filters */
   const normalizeCategoryId = (raw?: string | null): string => {
     if (!raw) return 'other';
     const v = String(raw).trim().toLowerCase();
@@ -86,6 +88,7 @@ export function Sidebar() {
       'healthcare', 'education', 'jobs', 'recycling_material_collection', 'other',
     ];
     if (ids.includes(v)) return v;
+    // Fuzzy restaurant / cafe first (common mis-labels after migration)
     if (
       v.includes('restaurant') ||
       v.includes('resturant') ||
@@ -134,6 +137,7 @@ export function Sidebar() {
     return 'other';
   };
 
+  // Load staff count, category, features, and plan from Supabase (not Firebase)
   useEffect(() => {
     const loadUserData = async () => {
       try {
@@ -203,6 +207,7 @@ export function Sidebar() {
             ? (prefsRaw as Record<string, boolean>)
             : {};
 
+        // Collect category signals from user + business
         const candidates: string[] = [];
         const pushCandidate = (v: unknown) => {
           if (v == null) return;
@@ -239,6 +244,7 @@ export function Sidebar() {
           }
         }
 
+        // Prefer explicit specialty categories, then restaurant/cafe
         let resolvedCategory = 'other';
         const normalizedCandidates = candidates.map((c) => normalizeCategoryId(c));
         if (normalizedCandidates.includes('recycling_material_collection')) {
@@ -274,7 +280,13 @@ export function Sidebar() {
         }
 
         setUserCategory(resolvedCategory);
+        console.info('[Sidebar] resolved category', {
+          resolvedCategory,
+          candidates: candidates.slice(0, 8),
+          businessId: businessId ? String(businessId).slice(0, 8) + '…' : null,
+        });
 
+        // Union category default features for specialty categories so their own nav stays available
         const categoryDefaults = CATEGORY_FEATURES[resolvedCategory] || CATEGORY_FEATURES.other || [];
         const forceCategoryDefaults = [
           'restaurant', 'cafe', 'jobs', 'recycling_material_collection',
@@ -287,6 +299,7 @@ export function Sidebar() {
           features = Array.from(merged);
         }
 
+        // Never carry specialty module features onto unrelated categories
         const specialtyOnly = new Set(['material-collection', 'jobs-management']);
         let normalizedFeatures = features.map((f: string) => normalizeFeatureName(String(f)));
         if (
@@ -304,6 +317,13 @@ export function Sidebar() {
         const access = resolveUserAccess(ownerDoc || { metadata: meta, plan: (user as any)?.plan });
         setUserPlan(access.effectivePlanForNav);
         setIsInTrial(access.hasFullAccess);
+        console.info('[Sidebar] access', {
+          plan: access.plan,
+          effectivePlanForNav: access.effectivePlanForNav,
+          status: access.subscriptionStatus || null,
+          hasFullAccess: access.hasFullAccess,
+          trialEnd: access.trialEndDate?.toISOString?.() || null,
+        });
 
         if (businessId) {
           try {
@@ -316,30 +336,28 @@ export function Sidebar() {
           } catch (staffErr) {
             console.warn('[Sidebar] staff count load failed', staffErr);
           }
-
-          try {
-            const toolRows = await fetchDocs(`businesses/${businessId}/customTools`);
-            setCustomTools(
-              (toolRows || [])
-                .map((r: any) => ({ id: String(r.id), name: String(r.name || r.title || 'Tool') }))
-                .filter((t: any) => t.id)
-            );
-          } catch {
-            /* optional */
-          }
         }
       } catch (error) {
         console.error('Error loading user data:', error);
+        try {
+          const savedStaff = localStorage.getItem('staff-members');
+          if (savedStaff) {
+            const parsedStaff = JSON.parse(savedStaff);
+            setStaffCount(parsedStaff.length);
+          }
+        } catch {
+          /* ignore */
+        }
       }
     };
 
     loadUserData();
   }, [user?.id, user?.businessId]);
 
-  useEffect(() => {
-    setActiveCustomFeatureId(readOpenCustomFeatureId() || '');
-  }, [activePage]);
+  // Detect mobile device
+  const isMobile = useIsMobile();
 
+  // Translation map for nav items
   const translateNav = (key: string): string => {
     const map: { [key: string]: string } = {
       'Main': t('nav.section.main'),
@@ -378,6 +396,7 @@ export function Sidebar() {
     return map[key] || key;
   };
 
+  // Check if a nav item should be visible based on user's category, features, and plan
   const isNavItemVisible = (itemId: string): boolean => {
     const requirements = NAV_ITEM_REQUIREMENTS[itemId];
     if (!requirements) return true;
@@ -385,6 +404,7 @@ export function Sidebar() {
     const normalizedPlan = userPlan as Plan;
     const normalizedCategory = (userCategory || 'other') as BusinessCategory;
 
+    // Specialty modules only for their category — never leak onto other businesses
     if (itemId === 'recycling' || itemId === 'jobs') {
       const allowed =
         itemId === 'recycling'
@@ -393,6 +413,7 @@ export function Sidebar() {
       if (!allowed.includes(normalizedCategory)) return false;
     }
 
+    // Enforce requiredCategories before feature/trial shortcuts
     if (requirements.requiredCategories && requirements.requiredCategories.length > 0) {
       if (!requirements.requiredCategories.includes(normalizedCategory)) {
         return false;
@@ -475,12 +496,61 @@ export function Sidebar() {
       return true;
     }
 
+    if (requirements.requiredCategories && userCategory) {
+      if (!requirements.requiredCategories.includes(userCategory)) return false;
+    }
+
     if (requirements.excludedCategories && userCategory) {
       if (requirements.excludedCategories.includes(userCategory)) return false;
     }
 
     return true;
   };
+
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCustomTools() {
+      const bid = (user as any)?.businessId;
+      if (!bid) return;
+      try {
+        const { getSupabase } = await import('@/lib/supabase');
+        const supabase = getSupabase();
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        if (!token) return;
+        const res = await fetch('/api/custom-features/builder', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ tool: 'list_features', businessId: bid }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || cancelled) return;
+        const published = (json.features || [])
+          .filter((f: any) => f.status === 'published')
+          .map((f: any) => ({ id: f.id, name: f.name || f.slug }));
+        setCustomTools(published);
+      } catch {
+        /* ignore */
+      }
+    }
+    void loadCustomTools();
+    return () => {
+      cancelled = true;
+    };
+  }, [(user as any)?.businessId]);
+
+  // Highlight only the open custom tool — not every My tools item.
+  useEffect(() => {
+    if (activePage !== 'custom-feature') {
+      setActiveCustomFeatureId('');
+      return;
+    }
+    setActiveCustomFeatureId(readOpenCustomFeatureId());
+  }, [activePage, customTools]);
 
   const filteredNavSections = NAV_SECTIONS.map((section) => ({
     ...section,
@@ -493,14 +563,11 @@ export function Sidebar() {
     } else {
       navigateTo(pageId);
     }
-    closeSidebar();
   };
 
   return (
     <>
-      {sidebarOpen && isMobile && (
-        <div className={styles.overlay} onClick={closeSidebar} />
-      )}
+      {sidebarOpen && <div className={styles.overlay} onClick={closeSidebar} />}
 
       <aside
         className={[
@@ -519,48 +586,64 @@ export function Sidebar() {
                 style={{ width: '40px', height: '40px', objectFit: 'contain' }}
               />
             </div>
-            {!sidebarCollapsed && <span className={styles.logoText}>Busmo</span>}
+            <span className={styles.logoText}>Busmo</span>
           </div>
           <button
             type="button"
             className={styles.collapseBtn}
             onClick={toggleSidebar}
-            aria-label="Collapse sidebar"
+            aria-label="Toggle sidebar"
           >
-            {sidebarCollapsed ? '»' : '«'}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
           </button>
         </div>
 
         <div className={styles.scroll}>
           {filteredNavSections.map((section) => (
-            <div key={String(section.label)} className={styles.sectionWrap}>
-              {!sidebarCollapsed && (
-                <div className={styles.sectionLabel}>{translateNav(section.label)}</div>
-              )}
-              <ul className={styles.navList}>
+            <div key={String(section.label)}>
+              <div className={styles.sectionWrap}>
+                <span className={styles.sectionLabel} suppressHydrationWarning>
+                  {translateNav(section.label)}
+                </span>
+              </div>
+              <ul className={styles.navList} role="list">
                 {section.items.map((item) => {
                   const isActive =
                     activePage === item.id ||
                     (item.id === 'mo' && activePage === 'mo-mobile');
-                  const badge =
-                    item.id === 'staff' && staffCount > 0 ? staffCount : item.badge;
+                  const iconClass = item.iconClass || item.id;
                   return (
                     <li key={item.id} className={styles.navItem}>
                       <button
                         type="button"
                         className={[styles.navLink, isActive ? styles.active : ''].join(' ')}
-                        onClick={() => handleNavigate(item.id as PageId)}
-                        title={item.tip}
-                        data-tip={item.tip}
+                        data-tip={translateNav(item.tip || item.label)}
+                        onClick={() => {
+                          handleNavigate(item.id as PageId);
+                          closeSidebar();
+                        }}
+                        aria-current={isActive ? 'page' : undefined}
                       >
-                        <span className={[styles.navIcon, item.iconClass || ''].join(' ')}>
-                          <NavIcons id={item.id} iconClass={item.iconClass} />
+                        <span
+                          className={[
+                            styles.navIcon,
+                            (styles as Record<string, string>)[String(iconClass)] || '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                        >
+                          <NavIcons id={item.id} />
                         </span>
-                        {!sidebarCollapsed && (
-                          <span className={styles.navLabel}>{translateNav(item.label)}</span>
+                        <span className={styles.navLabel} suppressHydrationWarning>
+                          {translateNav(item.label)}
+                        </span>
+                        {item.id === 'staff' && staffCount > 0 && (
+                          <span className={styles.badge}>{staffCount}</span>
                         )}
-                        {!sidebarCollapsed && badge != null && badge !== '' && (
-                          <span className={styles.badge}>{badge}</span>
+                        {item.badge != null && item.id !== 'staff' && (
+                          <span className={styles.badge}>{item.badge}</span>
                         )}
                       </button>
                     </li>
@@ -570,6 +653,42 @@ export function Sidebar() {
             </div>
           ))}
         </div>
+
+
+          {customTools.length > 0 && (
+            <div>
+              <div className={styles.sectionWrap}>
+                <span className={styles.sectionLabel}>My tools</span>
+              </div>
+              <ul className={styles.navList} role="list">
+                {customTools.map((tool) => (
+                  <li key={tool.id} className={styles.navItem}>
+                    <button
+                      type="button"
+                      className={[
+                        styles.navLink,
+                        activePage === 'custom-feature' &&
+                        activeCustomFeatureId === tool.id
+                          ? styles.active
+                          : '',
+                      ].join(' ')}
+                      onClick={() => {
+                        openCustomFeatureId(tool.id);
+                        setActiveCustomFeatureId(tool.id);
+                        navigateTo('custom-feature' as any);
+                        closeSidebar();
+                      }}
+                    >
+                      <span className={styles.navIcon}>
+                        <NavIcons id="business-builder" size={16} />
+                      </span>
+                      <span className={styles.navLabel}>{tool.name}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
         <div className={styles.userArea}>
           <button type="button" className={styles.userInner} onClick={openAvatarModal}>
@@ -584,14 +703,12 @@ export function Sidebar() {
             >
               {!user.photoURL && user.avatarContent}
             </div>
-            {!sidebarCollapsed && (
-              <div className={styles.userInfo}>
-                <div className={styles.userName}>{user.name}</div>
-                <div className={styles.userRole}>
-                  {user.role} · {user.plan}
-                </div>
+            <div className={styles.userInfo}>
+              <div className={styles.userName}>{user.name}</div>
+              <div className={styles.userRole}>
+                {user.role} · {user.plan}
               </div>
-            )}
+            </div>
           </button>
         </div>
       </aside>
