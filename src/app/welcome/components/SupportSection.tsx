@@ -38,7 +38,7 @@ export const SupportSection: React.FC<SupportSectionProps> = ({ onNavigate, exte
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
+      setIsMobile(window.matchMedia('(max-width: 768px)').matches);
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
