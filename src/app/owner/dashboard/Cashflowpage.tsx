@@ -340,7 +340,12 @@ export default function Cashflowpage() {
         if (amount <= 0) continue;
         const typeRaw = String(data.type || '').toLowerCase();
         const isCredit =
-          typeRaw === 'money_in' || typeRaw === 'in' || typeRaw === 'inflow';
+          typeRaw === 'money_in' ||
+          typeRaw === 'in' ||
+          typeRaw === 'inflow' ||
+          typeRaw === 'deposit' ||
+          typeRaw === 'sale' ||
+          typeRaw === 'credit';
         const date = toTxDate(data.createdAt || data.created_at);
         const accountId = data.accountId || data.account_id || data.bankAccountId;
         const accountName =
@@ -495,18 +500,27 @@ export default function Cashflowpage() {
     try {
       const account = bankAccounts.find(a => a.id === moneyTransaction.accountId);
       if (!account) { showToast('Please select an account'); return; }
-      const newBalance = account.currentBalance + moneyTransaction.amount;
-      await sbUpdateDoc(`businesses/${businessId}/bankAccounts`, moneyTransaction.accountId, { currentBalance: newBalance });
+      const amount = Number(moneyTransaction.amount) || 0;
+      if (amount <= 0) { showToast('Enter an amount greater than zero'); return; }
+      const newBalance = (Number(account.currentBalance) || 0) + amount;
+      await sbUpdateDoc(`businesses/${businessId}/bankAccounts`, moneyTransaction.accountId, {
+        currentBalance: newBalance,
+      });
+      const category = moneyTransaction.category || 'Deposit';
+      const desc = [category, moneyTransaction.description].filter(Boolean).join(' — ');
       await sbAddDoc(`businesses/${businessId}/bankTransactions`, {
-        transactionNumber: `TXN-${Date.now()}`, bankAccountId: moneyTransaction.accountId,
-        accountName: account.accountName, type: 'money_in',
-        category: moneyTransaction.category || 'Deposit', amount: moneyTransaction.amount,
-        balanceAfter: newBalance, description: moneyTransaction.description, createdAt: new Date().toISOString(),
+        bankAccountId: moneyTransaction.accountId,
+        type: 'money_in',
+        amount,
+        balanceAfter: newBalance,
+        description: desc || 'Money in',
+        reference: `IN-${Date.now()}`,
+        createdAt: new Date().toISOString(),
       });
       showToast('Money added successfully');
       setActiveAction(null);
       setMoneyTransaction({ accountId: '', amount: 0, description: '', category: '' });
-      loadData();
+      await loadData();
     } catch (error) {
       console.error(error);
       showToast('Failed to add money');
@@ -518,19 +532,29 @@ export default function Cashflowpage() {
     try {
       const account = bankAccounts.find(a => a.id === moneyTransaction.accountId);
       if (!account) { showToast('Please select an account'); return; }
-      if (account.currentBalance < moneyTransaction.amount) { showToast('Insufficient balance'); return; }
-      const newBalance = account.currentBalance - moneyTransaction.amount;
-      await sbUpdateDoc(`businesses/${businessId}/bankAccounts`, moneyTransaction.accountId, { currentBalance: newBalance });
+      const amount = Number(moneyTransaction.amount) || 0;
+      if (amount <= 0) { showToast('Enter an amount greater than zero'); return; }
+      const bal = Number(account.currentBalance) || 0;
+      if (bal < amount) { showToast('Insufficient balance'); return; }
+      const newBalance = bal - amount;
+      await sbUpdateDoc(`businesses/${businessId}/bankAccounts`, moneyTransaction.accountId, {
+        currentBalance: newBalance,
+      });
+      const category = moneyTransaction.category || 'Withdrawal';
+      const desc = [category, moneyTransaction.description].filter(Boolean).join(' — ');
       await sbAddDoc(`businesses/${businessId}/bankTransactions`, {
-        transactionNumber: `TXN-${Date.now()}`, bankAccountId: moneyTransaction.accountId,
-        accountName: account.accountName, type: 'money_out',
-        category: moneyTransaction.category || 'Withdrawal', amount: moneyTransaction.amount,
-        balanceAfter: newBalance, description: moneyTransaction.description, createdAt: new Date().toISOString(),
+        bankAccountId: moneyTransaction.accountId,
+        type: 'money_out',
+        amount,
+        balanceAfter: newBalance,
+        description: desc || 'Money out',
+        reference: `OUT-${Date.now()}`,
+        createdAt: new Date().toISOString(),
       });
       showToast('Money taken successfully');
       setActiveAction(null);
       setMoneyTransaction({ accountId: '', amount: 0, description: '', category: '' });
-      loadData();
+      await loadData();
     } catch (error) {
       console.error(error);
       showToast('Failed to take money');
