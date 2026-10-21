@@ -66,12 +66,20 @@ const WRITE_ALIASES: Record<string, Record<string, string>> = {
   expenses: { timestamp: 'metadata', receiptUrl: 'receipt_url' },
   bank_accounts: {
     accountName: 'account_name',
+    bankName: 'bank_name',
+    accountNumber: 'account_number',
     isDefault: 'is_primary',
     isPrimary: 'is_primary',
+    // balance lives in metadata (no balance column in schema)
   },
   bank_transactions: {
     bankAccountId: 'account_id',
     accountId: 'account_id',
+    balanceAfter: 'balance_after',
+  },
+  cash_flow: {
+    entryDate: 'entry_date',
+    date: 'entry_date',
   },
   staff: { lastSaleAt: 'last_sale_at', bankName: 'bank_name', bankCode: 'bank_code', accountNumber: 'account_number', accountName: 'account_name', paystackRecipientCode: 'paystack_recipient_code' },
   payroll_entries: {
@@ -267,7 +275,10 @@ function toRow(tableName: string, data: Record<string, unknown>): Record<string,
     else if (colName === 'metadata' && typeof value === 'object' && value !== null) Object.assign(metadata, value);
     else metadata[key] = value;
   }
-  if (Object.keys(metadata).length > 0) {
+  // Only tables with a real `metadata` jsonb column may receive unknown fields.
+  // bank_transactions / cash_flow / etc. have no metadata — stuffing it causes
+  // PostgREST "column metadata does not exist" and money in/out never saves.
+  if (Object.keys(metadata).length > 0 && KNOWN_COLUMNS[tableName]?.has('metadata')) {
     row.metadata = row.metadata ? { ...(row.metadata as object), ...metadata } : metadata;
   }
   return row;
