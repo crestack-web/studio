@@ -7,6 +7,7 @@ import { fetchDocs, fetchDoc } from '@/lib/supabase-client-data';
 import styles from './CapitalPage.module.css';
 import { Button } from './Button';
 import { MOLoadingSpinner } from '@/components/MOLoadingSpinner';
+import { useCurrency } from './CurrencyContext';
 
 interface ReadinessStats {
   dataHistory: number;
@@ -34,6 +35,8 @@ interface ChecklistItem {
 
 export default function CapitalPage() {
   const { navigateTo, showToast, user } = useApp();
+  const { currencyCode } = useCurrency();
+  const currency = currencyCode || 'NGN';
   
   const [loading, setLoading] = useState(true);
   const [fundabilityScore, setFundabilityScore] = useState(0);
@@ -49,76 +52,117 @@ export default function CapitalPage() {
     recordingConsistency: 0,
   });
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
-  const [currency, setCurrency] = useState('NGN');
 
   useEffect(() => {
     async function loadCapitalData() {
       try {
         setLoading(true);
         
-        if (!user.id) {
+        if (!user?.id) {
           showToast('Please log in to view funding options');
           navigateTo('home');
           return;
         }
 
-        const userData = await fetchDoc('users', user.id);
-        if (!userData) {
-          showToast('User profile not found');
-          return;
-        }
-
-        const { resolveOwnerScopeBusinessId } = await import('@/lib/resolve-business-scope');
-        const businessId =
-          (await resolveOwnerScopeBusinessId(user.id, userData.businessId || userData.business_id)) ||
-          '';
+        // Prefer AppContext businessId (already ownership-scoped), same as HomePage.
+        let businessId = (user as any).businessId || '';
         if (!businessId) {
-          showToast('No business found for this account');
-          return;
+          try {
+            const userData = await fetchDoc('users', user.id).catch(() => null);
+            const { resolveOwnerScopeBusinessId } = await import('@/lib/resolve-business-scope');
+            businessId =
+              (await resolveOwnerScopeBusinessId(
+                user.id,
+                (userData as any)?.businessId || (userData as any)?.business_id || null
+              )) || '';
+          } catch (e) {
+            console.warn('[CapitalPage] resolve business failed', e);
+          }
+        }
+        if (!businessId) {
+          // Signup convention: business id often equals owner uid
+          businessId = user.id;
         }
 
-        const businessConfig = await fetchDoc(`businesses/${businessId}/store`, 'config');
-        if (businessConfig) {
-          setCurrency(businessConfig.currency || 'NGN');
+        let sales: any[] = [];
+        let expenses: any[] = [];
+        try {
+          const results = await Promise.all([
+            fetchDocs(`businesses/${businessId}/sales`).catch((e) => {
+              console.warn('[CapitalPage] sales fetch failed', e);
+              return [];
+            }),
+            fetchDocs(`businesses/${businessId}/expenses`).catch((e) => {
+              console.warn('[CapitalPage] expenses fetch failed', e);
+              return [];
+            }),
+          ]);
+          sales = Array.isArray(results[0]) ? results[0] : [];
+          expenses = Array.isArray(results[1]) ? results[1] : [];
+        } catch (e) {
+          console.warn('[CapitalPage] data fetch failed', e);
         }
 
-        const [sales, expenses] = await Promise.all([
-          fetchDocs(`businesses/${businessId}/sales`),
-          fetchDocs(`businesses/${businessId}/expenses`),
-        ]) as any[][];
+        const saleDate = (s: any): Date | null => {
+          const raw = s?.createdAt || s?.created_at || s?.date || s?.saleDate;
+          if (!raw) return null;
+          const d = new Date(raw);
+          return Number.isNaN(d.getTime()) ? null : d;
+        };
 
         let dataHistory = 0;
         if (sales.length > 0) {
-          const firstSale = sales.reduce((min, s) => {
-            const d = new Date(s.createdAt);
-            return d < min ? d : min;
-          }, new Date());
-          dataHistory = Math.floor((new Date().getTime() - firstSale.getTime()) / (1000 * 60 * 60 * 24));
+          const dates = sales.map(saleDate).filter(Boolean) as Date[];
+          if (dates.length) {
+            const firstSale = dates.reduce((min, d) => (d < min ? d : min), dates[0]);
+            dataHistory = Math.max(
+              0,
+              Math.floor((Date.now() - firstSale.getTime()) / (1000 * 60 * 60 * 24))
+            );
+          }
         }
 
-        const totalRevenue = sales.reduce((sum, s) => sum + (s.total || s.totalRevenue || 0), 0);
-        
+        const lineItems = (s: any) => {
+          const items = s?.products || s?.items;
+          return Array.isArray(items) ? items : [];
+        };
+        const saleTotal = (s: any) =>
+          Number(
+            s?.totalRevenue ?? s?.total_revenue ?? s?.totalAmount ?? s?.total_amount ?? s?.total ?? 0
+          ) || 0;
+
+        const totalRevenue = sales.reduce((sum, s) => sum + saleTotal(s), 0);
+
         const totalProfit = sales.reduce((sum, s) => {
-          const grossProfit = s.products && Array.isArray(s.products)
-            ? s.products.reduce((productSum: number, p: any) => {
-                const price = p.price || 0;
-                const costPrice = p.costPrice || p.cost || 0;
-                const quantity = p.quantity || 1;
-                return productSum + ((price - costPrice) * quantity);
-              }, 0)
-            : 0;
-          const discount = s.discount || 0;
+          if (typeof s?.profit === 'number') return sum + s.profit;
+          const grossProfit = lineItems(s).reduce((productSum: number, p: any) => {
+            const price = Number(p.price || p.sellingPrice || 0);
+            const costPrice = Number(p.costPrice || p.cost || 0);
+            const quantity = Number(p.quantity || 1);
+            return productSum + (price - costPrice) * quantity;
+          }, 0);
+          const discount = Number(s?.discount || 0);
           return sum + (grossProfit - discount);
         }, 0);
-        
-        const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+        const totalExpenses = expenses.reduce(
+          (sum, e) => sum + (Number(e?.amount || e?.total || 0) || 0),
+          0
+        );
         const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
         const cashBalance = totalProfit - totalExpenses;
 
-        const activityDays = new Set([
-          ...sales.map((s: any) => new Date(s.createdAt).toDateString()),
-          ...expenses.map((e: any) => e.date ? new Date(e.date).toDateString() : null)
-        ].filter(Boolean));
+        const activityDays = new Set(
+          [
+            ...sales.map((s: any) => saleDate(s)?.toDateString()),
+            ...expenses.map((e: any) => {
+              const raw = e?.createdAt || e?.created_at || e?.date;
+              if (!raw) return null;
+              const d = new Date(raw);
+              return Number.isNaN(d.getTime()) ? null : d.toDateString();
+            }),
+          ].filter(Boolean) as string[]
+        );
         const activeDays = activityDays.size;
 
         const recordingConsistency = dataHistory > 0 ? Math.round((activeDays / dataHistory) * 100) : 0;
@@ -244,7 +288,7 @@ export default function CapitalPage() {
     }
 
     loadCapitalData();
-  }, [navigateTo, showToast, user.id]);
+  }, [navigateTo, showToast, user?.id, (user as any)?.businessId]);
 
   if (loading) {
     return (
@@ -369,8 +413,11 @@ export default function CapitalPage() {
 
         <div className={styles.fundingCard}>
           <div className={styles.fundingIcon}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} width="20" height="20">
-              <path d="M17 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" width="20" height="20" aria-hidden>
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 00-3-3.87"/>
+              <path d="M16 3.13a4 4 0 010 7.75"/>
             </svg>
           </div>
           <h4 className={styles.fundingName}>Revenue Share</h4>
