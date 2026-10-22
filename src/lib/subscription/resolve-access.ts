@@ -107,16 +107,28 @@ export function resolveUserAccess(userRow: Record<string, any> | null | undefine
 
   const now = new Date();
 
-  // Trial: explicit status OR future trial_end OR recently started trial with null plan
-  const inTrialWindow =
-    subscriptionStatus === 'trial' ||
-    subscriptionStatus === 'trialing' ||
-    (trialEndDate != null && trialEndDate > now) ||
-    (subscriptionStatus === '' &&
-      trialStartDate != null &&
-      trialEndDate == null &&
-      trialStartDate <= now &&
-      now.getTime() - trialStartDate.getTime() < 14 * 24 * 60 * 60 * 1000);
+  // Trial window ONLY while trial_end_date is still in the future.
+  // Status alone must never keep access open after the end date (hard cut-off).
+  const TRIAL_MS = 14 * 24 * 60 * 60 * 1000;
+  const statusIsTrial =
+    subscriptionStatus === 'trial' || subscriptionStatus === 'trialing';
+
+  let inTrialWindow = false;
+  if (lifetimeAccess) {
+    inTrialWindow = false;
+  } else if (trialEndDate != null) {
+    inTrialWindow = trialEndDate > now;
+  } else if (statusIsTrial && trialStartDate != null) {
+    // Status says trial but no end date → derive 14 days from start
+    inTrialWindow = now.getTime() - trialStartDate.getTime() < TRIAL_MS;
+  } else if (
+    subscriptionStatus === '' &&
+    trialStartDate != null &&
+    trialEndDate == null
+  ) {
+    inTrialWindow =
+      trialStartDate <= now && now.getTime() - trialStartDate.getTime() < TRIAL_MS;
+  }
 
   const inGraceWindow =
     subscriptionStatus === 'grace' ||
