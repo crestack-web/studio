@@ -34,6 +34,7 @@ import { AvatarModal } from './AvatarModal';
 import { Toast } from './Toast';
 import { NotificationsPanel } from './NotificationsPanel';
 import { DeviceNotificationsBridge } from './DeviceNotificationsBridge';
+import { TrialBanner } from './TrialBanner';
 import { NetworkStatus, NetworkStatusStyles } from '@/components/app/NetworkStatus';
 import MenuManagementPage from './MenuManagementPage';
 import MarginCalculatorPage from './MarginCalculatorPage';
@@ -127,6 +128,7 @@ export function AppShell() {
       {!isMobileAskMO && <Sidebar />}
 
       <div className={styles.main}>
+        {!isMobileAskMO && <TrialBanner />}
         {!isMobileAskMO && <Topbar />}
         {!isMobileAskMO && <NotificationsPanel />}
 
