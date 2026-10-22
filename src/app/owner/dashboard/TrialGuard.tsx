@@ -32,7 +32,7 @@ export const useTrialInfo = () => useContext(TrialContext);
 function remainingFrom(end: Date, now: Date) {
   const timeDiff = end.getTime() - now.getTime();
   return {
-    daysRemaining: Math.max(0, Math.floor(timeDiff / (1000 * 60 * 60 * 24))),
+    daysRemaining: Math.max(0, Math.ceil(timeDiff / (1000 * 60 * 60 * 24))),
     hoursRemaining: Math.max(
       0,
       Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
@@ -43,7 +43,7 @@ function remainingFrom(end: Date, now: Date) {
 
 function asDate(value: unknown): Date | undefined {
   if (!value) return undefined;
-  if (value instanceof Date) return value;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? undefined : value;
   const d = new Date(String(value));
   return Number.isNaN(d.getTime()) ? undefined : d;
 }
@@ -63,11 +63,22 @@ async function touchLastLogin(accessToken: string) {
   }
 }
 
+async function markExpired(supabase: ReturnType<typeof getSupabase>, userId: string) {
+  try {
+    await supabase
+      .from('users')
+      .update({ subscription_status: 'expired' })
+      .eq('id', userId);
+  } catch {
+    /* best-effort */
+  }
+}
+
 export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
-  const [trialInfo, setTrialInfo] = useState<TrialInfo | null>(null);
   const [isExpired, setIsExpired] = useState(false);
+  const [trialInfo, setTrialInfo] = useState<TrialInfo | null>(null);
 
   useEffect(() => {
     const supabase = getSupabase();
@@ -77,31 +88,42 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
         const { data: userData, error } = await supabase
           .from('users')
           .select(
-            'role, plan, subscription_status, trial_end_date, grace_end_date, subscription_end_date, lifetime_access, metadata'
+            'id, role, subscription_status, trial_start_date, trial_end_date, grace_end_date, subscription_end_date, lifetime_access, metadata'
           )
           .eq('id', userId)
           .maybeSingle();
 
         if (error) {
-          console.warn('Trial guard Supabase read failed, allowing access:', error.message);
+          console.error('[TrialGuard] user load error:', error.message);
+          // Fail closed for owners when we cannot verify entitlement
+          setIsExpired(true);
           setIsLoading(false);
           return;
         }
 
         if (!userData) {
+          setIsExpired(true);
           setIsLoading(false);
           return;
         }
 
         const meta = (userData.metadata as Record<string, unknown>) || {};
-        const trialEndDate =
+        let trialEndDate =
           asDate(userData.trial_end_date) ||
           asDate(meta.trialEndDate) ||
           asDate(meta.trial_end_date);
-        let subscriptionStatus =
-          (userData.subscription_status as string) ||
-          (meta.subscriptionStatus as string) ||
-          (meta.subscription_status as string);
+        const trialStartDate =
+          asDate(userData.trial_start_date) ||
+          asDate(meta.trialStartDate) ||
+          asDate(meta.trial_start_date);
+        let subscriptionStatus = String(
+          userData.subscription_status ||
+            meta.subscriptionStatus ||
+            meta.subscription_status ||
+            ''
+        )
+          .toLowerCase()
+          .trim();
         const subscriptionEndDate =
           asDate(userData.subscription_end_date) ||
           asDate(meta.subscriptionEndDate) ||
@@ -120,24 +142,25 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
           return;
         }
 
+        // Staff inherits owner business entitlement — do not gate them here
         if (userRole === 'Staff' || userRole === 'staff') {
           setIsLoading(false);
           return;
         }
 
+        // ── Paid active ────────────────────────────────────────────
         if (subscriptionStatus === 'active') {
           if (subscriptionEndDate && subscriptionEndDate < now) {
             setIsExpired(true);
-            await supabase
-              .from('users')
-              .update({ subscription_status: 'expired' })
-              .eq('id', userId);
+            await markExpired(supabase, userId);
+            setIsLoading(false);
             return;
           }
           setIsLoading(false);
           return;
         }
 
+        // ── Explicitly expired / pending payment ───────────────────
         if (subscriptionStatus === 'expired' || subscriptionStatus === 'pending_payment') {
           if (graceEndDate && graceEndDate > now) {
             const rem = remainingFrom(graceEndDate, now);
@@ -156,6 +179,7 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
           return;
         }
 
+        // ── Grace status ───────────────────────────────────────────
         if (subscriptionStatus === 'grace') {
           if (!graceEndDate && trialEndDate) {
             graceEndDate = new Date(
@@ -179,28 +203,35 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
             return;
           }
           setIsExpired(true);
-          await supabase.from('users').update({ subscription_status: 'expired' }).eq('id', userId);
+          await markExpired(supabase, userId);
+          setIsLoading(false);
           return;
         }
 
+        // ── Trial / trialing / unset (new owners) ──────────────────
         const isTrialLike =
           subscriptionStatus === 'trial' ||
-          (!subscriptionStatus && !!trialEndDate) ||
-          (!subscriptionStatus && !trialEndDate);
+          subscriptionStatus === 'trialing' ||
+          subscriptionStatus === '' ||
+          !subscriptionStatus;
 
         if (isTrialLike) {
+          // Bootstrap trial dates if missing (first dashboard visit)
           if (!trialEndDate) {
-            const defaultTrialEnd = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+            const start = trialStartDate || now;
+            const defaultTrialEnd = new Date(
+              start.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000
+            );
+            // If start was long ago, do NOT extend — use computed end
+            trialEndDate = defaultTrialEnd;
             await supabase
               .from('users')
               .update({
-                trial_end_date: defaultTrialEnd.toISOString(),
-                trial_start_date: now.toISOString(),
+                trial_end_date: trialEndDate.toISOString(),
+                trial_start_date: start.toISOString(),
                 subscription_status: 'trial',
               })
               .eq('id', userId);
-            setIsLoading(false);
-            return;
           }
 
           if (trialEndDate > now) {
@@ -215,6 +246,7 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
             return;
           }
 
+          // Trial ended → enter or check grace
           graceEndDate =
             graceEndDate ??
             new Date(trialEndDate.getTime() + GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000);
@@ -239,16 +271,21 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
             return;
           }
 
+          // Trial + grace both over → hard stop
           setIsExpired(true);
-          await supabase.from('users').update({ subscription_status: 'expired' }).eq('id', userId);
+          await markExpired(supabase, userId);
+          setIsLoading(false);
           return;
         }
 
+        // Unknown status → deny (fail closed)
+        console.warn('[TrialGuard] unknown subscription_status:', subscriptionStatus);
+        setIsExpired(true);
         setIsLoading(false);
       } catch (error) {
-        console.warn('Trial guard failed, allowing access:', error);
-        setIsLoading(false);
-      } finally {
+        console.error('[TrialGuard] failed:', error);
+        // Fail closed — do not leave the dashboard open when entitlement cannot be verified
+        setIsExpired(true);
         setIsLoading(false);
       }
     };
@@ -301,20 +338,20 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
             </svg>
           </div>
           <h2 className="text-2xl font-bold font-headline text-[#0A0A0F] mb-3">
-            Trial & Extension Ended
+            Trial Ended
           </h2>
           <p className="text-[#555568] mb-6">
-            Your 14-day free trial and the extra 3-day extension have ended. Subscribe to keep
-            access to your dashboard and all your business data.
+            Your free trial has ended. Subscribe now to keep full access to your dashboard,
+            sales, cashflow, and all your business data.
           </p>
           <button
             onClick={() => router.push('/subscribe')}
             className="w-full bg-[#6B3FE7] text-white font-semibold rounded-xl h-12 flex items-center justify-center text-base transition hover:bg-[#4B27B0]"
           >
-            Choose Your Plan →
+            Subscribe with Paystack →
           </button>
           <p className="text-xs text-center text-[#8888A0] mt-4">
-            Your data is safe and will be available after subscription
+            Your data is safe and will be available right after payment
           </p>
         </div>
       </div>
