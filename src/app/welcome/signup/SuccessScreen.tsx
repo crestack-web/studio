@@ -207,7 +207,7 @@ export default function SuccessScreen({
           lineHeight: 1.5,
         }}
       >
-        <b>{bizName}</b> is set up on Busmo. Your 3-day trial is ready.
+        <b>{bizName}</b> is set up on Busmo. Your 14-day trial is ready.
       </p>
       <div
         style={{
