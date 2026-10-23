@@ -35,7 +35,7 @@ export interface GraceExtensionParams {
   daysRemainingInGrace: number;
 }
 
-/** Sent when the 3-day trial ends and the free 3-day extension starts. */
+/** Sent when the 14-day trial ends and the free 3-day extension starts. */
 export async function sendGraceExtensionEmail(params: GraceExtensionParams): Promise<any> {
   const { email, name, businessName, trialEndDate, graceEndDate, daysRemainingInGrace } = params;
 
