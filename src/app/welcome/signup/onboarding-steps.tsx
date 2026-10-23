@@ -126,7 +126,7 @@ function StepOne({ data, onChange, onGoogleSignIn }: {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <Tip>
-        ⚡ Takes about 2 minutes. You get a <b>3-day free trial</b> — no card required to start.
+        ⚡ Takes about 2 minutes. You get a <b>14-day free trial</b> — no card required to start.
       </Tip>
 
       {!isGoogle && (
@@ -444,7 +444,7 @@ function StepThree({ data, onChange, onEdit }: {
         <span style={{ fontSize: 13, fontWeight: 700, color: "#0A0A0F" }}>What happens next</span>
         <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "#555568", lineHeight: 1.55 }}>
           <li>Your dashboard opens with the tools you picked</li>
-          <li>3-day free trial starts — explore freely</li>
+          <li>14-day free trial starts — explore freely</li>
           <li>Confirm your email if we ask you to</li>
         </ul>
       </div>
