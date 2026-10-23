@@ -446,7 +446,7 @@ export default function BusmoOnboarding() {
               border: "1px solid #D4C6FA", borderRadius: 999, padding: "4px 9px",
               whiteSpace: "nowrap",
             }}>
-              3-day trial
+              14-day trial
             </span>
           )}
           <span style={{ fontSize: 11, color: "#8888A0", fontWeight: 600 }}>{step} of 3</span>
