@@ -235,7 +235,7 @@ export async function checkFeatureAccess(
       return { eligible: true };
     }
 
-    // Check if user is in trial mode (3-day free trial)
+    // Check if user is in trial mode (14-day free trial)
     const isInTrial =
       (subscriptionStatus === 'trial' || subscriptionStatus === 'trialing') &&
       (!trialEndDate || trialEndDate > now);
