@@ -33,7 +33,6 @@ import { PricingPreview } from './components/PricingPreview';
 import { BeforeAfterComparison } from './components/BeforeAfterComparison';
 import { FAQSection } from './components/FAQSection';
 import { Footer } from './components/Footer';
-import { PresenceSection } from './components/PresenceSection';
 import { AnnouncementBar } from './components/AnnouncementBar';
 import { ResultsCounters } from './components/ResultsCounters';
 import './styles/globals.css';
@@ -330,7 +329,6 @@ export default function WelcomePage() {
       </ScrollReveal>
 
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-        <PresenceSection />
       </ScrollReveal>
 
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
