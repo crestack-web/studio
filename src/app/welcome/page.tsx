@@ -39,6 +39,7 @@ import './styles/globals.css';
 
 const iconProps = { size: 22, strokeWidth: 1.75, 'aria-hidden': true as const };
 
+/** Welcome homepage (countries/flags section removed). */
 export default function WelcomePage() {
   const [showDemoVideo, setShowDemoVideo] = useState(false);
 
