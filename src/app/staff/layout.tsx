@@ -3,6 +3,7 @@
 import './home/busmo.css';
 import { useEffect, useState } from 'react';
 import { STAFF_BRAND_LOGO_URL, STAFF_BRAND_NAME } from '@/lib/staffBrand';
+import { PwaInstallNudge } from '@/components/app/PwaInstallNudge';
 
 function applyStaffFavicon() {
   if (typeof document === 'undefined') return;
@@ -78,5 +79,10 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      {mounted && <PwaInstallNudge />}
+    </>
+  );
 }
