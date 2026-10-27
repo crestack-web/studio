@@ -348,7 +348,7 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
             onClick={() => router.push('/subscribe')}
             className="w-full bg-[#6B3FE7] text-white font-semibold rounded-xl h-12 flex items-center justify-center text-base transition hover:bg-[#4B27B0]"
           >
-            Subscribe with Paystack →
+            Subscribe to continue →
           </button>
           <p className="text-xs text-center text-[#8888A0] mt-4">
             Your data is safe and will be available right after payment
