@@ -35,6 +35,7 @@ import { Toast } from './Toast';
 import { NotificationsPanel } from './NotificationsPanel';
 import { DeviceNotificationsBridge } from './DeviceNotificationsBridge';
 import { TrialBanner } from './TrialBanner';
+import { PwaInstallNudge } from '@/components/app/PwaInstallNudge';
 import { NetworkStatus, NetworkStatusStyles } from '@/components/app/NetworkStatus';
 import MenuManagementPage from './MenuManagementPage';
 import MarginCalculatorPage from './MarginCalculatorPage';
@@ -156,6 +157,7 @@ export function AppShell() {
       <DeviceNotificationsBridge />
       <NetworkStatusStyles />
       <NetworkStatus />
+      <PwaInstallNudge />
     </div>
   );
 }
