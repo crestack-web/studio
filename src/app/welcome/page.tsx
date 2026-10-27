@@ -329,9 +329,6 @@ export default function WelcomePage() {
       </ScrollReveal>
 
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-      </ScrollReveal>
-
-      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <div className="cta-banner">
           <h2>Know your numbers. Control your business.</h2>
           <p>Start with Busmo and see what is really happening inside your business.</p>
