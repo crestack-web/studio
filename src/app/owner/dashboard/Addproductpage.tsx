@@ -12,7 +12,6 @@ import { isRestaurantBusiness, ProductType, DishCategory, IngredientUnit, getDis
 import { subscribeToActionEvents } from '@/utils/dataRefresh';
 import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
 import { openLabelPrintWindow } from '@/lib/barcode/labels';
-import { getSupabase } from '@/lib/supabase';
 
 // ═══════════════════════════════════════════
 //  AddProductPage — full product registration
