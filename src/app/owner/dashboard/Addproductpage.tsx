@@ -46,6 +46,7 @@ const AFRICAN_COUNTRIES = [
 interface ProductForm {
   name: string;
   sku: string;
+  barcode: string;
   category: string;
   description: string;
   sellPrice: string;
@@ -285,7 +286,7 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
   }, [formDirty]);
 
   const [form, setForm] = useState<ProductForm>({
-    name: '', sku: '', category: '', description: '',
+    name: '', sku: '', barcode: '', category: '', description: '',
     sellPrice: '', costPrice: '', openingStock: '', lowStockAlert: '5',
     unit: 'piece', hasExpiry: false, expiryDate: '', hasVariants: false,
     variantType: 'Size', variantValues: '',
@@ -453,6 +454,7 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
         lowStockThreshold: parseInt(form.lowStockAlert) || 5,
         reorderLevel: parseInt(form.lowStockAlert) || 5,
         sku,
+        barcode: form.barcode.trim() || null,
         active: !draft,
         status: draft ? 'draft' : 'active',
         attributes: {
@@ -593,6 +595,8 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
           <div className={styles.group}>
             <label className={styles.label}>SKU / Product Code</label>
             <input className={styles.input} placeholder="e.g. PLO-001 (auto-generated if blank)" value={form.sku} onChange={e => set('sku', e.target.value)} />
+            <label className={styles.label}>Barcode</label>
+            <input className={styles.input} placeholder="Scan or type manufacturer / store barcode" value={form.barcode} onChange={e => set('barcode', e.target.value)} />
           </div>
         </div>
 
