@@ -67,7 +67,9 @@ export function TerminalModePage({
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [unknownBarcode, setUnknownBarcode] = useState<string | null>(null);
-  const [payMethod, setPayMethod] = useState<PayMethod>('cash');
+  const [payLines, setPayLines] = useState<{ method: PayMethod; amount: number }[]>([
+    { method: 'cash', amount: 0 },
+  ]);
   const [posConfirmed, setPosConfirmed] = useState(false);
   const [businessName, setBusinessName] = useState(businessNameProp || 'Business');
   const [currency, setCurrency] = useState(currencyProp);
@@ -82,6 +84,45 @@ export function TerminalModePage({
     () => cart.reduce((s, l) => s + l.price * l.quantity, 0),
     [cart]
   );
+
+  // Keep single-method amount in sync with cart total
+  useEffect(() => {
+    setPayLines((prev) => {
+      if (prev.length !== 1) return prev;
+      if (Math.abs((prev[0].amount || 0) - total) < 0.001) return prev;
+      return [{ ...prev[0], amount: total }];
+    });
+  }, [total]);
+
+  const payTotal = useMemo(
+    () => payLines.reduce((s, p) => s + (Number(p.amount) || 0), 0),
+    [payLines]
+  );
+
+  const togglePayMethod = (id: PayMethod) => {
+    setPayLines((prev) => {
+      const exists = prev.some((p) => p.method === id);
+      if (exists) {
+        const next = prev.filter((p) => p.method !== id);
+        if (!next.length) return [{ method: 'cash', amount: total }];
+        if (next.length === 1) return [{ ...next[0], amount: total }];
+        return next;
+      }
+      // Add method for split
+      if (prev.length === 0) return [{ method: id, amount: total }];
+      const paid = prev.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+      const remaining = Math.max(0, Math.round((total - paid) * 100) / 100);
+      return [...prev, { method: id, amount: remaining }];
+    });
+    if (id === 'pos') setPosConfirmed(false);
+  };
+
+  const setPayAmount = (method: PayMethod, amount: number) => {
+    setPayLines((prev) =>
+      prev.map((p) => (p.method === method ? { ...p, amount: Math.max(0, amount) } : p))
+    );
+  };
+
 
   // Load catalogue
   useEffect(() => {
@@ -281,11 +322,13 @@ export function TerminalModePage({
     }));
 
     const paymentLabel =
-      payMethod === 'pos'
-        ? 'External POS (manually confirmed)'
-        : payMethod === 'transfer'
-          ? 'Bank transfer'
-          : 'Cash';
+      methods.length > 1
+        ? methods.map((m) => `${m.method} ${money(m.amount, currency)}`).join(' + ')
+        : methods[0].method === 'pos'
+          ? 'External POS'
+          : methods[0].method === 'transfer'
+            ? 'Transfer'
+            : 'Cash';
 
     try {
       if (!offlineManager.isOnline()) {
@@ -313,7 +356,7 @@ export function TerminalModePage({
           })),
           subtotal: total,
           total,
-          paymentMethod: paymentLabel + ' · offline queue',
+          paymentMethod: (payLines.length > 1 ? 'split' : payLines[0]?.method || 'cash') + ' · offline queue',
           currency,
         };
         setLastReceipt(receipt);
@@ -343,7 +386,7 @@ export function TerminalModePage({
           })),
           subtotal: total,
           total,
-          paymentMethod: paymentLabel + ' · demo',
+          paymentMethod: (payLines.length > 1 ? 'split' : payLines[0]?.method || 'cash') + ' · demo',
           currency,
         };
         setLastReceipt(receipt);
@@ -368,22 +411,30 @@ export function TerminalModePage({
           businessId,
           products: saleProducts,
           total,
-          paymentMethod: payMethod,
-          paymentMethods: { [payMethod]: total },
-          paymentBreakdown: [
-            {
-              method: payMethod,
-              amount: total,
-              received: true,
-              manuallyConfirmed: payMethod === 'pos',
+          paymentMethod: methods.length > 1 ? 'split' : methods[0].method,
+          paymentMethods: methods.reduce(
+            (acc, m) => {
+              acc[m.method] = (acc[m.method] || 0) + (Number(m.amount) || 0);
+              return acc;
             },
-          ],
+            {} as Record<string, number>
+          ),
+          paymentBreakdown: methods.map((m) => ({
+            method: m.method,
+            amount: Number(m.amount) || 0,
+            received: true,
+            manuallyConfirmed: m.method === 'pos',
+          })),
           staffId,
           staffName,
           staffRole,
           offlineId: clientSaleId,
           source: 'busmo_one_terminal',
-          note: payMethod === 'pos' ? 'External POS — manually confirmed by cashier' : '',
+          note: methods.some((m) => m.method === 'pos')
+            ? 'External POS — manually confirmed by cashier'
+            : methods.length > 1
+              ? 'Split payment'
+              : '',
         }),
       });
 
@@ -411,6 +462,7 @@ export function TerminalModePage({
       };
       setLastReceipt(receipt);
       setCart([]);
+      setPayLines([{ method: 'cash', amount: 0 }]);
       setPosConfirmed(false);
       clientSaleIdRef.current = null;
       try {
@@ -737,6 +789,9 @@ export function TerminalModePage({
           borderTop: '1px solid var(--s-border, #344139)',
         }}
       >
+        <div style={{ marginBottom: 6, fontSize: 12, opacity: 0.75 }}>
+          Tap methods to split · amounts must equal total
+        </div>
         <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
           {(
             [
@@ -744,32 +799,86 @@ export function TerminalModePage({
               ['transfer', 'Transfer'],
               ['pos', 'External POS'],
             ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => {
-                setPayMethod(id);
-                setPosConfirmed(false);
-              }}
-              style={{
-                flex: 1,
-                height: 44,
-                borderRadius: 10,
-                border: payMethod === id ? '2px solid var(--s-brand, #42B775)' : '1px solid var(--s-border, #344139)',
-                background: payMethod === id ? 'var(--s-brand-soft, rgba(66,183,117,0.2))' : 'var(--s-elevated, #26312B)',
-                color: '#fff',
-                fontWeight: 600,
-                fontSize: 13,
-                cursor: 'pointer',
-              }}
-            >
-              {label}
-            </button>
-          ))}
+          ).map(([id, label]) => {
+            const active = payLines.some((p) => p.method === id);
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => togglePayMethod(id)}
+                style={{
+                  flex: 1,
+                  height: 44,
+                  borderRadius: 10,
+                  border: active
+                    ? '2px solid var(--s-brand, #42B775)'
+                    : '1px solid var(--s-border, #344139)',
+                  background: active
+                    ? 'var(--s-brand-soft, rgba(66,183,117,0.2))'
+                    : 'var(--s-elevated, #26312B)',
+                  color: '#fff',
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
 
-        {payMethod === 'pos' && (
+        {payLines.length > 1 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+            {payLines.map((line) => (
+              <div
+                key={line.method}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  justifyContent: 'space-between',
+                }}
+              >
+                <span style={{ fontSize: 13, textTransform: 'capitalize', minWidth: 90 }}>
+                  {line.method === 'pos' ? 'External POS' : line.method}
+                </span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step="0.01"
+                  value={line.amount || ''}
+                  onChange={(e) => setPayAmount(line.method, parseFloat(e.target.value) || 0)}
+                  style={{
+                    flex: 1,
+                    height: 40,
+                    borderRadius: 8,
+                    border: '1px solid var(--s-border, #344139)',
+                    background: 'var(--s-bg, #101513)',
+                    color: '#fff',
+                    padding: '0 10px',
+                    fontSize: 15,
+                    fontWeight: 600,
+                  }}
+                />
+              </div>
+            ))}
+            <div
+              style={{
+                fontSize: 12,
+                color: Math.abs(payTotal - total) > 0.05 ? '#fbbf24' : 'var(--s-brand, #42B775)',
+              }}
+            >
+              Paid {money(payTotal, currency)}
+              {Math.abs(payTotal - total) > 0.05
+                ? ` · need ${money(total, currency)}`
+                : ' · balanced'}
+            </div>
+          </div>
+        )}
+
+        {payLines.some((p) => p.method === 'pos') && (
           <label
             style={{
               display: 'flex',
