@@ -18,6 +18,7 @@ import {
   Utensils,
   ArrowLeftRight,
   Scale,
+  ScanLine,
 } from 'lucide-react';
 import type { PageId, Permissions } from '../types';
 import { STAFF_PERMISSION_DEFS } from '@/lib/staffPermissions';
@@ -48,6 +49,7 @@ const ICONS: Record<string, React.ReactNode> = {
   menu: <Utensils size={20} />,
   transfers: <ArrowLeftRight size={20} />,
   material: <Scale size={20} />,
+  terminal: <ScanLine size={20} />,
   settings: <Settings size={20} />,
 };
 
@@ -77,8 +79,21 @@ export function Sidebar({ page, onChangePage, permissions, open = false }: Sideb
     class: `ni-${d.key}`,
   }));
 
+  const terminalItem =
+    permissions.sale || permissions.terminal
+      ? [
+          {
+            id: 'terminal' as PageId,
+            label: 'Busmo One',
+            icon: ICONS.terminal || <ScanLine size={20} />,
+            class: 'ni-terminal',
+          },
+        ]
+      : [];
+
   const navItems = [
     { id: 'home' as PageId, label: 'Home', icon: ICONS.home, class: 'ni-home' },
+    ...terminalItem,
     ...featureItems,
     { id: 'settings' as PageId, label: 'Settings', icon: ICONS.settings, class: 'ni-set' },
   ];
