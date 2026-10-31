@@ -19,6 +19,7 @@ import {
 import { AskMOSupportAgent } from './components/AskMOSupportAgent';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
+import { BusmoOneSection } from './components/BusmoOneSection';
 import { DemoVideoSection } from './components/DemoVideoSection';
 import { ScrollReveal } from './components/ScrollReveal';
 import { TestimonialsSection } from './components/TestimonialsSection';
@@ -91,6 +92,11 @@ export default function WelcomePage() {
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <ResultsCounters />
       </ScrollReveal>
+
+      <ScrollReveal direction="up" duration={0.7} delay={0.05}>
+        <BusmoOneSection />
+      </ScrollReveal>
+
 
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <ProductShowcase />
