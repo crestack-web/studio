@@ -255,7 +255,7 @@ export function ReceiveStockPage() {
     showToast(`✅ ${product.name} added to receipt`);
   };
 
-  const handleAddItemconst handleAddItem = () => {
+  const handleAddItem = () => {
     if (!selectedProduct) {
       showToast('⚠️ Please select a product');
       return;
