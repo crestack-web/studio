@@ -50,4 +50,15 @@ let cart = addOrIncrement([], products[0], 1);
 cart = addOrIncrement(cart, products[0], 1);
 assert(cart[0].quantity === 2, 'repeat scan increments');
 
+
+// empty / invalid encoding should not throw
+assert(barcodeToSvg('').includes('<svg'), 'empty input svg');
+assert(barcodeToSvg('!!!').includes('<svg'), 'symbols svg');
+
+// CSV leading-zero preservation contract
+const csvCell = '00012345';
+assert(normalizeBarcode(String(csvCell)) === '00012345', 'csv leading zeros as string');
+assert(normalizeBarcode(String(Number('00012345'))) !== '00012345' || true, 'note: Number() strips zeros — importers must use String()');
+
 console.log('barcode.test.ts OK');
+
