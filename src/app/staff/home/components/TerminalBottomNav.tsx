@@ -5,7 +5,7 @@ import {
   ShoppingCart,
   Home,
   Package,
-  Clock,
+  UserCheck,
   MoreHorizontal,
 } from 'lucide-react';
 import type { PageId, Permissions } from '../types';
@@ -15,6 +15,7 @@ interface TerminalBottomNavProps {
   permissions: Permissions;
   onChange: (p: PageId) => void;
   cartCount?: number;
+  onLocked?: (msg: string) => void;
 }
 
 const ITEMS: {
@@ -44,7 +45,7 @@ const ITEMS: {
     id: 'atd',
     label: 'Check-in',
     need: 'atd',
-    icon: <Clock size={22} strokeWidth={2.25} aria-hidden />,
+    icon: <UserCheck size={22} strokeWidth={2.25} aria-hidden />,
   },
   {
     id: 'settings',
@@ -58,25 +59,33 @@ export function TerminalBottomNav({
   permissions,
   onChange,
   cartCount = 0,
+  onLocked,
 }: TerminalBottomNavProps) {
-  const visible = ITEMS.filter((it) => {
-    if (!it.need) return true;
-    if (it.id === 'terminal') return Boolean(permissions.sale || permissions.terminal);
-    return Boolean(permissions[it.need]);
-  });
-
   return (
     <nav className="b1-nav" aria-label="Terminal">
-      {visible.map((it) => {
+      {ITEMS.map((it) => {
+        const locked =
+          !!it.need &&
+          !(it.id === 'terminal'
+            ? permissions.sale || permissions.terminal
+            : permissions[it.need]);
         const active =
           page === it.id || (it.id === 'terminal' && page === 'sale');
         return (
           <button
             key={it.id}
             type="button"
-            className={active ? 'active' : ''}
-            onClick={() => onChange(it.id)}
+            className={`${active ? 'active' : ''}${locked ? ' locked' : ''}`}
+            onClick={() => {
+              if (locked) {
+                onLocked?.('🔒 Access blocked by owner');
+                return;
+              }
+              onChange(it.id);
+            }}
             aria-label={it.label}
+            aria-disabled={locked}
+            style={locked ? { opacity: 0.35 } : undefined}
           >
             {it.icon}
             <span>
