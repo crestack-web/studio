@@ -297,8 +297,14 @@ export function TerminalModePage({
 
   const completeSale = async () => {
     if (!businessId || cart.length === 0 || submittingRef.current) return;
-    if (payMethod === 'pos' && !posConfirmed) {
+    const methods = payLines.length ? payLines : [{ method: 'cash' as PayMethod, amount: total }];
+    if (methods.some((m) => m.method === 'pos') && !posConfirmed) {
       setError('Confirm that payment was received on the external POS terminal.');
+      return;
+    }
+    const paidSum = methods.reduce((s, m) => s + (Number(m.amount) || 0), 0);
+    if (Math.abs(paidSum - total) > 0.05) {
+      setError(`Split payments must add up to total. Paid ${paidSum}, need ${total}.`);
       return;
     }
 
@@ -337,7 +343,7 @@ export function TerminalModePage({
           businessId,
           products: saleProducts,
           total,
-          paymentType: payMethod === 'pos' ? 'pos' : payMethod,
+          paymentType: methods.length > 1 ? 'split' : methods[0].method,
           staffId,
           staffName,
           createdAt: new Date().toISOString(),
