@@ -90,15 +90,28 @@
 html,
 body {
   height: 100%;
+  max-height: 100%;
   font-family: var(--fB);
   background: var(--bg);
   color: var(--t1);
   font-size: 14px;
   line-height: 1.5;
   transition: background var(--tr), color var(--tr);
+  overflow: hidden;
+  overscroll-behavior: none;
+  position: relative;
 }
 
 body {
+  overflow: hidden !important;
+  width: 100%;
+}
+
+/* Next.js root must not become a second scroll container */
+#__next,
+body > div:first-child {
+  height: 100%;
+  max-height: 100%;
   overflow: hidden;
 }
 
@@ -120,8 +133,14 @@ svg {
 .app {
   display: flex;
   height: 100dvh;
+  height: 100svh;
+  max-height: 100dvh;
+  max-height: 100svh;
   overflow: hidden;
-  position: relative;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  z-index: 1;
 }
 
 /* ─ Mobile overlay ─ */
@@ -550,13 +569,19 @@ svg {
   flex-direction: column;
   overflow: hidden;
   min-width: 0;
+  min-height: 0;
+  height: 100%;
 }
 
 .main-scroll {
-  flex: 1;
-  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto !important;
   overflow-x: hidden;
   background: var(--bg);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
 }
 
 .main-scroll::-webkit-scrollbar {
@@ -771,8 +796,11 @@ svg {
     padding-bottom: var(--botH);
   }
 
-  body {
-    overflow: auto;
+  /* Keep document locked — only .main-scroll scrolls (not the bottom nav) */
+  html, body {
+    overflow: hidden !important;
+    height: 100% !important;
+    overscroll-behavior: none;
   }
 }
 
@@ -2862,10 +2890,13 @@ svg {
   height: var(--botH);
   background: var(--surf);
   border-top: 1px solid var(--bdr);
-  z-index: 30;
+  z-index: 100;
   align-items: stretch;
   justify-content: space-around;
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.07);
+  /* Stay pinned even when inner content scrolls */
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
 }
 
 @media (max-width: 768px) {
@@ -3044,69 +3075,99 @@ svg {
 }
 
 
-/* ── Staff UX polish: scroll + bottom nav + sale (2026-10-31) ── */
+/* ── Staff UX polish: locked shell scroll (2026-10-31) ── */
 :root {
   --botH: 76px;
 }
 
+html,
+body {
+  overflow: hidden !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  overscroll-behavior: none !important;
+}
+
+.app {
+  position: fixed !important;
+  inset: 0 !important;
+  height: 100dvh !important;
+  height: 100svh !important;
+  max-height: 100dvh !important;
+  overflow: hidden !important;
+}
+
+.main {
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.main-scroll {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  /* Space so last content clears fixed bottom nav */
+  padding-bottom: calc(var(--botH, 76px) + env(safe-area-inset-bottom, 0px) + 12px) !important;
+}
+
 .bot-nav {
-  height: var(--botH) !important;
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 100 !important;
+  height: calc(var(--botH) + env(safe-area-inset-bottom, 0px)) !important;
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  box-sizing: content-box;
+  box-sizing: border-box !important;
+  background: var(--surf) !important;
 }
 
 .bn-item {
-  min-height: 72px !important;
+  min-height: 56px !important;
   gap: 4px !important;
-  padding: 8px 4px !important;
+  padding: 6px 4px !important;
 }
 
 .bn-item .bn-icon {
-  width: 44px !important;
-  height: 44px !important;
+  width: 40px !important;
+  height: 40px !important;
 }
 
 .bn-item svg {
-  width: 26px !important;
-  height: 26px !important;
+  width: 24px !important;
+  height: 24px !important;
 }
 
 .bn-item .bn-label {
-  font-size: 0.72rem !important;
+  font-size: 0.7rem !important;
   font-weight: 700 !important;
 }
 
-/* Sale page must scroll with main-scroll; never lock height */
+/* Page content grows inside main-scroll — do not create a second document scroll */
 #pg-sale.pg.act.full,
-#pg-sale {
+#pg-sale,
+.pg.act,
+.pg.act.full {
   overflow: visible !important;
   height: auto !important;
-  min-height: 100% !important;
-  padding-bottom: calc(var(--botH, 76px) + 32px + env(safe-area-inset-bottom, 0px)) !important;
-}
-
-#pg-sale .rs-lay {
-  overflow: visible !important;
   max-height: none !important;
+  min-height: 0 !important;
 }
 
-#pg-sale .prod-g {
+#pg-sale .rs-lay,
+#pg-sale .prod-g,
+#pg-sale .cit-w {
   overflow: visible !important;
   max-height: none !important;
 }
 
 #pg-sale .cit-w {
   position: relative !important;
-  max-height: none !important;
-  overflow: visible !important;
 }
 
-.main-scroll {
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
-}
-
-/* Home fills width on mobile */
 .pg.act.full,
 #pg-home,
 .home-body {
@@ -3115,11 +3176,19 @@ svg {
   box-sizing: border-box;
 }
 
-@media (max-width: 768px) {
-  .pg {
-    padding-bottom: calc(var(--botH, 76px) + 28px) !important;
-  }
-  .main-scroll {
-    padding-bottom: 0;
-  }
+/* Terminal shell: same rule — only body region scrolls */
+.b1-shell {
+  position: fixed !important;
+  inset: 0 !important;
+  overflow: hidden !important;
+}
+.b1-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+}
+.b1-nav {
+  position: relative !important;
+  flex-shrink: 0 !important;
+  z-index: 50;
 }
