@@ -12,7 +12,6 @@ import { Sidebar } from './components/Sidebar';
 import { TerminalBottomNav } from './components/TerminalBottomNav';
 import { Topbar } from './components/Topbar';
 import { Toast, BottomNav, LockedPage } from './components/shared';
-import { HomePage } from './HomePage';
 import { CompactStaffHome } from './CompactStaffHome';
 import { SalePage } from './pages/SalePage';
 import {
@@ -210,70 +209,59 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
         )}
 
         {!isTerminal && (
-        {/* Business scope badge — confirms correct owner business */}
-        <div
-          style={{
-            padding: '8px 16px',
-            fontSize: '0.75rem',
-            color: 'var(--t2, #3D6652)',
-            borderBottom: '1px solid var(--bdrS, #eee)',
-            background: 'var(--brand-lt, #dcfce7)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 8,
-            flexWrap: 'wrap',
-          }}
-        >
-          <span>
-            Linked business:{' '}
-            <strong style={{ color: 'var(--brand, #16A34A)' }}>{businessName}</strong>
-          </span>
-          <span style={{ fontSize: '0.65rem', color: 'var(--t3)', opacity: 0.9 }}>
-            Sales & stock stay on this business only
-          </span>
-        </div>
+          <div
+            style={{
+              padding: '8px 16px',
+              fontSize: '0.75rem',
+              color: 'var(--t2, #3D6652)',
+              borderBottom: '1px solid var(--bdrS, #eee)',
+              background: 'var(--brand-lt, #dcfce7)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+              flexWrap: 'wrap',
+            }}
+          >
+            <span>
+              Linked business:{' '}
+              <strong style={{ color: 'var(--brand, #16A34A)' }}>{businessName}</strong>
+            </span>
+            <span style={{ fontSize: '0.65rem', color: 'var(--t3)', opacity: 0.9 }}>
+              Sales & stock stay on this business only
+            </span>
+          </div>
+        )}
 
-        <div className="main-scroll">
+        <div className={isTerminal ? 'main-scroll b1-body' : 'main-scroll'}>
           {page === 'home' && (
-            isTerminal ? (
-              <CompactStaffHome
-                staffName={staff.name}
-                businessName={businessName}
+            <CompactStaffHome
+              staffName={staff.name}
+              businessName={businessName}
+              businessId={businessId}
+              staffId={staff.id}
+              currency={currency}
+              shiftElapsed={shiftElapsed}
+              permissions={permissions}
+              onNav={(p) => navigate(isTerminal && p === 'sale' ? 'terminal' : p)}
+            />
+          )}
+          {page === 'terminal' &&
+            (permissions.sale || permissions.terminal ? (
+              <TerminalModePage
                 businessId={businessId}
                 staffId={staff.id}
+                staffName={staff.name}
+                staffRole={staff.role}
+                businessName={businessName}
                 currency={currency}
-                shiftElapsed={shiftElapsed}
-                permissions={permissions}
-                onNav={(p) => navigate(p === 'sale' ? 'terminal' : p)}
+                onExit={() => navigate('home')}
+                canCreateProducts={Boolean(permissions.receive || permissions.inv)}
               />
             ) : (
-              <CompactStaffHome
-                staffName={staff.name}
-                businessName={businessName}
-                businessId={businessId}
-                staffId={staff.id}
-                currency={currency}
-                shiftElapsed={shiftElapsed}
-                permissions={permissions}
-                onNav={navigate}
-              />
-            )
-          )}
-          {page === 'terminal'
-            ? (
-                <TerminalModePage
-                  businessId={businessId}
-                  staffId={staff.id}
-                  staffName={staff.name}
-                  staffRole={staff.role}
-                  businessName={businessName}
-                  currency={currency}
-                  onExit={() => navigate('home')}
-                  canCreateProducts={Boolean(permissions.receive || permissions.inv)}
-                />
-              )
-            : page === 'sale' &&
+              <LockedPage pageName="Busmo One Terminal" />
+            ))}
+          {page === 'sale' &&
             (permissions.sale ? (
               <SalePage
                 businessId={businessId}
@@ -364,9 +352,9 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
             />
           )}
         </div>
-        )}
       </div>
 
+      {!isTerminal && (
       <BottomNav
         page={page}
         permissions={permissions}
@@ -374,6 +362,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
         onToast={showToast}
         hasMessage={true}
       />
+      )}
 
       <Toast
         message={toast.message}
