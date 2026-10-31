@@ -52,6 +52,10 @@ export async function POST(req: NextRequest) {
       body.businessId || meta.businessId || meta.business_id || ''
     ).trim();
     const products = Array.isArray(body.products) ? body.products : [];
+    const isReturn =
+      body.isReturn === true ||
+      body.saleType === 'return' ||
+      String(body.type || '').toLowerCase() === 'return';
 
     if (!businessId) {
       return NextResponse.json({ error: 'businessId required' }, { status: 400 });
@@ -192,13 +196,17 @@ export async function POST(req: NextRequest) {
           }))
         : [{ method: paymentMethod, amount: total, received: true }];
 
+    const signedTotal = isReturn ? -Math.abs(total) : total;
+    const signedProfit = isReturn ? -Math.abs(profit) : profit;
+    const signedCost = isReturn ? -Math.abs(totalCost) : totalCost;
+
     const metadata: Record<string, unknown> = {
       products: normalizedProducts,
       items: normalizedProducts,
-      total,
-      totalRevenue: total,
-      totalCost,
-      profit,
+      total: signedTotal,
+      totalRevenue: signedTotal,
+      totalCost: signedCost,
+      profit: signedProfit,
       paymentMethods,
       paymentBreakdown,
       notes: note,
@@ -211,19 +219,22 @@ export async function POST(req: NextRequest) {
         role,
         staffId: body.staffId || meta.staffId || null,
       },
-      source: offlineId ? 'offline_sync' : 'app',
+      source: offlineId ? 'offline_sync' : body.source || 'app',
       offlineId,
+      isReturn: !!isReturn,
+      saleType: isReturn ? 'return' : 'sale',
+      refundMethod: isReturn ? paymentMethod : undefined,
     };
 
     const fullRow: Record<string, unknown> = {
       id: saleId,
       business_id: businessId,
       items: normalizedProducts,
-      total_amount: total,
-      total_revenue: total,
-      profit,
+      total_amount: signedTotal,
+      total_revenue: signedTotal,
+      profit: signedProfit,
       payment_method: paymentMethod,
-      status: 'completed',
+      status: isReturn ? 'returned' : 'completed',
       created_at: now,
       metadata,
     };
@@ -235,9 +246,9 @@ export async function POST(req: NextRequest) {
         id: saleId,
         business_id: businessId,
         items: normalizedProducts,
-        total_amount: total,
+        total_amount: signedTotal,
         payment_method: paymentMethod,
-        status: 'completed',
+        status: isReturn ? 'returned' : 'completed',
         created_at: now,
         metadata,
       };
@@ -273,7 +284,10 @@ export async function POST(req: NextRequest) {
         }
 
         const current = Number((prod as any).stock_level) || 0;
-        const next = Math.max(0, current - p.quantity);
+        // Returns restock; normal sales deduct
+        const next = isReturn
+          ? current + p.quantity
+          : Math.max(0, current - p.quantity);
         const { error: upErr } = await supabase
           .from('products')
           .update({ stock_level: next, updated_at: now })
@@ -291,6 +305,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       saleId,
+      isReturn: !!isReturn,
       stockErrors: stockErrors.length ? stockErrors : undefined,
     });
   } catch (err: any) {

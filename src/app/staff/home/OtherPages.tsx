@@ -304,7 +304,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ hasAccess, sessionSale
             return !by || by === staffId;
           });
         }
-        const saleRecords: SalesHistoryItem[] = filtered.map((sale) => ({
+        const saleRecords: SalesHistoryItem[] = filtered.map((sale: any) => ({
           id: sale.id,
           time: sale.createdAt
             ? new Date(sale.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
@@ -313,6 +313,7 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ hasAccess, sessionSale
           amount: sale.total,
           payment: (sale.paymentMethod || 'cash').charAt(0).toUpperCase() + (sale.paymentMethod || 'cash').slice(1),
           soldByName: sale.soldByName,
+          isReturn: !!sale.isReturn,
         }));
         setAllRecords(saleRecords);
       } catch (error) {
@@ -410,9 +411,19 @@ export const HistoryPage: React.FC<HistoryPageProps> = ({ hasAccess, sessionSale
                   <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {r.items}
                   </td>
-                  <td><strong>{currencyProp || '₦'}{r.amount.toLocaleString()}</strong></td>
+                  <td>
+                    <strong style={{ color: r.isReturn ? '#B45309' : undefined }}>
+                      {r.isReturn ? '−' : ''}{currencyProp || '₦'}{Math.abs(Number(r.amount) || 0).toLocaleString()}
+                    </strong>
+                  </td>
                   <td><span className={`pill ${payPill(r.payment)}`}>{r.payment}</span></td>
-                  <td><span className="pill g">Confirmed</span></td>
+                  <td>
+                    {r.isReturn ? (
+                      <span className="pill" style={{ background: '#FEF3C7', color: '#B45309' }}>Return</span>
+                    ) : (
+                      <span className="pill g">Confirmed</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

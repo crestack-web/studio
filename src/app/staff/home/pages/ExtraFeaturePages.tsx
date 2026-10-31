@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { LockedPage } from '../components/shared';
 import { fetchDocs, addDoc as sbAddDoc } from '@/lib/supabase-client-data';
+import { fetchProducts, type Product } from '../services/dataService';
 import { getSupabase } from '@/lib/supabase';
 
 type BaseProps = {
@@ -253,39 +254,286 @@ export function CreditPage({ hasAccess, businessId }: BaseProps) {
 }
 
 export function ReturnsPage({ hasAccess, businessId, staffId, staffName }: BaseProps) {
-  const [note, setNote] = useState('');
-  const [amount, setAmount] = useState('');
-  const [product, setProduct] = useState('');
-  const [saved, setSaved] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [qty, setQty] = useState('1');
+  const [reason, setReason] = useState('');
+  const [refundMethod, setRefundMethod] = useState<'cash' | 'transfer' | 'pos' | 'credit'>('cash');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!businessId) {
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      try {
+        const list = await fetchProducts(undefined, businessId);
+        if (!cancelled) setProducts(list);
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message || 'Could not load products');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [businessId]);
+
   if (!hasAccess) return <LockedPage pageName="Returns" />;
 
+  const selected = products.find((p) => p.id === selectedId) || null;
+  const qtyNum = Math.max(1, Math.floor(Number(qty) || 1));
+  const refundAmount = selected ? (Number(selected.price) || 0) * qtyNum : 0;
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return products.slice(0, 40);
+    return products
+      .filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          String(p.sku || '').toLowerCase().includes(q) ||
+          String(p.barcode || '').toLowerCase().includes(q)
+      )
+      .slice(0, 40);
+  }, [products, search]);
+
   const submit = async () => {
-    if (!businessId || !product.trim()) return;
-    await sbAddDoc(`businesses/${businessId}/returns`, {
-      id: crypto.randomUUID(),
-      productName: product.trim(),
-      amount: Number(amount) || 0,
-      reason: note.trim() || 'Return',
-      staffId: staffId || null,
-      staffName: staffName || null,
-      created_at: new Date().toISOString(),
-    });
-    setProduct('');
-    setAmount('');
-    setNote('');
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    if (!businessId) {
+      setError('Missing business. Sign out and sign in again.');
+      return;
+    }
+    if (!selected) {
+      setError('Select a product to return.');
+      return;
+    }
+    if (submitting) return;
+    setSubmitting(true);
+    setError(null);
+    setSavedMsg(null);
+
+    try {
+      const supabase = getSupabase();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error('Session expired. Sign in again.');
+
+      const saleProducts = [
+        {
+          productId: selected.id,
+          name: selected.name,
+          price: Number(selected.price) || 0,
+          costPrice: Number(selected.costPrice) || 0,
+          quantity: qtyNum,
+        },
+      ];
+
+      const res = await fetch('/api/sales/record', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          businessId,
+          products: saleProducts,
+          total: refundAmount,
+          paymentMethod: refundMethod,
+          paymentMethods: { [refundMethod]: refundAmount },
+          paymentBreakdown: [{ method: refundMethod, amount: refundAmount, received: true }],
+          note: reason.trim() || 'Customer return',
+          isReturn: true,
+          saleType: 'return',
+          source: 'staff_returns',
+          staffId: staffId || null,
+          staffName: staffName || null,
+          staffRole: 'Staff',
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error || json.message || `Return failed (${res.status})`);
+      }
+
+      // Audit row (best-effort; does not block success)
+      try {
+        await sbAddDoc(`businesses/${businessId}/returns`, {
+          id: json.saleId || crypto.randomUUID(),
+          saleId: json.saleId || null,
+          productId: selected.id,
+          productName: selected.name,
+          quantity: qtyNum,
+          amount: refundAmount,
+          reason: reason.trim() || 'Customer return',
+          refundMethod,
+          staffId: staffId || null,
+          staffName: staffName || null,
+          created_at: new Date().toISOString(),
+        });
+      } catch (auditErr) {
+        console.warn('[ReturnsPage] audit log failed', auditErr);
+      }
+
+      // Optimistic restock in local list
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === selected.id ? { ...p, stock: (p.stock || 0) + qtyNum } : p
+        )
+      );
+
+      setSavedMsg(
+        `Return logged · stock +${qtyNum} · ${selected.name}${
+          json.stockErrors?.length ? ' (stock warning — check inventory)' : ''
+        }`
+      );
+      setSelectedId(null);
+      setQty('1');
+      setReason('');
+      setSearch('');
+      setTimeout(() => setSavedMsg(null), 4000);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to log return');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <Shell title="Returns" subtitle="Log a return so the owner can review stock and refunds.">
-      <input style={field} placeholder="Product name *" value={product} onChange={(e) => setProduct(e.target.value)} />
-      <input style={field} placeholder="Amount (optional)" value={amount} onChange={(e) => setAmount(e.target.value)} type="number" />
-      <textarea style={{ ...field, minHeight: 80 }} placeholder="Reason" value={note} onChange={(e) => setNote(e.target.value)} />
-      <button type="button" style={btn} onClick={submit}>
-        Log return
+    <Shell
+      title="Returns"
+      subtitle="Log a return sale — stock is put back and the refund is recorded for the owner."
+    >
+      <input
+        style={field}
+        placeholder="Search product name, SKU, barcode…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+
+      {loading ? (
+        <p style={{ color: 'var(--t3, #64748b)', fontSize: '0.85rem' }}>Loading products…</p>
+      ) : (
+        <div
+          style={{
+            maxHeight: 220,
+            overflowY: 'auto',
+            border: '1px solid var(--bdr, #e2e8f0)',
+            borderRadius: 12,
+            marginBottom: 12,
+            background: 'var(--surf, #fff)',
+          }}
+        >
+          {filtered.length === 0 ? (
+            <p style={{ padding: 12, margin: 0, color: 'var(--t3)', fontSize: '0.85rem' }}>
+              No products match.
+            </p>
+          ) : (
+            filtered.map((p) => {
+              const on = p.id === selectedId;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setSelectedId(p.id)}
+                  style={{
+                    display: 'flex',
+                    width: '100%',
+                    textAlign: 'left',
+                    gap: 10,
+                    padding: '10px 12px',
+                    border: 'none',
+                    borderBottom: '1px solid var(--bdr, #f1f5f9)',
+                    background: on ? 'rgba(107,63,231,0.08)' : 'transparent',
+                    cursor: 'pointer',
+                    alignItems: 'center',
+                  }}
+                >
+                  <span style={{ fontSize: 18 }}>{p.emoji || '📦'}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', fontWeight: 600, fontSize: '0.9rem' }}>
+                      {p.name}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--t3, #64748b)' }}>
+                      Stock {p.stock ?? 0} · {Number(p.price || 0).toLocaleString()}
+                    </span>
+                  </span>
+                  {on && (
+                    <span style={{ color: 'var(--brand, #6B3FE7)', fontWeight: 700, fontSize: 12 }}>
+                      Selected
+                    </span>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>Quantity</label>
+          <input
+            style={field}
+            type="number"
+            min={1}
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+          />
+        </div>
+        <div>
+          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>Refund method</label>
+          <select
+            style={field}
+            value={refundMethod}
+            onChange={(e) => setRefundMethod(e.target.value as any)}
+          >
+            <option value="cash">Cash</option>
+            <option value="transfer">Transfer</option>
+            <option value="pos">POS / card</option>
+            <option value="credit">Credit note</option>
+          </select>
+        </div>
+      </div>
+
+      <textarea
+        style={{ ...field, minHeight: 72 }}
+        placeholder="Reason (damaged, wrong item, customer change of mind…)"
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+      />
+
+      {selected && (
+        <p style={{ margin: '0 0 12px', fontSize: '0.9rem', fontWeight: 600 }}>
+          Refund ≈ {refundAmount.toLocaleString()} · will restock {qtyNum} × {selected.name}
+        </p>
+      )}
+
+      {error && (
+        <p style={{ color: '#dc2626', margin: '0 0 10px', fontSize: '0.85rem' }}>{error}</p>
+      )}
+      {savedMsg && (
+        <p style={{ color: 'var(--brand, #16a34a)', margin: '0 0 10px', fontWeight: 600 }}>
+          {savedMsg}
+        </p>
+      )}
+
+      <button
+        type="button"
+        style={submitting || !selected ? btnDisabled : btn}
+        disabled={submitting || !selected}
+        onClick={submit}
+      >
+        {submitting ? 'Logging return…' : 'Log return sale'}
       </button>
-      {saved && <p style={{ color: 'var(--brand)', marginTop: 10, fontWeight: 600 }}>Return logged.</p>}
     </Shell>
   );
 }

@@ -82,4 +82,5 @@ export interface SalesHistoryItem {
   payment: string;
   soldByName?: string;
   dateKey?: string;
+  isReturn?: boolean;
 }

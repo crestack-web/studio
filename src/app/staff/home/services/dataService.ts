@@ -44,6 +44,8 @@ export interface Sale {
   soldByName?: string;
   businessId?: string;
   createdAt: string;
+  isReturn?: boolean;
+  status?: string;
 }
 
 export interface Business {
@@ -230,6 +232,10 @@ export async function fetchRecentSales(
       const meta =
         data.metadata && typeof data.metadata === 'object' ? (data.metadata as any) : {};
       const recorded = meta.recordedBy || {};
+      const isReturn =
+        meta.isReturn === true ||
+        meta.saleType === 'return' ||
+        String(data.status || '').toLowerCase() === 'returned';
       return {
         id: data.id,
         products: data.products || data.items || meta.products || meta.items || [],
@@ -262,6 +268,8 @@ export async function fetchRecentSales(
           'Unknown',
         businessId: data.businessId || data.business_id,
         createdAt: data.createdAt || data.created_at || '',
+        isReturn,
+        status: data.status || (isReturn ? 'returned' : 'completed'),
       };
     });
 
