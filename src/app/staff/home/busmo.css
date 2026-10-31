@@ -3192,3 +3192,99 @@ body {
   flex-shrink: 0 !important;
   z-index: 50;
 }
+
+
+/* ── Sale: sticky search, only product grid scrolls ── */
+#pg-sale.sale-page-shell {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  padding-bottom: 0 !important;
+  box-sizing: border-box;
+}
+
+#pg-sale .sale-phd {
+  flex-shrink: 0;
+  padding-bottom: 8px;
+}
+
+#pg-sale .sale-rs-lay {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  height: 100%;
+}
+
+#pg-sale .sale-catalog {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+#pg-sale .sale-catalog-tools {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: var(--bg);
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--bdrS, #e5e7eb);
+}
+
+#pg-sale .sale-srch {
+  margin-bottom: 0 !important;
+}
+
+#pg-sale .sale-catalog-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 12px 2px 16px;
+}
+
+#pg-sale .prod-g {
+  overflow: visible !important;
+  max-height: none !important;
+}
+
+#pg-sale .pc.oos {
+  pointer-events: auto;
+  filter: grayscale(0.35);
+}
+
+#pg-sale .cit-w {
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 900px) {
+  #pg-sale.sale-page-shell {
+    /* Fill main-scroll viewport under topbar + above bottom nav */
+    height: calc(100dvh - var(--navH, 58px) - var(--botH, 76px)) !important;
+    max-height: calc(100dvh - var(--navH, 58px) - var(--botH, 76px)) !important;
+  }
+  #pg-sale .sale-rs-lay {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+  #pg-sale .sale-catalog {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  #pg-sale .cit-w {
+    flex: 0 0 auto;
+    max-height: 42%;
+    border-top: 1px solid var(--bdrS);
+    padding-top: 8px;
+  }
+}
