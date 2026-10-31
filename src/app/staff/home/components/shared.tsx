@@ -5,6 +5,8 @@ import {
   Package,
   Clock,
   MessageSquare,
+  UserCheck,
+  Settings,
 } from 'lucide-react';
 import type { PageId, Permissions } from '../types';
 
@@ -38,28 +40,28 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     {
       id: 'home',
       label: 'Home',
-      icon: <Home strokeWidth={2.25} aria-hidden />,
+      icon: <Home size={26} strokeWidth={2.25} aria-hidden />,
     },
     {
       id: 'sale',
       label: 'Sale',
       permKey: 'sale',
-      icon: <ShoppingCart strokeWidth={2.25} aria-hidden />,
+      icon: <ShoppingCart size={26} strokeWidth={2.25} aria-hidden />,
     },
     ...(permissions.inv
       ? [
           {
             id: 'inv' as PageId,
             label: 'Stock',
-            icon: <Package strokeWidth={2.25} aria-hidden />,
+            icon: <Package size={26} strokeWidth={2.25} aria-hidden />,
           },
         ]
       : []),
     {
       id: 'atd',
-      label: 'Shift',
+      label: 'Check-in',
       permKey: 'atd',
-      icon: <Clock strokeWidth={2.25} aria-hidden />,
+      icon: <UserCheck size={26} strokeWidth={2.25} aria-hidden />,
     },
     ...(permissions.msg
       ? [
@@ -67,10 +69,16 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             id: 'msg' as PageId,
             label: 'Chat',
             dot: hasMessage,
-            icon: <MessageSquare strokeWidth={2.25} aria-hidden />,
+            icon: <MessageSquare size={26} strokeWidth={2.25} aria-hidden />,
           },
         ]
-      : []),
+      : [
+          {
+            id: 'settings' as PageId,
+            label: 'More',
+            icon: <Settings size={26} strokeWidth={2.25} aria-hidden />,
+          },
+        ]),
   ];
 
   const handleNav = (item: BnItem) => {
