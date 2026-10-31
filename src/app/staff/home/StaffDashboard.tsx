@@ -12,6 +12,7 @@ import { Sidebar } from './components/Sidebar';
 import { TerminalBottomNav } from './components/TerminalBottomNav';
 import { Topbar } from './components/Topbar';
 import { Toast, BottomNav, LockedPage } from './components/shared';
+import { HomePage } from './HomePage';
 import { CompactStaffHome } from './CompactStaffHome';
 import { SalePage } from './pages/SalePage';
 import {
@@ -234,18 +235,33 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
         )}
 
         <div className={isTerminal ? 'main-scroll b1-body' : 'main-scroll'}>
-          {page === 'home' && (
-            <CompactStaffHome
-              staffName={staff.name}
-              businessName={businessName}
-              businessId={businessId}
-              staffId={staff.id}
-              currency={currency}
-              shiftElapsed={shiftElapsed}
-              permissions={permissions}
-              onNav={(p) => navigate(isTerminal && p === 'sale' ? 'terminal' : p)}
-            />
-          )}
+          {page === 'home' &&
+            (isTerminal ? (
+              <CompactStaffHome
+                staffName={staff.name}
+                businessName={businessName}
+                businessId={businessId}
+                staffId={staff.id}
+                currency={currency}
+                shiftElapsed={shiftElapsed}
+                permissions={permissions}
+                onNav={(p) => navigate(p === 'sale' ? 'terminal' : p)}
+              />
+            ) : (
+              <HomePage
+                greeting={getGreeting()}
+                salesTotal={0}
+                transactions={0}
+                itemsSold={0}
+                permissions={permissions}
+                shiftElapsed={shiftElapsed}
+                onNav={navigate}
+                onToast={showToast}
+                staffId={staff.id}
+                businessId={businessId}
+                currency={currency}
+              />
+            ))}
           {page === 'terminal' &&
             (permissions.sale || permissions.terminal ? (
               <TerminalModePage
