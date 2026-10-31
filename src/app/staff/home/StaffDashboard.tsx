@@ -391,6 +391,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
           page={page}
           permissions={permissions}
           onChange={navigate}
+          onLocked={showToast}
         />
       )}
       <NetworkStatus />
