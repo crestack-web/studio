@@ -733,7 +733,7 @@ export function TerminalModePage({
               fontSize: 14,
             }}
           >
-            Scan items to start checkout
+            Tap a product below or scan a barcode — checkout appears when the cart has items
           </div>
         ) : (
           cart.map((l) => (
