@@ -133,8 +133,7 @@ export function BusmoOnePreorderModal({ open, onClose }: Props) {
         ) : (
           <form onSubmit={submit}>
             <p style={{ fontSize: 13, color: '#555', marginBottom: 12 }}>
-              Proposed founding price {formatNgn(BUSMO_ONE_CONFIG.earlyAccessPriceNgn)}
-              {!BUSMO_ONE_CONFIG.priceConfirmed ? ' (pending confirmation)' : ''}. No payment is taken here.
+              Pre-order price {formatNgn(BUSMO_ONE_CONFIG.launchPriceNgn)} — includes eligibility for {BUSMO_ONE_CONFIG.promotionLabel}. No payment is taken on this form.
             </p>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Full name *</label>
             <input style={field} required value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="name" />
