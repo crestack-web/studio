@@ -10,6 +10,9 @@ import { getSupabase } from '@/lib/supabase';
 import styles from './Addproductpage.module.css';
 import { isRestaurantBusiness, ProductType, DishCategory, IngredientUnit, getDishCategories, getIngredientUnits } from './utils/restaurantHelpers';
 import { subscribeToActionEvents } from '@/utils/dataRefresh';
+import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
+import { openLabelPrintWindow } from '@/lib/barcode/labels';
+import { getSupabase } from '@/lib/supabase';
 
 // ═══════════════════════════════════════════
 //  AddProductPage — full product registration
@@ -596,7 +599,117 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
             <label className={styles.label}>SKU / Product Code</label>
             <input className={styles.input} placeholder="e.g. PLO-001 (auto-generated if blank)" value={form.sku} onChange={e => set('sku', e.target.value)} />
             <label className={styles.label}>Barcode</label>
-            <input className={styles.input} placeholder="Scan or type manufacturer / store barcode" value={form.barcode} onChange={e => set('barcode', e.target.value)} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <input
+                className={styles.input}
+                placeholder="Manufacturer barcode or Busmo code"
+                value={form.barcode}
+                onChange={(e) => {
+                  setExistingMatch(null);
+                  set('barcode', e.target.value);
+                }}
+              />
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <button
+                  type="button"
+                  className={styles.secondaryBtn || styles.btn}
+                  onClick={() => setScanOpen(true)}
+                  style={{ fontSize: 13 }}
+                >
+                  Scan barcode
+                </button>
+                <button
+                  type="button"
+                  className={styles.secondaryBtn || styles.btn}
+                  disabled={barcodeBusy}
+                  onClick={async () => {
+                    setBarcodeBusy(true);
+                    setExistingMatch(null);
+                    try {
+                      const sb = getSupabase();
+                      const { data: sess } = await sb.auth.getSession();
+                      const token = sess.session?.access_token;
+                      if (!token || !businessId) throw new Error('Not signed in');
+                      const res = await fetch('/api/products/barcode/generate', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          Authorization: `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({ businessId }),
+                      });
+                      const json = await res.json();
+                      if (!res.ok) throw new Error(json.error || 'Generate failed');
+                      set('barcode', json.barcode);
+                    } catch (err: any) {
+                      alert(err?.message || 'Could not generate barcode');
+                    } finally {
+                      setBarcodeBusy(false);
+                    }
+                  }}
+                  style={{ fontSize: 13 }}
+                >
+                  {barcodeBusy ? 'Generating…' : 'Generate barcode'}
+                </button>
+                {form.barcode.trim() && (
+                  <button
+                    type="button"
+                    className={styles.secondaryBtn || styles.btn}
+                    style={{ fontSize: 13 }}
+                    onClick={() =>
+                      openLabelPrintWindow({
+                        productName: form.name || 'Product',
+                        barcode: form.barcode.trim(),
+                        priceLabel: form.price ? `₦${form.price}` : undefined,
+                        showPrice: true,
+                        showName: true,
+                      })
+                    }
+                  >
+                    Print label
+                  </button>
+                )}
+              </div>
+              {existingMatch && (
+                <div
+                  style={{
+                    padding: 10,
+                    borderRadius: 8,
+                    background: '#FEF3C7',
+                    color: '#92400E',
+                    fontSize: 13,
+                  }}
+                >
+                  <strong>Product already exists:</strong> {existingMatch.name}
+                  {existingMatch.sku ? ` (SKU ${existingMatch.sku})` : ''}. Do not create a
+                  duplicate — edit or restock that product instead.
+                </div>
+              )}
+            </div>
+            <BarcodeScannerModal
+              open={scanOpen}
+              onClose={() => setScanOpen(false)}
+              onDetected={async (code) => {
+                set('barcode', code);
+                setExistingMatch(null);
+                try {
+                  const sb = getSupabase();
+                  const { data: sess } = await sb.auth.getSession();
+                  const token = sess.session?.access_token;
+                  if (!token || !businessId) return;
+                  const res = await fetch(
+                    `/api/products/barcode/lookup?businessId=${encodeURIComponent(businessId)}&barcode=${encodeURIComponent(code)}`,
+                    { headers: { Authorization: `Bearer ${token}` } }
+                  );
+                  const json = await res.json();
+                  if (json.found && json.products?.[0]) {
+                    setExistingMatch(json.products[0]);
+                  }
+                } catch {
+                  /* ignore lookup errors while typing */
+                }
+              }}
+            />
           </div>
         </div>
 
@@ -1035,4 +1148,3 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
     </div>
   );
 }
-
