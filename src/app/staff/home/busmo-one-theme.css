@@ -1,0 +1,240 @@
+/* Busmo One terminal theme + staff light refinements
+ * Scoped via [data-staff-theme="busmo-one"] | [data-staff-theme="light"]
+ */
+
+:root,
+[data-staff-theme="light"] {
+  --s-bg: #f4f7f5;
+  --s-surface: #ffffff;
+  --s-elevated: #ffffff;
+  --s-text: #0f1a14;
+  --s-text-2: #5a6b62;
+  --s-border: #d7e0db;
+  --s-brand: #16a34a;
+  --s-brand-soft: #dcfce7;
+  --s-warn: #d97706;
+  --s-danger: #dc2626;
+  --s-radius: 12px;
+  --s-touch: 44px;
+}
+
+[data-staff-theme="busmo-one"] {
+  --s-bg: #101513;
+  --s-surface: #1b2420;
+  --s-elevated: #26312b;
+  --s-text: #f5f7f5;
+  --s-text-2: #a3b3a9;
+  --s-border: #344139;
+  --s-brand: #42b775;
+  --s-brand-soft: rgba(66, 183, 117, 0.16);
+  --s-warn: #f4b544;
+  --s-danger: #ef6464;
+  --s-radius: 10px;
+  --s-touch: 48px;
+
+  color: var(--s-text);
+  background: var(--s-bg);
+}
+
+[data-staff-theme="busmo-one"] .app,
+[data-staff-theme="busmo-one"] .main,
+[data-staff-theme="busmo-one"] .main-scroll {
+  background: var(--s-bg) !important;
+  color: var(--s-text);
+}
+
+/* Compact terminal chrome */
+.b1-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
+  background: var(--s-bg);
+  color: var(--s-text);
+  overflow: hidden;
+}
+
+.b1-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.b1-nav {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  gap: 2px;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  background: var(--s-surface);
+  border-top: 1px solid var(--s-border);
+  flex-shrink: 0;
+}
+
+.b1-nav button {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 48px;
+  border: none;
+  background: transparent;
+  color: var(--s-text-2);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 4px 2px;
+}
+
+.b1-nav button.active {
+  color: var(--s-brand);
+  background: var(--s-brand-soft);
+}
+
+.b1-nav button svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Compact staff home (light) */
+.staff-home-compact {
+  padding: 12px 14px 88px;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.staff-home-compact .sh-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.staff-home-compact .sh-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--s-text, #0f1a14);
+  line-height: 1.2;
+}
+
+.staff-home-compact .sh-meta {
+  font-size: 0.8rem;
+  color: var(--s-text-2, #5a6b62);
+  margin-top: 2px;
+}
+
+.staff-home-compact .sh-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  background: var(--s-surface, #fff);
+  border: 1px solid var(--s-border, #d7e0db);
+  border-radius: var(--s-radius, 12px);
+  padding: 12px 10px;
+  margin-bottom: 14px;
+}
+
+.staff-home-compact .sh-metric {
+  text-align: center;
+}
+
+.staff-home-compact .sh-metric strong {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--s-text, #0f1a14);
+}
+
+.staff-home-compact .sh-metric span {
+  font-size: 0.68rem;
+  color: var(--s-text-2, #5a6b62);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.staff-home-compact .sh-cta {
+  width: 100%;
+  height: 52px;
+  border: none;
+  border-radius: 14px;
+  background: var(--s-brand, #16a34a);
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.25);
+}
+
+.staff-home-compact .sh-section-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--s-text-2, #5a6b62);
+  margin: 0 0 8px;
+}
+
+.staff-home-compact .sh-perf {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.staff-home-compact .sh-perf-item {
+  background: var(--s-surface, #fff);
+  border: 1px solid var(--s-border, #d7e0db);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.staff-home-compact .sh-perf-item strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.staff-home-compact .sh-perf-item span {
+  font-size: 0.72rem;
+  color: var(--s-text-2, #5a6b62);
+}
+
+.staff-home-compact .sh-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.staff-home-compact .sh-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: var(--s-surface, #fff);
+  border: 1px solid var(--s-border, #d7e0db);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--s-text, #0f1a14);
+}
+
+@media (max-width: 380px) {
+  .staff-home-compact .sh-summary {
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 4px;
+    padding: 10px 6px;
+  }
+  .staff-home-compact .sh-metric strong {
+    font-size: 0.9rem;
+  }
+}
