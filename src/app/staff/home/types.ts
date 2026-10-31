@@ -16,7 +16,8 @@ export type PageId =
   | 'production'
   | 'menu'
   | 'transfers'
-  | 'material';
+  | 'material'
+  | 'terminal';
 
 export interface Permissions {
   sale: boolean;
@@ -36,6 +37,7 @@ export interface Permissions {
   menu?: boolean;
   transfers?: boolean;
   material?: boolean;
+  terminal?: boolean;
   [key: string]: boolean | undefined;
 }
 
