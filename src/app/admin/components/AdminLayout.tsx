@@ -31,6 +31,7 @@ const TABS: Array<{ id: string; label: string; short: string }> = [
   { id: 'mo-sell', label: 'Mo-sell', short: 'Sell' },
   { id: 'support', label: 'Support', short: 'Support' },
   { id: 'emails', label: 'Emails', short: 'Email' },
+  { id: 'busmo-one', label: 'Busmo One', short: 'One' },
 ];
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
