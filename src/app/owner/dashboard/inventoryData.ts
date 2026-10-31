@@ -22,6 +22,7 @@ export interface StockMovementEntry {
 export interface Product {
   id: string;
   sku: string;
+  barcode?: string;
   name: string;
   emoji: string;            // placeholder for image
   category: string;
