@@ -11,7 +11,6 @@ import { AddProductPage } from './Addproductpage';
 import { useTranslation } from './LangContext';
 import { getCategoryDepth } from '@/lib/categoryDepth';
 import { fetchDocs, fetchDoc, addDoc as sbAddDoc, updateDoc as sbUpdateDoc, deleteDoc as sbDeleteDoc, runBatch } from '@/lib/supabase-client-data';
-import { getSupabase } from '@/lib/supabase';
 import { useApp } from './AppContext';
 import { useBranch } from '@/context/BranchContext';
 import { sendOutOfStockAlertEmail, sendOverstockWarningEmail } from '@/services/email/inventory-emails';
@@ -1180,4 +1179,3 @@ const InventoryPage: React.FC = () => {
 };
 
 export default InventoryPage;
-
