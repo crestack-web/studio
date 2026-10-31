@@ -9,9 +9,11 @@
 import React, { useState, useEffect } from 'react';
 import type { PageId, Permissions, StaffUser } from './types';
 import { Sidebar } from './components/Sidebar';
+import { TerminalBottomNav } from './components/TerminalBottomNav';
 import { Topbar } from './components/Topbar';
 import { Toast, BottomNav, LockedPage } from './components/shared';
 import { HomePage } from './HomePage';
+import { CompactStaffHome } from './CompactStaffHome';
 import { SalePage } from './pages/SalePage';
 import {
   InventoryPage,
@@ -38,6 +40,8 @@ import { useStaffWorkspaceOptional } from './StaffContext';
 import './busmo.css';
 import './sidebar-nav.css';
 import { NetworkStatus, NetworkStatusStyles } from '@/components/app/NetworkStatus';
+import { resolveStaffExperienceMode, type StaffExperienceMode } from '@/lib/terminal/terminal-session';
+import './busmo-one-theme.css';
 
 interface StaffDashboardProps {
   staff?: StaffUser;
@@ -64,6 +68,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
   const currency = currencyProp || workspace?.currency || '₦';
 
   const [page, setPage] = useState<PageId>('home');
+  // terminal default applied after mode resolve
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; visible: boolean }>({
     message: '',
@@ -71,6 +76,8 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
   });
   const [shiftStart] = useState(() => Date.now());
   const [shiftElapsed, setShiftElapsed] = useState('0h 0m');
+  const [experienceMode, setExperienceMode] = useState<StaffExperienceMode>('standard');
+  const isTerminal = experienceMode === 'terminal' || experienceMode === 'demo';
 
   useEffect(() => {
     const tick = () => {
@@ -83,6 +90,26 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
     const id = setInterval(tick, 60000);
     return () => clearInterval(id);
   }, [shiftStart]);
+
+  useEffect(() => {
+    const mode = resolveStaffExperienceMode();
+    setExperienceMode(mode);
+    const root = document.documentElement;
+    if (mode === 'terminal' || mode === 'demo') {
+      root.setAttribute('data-staff-theme', 'busmo-one');
+      document.body.setAttribute('data-staff-theme', 'busmo-one');
+      setPage((p) => (p === 'home' ? 'terminal' : p));
+    } else {
+      root.setAttribute('data-staff-theme', 'light');
+      document.body.setAttribute('data-staff-theme', 'light');
+    }
+    return () => {
+      root.removeAttribute('data-staff-theme');
+      document.body.removeAttribute('data-staff-theme');
+    };
+  }, []);
+
+
 
   const showToast = (message: string) => {
     setToast({ message, visible: true });
@@ -157,27 +184,32 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
   }
 
   return (
-    <div className="app">
+    <div className={isTerminal ? "app b1-shell" : "app"}>
       <div
         className={`mob-ov${sidebarOpen ? ' show' : ''}`}
         onClick={() => setSidebarOpen(false)}
       />
 
-      <Sidebar
-        page={page}
-        onChangePage={navigate}
-        permissions={permissions}
-        open={sidebarOpen}
-      />
+      {!isTerminal && (
+        <Sidebar
+          page={page}
+          onChangePage={navigate}
+          permissions={permissions}
+          open={sidebarOpen}
+        />
+      )}
 
       <div className="main">
-        <Topbar
-          staff={staff}
-          onToggleSidebar={toggleSidebar}
-          onLogout={onLogout}
-          businessName={businessName}
-        />
+        {!isTerminal && (
+          <Topbar
+            staff={staff}
+            onToggleSidebar={toggleSidebar}
+            onLogout={onLogout}
+            businessName={businessName}
+          />
+        )}
 
+        {!isTerminal && (
         {/* Business scope badge — confirms correct owner business */}
         <div
           style={{
@@ -204,19 +236,29 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
 
         <div className="main-scroll">
           {page === 'home' && (
-            <HomePage
-              greeting={getGreeting()}
-              salesTotal={0}
-              transactions={0}
-              itemsSold={0}
-              permissions={permissions}
-              shiftElapsed={shiftElapsed}
-              onNav={navigate}
-              onToast={showToast}
-              staffId={staff.id}
-              businessId={businessId}
-              currency={currency}
-            />
+            isTerminal ? (
+              <CompactStaffHome
+                staffName={staff.name}
+                businessName={businessName}
+                businessId={businessId}
+                staffId={staff.id}
+                currency={currency}
+                shiftElapsed={shiftElapsed}
+                permissions={permissions}
+                onNav={(p) => navigate(p === 'sale' ? 'terminal' : p)}
+              />
+            ) : (
+              <CompactStaffHome
+                staffName={staff.name}
+                businessName={businessName}
+                businessId={businessId}
+                staffId={staff.id}
+                currency={currency}
+                shiftElapsed={shiftElapsed}
+                permissions={permissions}
+                onNav={navigate}
+              />
+            )
           )}
           {page === 'terminal'
             ? (
@@ -322,6 +364,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
             />
           )}
         </div>
+        )}
       </div>
 
       <BottomNav
@@ -338,6 +381,13 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
         onClose={() => setToast({ ...toast, visible: false })}
       />
       <NetworkStatusStyles />
+      {isTerminal && (
+        <TerminalBottomNav
+          page={page}
+          permissions={permissions}
+          onChange={navigate}
+        />
+      )}
       <NetworkStatus />
     </div>
   );
