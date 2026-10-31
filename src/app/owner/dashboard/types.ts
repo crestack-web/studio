@@ -102,6 +102,8 @@ export interface Product {
   price: number;
   costPrice: number;
   stock: number;
+  sku?: string;
+  barcode?: string;
   stockByLocation?: {
     main_store: number;
     back_store: number;
