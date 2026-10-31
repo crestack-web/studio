@@ -22,6 +22,12 @@ const InventoryPage: React.FC = () => {
   const { isProUser, branches, businessId, selectedBranchId } = useBranch();
   
   const [products, setProducts] = useState<Product[]>([]);
+  const [importPreview, setImportPreview] = useState<{
+    valid: any[];
+    invalid: { row: number; reason: string; raw: any }[];
+    duplicateBarcodes: string[];
+    existingBarcodeConflicts: { barcode: string; existingName: string }[];
+  } | null>(null);
   const [selected, setSelected] = useState<Product | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -664,6 +670,7 @@ const InventoryPage: React.FC = () => {
       const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
 
       const importedProducts: Product[] = [];
+      const invalidRows: { row: number; reason: string; raw: any }[] = [];
       
       for (let i = 1; i < lines.length; i++) {
         if (!lines[i].trim()) continue;
@@ -703,48 +710,131 @@ const InventoryPage: React.FC = () => {
           }
         });
 
-        if (product.name) {
+        const rowNum = i + 2;
+        const reasons: string[] = [];
+        if (!product.name) reasons.push('Missing product name');
+        if (product.sellingPrice != null && Number(product.sellingPrice) < 0) reasons.push('Invalid selling price');
+        if (product.costPrice != null && Number(product.costPrice) < 0) reasons.push('Invalid cost price');
+        if (product.stock != null && Number(product.stock) < 0) reasons.push('Invalid stock');
+        if ((product as any).barcode != null) {
+          (product as any).barcode = String((product as any).barcode);
+        }
+        if (reasons.length) {
+          invalidRows.push({ row: rowNum, reason: reasons.join('; '), raw: product });
+        } else if (product.name) {
           importedProducts.push(product as Product);
         }
       }
 
-      // Add imported products to Supabase
-      const addImportedProducts = async () => {
-        try {
-          const effectiveBusinessId = user?.businessId || businessId || '';
-          if (!effectiveBusinessId) {
-            showToast('No business linked to this account');
-            return;
-          }
-          for (const product of importedProducts) {
-            await sbAddDoc(`businesses/${effectiveBusinessId}/products`, {
-              ...product,
-              barcode: (product as any).barcode != null ? String((product as any).barcode) : null,
-              sku: product.sku != null ? String(product.sku) : product.sku,
-              id: crypto.randomUUID(),
-              status: 'active',
-              createdAt: new Date(),
-              lowStockThreshold: 10,
-            });
-          }
-          setProducts(prev => [...prev, ...importedProducts]);
-          showToast(`✅ ${importedProducts.length} products imported successfully!`);
-          setShowImportModal(false);
-        } catch (error) {
-          console.error('Error importing products:', error);
-          showToast('❌ Error importing products');
-        }
-      };
+      const seenBc = new Map<string, number>();
+      const duplicateBarcodes: string[] = [];
+      for (const p of importedProducts) {
+        const bc = String((p as any).barcode || '').trim();
+        if (!bc) continue;
+        if (seenBc.has(bc)) duplicateBarcodes.push(bc);
+        else seenBc.set(bc, 1);
+      }
 
-      addImportedProducts();
+      const existingBarcodeConflicts: { barcode: string; existingName: string }[] = [];
+      for (const p of importedProducts) {
+        const bc = String((p as any).barcode || '').trim();
+        if (!bc) continue;
+        const hit = products.find((x: any) => String(x.barcode || '').trim() === bc);
+        if (hit) existingBarcodeConflicts.push({ barcode: bc, existingName: hit.name });
+      }
+
+      const blocked = new Set([
+        ...duplicateBarcodes,
+        ...existingBarcodeConflicts.map((c) => c.barcode),
+      ]);
+      const valid = importedProducts.filter((p) => {
+        const bc = String((p as any).barcode || '').trim();
+        return !bc || !blocked.has(bc);
+      });
+
+      setImportPreview({
+        valid,
+        invalid: invalidRows,
+        duplicateBarcodes: [...new Set(duplicateBarcodes)],
+        existingBarcodeConflicts,
+      });
+      showToast(
+        `Preview: ${valid.length} ready, ${invalidRows.length} invalid, ${existingBarcodeConflicts.length} barcode conflicts`
+      );
     };
 
     reader.readAsText(file);
   };
 
+  const confirmImportPreview = async () => {
+    if (!importPreview?.valid?.length) {
+      showToast('Nothing to import');
+      return;
+    }
+    try {
+      const effectiveBusinessId = user?.businessId || businessId || '';
+      if (!effectiveBusinessId) {
+        showToast('No business linked to this account');
+        return;
+      }
+      let ok = 0;
+      for (const product of importPreview.valid) {
+        await sbAddDoc(`businesses/${effectiveBusinessId}/products`, {
+          ...product,
+          barcode: (product as any).barcode != null ? String((product as any).barcode) : null,
+          sku: product.sku != null ? String(product.sku) : product.sku,
+          id: crypto.randomUUID(),
+          status: 'active',
+          createdAt: new Date(),
+          lowStockThreshold: 10,
+        });
+        ok++;
+      }
+      setProducts((prev) => [...prev, ...importPreview.valid]);
+      showToast(
+        `✅ Imported ${ok}. Skipped conflicts: ${importPreview.existingBarcodeConflicts.length}, invalid: ${importPreview.invalid.length}`
+      );
+      setImportPreview(null);
+      setShowImportModal(false);
+    } catch (error) {
+      console.error('Error importing products:', error);
+      showToast('❌ Error importing products');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="inv-page">
+      {importPreview && (
+        <div style={{ margin: 16, padding: 16, border: '1px solid #ccc', borderRadius: 12 }}>
+          <h3 style={{ marginTop: 0 }}>CSV import preview</h3>
+          <p>
+            Ready: <strong>{importPreview.valid.length}</strong> · Invalid:{' '}
+            <strong>{importPreview.invalid.length}</strong> · In-file barcode dupes:{' '}
+            <strong>{importPreview.duplicateBarcodes.length}</strong> · Existing barcode conflicts:{' '}
+            <strong>{importPreview.existingBarcodeConflicts.length}</strong>
+          </p>
+          {importPreview.existingBarcodeConflicts.slice(0, 8).map((c) => (
+            <div key={c.barcode} style={{ fontSize: 13 }}>
+              Barcode {c.barcode} already on “{c.existingName}” — will not overwrite
+            </div>
+          ))}
+          {importPreview.invalid.slice(0, 8).map((r) => (
+            <div key={r.row} style={{ fontSize: 13, color: '#b45309' }}>
+              Row {r.row}: {r.reason}
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button type="button" onClick={confirmImportPreview}>
+              Import {importPreview.valid.length} products
+            </button>
+            <button type="button" onClick={() => setImportPreview(null)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
         <div className="inv-empty-state">
           <div className="inv-empty-icon">
             <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
