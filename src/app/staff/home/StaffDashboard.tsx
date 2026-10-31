@@ -94,17 +94,15 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
   useEffect(() => {
     const mode = resolveStaffExperienceMode();
     setExperienceMode(mode);
-    const root = document.documentElement;
     if (mode === 'terminal' || mode === 'demo') {
+      const root = document.documentElement;
       root.setAttribute('data-staff-theme', 'busmo-one');
       document.body.setAttribute('data-staff-theme', 'busmo-one');
       setPage((p) => (p === 'home' ? 'terminal' : p));
-    } else {
-      root.setAttribute('data-staff-theme', 'light');
-      document.body.setAttribute('data-staff-theme', 'light');
     }
+    // Standard portal: theme applied by the staff-theme effect below (supports light/dark)
     return () => {
-      root.removeAttribute('data-staff-theme');
+      document.documentElement.removeAttribute('data-staff-theme');
       document.body.removeAttribute('data-staff-theme');
     };
   }, []);
@@ -160,8 +158,25 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
       } else {
         actualTheme = themeValue;
       }
-      document.documentElement.setAttribute('data-theme', actualTheme);
+      const root = document.documentElement;
+      root.setAttribute('data-theme', actualTheme);
       document.body.setAttribute('data-theme', actualTheme);
+      // Terminal / demo keep Busmo One dark chrome; standard portal follows light/dark
+      const mode = resolveStaffExperienceMode();
+      if (mode === 'terminal' || mode === 'demo') {
+        root.setAttribute('data-staff-theme', 'busmo-one');
+        document.body.setAttribute('data-staff-theme', 'busmo-one');
+      } else {
+        root.setAttribute('data-staff-theme', actualTheme === 'dark' ? 'dark' : 'light');
+        document.body.setAttribute('data-staff-theme', actualTheme === 'dark' ? 'dark' : 'light');
+        root.classList.toggle('dark', actualTheme === 'dark');
+        document.body.classList.toggle('dark', actualTheme === 'dark');
+      }
+      try {
+        root.style.colorScheme = actualTheme;
+      } catch {
+        /* ignore */
+      }
     };
 
     applyTheme(theme);
