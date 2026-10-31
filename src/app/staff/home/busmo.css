@@ -35,6 +35,21 @@
 
   --sbTr: width 0.24s cubic-bezier(0.4, 0, 0.2, 1);
   --tr: 0.18s ease;
+
+  /* Default = light (staff home / sale). Dark overrides via [data-theme='dark'] */
+  --bg: #F0FAF4;
+  --surf: #FFF;
+  --surf2: #F6FCF9;
+  --bdr: #C6EEDA;
+  --bdrS: #DDF3E8;
+  --t1: #0A1F14;
+  --t2: #3D6652;
+  --t3: #82A993;
+  --sh-sm: 0 1px 4px rgba(20, 160, 90, 0.08);
+  --sh: 0 4px 16px rgba(20, 160, 90, 0.11);
+  --sh-lg: 0 16px 48px rgba(20, 160, 90, 0.18);
+  --ov: rgba(10, 31, 20, 0.45);
+  color-scheme: light;
 }
 
 /* ── LIGHT THEME ── */
@@ -55,6 +70,7 @@
 
 /* ── DARK THEME ── */
 [data-theme='dark'] {
+  color-scheme: dark;
   --bg: #071410;
   --surf: #0E2218;
   --surf2: #122A1E;
