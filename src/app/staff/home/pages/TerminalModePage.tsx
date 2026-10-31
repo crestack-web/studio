@@ -141,12 +141,28 @@ export function TerminalModePage({
     [products]
   );
 
+  const availableStock = (p: TerminalProduct): number => {
+    const n = Number((p as any).stock ?? 0);
+    return Number.isFinite(n) ? n : 0;
+  };
+
   const addProduct = useCallback((p: TerminalProduct, qty = 1) => {
+    const stock = availableStock(p);
+    if (stock <= 0) {
+      setError(`${p.name} is out of stock`);
+      setUnknownBarcode(null);
+      return;
+    }
     setCart((prev) => {
       const idx = prev.findIndex((l) => l.productId === p.id);
       if (idx >= 0) {
+        const nextQty = prev[idx].quantity + qty;
+        if (nextQty > stock) {
+          setError(`Only ${stock} in stock for ${p.name}`);
+          return prev;
+        }
         const next = [...prev];
-        next[idx] = { ...next[idx], quantity: next[idx].quantity + qty };
+        next[idx] = { ...next[idx], quantity: nextQty };
         return next;
       }
       return [
@@ -156,7 +172,7 @@ export function TerminalModePage({
           name: p.name,
           price: Number(p.price) || 0,
           costPrice: Number(p.costPrice) || 0,
-          quantity: qty,
+          quantity: Math.min(qty, stock),
           barcode: (p as any).barcode,
         },
       ];
