@@ -184,7 +184,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Could not save your registration. Please try again.' }, { status: 500 });
     }
 
-        // Notify Busmo admins (non-blocking for the submitter)
+    // Notify Busmo admins (non-blocking for the submitter)
     try {
       await notifyAdminsOfPreorder({
         id: data?.id,
@@ -204,7 +204,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       id: data?.id,
-      message: 'You're on the list for Busmo One.',
+      message: "You're on the list for Busmo One.",
     });
   } catch (e: any) {
     console.error('[busmo-one/preorder]', e);
