@@ -5,6 +5,8 @@ import InventoryTable from './InventoryTable';
 import LowStockPanel from './LowStockPanel';
 import DeadStockInsights from './DeadStockInsights';
 import ProductDetailModal from './ProductDetailModal';
+import { openBulkLabelPrint } from '@/lib/barcode/labels';
+import { getSupabase } from '@/lib/supabase';
 import { AddProductPage } from './Addproductpage';
 import { useTranslation } from './LangContext';
 import { getCategoryDepth } from '@/lib/categoryDepth';
@@ -534,6 +536,72 @@ const InventoryPage: React.FC = () => {
       showToast(`❌ Failed to deactivate product: ${error.message}`);
     }
   };
+  const handleGenerateMissingBarcodes = async () => {
+    try {
+      const effectiveBusinessId = user?.businessId || businessId || '';
+      if (!effectiveBusinessId) {
+        showToast('No business linked');
+        return;
+      }
+      const missing = products.filter((p: any) => !String(p.barcode || '').trim());
+      if (!missing.length) {
+        showToast('All products already have barcodes');
+        return;
+      }
+      if (!window.confirm(`Generate Busmo barcodes for ${missing.length} products without barcodes?`)) return;
+      const sb = getSupabase();
+      const { data: sess } = await sb.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) {
+        showToast('Please sign in again');
+        return;
+      }
+      const res = await fetch('/api/products/barcode/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          businessId: effectiveBusinessId,
+          productIds: missing.map((p: any) => p.id),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed');
+      // Patch local state
+      const byId = new Map((json.results || []).map((r: any) => [r.id, r]));
+      setProducts((prev: any[]) =>
+        prev.map((p) => {
+          const r = byId.get(p.id);
+          if (r && r.status === 'generated' && r.barcode) return { ...p, barcode: r.barcode };
+          return p;
+        })
+      );
+      showToast(`✅ Generated ${json.generated || 0} barcodes (${json.skipped || 0} skipped)`);
+    } catch (e: any) {
+      showToast(e?.message || 'Barcode generation failed');
+    }
+  };
+
+  const handleBulkPrintLabels = () => {
+    const withCodes = products.filter((p: any) => String(p.barcode || '').trim());
+    if (!withCodes.length) {
+      showToast('No products with barcodes to print');
+      return;
+    }
+    openBulkLabelPrint(
+      withCodes.slice(0, 200).map((p: any) => ({
+        productName: p.name || 'Product',
+        barcode: String(p.barcode),
+        priceLabel: p.sellingPrice != null ? String(p.sellingPrice) : p.price != null ? String(p.price) : undefined,
+        showName: true,
+        showPrice: true,
+        copies: 1,
+      }))
+    );
+  };
+
   const handleExportCSV = () => {
     if (products.length === 0) {
       showToast('No products to export');
@@ -614,6 +682,11 @@ const InventoryPage: React.FC = () => {
             case 'sku':
               product.sku = value;
               break;
+            case 'barcode':
+            case 'barcode number':
+              // Keep as string to preserve leading zeros
+              product.barcode = value != null ? String(value) : '';
+              break;
             case 'category':
               product.category = value;
               break;
@@ -647,6 +720,8 @@ const InventoryPage: React.FC = () => {
           for (const product of importedProducts) {
             await sbAddDoc(`businesses/${effectiveBusinessId}/products`, {
               ...product,
+              barcode: product.barcode != null ? String(product.barcode) : null,
+              sku: product.sku != null ? String(product.sku) : product.sku,
               id: crypto.randomUUID(),
               status: 'active',
               createdAt: new Date(),
@@ -736,6 +811,12 @@ const InventoryPage: React.FC = () => {
               <path d="M1 3h11M1 6.5h7M1 10h4"/>
             </svg>
             {t('inventory.exportCsv')}
+          </button>
+          <button type="button" className="inv-btn inv-btn-secondary" onClick={handleGenerateMissingBarcodes}>
+            Generate Missing Barcodes
+          </button>
+          <button type="button" className="inv-btn inv-btn-secondary" onClick={handleBulkPrintLabels}>
+            Print Barcode Labels
           </button>
           <button className="btn bsm bgh" onClick={() => setShowImportModal(true)}>
             <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
