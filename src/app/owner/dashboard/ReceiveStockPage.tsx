@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
 import { useBranch } from '@/context/BranchContext';
@@ -56,6 +56,8 @@ export function ReceiveStockPage() {
   const [lastScanAt, setLastScanAt] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  /** Stable per-submit id — retries must not double-apply stock */
+  const operationIdRef = useRef<string | null>(null);
   
   // Form state
   const [selectedSupplier, setSelectedSupplier] = useState<string>('');
@@ -325,8 +327,15 @@ export function ReceiveStockPage() {
       return;
     }
     
+    if (isSubmitting) return;
     setIsSubmitting(true);
-    
+    if (!operationIdRef.current) {
+      operationIdRef.current =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `recv-${Date.now()}`;
+    }
+
     try {
       if (!businessId) {
         showToast('⚠️ Business ID not found');
@@ -544,50 +553,61 @@ export function ReceiveStockPage() {
           }
         }
       });
-      
-      
-      // Authoritative inventory on Supabase (Add Product / Sale / Terminal source of truth).
-      {
-        const rows = await fetchDocs(`businesses/${businessId}/products`);
-        for (const item of receiptItems) {
-          const row = (rows || []).find((r: any) => String(r.id || r.data?.id) === String(item.productId));
-          if (!row) {
-            console.warn('Receive stock: product not in Supabase', item.productId);
-            continue;
-          }
-          const data = row.data || row;
-          const current = Number(data.stock ?? data.stock_level ?? data.quantity ?? 0) || 0;
-          const next = current + Number(item.quantity || 0);
-          const stockByLocation = { ...(data.stockByLocation || {}) };
-          if (item.location) {
-            stockByLocation[item.location] =
-              (Number(stockByLocation[item.location]) || 0) + Number(item.quantity || 0);
-          }
-          await sbUpdateDoc(`businesses/${businessId}/products`, item.productId, {
-            stock: next,
-            stock_level: next,
-            stockByLocation,
-            cost: item.unitCost,
-            updatedAt: new Date().toISOString(),
-          });
-        }
+      // Authoritative inventory: idempotent Supabase receive API
+      if (!operationIdRef.current) {
+        operationIdRef.current =
+          typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `recv-${Date.now()}`;
       }
+      const operationId = operationIdRef.current;
       try {
-        await sbAddDoc(`businesses/${businessId}/stockReceipts`, {
-          businessId,
-          supplierId: supplierId || null,
-          supplierName: supplierName || null,
-          items: receiptItems,
-          totalQuantity,
-          totalCost,
-          paymentMethod,
-          receiptNumber,
-          createdAt: new Date().toISOString(),
-          source: 'receive_stock_page',
+        const { getSupabase } = await import('@/lib/supabase');
+        const sb = getSupabase();
+        const { data: sess } = await sb.auth.getSession();
+        const token = sess.session?.access_token;
+        if (!token) throw new Error('Not signed in');
+        const res = await fetch('/api/inventory/receive', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            businessId,
+            operationId,
+            receiptNumber,
+            supplierId,
+            supplierName,
+            paymentMethod,
+            totalCost,
+            items: receiptItems.map((it) => ({
+              productId: it.productId,
+              productName: it.productName,
+              quantity: it.quantity,
+              unitCost: it.unitCost,
+              location: it.location,
+            })),
+          }),
         });
-      } catch (receiptErr) {
-        console.warn('stockReceipts supabase write skipped', receiptErr);
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(json.error || 'Stock update failed');
+        }
+        if (json.duplicate) {
+          showToast('ℹ️ This receipt was already applied — stock not changed again');
+        } else if (json.stockErrors?.length) {
+          showToast(`⚠️ Received with warnings: ${json.stockErrors[0]}`);
+        }
+      } catch (stockApiErr: any) {
+        console.error('Idempotent receive API failed', stockApiErr);
+        showToast(
+          `⚠️ Receipt may be saved but stock update failed: ${stockApiErr?.message || 'error'}. Do not resubmit without checking inventory.`
+        );
+        setIsSubmitting(false);
+        return;
       }
+      operationIdRef.current = null;
 
       showToast('✅ Stock received successfully');
       
