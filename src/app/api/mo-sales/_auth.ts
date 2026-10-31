@@ -50,5 +50,19 @@ export async function assertBusinessAccess(
   const role = String((profile as any)?.role || '').toLowerCase();
   if (['admin', 'superadmin'].includes(role)) return { ok: true };
 
+  // Staff roster membership (when table exists)
+  try {
+    const { data: staffRow } = await admin
+      .from('staff')
+      .select('id')
+      .eq('business_id', businessId)
+      .or(`user_id.eq.${userId},auth_user_id.eq.${userId},id.eq.${userId}`)
+      .limit(1)
+      .maybeSingle();
+    if (staffRow) return { ok: true };
+  } catch {
+    /* table/columns may differ */
+  }
+
   return { ok: false, reason: 'Not allowed for this business' };
 }
