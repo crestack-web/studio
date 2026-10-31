@@ -33,6 +33,7 @@ import {
   TransfersPage,
 } from './pages/ExtraFeaturePages';
 import MaterialCollectionPage from './pages/MaterialCollectionPage';
+import { TerminalModePage } from './pages/TerminalModePage';
 import { useStaffWorkspaceOptional } from './StaffContext';
 import './busmo.css';
 import './sidebar-nav.css';
@@ -217,7 +218,20 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({
               currency={currency}
             />
           )}
-          {page === 'sale' &&
+          {page === 'terminal'
+            ? (
+                <TerminalModePage
+                  businessId={businessId}
+                  staffId={staff.id}
+                  staffName={staff.name}
+                  staffRole={staff.role}
+                  businessName={businessName}
+                  currency={currency}
+                  onExit={() => navigate('home')}
+                  canCreateProducts={Boolean(permissions.receive || permissions.inv)}
+                />
+              )
+            : page === 'sale' &&
             (permissions.sale ? (
               <SalePage
                 businessId={businessId}
