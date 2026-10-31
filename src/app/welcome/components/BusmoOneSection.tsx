@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { BUSMO_ONE_CONFIG, formatNgn } from '@/lib/busmo-one/config';
+import { BUSMO_ONE_CONFIG, formatNgn, bundleValueNgn, savingsNgn } from '@/lib/busmo-one/config';
 import { BusmoOnePreorderModal } from './BusmoOnePreorderModal';
 
 const FEATURES = [
@@ -152,7 +152,7 @@ export function BusmoOneSection() {
         }
         .busmo-one-gallery {
           display: grid;
-          grid-template-columns: 1.2fr 1fr 1fr;
+          grid-template-columns: repeat(2, 1fr);
           gap: 12px;
           margin-top: 28px;
         }
@@ -203,12 +203,16 @@ export function BusmoOneSection() {
               same Busmo platform you already use to stay in control of your business.
             </p>
             <div className="busmo-one-price">
-              <strong>{formatNgn(BUSMO_ONE_CONFIG.earlyAccessPriceNgn)}</strong>
-              <span>Founding customer price</span>
-              <s>{formatNgn(BUSMO_ONE_CONFIG.regularPriceNgn)}</s>
+              <strong>{formatNgn(BUSMO_ONE_CONFIG.launchPriceNgn)}</strong>
+              <span>Terminal pre-order price</span>
+              <s style={{ opacity: 0.85 }}>{formatNgn(bundleValueNgn())}</s>
+              <span style={{ fontSize: '0.85rem', color: '#0D7A43', fontWeight: 700 }}>
+                Save {formatNgn(savingsNgn())}
+              </span>
             </div>
             <div className="busmo-one-offer">
-              Pre-order interest includes eligibility for {BUSMO_ONE_CONFIG.promotionLabel} after a qualifying purchase.
+              Includes {BUSMO_ONE_CONFIG.promotionLabel} with a qualifying purchase
+              (Scale value {formatNgn(BUSMO_ONE_CONFIG.scaleAnnualValueNgn)}).
             </div>
             <div className="busmo-one-ctas">
               <button type="button" className="busmo-one-btn-primary" onClick={() => setOpen(true)}>
@@ -220,7 +224,7 @@ export function BusmoOneSection() {
             </div>
             <p className="busmo-one-note">
               Pre-order registration only — not a completed purchase. Hardware availability follows final validation.
-              {!BUSMO_ONE_CONFIG.priceConfirmed ? ' Pricing is proposed pending confirmation.' : ''}
+              
             </p>
           </div>
           <div className="busmo-one-visual">
@@ -246,6 +250,7 @@ export function BusmoOneSection() {
           <img src="/busmo-one/unboxing.jpg" alt="Busmo One packaging concept with terminal and accessories" />
           <img src="/busmo-one/printer-detail.jpg" alt="Busmo One receipt printer area detail" />
           <img src="/busmo-one/back-scanner.jpg" alt="Busmo One rear scanner window" />
+          <img src="/busmo-one/battery-compartment.jpg" alt="Busmo One with battery cover removed showing rear scanner" />
         </div>
         <p className="busmo-one-note" style={{ textAlign: 'center' }}>
           Product mockups for the upcoming terminal. Included accessories and final specifications will be confirmed before shipment.
