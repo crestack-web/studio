@@ -284,3 +284,35 @@
   flex: 1;
   min-height: 0;
 }
+
+
+/* b1-nav five tabs always visible */
+.b1-nav {
+  display: flex !important;
+  flex-shrink: 0 !important;
+  position: relative !important;
+  z-index: 40;
+  min-height: 56px;
+  padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+}
+.b1-nav button {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.b1-nav button.locked {
+  opacity: 0.35;
+}
+
+.terminal-sale-shell {
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+}
+.terminal-sale-tools {
+  flex-shrink: 0 !important;
+}
+.terminal-sale-scroll {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+}
