@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { requireAdminUser } from '@/lib/admin/require-admin';
-import { BUSMO_ONE_CONFIG } from '@/lib/busmo-one/config';
+import { BUSMO_ONE_CONFIG, formatNgn } from '@/lib/busmo-one/config';
+import { ADMIN_EMAILS } from '@/lib/adminEmails';
+import { sendTransactionalEmail } from '@/services/email/brevo-service';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,6 +32,60 @@ function rateLimit(ip: string, max = 8, windowMs = 60_000): boolean {
   cur.n += 1;
   return true;
 }
+
+
+async function notifyAdminsOfPreorder(payload: {
+  id?: string;
+  fullName: string;
+  businessName: string;
+  phone: string;
+  email: string;
+  businessType: string;
+  cityOrState: string;
+  quantity: number;
+  message: string;
+}) {
+  const recipients = ADMIN_EMAILS.filter(Boolean);
+  if (!recipients.length) return;
+
+  const price = formatNgn(BUSMO_ONE_CONFIG.launchPriceNgn);
+  const offer = BUSMO_ONE_CONFIG.promotionLabel;
+  const html = `
+    <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;color:#0A1F14">
+      <h2 style="color:#0D7A43;margin:0 0 8px">New Busmo One pre-order</h2>
+      <p style="margin:0 0 16px;color:#3D6652">A merchant registered interest on the welcome page (not a paid order).</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <tr><td style="padding:6px 0;color:#82A993">Name</td><td style="padding:6px 0;font-weight:600">${escapeHtml(payload.fullName)}</td></tr>
+        <tr><td style="padding:6px 0;color:#82A993">Business</td><td style="padding:6px 0;font-weight:600">${escapeHtml(payload.businessName)}</td></tr>
+        <tr><td style="padding:6px 0;color:#82A993">Phone</td><td style="padding:6px 0"><a href="tel:${escapeHtml(payload.phone)}">${escapeHtml(payload.phone)}</a></td></tr>
+        <tr><td style="padding:6px 0;color:#82A993">Email</td><td style="padding:6px 0"><a href="mailto:${escapeHtml(payload.email)}">${escapeHtml(payload.email)}</a></td></tr>
+        <tr><td style="padding:6px 0;color:#82A993">Type</td><td style="padding:6px 0">${escapeHtml(payload.businessType || '—')}</td></tr>
+        <tr><td style="padding:6px 0;color:#82A993">Location</td><td style="padding:6px 0">${escapeHtml(payload.cityOrState || '—')}</td></tr>
+        <tr><td style="padding:6px 0;color:#82A993">Qty</td><td style="padding:6px 0">${payload.quantity}</td></tr>
+        <tr><td style="padding:6px 0;color:#82A993">Offer</td><td style="padding:6px 0">${escapeHtml(price)} · ${escapeHtml(offer)}</td></tr>
+        ${payload.message ? `<tr><td style="padding:6px 0;color:#82A993;vertical-align:top">Message</td><td style="padding:6px 0">${escapeHtml(payload.message)}</td></tr>` : ''}
+        ${payload.id ? `<tr><td style="padding:6px 0;color:#82A993">Lead id</td><td style="padding:6px 0;font-family:monospace;font-size:12px">${escapeHtml(payload.id)}</td></tr>` : ''}
+      </table>
+      <p style="margin:20px 0 0;font-size:13px;color:#82A993">View in Admin → Busmo One tab.</p>
+    </div>
+  `;
+
+  await sendTransactionalEmail({
+    to: recipients.map((email) => ({ email })),
+    subject: `Busmo One pre-order: ${payload.businessName} (${payload.quantity})`,
+    htmlContent: html,
+    params: { replyTo: payload.email },
+  });
+}
+
+function escapeHtml(s: string) {
+  return String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 
 /**
  * POST — public pre-order interest registration (not a paid purchase).
@@ -128,10 +184,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Could not save your registration. Please try again.' }, { status: 500 });
     }
 
+        // Notify Busmo admins (non-blocking for the submitter)
+    try {
+      await notifyAdminsOfPreorder({
+        id: data?.id,
+        fullName,
+        businessName,
+        phone,
+        email,
+        businessType,
+        cityOrState,
+        quantity,
+        message,
+      });
+    } catch (mailErr) {
+      console.error('[busmo-one/preorder] admin email failed', mailErr);
+    }
+
     return NextResponse.json({
       success: true,
       id: data?.id,
-      message: 'You’re on the list for Busmo One.',
+      message: 'You're on the list for Busmo One.',
     });
   } catch (e: any) {
     console.error('[busmo-one/preorder]', e);
