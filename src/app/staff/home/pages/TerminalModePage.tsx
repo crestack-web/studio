@@ -110,7 +110,7 @@ export function TerminalModePage({
 
         if (!cancelled) setProducts(list);
 
-        const biz = await fetchDoc<Record<string, any>>(`businesses/${businessId}`);
+        const biz = await fetchDoc<Record<string, any>>('businesses', businessId);
         if (biz && !cancelled) {
           setBusinessName(biz.businessName || biz.name || businessNameProp || 'Business');
           if (biz.currency) setCurrency(String(biz.currency));
@@ -122,7 +122,7 @@ export function TerminalModePage({
       }
     }
     load();
-    const unsub = offlineManager.onStatusChange((s) => setOnline(s === 'online'));
+    const unsub = offlineManager.subscribe((s: 'online' | 'offline') => setOnline(s === 'online'));
     return () => {
       cancelled = true;
       unsub?.();
