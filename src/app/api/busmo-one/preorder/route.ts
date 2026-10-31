@@ -143,7 +143,7 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     const admin = await requireAdminUser(req);
-    if (!admin?.ok) {
+    if (!admin) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const limit = Math.min(200, parseInt(req.nextUrl.searchParams.get('limit') || '50', 10) || 50);
