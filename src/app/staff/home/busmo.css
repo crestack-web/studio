@@ -3042,3 +3042,84 @@ svg {
   max-width: none;
   box-sizing: border-box;
 }
+
+
+/* ── Staff UX polish: scroll + bottom nav + sale (2026-10-31) ── */
+:root {
+  --botH: 76px;
+}
+
+.bot-nav {
+  height: var(--botH) !important;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  box-sizing: content-box;
+}
+
+.bn-item {
+  min-height: 72px !important;
+  gap: 4px !important;
+  padding: 8px 4px !important;
+}
+
+.bn-item .bn-icon {
+  width: 44px !important;
+  height: 44px !important;
+}
+
+.bn-item svg {
+  width: 26px !important;
+  height: 26px !important;
+}
+
+.bn-item .bn-label {
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+}
+
+/* Sale page must scroll with main-scroll; never lock height */
+#pg-sale.pg.act.full,
+#pg-sale {
+  overflow: visible !important;
+  height: auto !important;
+  min-height: 100% !important;
+  padding-bottom: calc(var(--botH, 76px) + 32px + env(safe-area-inset-bottom, 0px)) !important;
+}
+
+#pg-sale .rs-lay {
+  overflow: visible !important;
+  max-height: none !important;
+}
+
+#pg-sale .prod-g {
+  overflow: visible !important;
+  max-height: none !important;
+}
+
+#pg-sale .cit-w {
+  position: relative !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.main-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* Home fills width on mobile */
+.pg.act.full,
+#pg-home,
+.home-body {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .pg {
+    padding-bottom: calc(var(--botH, 76px) + 28px) !important;
+  }
+  .main-scroll {
+    padding-bottom: 0;
+  }
+}
