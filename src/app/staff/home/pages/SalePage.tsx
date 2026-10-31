@@ -183,10 +183,28 @@ export function SalePage({
     });
   }, [searchQuery, products]);
 
+  const availableStock = (product: any): number => {
+    const n = Number(product?.stock ?? product?.quantity_available ?? 0);
+    if (!Number.isFinite(n)) return 0;
+    return n;
+  };
+
+  const productIsOutOfStock = (product: any): boolean => availableStock(product) <= 0;
+
   const addToCart = (productId: string) => {
+    const product = products.find((p: any) => p.id === productId);
+    if (!product || productIsOutOfStock(product)) {
+      setSaleError('This product is out of stock');
+      return;
+    }
+    const stock = availableStock(product);
     setCart((prev) => {
       const existing = prev.find((item) => item.productId === productId);
       if (existing) {
+        if (existing.quantity >= stock) {
+          setSaleError(`Only ${stock} in stock for ${product.name || 'this item'}`);
+          return prev;
+        }
         return prev.map((item) =>
           item.productId === productId
             ? { ...item, quantity: item.quantity + 1 }
@@ -202,13 +220,16 @@ export function SalePage({
   };
 
   const updateQuantity = (productId: string, delta: number) => {
+    const product = products.find((p: any) => p.id === productId);
+    const stock = product ? availableStock(product) : 0;
     setCart((prev) =>
       prev
         .map((item) => {
-          if (item.productId === productId) {
-            return { ...item, quantity: Math.max(1, item.quantity + delta) };
-          }
-          return item;
+          if (item.productId !== productId) return item;
+          let next = item.quantity + delta;
+          if (delta > 0 && stock > 0) next = Math.min(next, stock);
+          if (delta > 0 && stock <= 0) return item;
+          return { ...item, quantity: Math.max(0, next) };
         })
         .filter((item) => item.quantity > 0)
     );
@@ -264,6 +285,20 @@ export function SalePage({
 
   const handleComplete = async () => {
     if (cart.length === 0 || !businessId || submitting) return;
+
+    // Block checkout if any line exceeds available stock
+    for (const item of cart) {
+      const product = getProduct(item.productId);
+      if (!product || productIsOutOfStock(product)) {
+        setSaleError(`${product?.name || 'An item'} is out of stock`);
+        return;
+      }
+      const stock = availableStock(product);
+      if (item.quantity > stock) {
+        setSaleError(`Only ${stock} in stock for ${product.name}`);
+        return;
+      }
+    }
 
     const total = getTotal();
     const totalPayment = getTotalPaymentAmount();
@@ -572,59 +607,64 @@ export function SalePage({
   }
 
   return (
-    <div className="pg act full" id="pg-sale">
-      <div className="phd">
+    <div className="pg act full sale-page-shell" id="pg-sale">
+      <div className="phd sale-phd">
         <h2>Record Sale</h2>
         <p>Select products and process the sale for this business.</p>
       </div>
 
-      <div className="rs-lay">
-        <div>
-          <div className="srch" style={{ marginBottom: '12px' }}>
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              style={{ width: 18, height: 18 }}
-            >
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search products by name or ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                flex: 1,
-                border: 'none',
-                outline: 'none',
-                fontSize: '0.85rem',
-              }}
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--t3)',
-                }}
+      <div className="rs-lay sale-rs-lay">
+        <div className="sale-catalog">
+          <div className="sale-catalog-tools">
+            <div className="srch sale-srch">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                style={{ width: 18, height: 18 }}
               >
-                ✕
-              </button>
-            )}
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search products by name, SKU, or barcode..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  flex: 1,
+                  border: 'none',
+                  outline: 'none',
+                  fontSize: '0.85rem',
+                  background: 'transparent',
+                }}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--t3)',
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
 
+          <div className="sale-catalog-scroll">
           <div className="prod-g">
             {filteredProducts.map((product) => {
               const cartItem = cart.find((c) => c.productId === product.id);
               const isSelected = !!cartItem;
-              const isLowStock = product.stock <= 5;
-              const isOutOfStock = product.stock === 0;
+              const stock = availableStock(product);
+              const isLowStock = stock > 0 && stock <= 5;
+              const isOutOfStock = stock <= 0;
 
               return (
                 <div
@@ -632,11 +672,19 @@ export function SalePage({
                   className={`pc${isSelected ? ' sel' : ''}${
                     isOutOfStock ? ' oos' : ''
                   }`}
-                  onClick={() => !isOutOfStock && addToCart(product.id)}
+                  onClick={() => {
+                    if (isOutOfStock) {
+                      setSaleError('This product is out of stock');
+                      return;
+                    }
+                    addToCart(product.id);
+                  }}
                   style={{
                     cursor: isOutOfStock ? 'not-allowed' : 'pointer',
-                    opacity: isOutOfStock ? 0.5 : 1,
+                    opacity: isOutOfStock ? 0.45 : 1,
+                    pointerEvents: isOutOfStock ? 'auto' : undefined,
                   }}
+                  aria-disabled={isOutOfStock}
                 >
                   {product.imageUrl ? (
                     <img
@@ -715,6 +763,7 @@ export function SalePage({
               </p>
             </div>
           )}
+          </div>
         </div>
 
         <div className="cit-w">
