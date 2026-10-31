@@ -132,6 +132,23 @@ export async function POST(req: NextRequest) {
     const paymentMethods = body.paymentMethods || {};
     const note = body.note ? String(body.note).slice(0, 2000) : '';
     const offlineId = body.offlineId ? String(body.offlineId) : null;
+    const idempotencyKey = body.idempotencyKey
+      ? String(body.idempotencyKey)
+      : offlineId;
+
+    // Prevent duplicate sales from double-tap / retry (same offlineId / idempotency key)
+    if (idempotencyKey) {
+      const { data: existing } = await supabase
+        .from('sales')
+        .select('id')
+        .eq('business_id', businessId)
+        .contains('metadata', { offlineId: idempotencyKey })
+        .limit(1)
+        .maybeSingle();
+      if (existing?.id) {
+        return NextResponse.json({ ok: true, saleId: existing.id, duplicate: true });
+      }
+    }
 
     const displayName =
       body.staffName ||
