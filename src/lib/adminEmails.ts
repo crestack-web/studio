@@ -11,6 +11,7 @@ export const ADMIN_EMAIL_ROLES: Record<string, string> = {
   'majnun@busmo.io': 'SUPER_ADMIN',
   'victoria@busmo.io': 'SUPPORT_AGENT',
   'crestack@gmail.com': 'SUPER_ADMIN',
+  'busmohq@gmail.com': 'SUPER_ADMIN',
 };
 
 export const ADMIN_EMAILS = Object.keys(ADMIN_EMAIL_ROLES);
