@@ -238,3 +238,49 @@
     font-size: 0.9rem;
   }
 }
+
+
+/* Compact home should still fill the viewport width */
+.staff-home-compact {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px 16px calc(88px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  min-height: 100%;
+}
+
+.staff-home-compact .sh-name {
+  font-size: 1.4rem;
+}
+
+.staff-home-compact .sh-summary {
+  padding: 16px 12px;
+}
+
+.staff-home-compact .sh-metric strong {
+  font-size: 1.15rem;
+}
+
+.staff-home-compact .sh-cta {
+  height: 56px;
+  font-size: 1.1rem;
+}
+
+.b1-nav button {
+  min-height: 56px;
+  font-size: 11px;
+}
+
+.b1-nav button svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* Never lock standard main-scroll height */
+[data-staff-theme="light"] .main-scroll {
+  overflow-y: auto !important;
+  height: auto;
+  flex: 1;
+  min-height: 0;
+}
