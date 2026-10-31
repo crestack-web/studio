@@ -1,6 +1,13 @@
 'use client';
 
 import React from 'react';
+import {
+  ShoppingCart,
+  Home,
+  Package,
+  Clock,
+  MoreHorizontal,
+} from 'lucide-react';
 import type { PageId, Permissions } from '../types';
 
 interface TerminalBottomNavProps {
@@ -10,12 +17,40 @@ interface TerminalBottomNavProps {
   cartCount?: number;
 }
 
-const ITEMS: { id: PageId; label: string; need?: keyof Permissions }[] = [
-  { id: 'terminal', label: 'Sale' },
-  { id: 'home', label: 'Home' },
-  { id: 'inv', label: 'Stock', need: 'inv' },
-  { id: 'shift', label: 'Shift', need: 'shift' },
-  { id: 'settings', label: 'More' },
+const ITEMS: {
+  id: PageId;
+  label: string;
+  need?: keyof Permissions;
+  icon: React.ReactNode;
+}[] = [
+  {
+    id: 'terminal',
+    label: 'Sale',
+    need: 'sale',
+    icon: <ShoppingCart size={22} strokeWidth={2.25} aria-hidden />,
+  },
+  {
+    id: 'home',
+    label: 'Home',
+    icon: <Home size={22} strokeWidth={2.25} aria-hidden />,
+  },
+  {
+    id: 'inv',
+    label: 'Stock',
+    need: 'inv',
+    icon: <Package size={22} strokeWidth={2.25} aria-hidden />,
+  },
+  {
+    id: 'atd',
+    label: 'Check-in',
+    need: 'atd',
+    icon: <Clock size={22} strokeWidth={2.25} aria-hidden />,
+  },
+  {
+    id: 'settings',
+    label: 'More',
+    icon: <MoreHorizontal size={22} strokeWidth={2.25} aria-hidden />,
+  },
 ];
 
 export function TerminalBottomNav({
@@ -26,7 +61,7 @@ export function TerminalBottomNav({
 }: TerminalBottomNavProps) {
   const visible = ITEMS.filter((it) => {
     if (!it.need) return true;
-    if (it.id === 'terminal') return permissions.sale || permissions.terminal;
+    if (it.id === 'terminal') return Boolean(permissions.sale || permissions.terminal);
     return Boolean(permissions[it.need]);
   });
 
@@ -41,18 +76,9 @@ export function TerminalBottomNav({
             type="button"
             className={active ? 'active' : ''}
             onClick={() => onChange(it.id)}
+            aria-label={it.label}
           >
-            <span aria-hidden>
-              {it.id === 'terminal'
-                ? '▣'
-                : it.id === 'home'
-                  ? '⌂'
-                  : it.id === 'inv'
-                    ? '▤'
-                    : it.id === 'shift'
-                      ? '◷'
-                      : '☰'}
-            </span>
+            {it.icon}
             <span>
               {it.label}
               {it.id === 'terminal' && cartCount > 0 ? ` (${cartCount})` : ''}
