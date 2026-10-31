@@ -287,6 +287,9 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [formDirty]);
 
+  const [scanOpen, setScanOpen] = useState(false);
+  const [barcodeBusy, setBarcodeBusy] = useState(false);
+  const [existingMatch, setExistingMatch] = useState<any | null>(null);
   const [form, setForm] = useState<ProductForm>({
     name: '', sku: '', barcode: '', category: '', description: '',
     sellPrice: '', costPrice: '', openingStock: '', lowStockAlert: '5',
@@ -659,7 +662,7 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
                       openLabelPrintWindow({
                         productName: form.name || 'Product',
                         barcode: form.barcode.trim(),
-                        priceLabel: form.price ? `₦${form.price}` : undefined,
+                        priceLabel: form.sellPrice ? `₦${form.sellPrice}` : undefined,
                         showPrice: true,
                         showName: true,
                       })
