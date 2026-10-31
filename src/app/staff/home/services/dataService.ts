@@ -23,6 +23,8 @@ export interface Product {
   active?: boolean;
   category?: string;
   imageUrl?: string;
+  barcode?: string;
+  sku?: string;
 }
 
 export interface Sale {
@@ -97,6 +99,8 @@ export async function fetchProducts(
         active: data.active != null ? data.active : data.status === 'active',
         category: data.category,
         imageUrl: data.imageUrl || data.image_url || '',
+        barcode: data.barcode || data.barCode || '',
+        sku: data.sku || data.SKU || '',
       } as Product);
     }
 
