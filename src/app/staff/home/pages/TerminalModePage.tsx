@@ -74,7 +74,7 @@ export function TerminalModePage({
   const [businessName, setBusinessName] = useState(businessNameProp || 'Business');
   const [currency, setCurrency] = useState(currencyProp);
   const [lastReceipt, setLastReceipt] = useState<PrintReceipt | null>(null);
-  const [showBrowse, setShowBrowse] = useState(false);
+  const [showBrowse, setShowBrowse] = useState(true);
   const scanInputRef = useRef<HTMLInputElement>(null);
   const scannerRef = useRef<BarcodeScanner | null>(null);
   const submittingRef = useRef(false);
@@ -662,8 +662,9 @@ export function TerminalModePage({
           type="button"
           onClick={() => setShowBrowse((v) => !v)}
           style={{ ...btnSecondary, height: 40 }}
+          aria-pressed={showBrowse}
         >
-          {showBrowse ? 'Hide' : 'Browse'}
+          {showBrowse ? 'Hide list' : 'Show list'}
         </button>
       </div>
       </div>
@@ -679,12 +680,11 @@ export function TerminalModePage({
         }}
       >
 
+      {/* Owner catalogue — visible by default (no Browse required) */}
       {showBrowse && (
         <div
           style={{
-            maxHeight: 160,
-            overflow: 'auto',
-            padding: '0 12px 8px',
+            padding: '0 12px 12px',
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
             gap: 8,
@@ -786,7 +786,8 @@ export function TerminalModePage({
 
       </div>{/* end terminal-sale-scroll */}
 
-      {/* Payment + complete */}
+      {/* Payment only when cart has items */}
+      {cart.length > 0 && (
       <footer
         style={{
           flexShrink: 0,
@@ -950,6 +951,7 @@ export function TerminalModePage({
           </div>
         )}
       </footer>
+      )}
     </div>
   );
 }
