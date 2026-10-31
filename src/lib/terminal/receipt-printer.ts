@@ -97,21 +97,35 @@ export class BrowserMockPrinter implements ReceiptPrinter {
 }
 
 /**
- * Placeholder for Z90 thermal printer via manufacturer Android SDK.
- * Do not call real SDK methods until the device SDK is integrated.
+ * ZCS / Z90 thermal printer — implemented in the Android container only.
+ * Official APIs (POS Android SDK §3):
+ *   DriverManager.getInstance().getPrinter()
+ *   Printer.getPrinterStatus() → SdkResult.SDK_OK | SDK_PRN_STATUS_PAPEROUT | …
+ *   Printer.setPrintAppendString(text, PrnStrFormat)
+ *   Printer.setPrintStart()
+ * Web app should send PRINT_RECEIPT over BusmoOneBridge; native runs the SDK on a worker thread.
  */
 export class Z90ThermalPrinterStub implements ReceiptPrinter {
   async getStatus(): Promise<PrinterStatus> {
     return {
       ready: false,
       paperOk: false,
-      message: 'Z90 SDK not integrated — use BrowserMockPrinter in development',
+      message:
+        'ZCS Printer not in browser — use BrowserMockPrinter, or Busmo One APK with com.zcs.sdk',
     };
   }
 
   async printReceipt(_receipt: ReceiptData): Promise<void> {
+    if (typeof window !== 'undefined' && window.BusmoOneBridge) {
+      const { postToNative } = await import('./android-bridge');
+      postToNative({
+        type: 'PRINT_RECEIPT',
+        payload: _receipt as unknown as Record<string, unknown>,
+      });
+      return;
+    }
     throw new Error(
-      'Z90 thermal printer SDK is not integrated. Wire manufacturer SDK in the Android container.'
+      'ZCS thermal printer runs in the Busmo One Android container (setPrintAppendString + setPrintStart).'
     );
   }
 }
