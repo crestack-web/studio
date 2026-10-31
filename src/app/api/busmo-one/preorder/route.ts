@@ -112,8 +112,8 @@ export async function POST(req: NextRequest) {
         understands_preorder: true,
         source: String(body.source || 'welcome_page').slice(0, 40),
         metadata: {
-          earlyAccessPriceNgn: BUSMO_ONE_CONFIG.earlyAccessPriceNgn,
-          regularPriceNgn: BUSMO_ONE_CONFIG.regularPriceNgn,
+          launchPriceNgn: BUSMO_ONE_CONFIG.launchPriceNgn,
+          scaleAnnualValueNgn: BUSMO_ONE_CONFIG.scaleAnnualValueNgn,
           priceConfirmed: BUSMO_ONE_CONFIG.priceConfirmed,
           scaleOffer: BUSMO_ONE_CONFIG.promotionLabel,
           // Eligibility recorded only — subscription is NOT activated here
