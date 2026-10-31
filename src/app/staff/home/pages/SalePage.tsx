@@ -173,13 +173,22 @@ export function SalePage({
     };
   }, [businessId, currencyProp]);
 
-  const filteredProducts = useMemo(() => {
+    const filteredProducts = useMemo(() => {
     if (!searchQuery.trim()) return products;
-    const q = searchQuery.toLowerCase();
-    return products.filter((p) => {
-      const name = String(p?.name || '').toLowerCase();
-      const id = String(p?.id || '').toLowerCase();
-      return name.includes(q) || id.includes(q);
+    const q = searchQuery.toLowerCase().trim();
+    return products.filter((p: any) => {
+      const name = String(p.name || '').toLowerCase();
+      const id = String(p.id || '').toLowerCase();
+      const sku = String(p.sku || '').toLowerCase();
+      const barcode = String(p.barcode || p.barCode || '').toLowerCase();
+      return (
+        name.includes(q) ||
+        id.includes(q) ||
+        sku.includes(q) ||
+        barcode.includes(q) ||
+        barcode === q ||
+        sku === q
+      );
     });
   }, [searchQuery, products]);
 
