@@ -93,9 +93,7 @@ export default function WelcomePage() {
         <ResultsCounters />
       </ScrollReveal>
 
-      <ScrollReveal direction="up" duration={0.7} delay={0.05}>
-        <BusmoOneSection />
-      </ScrollReveal>
+      <BusmoOneSection />
 
 
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
