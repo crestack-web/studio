@@ -18,6 +18,21 @@
   --s-touch: 44px;
 }
 
+[data-staff-theme="dark"] {
+  --s-bg: #071410;
+  --s-surface: #0d1c16;
+  --s-elevated: #13241c;
+  --s-text: #E0F7EC;
+  --s-text-2: #82A993;
+  --s-border: #1a3328;
+  --s-brand: #22C55E;
+  --s-brand-soft: rgba(34, 197, 94, 0.16);
+  --s-warn: #f4b544;
+  --s-danger: #ef6464;
+  color: var(--s-text);
+  background: var(--s-bg);
+}
+
 [data-staff-theme="busmo-one"] {
   --s-bg: #101513;
   --s-surface: #1b2420;
