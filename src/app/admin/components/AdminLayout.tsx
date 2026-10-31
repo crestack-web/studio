@@ -14,6 +14,7 @@ const MoSellActivity = dynamic(() => import('./MoSellActivity'), { ssr: false })
 const AdminOperations = dynamic(() => import('./AdminOperations'), { ssr: false });
 const AdminRevenue = dynamic(() => import('./AdminRevenue'), { ssr: false });
 const AdminEmailSender = dynamic(() => import('./AdminEmailSender'), { ssr: false });
+const BusmoOnePreorders = dynamic(() => import('./BusmoOnePreorders'), { ssr: false });
 
 interface AdminLayoutProps {
   children?: React.ReactNode;
@@ -96,6 +97,12 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         return (
           <Suspense fallback={<LoadingFallback />}>
             <AdminEmailSender />
+          </Suspense>
+        );
+      case 'busmo-one':
+        return (
+          <Suspense fallback={<LoadingFallback />}>
+            <BusmoOnePreorders />
           </Suspense>
         );
       default:
