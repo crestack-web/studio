@@ -208,7 +208,6 @@ export function ReceiveStockPage() {
 
   const handleScanBarcode = (code: string) => {
     const now = Date.now();
-    // Ignore accidental double-fire from camera (< 400ms same path)
     if (now - lastScanAt < 400) return;
     setLastScanAt(now);
     setScanError(null);
@@ -221,32 +220,42 @@ export function ReceiveStockPage() {
     });
     if (!product) {
       setScanError(`Product not found for "${code}". Create it in Inventory first if needed.`);
+      showToast('⚠️ Product not found for barcode');
       return;
     }
-    setSelectedProductId(product.id);
-    // If already in receipt list, bump quantity via intentional repeat
+    setSelectedProduct(product.id);
+    setItemUnitCost(String(product.costPrice || 0));
     setReceiptItems((prev) => {
       const idx = prev.findIndex((it) => it.productId === product.id);
       if (idx >= 0) {
         const next = [...prev];
-        next[idx] = { ...next[idx], quantity: (next[idx].quantity || 0) + 1 };
+        const qty = (next[idx].quantity || 0) + 1;
+        const unitCost = next[idx].unitCost || product.costPrice || 0;
+        next[idx] = {
+          ...next[idx],
+          quantity: qty,
+          totalCost: qty * unitCost,
+        };
         return next;
       }
-      // Prefer existing handleAddItem path if selected is set - add line here
+      const qty = 1;
+      const unitCost = product.costPrice || 0;
       return [
         ...prev,
         {
           productId: product.id,
           productName: product.name,
-          quantity: 1,
-          costPrice: product.costPrice,
-          sellingPrice: product.sellingPrice,
-        } as any,
+          quantity: qty,
+          unitCost,
+          totalCost: qty * unitCost,
+          location: selectedLocation || '',
+        },
       ];
     });
+    showToast(`✅ ${product.name} added to receipt`);
   };
 
-    const handleAddItem = () => {
+  const handleAddItemconst handleAddItem = () => {
     if (!selectedProduct) {
       showToast('⚠️ Please select a product');
       return;
@@ -634,7 +643,30 @@ export function ReceiveStockPage() {
           
           <div className={styles.formGroup}>
             <label className={styles.label}>Product</label>
-            <select
+            
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button type="button" onClick={() => setScanOpen(true)} className={styles.addButton}>
+              Scan product
+            </button>
+            <input
+              type="text"
+              placeholder="Barcode / SKU + Enter"
+              className={styles.input}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const v = (e.target as HTMLInputElement).value.trim();
+                  if (v) {
+                    handleScanBarcode(v);
+                    (e.target as HTMLInputElement).value = '';
+                  }
+                }
+              }}
+              style={{ flex: 1, minWidth: 140 }}
+            />
+          </div>
+          {scanError && <p style={{ color: '#b45309', fontSize: 13, marginBottom: 8 }}>{scanError}</p>}
+          <BarcodeScannerModal open={scanOpen} onClose={() => setScanOpen(false)} onDetected={handleScanBarcode} title="Scan product to receive" />
+<select
               className={styles.select}
               value={selectedProduct}
               onChange={(e) => setSelectedProduct(e.target.value)}
