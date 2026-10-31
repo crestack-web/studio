@@ -569,10 +569,10 @@ const InventoryPage: React.FC = () => {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed');
       // Patch local state
-      const byId = new Map((json.results || []).map((r: any) => [r.id, r]));
+      const byId = new Map<string, any>((json.results || []).map((r: any) => [String(r.id), r]));
       setProducts((prev: any[]) =>
-        prev.map((p) => {
-          const r = byId.get(p.id);
+        prev.map((p: any) => {
+          const r = byId.get(String(p.id));
           if (r && r.status === 'generated' && r.barcode) return { ...p, barcode: r.barcode };
           return p;
         })
@@ -719,7 +719,7 @@ const InventoryPage: React.FC = () => {
           for (const product of importedProducts) {
             await sbAddDoc(`businesses/${effectiveBusinessId}/products`, {
               ...product,
-              barcode: product.barcode != null ? String(product.barcode) : null,
+              barcode: (product as any).barcode != null ? String((product as any).barcode) : null,
               sku: product.sku != null ? String(product.sku) : product.sku,
               id: crypto.randomUUID(),
               status: 'active',
