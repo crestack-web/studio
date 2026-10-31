@@ -428,16 +428,28 @@ export function TerminalModePage({
 
   return (
     <div
+      className="terminal-sale-shell"
       style={{
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        minHeight: 'calc(100vh - 56px)',
+        maxHeight: '100%',
+        minHeight: 0,
+        overflow: 'hidden',
         background: 'var(--s-bg, #101513)',
         color: 'var(--s-text, #F5F7F5)',
         fontFamily: 'inherit',
       }}
     >
+      <div
+        className="terminal-sale-tools"
+        style={{
+          flexShrink: 0,
+          background: 'var(--s-surface, #1B2420)',
+          borderBottom: '1px solid var(--s-border, #344139)',
+          zIndex: 5,
+        }}
+      >
       {/* Header */}
       <header
         style={{
@@ -446,8 +458,6 @@ export function TerminalModePage({
           justifyContent: 'space-between',
           gap: 8,
           padding: '10px 12px',
-          background: 'var(--s-surface, #1B2420)',
-          borderBottom: '1px solid var(--s-border, #344139)',
           flexWrap: 'wrap',
         }}
       >
@@ -598,6 +608,18 @@ export function TerminalModePage({
           {showBrowse ? 'Hide' : 'Browse'}
         </button>
       </div>
+      </div>
+
+      <div
+        className="terminal-sale-scroll"
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain',
+        }}
+      >
 
       {showBrowse && (
         <div
@@ -618,6 +640,7 @@ export function TerminalModePage({
                 key={p.id}
                 type="button"
                 onClick={() => addProduct(p, 1)}
+                disabled={availableStock(p) <= 0}
                 style={{
                   textAlign: 'left',
                   background: 'var(--s-elevated, #26312B)',
@@ -625,12 +648,16 @@ export function TerminalModePage({
                   borderRadius: 10,
                   padding: 10,
                   color: '#fff',
-                  cursor: 'pointer',
+                  cursor: availableStock(p) <= 0 ? 'not-allowed' : 'pointer',
                   minHeight: 64,
+                  opacity: availableStock(p) <= 0 ? 0.45 : 1,
                 }}
               >
                 <div style={{ fontWeight: 600, fontSize: 13 }}>{p.name}</div>
-                <div style={{ fontSize: 12, opacity: 0.75 }}>{money(p.price, currency)}</div>
+                <div style={{ fontSize: 12, opacity: 0.75 }}>
+                  {money(p.price, currency)}
+                  {availableStock(p) <= 0 ? ' · Out of stock' : ''}
+                </div>
               </button>
             ))
           )}
@@ -638,7 +665,7 @@ export function TerminalModePage({
       )}
 
       {/* Cart */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '4px 12px 12px' }}>
+      <div style={{ padding: '4px 12px 12px' }}>
         {cart.length === 0 ? (
           <div
             style={{
@@ -698,6 +725,8 @@ export function TerminalModePage({
       {error && (
         <div style={{ margin: '0 12px 8px', color: 'var(--s-danger, #EF6464)', fontSize: 13 }}>{error}</div>
       )}
+
+      </div>{/* end terminal-sale-scroll */}
 
       {/* Payment + complete */}
       <footer
