@@ -404,49 +404,6 @@ export function ReceiveStockPage() {
           updatedAt: Timestamp.now(),
         });
 
-      // Authoritative inventory: update Supabase products (Add Product / Sale source of truth)
-      for (const item of receiptItems) {
-        try {
-          const rows = await fetchDocs(`businesses/${businessId}/products`);
-          const row = (rows || []).find((r: any) => (r.id || r.data?.id) === item.productId);
-          const data = row?.data || row || {};
-          const current = Number(data.stock ?? data.stock_level ?? data.quantity ?? 0) || 0;
-          const next = current + Number(item.quantity || 0);
-          const stockByLocation = { ...(data.stockByLocation || {}) };
-          if (item.location) {
-            stockByLocation[item.location] = (Number(stockByLocation[item.location]) || 0) + Number(item.quantity || 0);
-          }
-          await sbUpdateDoc(`businesses/${businessId}/products`, item.productId, {
-            stock: next,
-            stock_level: next,
-            stockByLocation,
-            updatedAt: new Date().toISOString(),
-          });
-        } catch (stockErr) {
-          console.error('Supabase stock update failed for', item.productId, stockErr);
-          throw stockErr;
-        }
-      }
-
-      // Optional receipt audit row in Supabase
-      try {
-        await sbAddDoc(`businesses/${businessId}/stockReceipts`, {
-          businessId,
-          supplierId: supplierId || null,
-          supplierName: supplierName || null,
-          items: receiptItems,
-          totalQuantity,
-          totalCost,
-          paymentMethod,
-          receiptNumber,
-          createdAt: new Date().toISOString(),
-          source: 'receive_stock_page',
-        });
-      } catch (receiptErr) {
-        console.warn('stockReceipts write skipped', receiptErr);
-      }
-
-        
         // Update supplier
         const supplierRef = doc(firestore, 'businesses', businessId, 'suppliers', supplierId);
         const supplierDoc = await transaction.get(supplierRef);
@@ -588,6 +545,50 @@ export function ReceiveStockPage() {
         }
       });
       
+      
+      // Authoritative inventory on Supabase (Add Product / Sale / Terminal source of truth).
+      {
+        const rows = await fetchDocs(`businesses/${businessId}/products`);
+        for (const item of receiptItems) {
+          const row = (rows || []).find((r: any) => String(r.id || r.data?.id) === String(item.productId));
+          if (!row) {
+            console.warn('Receive stock: product not in Supabase', item.productId);
+            continue;
+          }
+          const data = row.data || row;
+          const current = Number(data.stock ?? data.stock_level ?? data.quantity ?? 0) || 0;
+          const next = current + Number(item.quantity || 0);
+          const stockByLocation = { ...(data.stockByLocation || {}) };
+          if (item.location) {
+            stockByLocation[item.location] =
+              (Number(stockByLocation[item.location]) || 0) + Number(item.quantity || 0);
+          }
+          await sbUpdateDoc(`businesses/${businessId}/products`, item.productId, {
+            stock: next,
+            stock_level: next,
+            stockByLocation,
+            cost: item.unitCost,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      }
+      try {
+        await sbAddDoc(`businesses/${businessId}/stockReceipts`, {
+          businessId,
+          supplierId: supplierId || null,
+          supplierName: supplierName || null,
+          items: receiptItems,
+          totalQuantity,
+          totalCost,
+          paymentMethod,
+          receiptNumber,
+          createdAt: new Date().toISOString(),
+          source: 'receive_stock_page',
+        });
+      } catch (receiptErr) {
+        console.warn('stockReceipts supabase write skipped', receiptErr);
+      }
+
       showToast('✅ Stock received successfully');
       
       // Reset form
