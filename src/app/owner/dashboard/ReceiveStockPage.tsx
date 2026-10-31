@@ -8,11 +8,13 @@ import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, addDoc, doc, getDoc, updateDoc, runTransaction, Timestamp } from 'firebase/firestore';
 import { Supplier } from './types';
 import styles from './ReceiveStockPage.module.css';
+import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
 
 interface Product {
   id: string;
   name: string;
   sku?: string;
+  barcode?: string;
   category?: string;
   stock: number;
   costPrice: number;
@@ -48,6 +50,9 @@ export function ReceiveStockPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const [stockLocations, setStockLocations] = useState<Array<{ id: string; name: string; type: string }>>([]);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [lastScanAt, setLastScanAt] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -93,7 +98,8 @@ export function ReceiveStockPage() {
         productsList.push({
           id: doc.id,
           name: data.name || '',
-          sku: data.attributes?.sku || '',
+          sku: data.attributes?.sku || data.sku || '',
+          barcode: data.barcode || data.attributes?.barcode || '',
           category: data.category || '',
           stock: data.stock || 0,
           costPrice: data.cost || 0,
@@ -200,7 +206,47 @@ export function ReceiveStockPage() {
     }
   };
 
-  const handleAddItem = () => {
+  const handleScanBarcode = (code: string) => {
+    const now = Date.now();
+    // Ignore accidental double-fire from camera (< 400ms same path)
+    if (now - lastScanAt < 400) return;
+    setLastScanAt(now);
+    setScanError(null);
+    const q = code.trim().toLowerCase();
+    if (!q) return;
+    const product = products.find((p) => {
+      const b = String(p.barcode || '').trim().toLowerCase();
+      const sku = String(p.sku || '').trim().toLowerCase();
+      return (b && b === q) || (sku && sku === q);
+    });
+    if (!product) {
+      setScanError(`Product not found for "${code}". Create it in Inventory first if needed.`);
+      return;
+    }
+    setSelectedProductId(product.id);
+    // If already in receipt list, bump quantity via intentional repeat
+    setReceiptItems((prev) => {
+      const idx = prev.findIndex((it) => it.productId === product.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], quantity: (next[idx].quantity || 0) + 1 };
+        return next;
+      }
+      // Prefer existing handleAddItem path if selected is set - add line here
+      return [
+        ...prev,
+        {
+          productId: product.id,
+          productName: product.name,
+          quantity: 1,
+          costPrice: product.costPrice,
+          sellingPrice: product.sellingPrice,
+        } as any,
+      ];
+    });
+  };
+
+    const handleAddItem = () => {
     if (!selectedProduct) {
       showToast('⚠️ Please select a product');
       return;
