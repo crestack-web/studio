@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { BUSMO_ONE_CONFIG, formatNgn } from '@/lib/busmo-one/config';
 
