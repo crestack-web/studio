@@ -8,6 +8,7 @@ import { initializeFirebase } from '@/firebase';
 import { collection, getDocs, query, where, addDoc, doc, getDoc, updateDoc, runTransaction, Timestamp } from 'firebase/firestore';
 import { Supplier } from './types';
 import styles from './ReceiveStockPage.module.css';
+import { fetchDocs, updateDoc as sbUpdateDoc, addDoc as sbAddDoc } from '@/lib/supabase-client-data';
 import { BarcodeScannerModal } from '@/components/barcode/BarcodeScannerModal';
 
 interface Product {
@@ -85,28 +86,27 @@ export function ReceiveStockPage() {
     try {
       setIsLoading(true);
       
-      // Load products
-      const productsQuery = query(
-        collection(firestore, 'businesses', businessId, 'products'),
-        where('active', '==', true)
-      );
-      const productsSnapshot = await getDocs(productsQuery);
-      const productsList: Product[] = [];
-      
-      productsSnapshot.forEach(doc => {
-        const data = doc.data();
-        productsList.push({
-          id: doc.id,
-          name: data.name || '',
-          sku: data.attributes?.sku || data.sku || '',
-          barcode: data.barcode || data.attributes?.barcode || '',
-          category: data.category || '',
-          stock: data.stock || 0,
-          costPrice: data.cost || 0,
-          sellingPrice: data.price || 0,
-          imageUrl: data.imageUrl || '',
-        });
-      });
+// Load products from Supabase (same source of truth as Add Product / Inventory)
+      const productsData = await fetchDocs(`businesses/${businessId}/products`);
+      const productsList: Product[] = (productsData || [])
+        .map((row: any) => {
+          const data = row.data || row;
+          const id = row.id || data.id;
+          const active = data.active !== false && data.status !== 'draft' && data.status !== 'inactive';
+          if (!active) return null;
+          return {
+            id,
+            name: data.name || '',
+            sku: data.sku || data.attributes?.sku || '',
+            barcode: data.barcode || data.attributes?.barcode || '',
+            category: data.category || '',
+            stock: Number(data.stock ?? data.stock_level ?? data.quantity ?? 0) || 0,
+            costPrice: Number(data.cost ?? data.costPrice ?? 0) || 0,
+            sellingPrice: Number(data.price ?? data.sellingPrice ?? 0) || 0,
+            imageUrl: data.imageUrl || data.image_url || '',
+          } as Product;
+        })
+        .filter(Boolean) as Product[];
       
       setProducts(productsList);
       
@@ -403,6 +403,49 @@ export function ReceiveStockPage() {
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
         });
+
+      // Authoritative inventory: update Supabase products (Add Product / Sale source of truth)
+      for (const item of receiptItems) {
+        try {
+          const rows = await fetchDocs(`businesses/${businessId}/products`);
+          const row = (rows || []).find((r: any) => (r.id || r.data?.id) === item.productId);
+          const data = row?.data || row || {};
+          const current = Number(data.stock ?? data.stock_level ?? data.quantity ?? 0) || 0;
+          const next = current + Number(item.quantity || 0);
+          const stockByLocation = { ...(data.stockByLocation || {}) };
+          if (item.location) {
+            stockByLocation[item.location] = (Number(stockByLocation[item.location]) || 0) + Number(item.quantity || 0);
+          }
+          await sbUpdateDoc(`businesses/${businessId}/products`, item.productId, {
+            stock: next,
+            stock_level: next,
+            stockByLocation,
+            updatedAt: new Date().toISOString(),
+          });
+        } catch (stockErr) {
+          console.error('Supabase stock update failed for', item.productId, stockErr);
+          throw stockErr;
+        }
+      }
+
+      // Optional receipt audit row in Supabase
+      try {
+        await sbAddDoc(`businesses/${businessId}/stockReceipts`, {
+          businessId,
+          supplierId: supplierId || null,
+          supplierName: supplierName || null,
+          items: receiptItems,
+          totalQuantity,
+          totalCost,
+          paymentMethod,
+          receiptNumber,
+          createdAt: new Date().toISOString(),
+          source: 'receive_stock_page',
+        });
+      } catch (receiptErr) {
+        console.warn('stockReceipts write skipped', receiptErr);
+      }
+
         
         // Update supplier
         const supplierRef = doc(firestore, 'businesses', businessId, 'suppliers', supplierId);
