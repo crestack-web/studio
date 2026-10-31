@@ -35,7 +35,7 @@ const bizB = 'biz-b';
 const staff = 'staff-1';
 
 assert(wouldAllow({ userId: owner, businessId: bizA, ownerId: owner }) === true, 'owner of A');
-assert(wouldAllow({ userId: owner, businessId: bizB, ownerId: owner }) === false, 'owner of A not B');
+assert(wouldAllow({ userId: owner, businessId: bizB, ownerId: 'other-owner' }) === false, 'owner of A not B');
 assert(
   wouldAllow({ userId: staff, businessId: bizA, profileBusinessId: bizA }) === true,
   'staff profile biz'
