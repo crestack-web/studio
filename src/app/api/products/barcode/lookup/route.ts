@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { normalizeBarcode } from '@/lib/barcode/generate';
+import { assertBusinessAccess } from '@/app/api/mo-sales/_auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/products/barcode/lookup?businessId=&barcode=
- * Business-scoped product lookup by barcode or SKU (exact, case-insensitive for sku).
+ * Requires auth + membership for the business. Never trusts businessId alone.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -28,7 +29,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'businessId and barcode required' }, { status: 400 });
     }
 
-    // Prefer exact barcode match within business
+    const access = await assertBusinessAccess(userData.user.id, businessId);
+    if (!access.ok) {
+      return NextResponse.json({ error: access.reason }, { status: 403 });
+    }
+
     const { data: byBarcode, error: bErr } = await supabase
       .from('products')
       .select('id, name, sku, barcode, price, cost, stock_level, category, business_id, image_url, status')
@@ -45,12 +50,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ found: true, matchType: 'barcode', products: byBarcode });
     }
 
-    // Fallback SKU exact match
     const { data: bySku } = await supabase
       .from('products')
       .select('id, name, sku, barcode, price, cost, stock_level, category, business_id, image_url, status')
       .eq('business_id', businessId)
-      .eq('sku', barcode)
+      .ilike('sku', barcode)
       .limit(5);
 
     if (bySku && bySku.length) {
