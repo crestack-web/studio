@@ -16,6 +16,7 @@ import {
   createDefaultPrinter,
   type ReceiptData as PrintReceipt,
 } from '@/lib/terminal/receipt-printer';
+import { isDemoMode } from '@/lib/terminal/terminal-session';
 
 type TerminalProduct = DsProduct & { barcode?: string; sku?: string };
 
@@ -97,6 +98,16 @@ export function TerminalModePage({
           list = (await fetchProducts(undefined, businessId)) as TerminalProduct[];
           void offlineManager.cacheProducts(businessId, list as any);
         }
+        
+        if (!cancelled && isDemoMode() && list.length === 0) {
+          list = [
+            { id: 'demo-1', name: 'Bottled Water 75cl', price: 200, costPrice: 80, stock: 48, barcode: '6151000000001', sku: 'WAT-75' },
+            { id: 'demo-2', name: 'Indomie Chicken', price: 250, costPrice: 150, stock: 120, barcode: '6151000000002', sku: 'NDL-CH' },
+            { id: 'demo-3', name: 'Peak Milk 160g', price: 450, costPrice: 320, stock: 36, barcode: '6151000000003', sku: 'MLK-PK' },
+            { id: 'demo-4', name: 'Bread Loaf', price: 800, costPrice: 500, stock: 20, barcode: '6151000000004', sku: 'BRD-1' },
+          ] as TerminalProduct[];
+        }
+
         if (!cancelled) setProducts(list);
 
         const biz = await fetchDoc<Record<string, any>>(`businesses/${businessId}`);
@@ -301,6 +312,31 @@ export function TerminalModePage({
         return;
       }
 
+      if (isDemoMode()) {
+        const receipt: PrintReceipt = {
+          businessName: businessName + ' (Demo)',
+          receiptNumber: 'DEMO',
+          date: new Date().toLocaleString(),
+          cashier: staffName,
+          branchName,
+          items: cart.map((l) => ({
+            name: l.name,
+            quantity: l.quantity,
+            price: l.price,
+            total: l.price * l.quantity,
+          })),
+          subtotal: total,
+          total,
+          paymentMethod: paymentLabel + ' · demo',
+          currency,
+        };
+        setLastReceipt(receipt);
+        setCart([]);
+        setPosConfirmed(false);
+        clientSaleIdRef.current = null;
+        return;
+      }
+
       const supabase = getSupabase();
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
@@ -381,8 +417,8 @@ export function TerminalModePage({
         flexDirection: 'column',
         height: '100%',
         minHeight: 'calc(100vh - 56px)',
-        background: '#0f1115',
-        color: '#f4f4f8',
+        background: 'var(--s-bg, #101513)',
+        color: 'var(--s-text, #F5F7F5)',
         fontFamily: 'inherit',
       }}
     >
@@ -394,8 +430,8 @@ export function TerminalModePage({
           justifyContent: 'space-between',
           gap: 8,
           padding: '10px 12px',
-          background: '#16181e',
-          borderBottom: '1px solid #2a2d36',
+          background: 'var(--s-surface, #1B2420)',
+          borderBottom: '1px solid var(--s-border, #344139)',
           flexWrap: 'wrap',
         }}
       >
@@ -404,7 +440,7 @@ export function TerminalModePage({
           <div style={{ fontSize: 12, opacity: 0.7 }}>
             {branchName ? `${branchName} · ` : ''}
             {staffName}
-            {' · '}\n            <span style={{ color: online ? '#34d399' : '#fbbf24' }}>
+            {' · '}\n            <span style={{ color: online ? 'var(--s-brand, #42B775)' : '#fbbf24' }}>
               {online ? 'Online' : 'Offline'}
             </span>
           </div>
@@ -414,7 +450,7 @@ export function TerminalModePage({
             style={{
               fontSize: 11,
               fontWeight: 600,
-              background: '#6B3FE7',
+              background: 'var(--s-brand, #42B775)',
               padding: '4px 8px',
               borderRadius: 6,
             }}
@@ -426,7 +462,7 @@ export function TerminalModePage({
               type="button"
               onClick={onExit}
               style={{
-                background: '#2a2d36',
+                background: 'var(--s-border, #344139)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: 8,
@@ -442,7 +478,7 @@ export function TerminalModePage({
       </header>
 
       {/* Scan input */}
-      <div style={{ padding: '10px 12px', background: '#16181e' }}>
+      <div style={{ padding: '10px 12px', background: 'var(--s-surface, #1B2420)' }}>
         <input
           ref={scanInputRef}
           data-barcode-input="true"
@@ -461,8 +497,8 @@ export function TerminalModePage({
             width: '100%',
             height: 48,
             borderRadius: 12,
-            border: '2px solid #6B3FE7',
-            background: '#0f1115',
+            border: '2px solid var(--s-brand, #42B775)',
+            background: 'var(--s-bg, #101513)',
             color: '#fff',
             padding: '0 14px',
             fontSize: 16,
@@ -470,7 +506,7 @@ export function TerminalModePage({
           }}
         />
         {flash && (
-          <div style={{ marginTop: 6, color: '#34d399', fontSize: 13, fontWeight: 600 }}>
+          <div style={{ marginTop: 6, color: 'var(--s-brand, #42B775)', fontSize: 13, fontWeight: 600 }}>
             + {flash}
           </div>
         )}
@@ -483,8 +519,8 @@ export function TerminalModePage({
             margin: '8px 12px',
             padding: 12,
             borderRadius: 12,
-            background: '#3f2a0a',
-            border: '1px solid #f59e0b',
+            background: 'rgba(244,181,68,0.15)',
+            border: '1px solid var(--s-warn, #F4B544)',
           }}
         >
           <div style={{ fontWeight: 600, marginBottom: 6 }}>Product not found</div>
@@ -531,8 +567,8 @@ export function TerminalModePage({
             flex: 1,
             height: 40,
             borderRadius: 10,
-            border: '1px solid #2a2d36',
-            background: '#16181e',
+            border: '1px solid var(--s-border, #344139)',
+            background: 'var(--s-surface, #1B2420)',
             color: '#fff',
             padding: '0 12px',
             fontSize: 14,
@@ -568,8 +604,8 @@ export function TerminalModePage({
                 onClick={() => addProduct(p, 1)}
                 style={{
                   textAlign: 'left',
-                  background: '#1c1f27',
-                  border: '1px solid #2a2d36',
+                  background: 'var(--s-elevated, #26312B)',
+                  border: '1px solid var(--s-border, #344139)',
                   borderRadius: 10,
                   padding: 10,
                   color: '#fff',
@@ -607,7 +643,7 @@ export function TerminalModePage({
                 alignItems: 'center',
                 gap: 10,
                 padding: '10px 0',
-                borderBottom: '1px solid #2a2d36',
+                borderBottom: '1px solid var(--s-border, #344139)',
               }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -644,15 +680,15 @@ export function TerminalModePage({
       </div>
 
       {error && (
-        <div style={{ margin: '0 12px 8px', color: '#fca5a5', fontSize: 13 }}>{error}</div>
+        <div style={{ margin: '0 12px 8px', color: 'var(--s-danger, #EF6464)', fontSize: 13 }}>{error}</div>
       )}
 
       {/* Payment + complete */}
       <footer
         style={{
           padding: 12,
-          background: '#16181e',
-          borderTop: '1px solid #2a2d36',
+          background: 'var(--s-surface, #1B2420)',
+          borderTop: '1px solid var(--s-border, #344139)',
         }}
       >
         <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
@@ -674,8 +710,8 @@ export function TerminalModePage({
                 flex: 1,
                 height: 44,
                 borderRadius: 10,
-                border: payMethod === id ? '2px solid #6B3FE7' : '1px solid #2a2d36',
-                background: payMethod === id ? '#2a1f4d' : '#1c1f27',
+                border: payMethod === id ? '2px solid var(--s-brand, #42B775)' : '1px solid var(--s-border, #344139)',
+                background: payMethod === id ? 'var(--s-brand-soft, rgba(66,183,117,0.2))' : 'var(--s-elevated, #26312B)',
                 color: '#fff',
                 fontWeight: 600,
                 fontSize: 13,
@@ -728,7 +764,7 @@ export function TerminalModePage({
               minWidth: 160,
               borderRadius: 14,
               border: 'none',
-              background: cart.length === 0 || submitting ? '#3f3f46' : '#6B3FE7',
+              background: cart.length === 0 || submitting ? 'var(--s-border, #344139)' : 'var(--s-brand, #42B775)',
               color: '#fff',
               fontWeight: 700,
               fontSize: 16,
@@ -736,7 +772,7 @@ export function TerminalModePage({
               padding: '0 20px',
             }}
           >
-            {submitting ? 'Saving…' : 'Complete sale'}
+            {submitting ? 'Saving…' : 'CHARGE'}
           </button>
         </div>
 
@@ -758,7 +794,7 @@ export function TerminalModePage({
 }
 
 const btnSecondary: React.CSSProperties = {
-  background: '#2a2d36',
+  background: 'var(--s-border, #344139)',
   color: '#fff',
   border: 'none',
   borderRadius: 8,
@@ -770,8 +806,8 @@ const btnSecondary: React.CSSProperties = {
 
 const btnGhost: React.CSSProperties = {
   background: 'transparent',
-  color: '#a1a1aa',
-  border: '1px solid #2a2d36',
+  color: 'var(--s-text-2, #A3B3A9)',
+  border: '1px solid var(--s-border, #344139)',
   borderRadius: 8,
   padding: '8px 12px',
   fontSize: 13,
@@ -782,8 +818,8 @@ const qtyBtn: React.CSSProperties = {
   width: 36,
   height: 36,
   borderRadius: 8,
-  border: '1px solid #2a2d36',
-  background: '#1c1f27',
+  border: '1px solid var(--s-border, #344139)',
+  background: 'var(--s-elevated, #26312B)',
   color: '#fff',
   fontSize: 18,
   fontWeight: 700,
