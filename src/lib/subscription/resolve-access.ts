@@ -1,3 +1,4 @@
+import { isCompedLifetimeEmail } from '@/lib/subscription/comped-emails';
 /**
  * Single source of truth for plan + trial/grace access.
  * Reads both real columns (migration 0013) and legacy metadata keys.
@@ -99,11 +100,14 @@ export function resolveUserAccess(userRow: Record<string, any> | null | undefine
     asDate(meta.subscriptionEndDate) ||
     asDate(meta.subscription_end_date);
 
+  const email =
+    String(row.email || meta.email || '').toLowerCase().trim() || null;
   const lifetimeAccess =
     row.lifetime_access === true ||
     meta.lifetimeAccess === true ||
     meta.lifetime_access === true ||
-    String(meta.accessType || '').toLowerCase() === 'lifetime';
+    String(meta.accessType || '').toLowerCase() === 'lifetime' ||
+    isCompedLifetimeEmail(email);
 
   const now = new Date();
 
@@ -116,6 +120,10 @@ export function resolveUserAccess(userRow: Record<string, any> | null | undefine
   let inTrialWindow = false;
   if (lifetimeAccess) {
     inTrialWindow = false;
+    // Complimentary / lifetime accounts get full Scale (pro) entitlements
+    if (isCompedLifetimeEmail(email) || row.lifetime_access === true || meta.lifetimeAccess === true) {
+      // plan forced below after normalize
+    }
   } else if (trialEndDate != null) {
     inTrialWindow = trialEndDate > now;
   } else if (statusIsTrial && trialStartDate != null) {
@@ -147,6 +155,11 @@ export function resolveUserAccess(userRow: Record<string, any> | null | undefine
 
   // Null plan during trial/grace was wiping sidebar — treat as standard entitlement
   let plan = normalizePlan(planRaw);
+  if (lifetimeAccess) {
+    plan = planRaw && normalizePlan(planRaw) === 'standard' ? 'standard' : 'pro';
+    // HQ / comped always Scale
+    if (isCompedLifetimeEmail(email)) plan = 'pro';
+  }
   if ((!planRaw || plan === 'starter') && (inTrialWindow || inGraceWindow || isActivePaid)) {
     // Keep pro if explicitly set; otherwise standard for full nav during entitled periods
     if (planRaw && normalizePlan(planRaw) === 'pro') {
