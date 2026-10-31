@@ -466,7 +466,7 @@ export function TerminalModePage({
           <div style={{ fontSize: 12, opacity: 0.7 }}>
             {branchName ? `${branchName} · ` : ''}
             {staffName}
-            {' · '}\n            <span style={{ color: online ? 'var(--s-brand, #42B775)' : '#fbbf24' }}>
+             · <span style={{ color: online ? 'var(--s-brand, #42B775)' : '#fbbf24' }}>
               {online ? 'Online' : 'Offline'}
             </span>
           </div>
@@ -731,6 +731,7 @@ export function TerminalModePage({
       {/* Payment + complete */}
       <footer
         style={{
+          flexShrink: 0,
           padding: 12,
           background: 'var(--s-surface, #1B2420)',
           borderTop: '1px solid var(--s-border, #344139)',
