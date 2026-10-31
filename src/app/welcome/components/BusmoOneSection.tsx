@@ -21,6 +21,11 @@ export function BusmoOneSection() {
         .busmo-one-section {
           padding: 56px 20px;
           background: linear-gradient(180deg, #f3faf6 0%, #ffffff 48%, #f7fbf8 100%);
+          opacity: 1 !important;
+          visibility: visible !important;
+          transform: none !important;
+          min-height: 320px;
+          color: #0A1F14;
         }
         .busmo-one-inner {
           max-width: 1100px;
