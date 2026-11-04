@@ -26,11 +26,9 @@ import { TestimonialsSection } from './components/TestimonialsSection';
 import { OfflineSaleSection } from './components/OfflineSaleSection';
 import { HowBusmoWorks } from './components/HowBusmoWorks';
 import { IndustryUseCases } from './components/IndustryUseCases';
-import { BuiltWithBusmo } from './components/BuiltWithBusmo';
 import { TrustedBySection } from './components/TrustedBySection';
 import { ProductShowcase } from './components/ProductShowcase';
 import { MoSection } from './components/MoSection';
-import { PricingPreview } from './components/PricingPreview';
 import { BeforeAfterComparison } from './components/BeforeAfterComparison';
 import { FAQSection } from './components/FAQSection';
 import { Footer } from './components/Footer';
@@ -264,10 +262,6 @@ export default function WelcomePage() {
       </ScrollReveal>
 
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-        <BuiltWithBusmo />
-      </ScrollReveal>
-
-      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <section>
           <div className="max-w">
             <div className="section-head">
@@ -307,10 +301,6 @@ export default function WelcomePage() {
 
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <TestimonialsSection />
-      </ScrollReveal>
-
-      <ScrollReveal direction="up" duration={0.7} delay={0.1}>
-        <PricingPreview onNavigate={handleNavigate} />
       </ScrollReveal>
 
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
