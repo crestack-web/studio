@@ -3,6 +3,7 @@
 import React, { useEffect, useState, createContext, useContext } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabase } from '@/lib/supabase';
+import { isCompedLifetimeEmail } from '@/lib/subscription/comped-emails';
 import { BusmoLogoLoadingSpinner } from '@/components/BusmoLogoLoadingSpinner';
 
 /** Days of free access after trial ends before dashboard is gated */
@@ -83,7 +84,12 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
   useEffect(() => {
     const supabase = getSupabase();
 
-    const loadTrial = async (userId: string) => {
+    const loadTrial = async (userId: string, sessionEmail?: string | null) => {
+      if (isCompedLifetimeEmail(sessionEmail)) {
+        setIsExpired(false);
+        setIsLoading(false);
+        return;
+      }
       try {
         const { data: userData, error } = await supabase
           .from('users')
@@ -300,7 +306,7 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
         if (session.access_token) {
           void touchLastLogin(session.access_token);
         }
-        loadTrial(session.user.id);
+        loadTrial(session.user.id, session.user.email);
       })
       .catch(() => {
         router.replace('/login');
