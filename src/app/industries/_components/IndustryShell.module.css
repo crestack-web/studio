@@ -1,0 +1,82 @@
+/* Busmo design language — mirrors AppShell / HomePage patterns */
+.shell { display: flex; height: 100vh; overflow: hidden; position: relative; background: var(--bg, #f4f4f8); color: var(--text-1, #0a0a0f); font-family: var(--font-body, system-ui, sans-serif); }
+.sidebar { width: 248px; flex-shrink: 0; background: #fff; border-right: 1px solid var(--border, #e8e8f0); display: flex; flex-direction: column; overflow: hidden; z-index: 40; }
+.sidebarTop { display: flex; align-items: center; gap: 8px; padding: 16px 14px 12px; border-bottom: 1px solid var(--border, #e8e8f0); }
+.logoText { font-weight: 700; font-size: 1.05rem; color: #6b3fe7; white-space: nowrap; }
+.navScroll { flex: 1; overflow-y: auto; padding: 10px 10px 24px; }
+.sectionLabel { display: block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #9ca3af; margin: 14px 8px 6px; }
+.navLink { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; border: none; background: transparent; color: #374151; font-size: 0.9rem; font-weight: 600; padding: 9px 12px; border-radius: 10px; cursor: pointer; text-decoration: none; margin-bottom: 2px; }
+.navLink:hover { background: #f5f3ff; color: #6b3fe7; }
+.navLinkActive { background: #f5f3ff; color: #6b3fe7; }
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 18px; background: #fff; border-bottom: 1px solid var(--border, #e8e8f0); flex-shrink: 0; }
+.topbarTitle { font-size: 0.95rem; font-weight: 700; color: #111827; }
+.topbarMeta { font-size: 0.78rem; color: #6b7280; }
+.pageArea { flex: 1; overflow-y: auto; padding: 18px 18px 48px; }
+.menuBtn { display: none; border: 1px solid #e5e7eb; background: #fff; border-radius: 10px; padding: 8px 10px; cursor: pointer; }
+.overlay { display: none; }
+@media (max-width: 768px) {
+  .sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-105%); transition: transform 0.2s ease; box-shadow: 0 8px 30px rgba(0,0,0,0.12); }
+  .sidebarOpen { transform: translateX(0); }
+  .menuBtn { display: inline-flex; }
+  .overlay { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 35; }
+  .pageArea { padding: 14px 13px 80px; }
+}
+.greeting { margin-bottom: 18px; }
+.greeting h1 { margin: 0 0 4px; font-size: 1.35rem; font-weight: 800; color: #111827; }
+.greeting p { margin: 0; font-size: 0.88rem; color: #6b7280; }
+.metricsGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.metricCard { background: #fff; border: 1px solid #e8e8f0; border-radius: 14px; padding: 14px 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+.metricLabel { font-size: 0.75rem; font-weight: 600; color: #6b7280; margin-bottom: 6px; }
+.metricValue { font-size: 1.35rem; font-weight: 800; color: #111827; }
+.metricHint { font-size: 0.72rem; color: #9ca3af; margin-top: 4px; }
+.sectionTitle { font-size: 0.95rem; font-weight: 800; margin: 8px 0 12px; color: #111827; }
+.actionsGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
+.actionBtn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 14px; background: #fff; border: 1px solid #e8e8f0; border-radius: 12px; font-size: 0.85rem; font-weight: 600; color: #374151; text-decoration: none; text-align: center; }
+.actionBtn:hover { border-color: #6b3fe7; color: #6b3fe7; background: #faf8ff; }
+.panel { background: #fff; border: 1px solid #e8e8f0; border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+.panelTitle { font-size: 0.9rem; font-weight: 700; margin: 0 0 8px; }
+.empty { font-size: 0.85rem; color: #6b7280; margin: 0; line-height: 1.45; }
+.placeholderPage { background: #fff; border: 1px solid #e8e8f0; border-radius: 14px; padding: 28px 20px; text-align: center; }
+.placeholderPage h2 { margin: 0 0 8px; font-size: 1.15rem; font-weight: 800; }
+.placeholderPage p { margin: 0 auto; max-width: 420px; font-size: 0.88rem; color: #6b7280; line-height: 1.5; }
+.welcomeRoot { min-height: 100vh; background: #f4f4f8; color: #0a0a0f; }
+.welcomeNav { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: #fff; border-bottom: 1px solid #e8e8f0; position: sticky; top: 0; z-index: 20; }
+.welcomeNavLinks { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.hero { max-width: 960px; margin: 0 auto; padding: 48px 20px 32px; text-align: center; }
+.heroKicker { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #6b3fe7; margin-bottom: 10px; }
+.hero h1 { margin: 0 0 12px; font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 800; line-height: 1.2; }
+.hero p { margin: 0 auto 22px; max-width: 560px; color: #555568; font-size: 1rem; line-height: 1.55; }
+.ctaRow { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.btnPrimary { background: #6b3fe7; color: #fff; border: none; border-radius: 999px; padding: 12px 22px; font-weight: 700; font-size: 0.92rem; text-decoration: none; display: inline-flex; align-items: center; }
+.btnGhost { background: #fff; color: #6b3fe7; border: 1px solid #e8e8f0; border-radius: 999px; padding: 12px 22px; font-weight: 700; font-size: 0.92rem; text-decoration: none; display: inline-flex; align-items: center; }
+.section { max-width: 960px; margin: 0 auto; padding: 28px 20px; }
+.section h2 { margin: 0 0 16px; font-size: 1.25rem; font-weight: 800; }
+.featureGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.featureCard { background: #fff; border: 1px solid #e8e8f0; border-radius: 14px; padding: 16px; font-size: 0.9rem; font-weight: 600; color: #374151; }
+.previewCard { background: #fff; border: 1px solid #e8e8f0; border-radius: 16px; padding: 20px; box-shadow: 0 8px 24px rgba(15,23,42,0.06); }
+.previewBar { height: 10px; width: 40%; background: #ede9fe; border-radius: 999px; margin-bottom: 14px; }
+.previewMetrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.previewMetric { background: #f9fafb; border-radius: 10px; padding: 12px 8px; text-align: center; }
+.previewMetric span { display: block; font-size: 0.68rem; color: #9ca3af; margin-bottom: 4px; }
+.previewMetric strong { font-size: 0.95rem; }
+@media (max-width: 640px) { .previewMetrics { grid-template-columns: 1fr 1fr; } }
+.footer { border-top: 1px solid #e8e8f0; padding: 24px 20px; text-align: center; font-size: 0.82rem; color: #6b7280; }
+.authPage { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; background: linear-gradient(160deg, #f4f4f8 0%, #ebe7ff 100%); }
+.authCard { width: 100%; max-width: 420px; background: #fff; border-radius: 18px; border: 1px solid #e8e8f0; padding: 28px 22px; box-shadow: 0 12px 40px rgba(15,23,42,0.08); }
+.authCard h1 { margin: 8px 0 4px; font-size: 1.35rem; font-weight: 800; }
+.authCard .sub { margin: 0 0 18px; font-size: 0.88rem; color: #6b7280; }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.field label { font-size: 13px; font-weight: 600; color: #555568; }
+.field input { border: 1.5px solid #e8e8f0; border-radius: 12px; padding: 11px 12px; font-size: 15px; outline: none; }
+.field input:focus { border-color: #6b3fe7; box-shadow: 0 0 0 3px rgba(107,63,231,0.12); }
+.authError { background: #fef2f2; color: #991b1b; border-radius: 10px; padding: 10px 12px; font-size: 0.85rem; margin-bottom: 12px; }
+.authSubmit { width: 100%; background: #6b3fe7; color: #fff; border: none; border-radius: 12px; padding: 12px; font-weight: 700; font-size: 0.95rem; cursor: pointer; margin-top: 4px; }
+.authSubmit:disabled { opacity: 0.55; cursor: not-allowed; }
+.authAlt { margin-top: 14px; text-align: center; font-size: 0.85rem; color: #6b7280; }
+.authAlt a { color: #6b3fe7; font-weight: 600; text-decoration: none; }
+.hubGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; max-width: 900px; margin: 0 auto; padding: 24px 20px 48px; }
+.hubCard { background: #fff; border: 1px solid #e8e8f0; border-radius: 16px; padding: 22px; text-decoration: none; color: inherit; display: block; transition: border-color 0.15s, box-shadow 0.15s; }
+.hubCard:hover { border-color: #6b3fe7; box-shadow: 0 8px 24px rgba(107,63,231,0.1); }
+.hubCard h3 { margin: 0 0 8px; font-size: 1.1rem; font-weight: 800; color: #6b3fe7; }
+.hubCard p { margin: 0; font-size: 0.9rem; color: #555568; line-height: 1.45; }
