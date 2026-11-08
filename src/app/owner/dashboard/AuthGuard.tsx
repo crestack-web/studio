@@ -26,7 +26,6 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requiredRole = '
       }
 
       const user = session.user;
-      // Read role from Supabase user_metadata (not Firestore)
       const role = (user.user_metadata?.role as string) || 'Owner';
       setUserRole(role);
 
@@ -37,6 +36,20 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requiredRole = '
 
       if (requiredRole === 'Staff' && ['Owner', 'Admin'].includes(role)) {
         router.replace('/owner/dashboard');
+        return;
+      }
+
+      const edition = String(
+        (user.user_metadata?.product_edition as string) ||
+          (user.user_metadata?.industry as string) ||
+          ''
+      ).toLowerCase();
+      if (requiredRole === 'Owner' && edition === 'hospitality') {
+        router.replace('/industries/hospitality/dashboard');
+        return;
+      }
+      if (requiredRole === 'Owner' && edition === 'professional') {
+        router.replace('/industries/professional/dashboard');
         return;
       }
 
