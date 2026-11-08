@@ -1,4 +1,4 @@
-export type IndustryId = 'hospitality' | 'professional' | 'business';
+export type IndustryId = 'hospitality' | 'professional' | 'healthcare' | 'education' | 'business';
 
 export type IndustryNavItem = {
   id: string;

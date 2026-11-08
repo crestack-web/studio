@@ -68,6 +68,8 @@ export function IndustryDashboardClient({
         if (s.productEdition !== config.id) {
           if (s.productEdition === 'hospitality') router.replace('/industries/hospitality/dashboard');
           else if (s.productEdition === 'professional') router.replace('/industries/professional/dashboard');
+          else if (s.productEdition === 'healthcare') router.replace('/industries/healthcare/dashboard');
+          else if (s.productEdition === 'education') router.replace('/industries/education/dashboard');
           else router.replace('/owner/dashboard');
           return;
         }
@@ -192,11 +194,9 @@ export function IndustryDashboardClient({
                 ))}
               </div>
               <div className={styles.panel}>
-                <h3 className={styles.panelTitle}>{config.id === 'hospitality' ? 'Operations snapshot' : 'Work snapshot'}</h3>
+                <h3 className={styles.panelTitle}>Operations snapshot</h3>
                 <p className={styles.empty}>
-                  {config.id === 'hospitality'
-                    ? 'Check-ins, check-outs, pending reservations, unpaid balances and rooms needing housekeeping will appear here as you add hotel data.'
-                    : 'Tasks due today, overdue work, upcoming deadlines and recent project activity will appear here as you add professional services data.'}
+                  'Operational activity for this workspace will appear here as you add data.'
                 </p>
               </div>
               <div className={styles.panel}>

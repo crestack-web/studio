@@ -1,4 +1,4 @@
-import { HOSPITALITY, PROFESSIONAL } from './config';
+import { HOSPITALITY, PROFESSIONAL, HEALTHCARE, EDUCATION } from './config';
 import type { IndustryConfig } from './types';
 
 export type SuiteProduct = {
@@ -10,7 +10,7 @@ export type SuiteProduct = {
 };
 
 export type SuiteFamily = {
-  id: 'business' | 'hospitality' | 'professional';
+  id: 'business' | 'hospitality' | 'professional' | 'healthcare' | 'education';
   label: string;
   productName: string;
   href: string;
@@ -92,6 +92,43 @@ export const SUITE_FAMILIES: SuiteFamily[] = [
       { id: 'time', name: 'Time Tracking', blurb: 'Billable hours without a separate timesheet app.', href: PROFESSIONAL.signupPath },
       { id: 'invoices', name: 'Invoices', blurb: 'Create invoices and track what is outstanding.', href: PROFESSIONAL.signupPath },
       { id: 'team', name: 'Team', blurb: 'Workload and capacity across your firm.', href: PROFESSIONAL.signupPath },
+    ],
+  },
+
+  {
+    id: 'healthcare',
+    label: 'Healthcare',
+    productName: HEALTHCARE.productName,
+    href: HEALTHCARE.welcomePath,
+    signupHref: HEALTHCARE.signupPath,
+    loginHref: HEALTHCARE.loginPath,
+    tagline: HEALTHCARE.tagline,
+    description: HEALTHCARE.description,
+    products: [
+      { id: 'patients', name: 'Patients', blurb: 'Patient records and visit history in one place.', href: HEALTHCARE.signupPath },
+      { id: 'appointments', name: 'Appointments', blurb: 'Schedule visits and manage daily capacity.', href: HEALTHCARE.signupPath },
+      { id: 'visits', name: 'Visits', blurb: 'Track encounters from check-in to discharge.', href: HEALTHCARE.signupPath },
+      { id: 'billing', name: 'Billing', blurb: 'Clinic billing tied to visits and patients.', href: HEALTHCARE.signupPath },
+      { id: 'supplies', name: 'Supplies', blurb: 'Medical inventory and low-stock alerts.', href: HEALTHCARE.signupPath },
+      { id: 'clinical-staff', name: 'Clinical Staff', blurb: 'Doctors, nurses and roster clarity.', href: HEALTHCARE.signupPath },
+    ],
+  },
+  {
+    id: 'education',
+    label: 'Education',
+    productName: EDUCATION.productName,
+    href: EDUCATION.welcomePath,
+    signupHref: EDUCATION.signupPath,
+    loginHref: EDUCATION.loginPath,
+    tagline: EDUCATION.tagline,
+    description: EDUCATION.description,
+    products: [
+      { id: 'students', name: 'Students', blurb: 'Student records, classes and enrollment status.', href: EDUCATION.signupPath },
+      { id: 'classes', name: 'Classes', blurb: 'Class lists, capacity and teachers.', href: EDUCATION.signupPath },
+      { id: 'enrollment', name: 'Enrollment', blurb: 'Admissions and term enrollment in one flow.', href: EDUCATION.signupPath },
+      { id: 'attendance', name: 'Attendance', blurb: 'Daily attendance without paper registers.', href: EDUCATION.signupPath },
+      { id: 'fees', name: 'Fees', blurb: 'Fee plans, collections and outstanding balances.', href: EDUCATION.signupPath },
+      { id: 'teachers', name: 'Teachers', blurb: 'Teaching staff and class assignments.', href: EDUCATION.signupPath },
     ],
   },
 ];

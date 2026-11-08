@@ -40,11 +40,15 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
       const edition = json.session.productEdition as string;
       if (edition === 'hospitality') window.location.href = '/industries/hospitality/dashboard';
       else if (edition === 'professional') window.location.href = '/industries/professional/dashboard';
+      else if (edition === 'healthcare') window.location.href = '/industries/healthcare/dashboard';
+      else if (edition === 'education') window.location.href = '/industries/education/dashboard';
       else window.location.href = '/owner/dashboard';
       return true;
     }
     if (fallbackEdition === 'hospitality') window.location.href = '/industries/hospitality/dashboard';
     else if (fallbackEdition === 'professional') window.location.href = '/industries/professional/dashboard';
+    else if (fallbackEdition === 'healthcare') window.location.href = '/industries/healthcare/dashboard';
+    else if (fallbackEdition === 'education') window.location.href = '/industries/education/dashboard';
     else window.location.href = '/owner/dashboard';
     return true;
   }
@@ -200,12 +204,12 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
         <form onSubmit={recovery ? onRecover : onSubmit}>
           {(mode === 'signup' || recovery) && (
             <div className={styles.field}>
-              <label htmlFor="biz">{config.id === 'hospitality' ? 'Hotel name' : 'Business name'}</label>
+              <label htmlFor="biz">{config.id === 'hospitality' ? 'Hotel name' : config.id === 'healthcare' ? 'Clinic name' : config.id === 'education' ? 'School name' : 'Business name'}</label>
               <input
                 id="biz"
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
-                placeholder={config.id === 'hospitality' ? 'e.g. Palm Court Hotel' : 'e.g. Northstar Consulting'}
+                placeholder={config.id === 'hospitality' ? 'e.g. Palm Court Hotel' : config.id === 'healthcare' ? 'e.g. Greenfield Clinic' : config.id === 'education' ? 'e.g. Horizon Academy' : 'e.g. Northstar Consulting'}
                 autoComplete="organization"
                 required={mode === 'signup' || !!recovery}
               />

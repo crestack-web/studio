@@ -1,9 +1,16 @@
 import type { IndustryConfig, IndustryId } from './types';
 
-export const INDUSTRY_IDS = ['hospitality', 'professional'] as const;
+export const INDUSTRY_IDS = ['hospitality', 'professional', 'healthcare', 'education'] as const;
 
-export function isIndustryId(value: string | null | undefined): value is 'hospitality' | 'professional' {
-  return value === 'hospitality' || value === 'professional';
+export function isIndustryId(
+  value: string | null | undefined
+): value is 'hospitality' | 'professional' | 'healthcare' | 'education' {
+  return (
+    value === 'hospitality' ||
+    value === 'professional' ||
+    value === 'healthcare' ||
+    value === 'education'
+  );
 }
 
 export const HOSPITALITY: IndustryConfig = {
@@ -128,10 +135,128 @@ export const PROFESSIONAL: IndustryConfig = {
   ],
 };
 
-export const INDUSTRY_CONFIG: Record<'hospitality' | 'professional', IndustryConfig> = {
+
+export const HEALTHCARE: IndustryConfig = {
+  id: 'healthcare',
+  productName: 'Busmo Healthcare',
+  shortName: 'Healthcare',
+  tagline: 'Care operations. Clearer every day.',
+  description:
+    'Manage patients, appointments, clinical staff, billing and clinic finances from one connected workspace.',
+  welcomePath: '/industries/healthcare',
+  loginPath: '/industries/healthcare/login',
+  signupPath: '/industries/healthcare/signup',
+  dashboardPath: '/industries/healthcare/dashboard',
+  features: [
+    'Patient records',
+    'Appointments and scheduling',
+    'Clinical staff management',
+    'Visit and encounter tracking',
+    'Billing and payments',
+    'Inventory for medical supplies',
+    'Clinic revenue reporting',
+  ],
+  benefits: [
+    'See today’s appointments and capacity at a glance',
+    'Keep patient history connected to visits and billing',
+    'Coordinate clinical and front-desk staff in one place',
+    'Track clinic revenue without separate tools',
+  ],
+  greetingNoun: 'clinic',
+  nav: [
+    { id: 'overview', label: 'Overview', href: '/industries/healthcare/dashboard', section: 'main' },
+    { id: 'patients', label: 'Patients', href: '/industries/healthcare/dashboard/patients', section: 'main' },
+    { id: 'appointments', label: 'Appointments', href: '/industries/healthcare/dashboard/appointments', section: 'main' },
+    { id: 'visits', label: 'Visits', href: '/industries/healthcare/dashboard/visits', section: 'main' },
+    { id: 'staff', label: 'Clinical Staff', href: '/industries/healthcare/dashboard/staff', section: 'operations' },
+    { id: 'rooms', label: 'Rooms / Beds', href: '/industries/healthcare/dashboard/rooms', section: 'operations' },
+    { id: 'inventory', label: 'Supplies', href: '/industries/healthcare/dashboard/inventory', section: 'operations' },
+    { id: 'billing', label: 'Billing', href: '/industries/healthcare/dashboard/billing', section: 'finance' },
+    { id: 'payments', label: 'Payments', href: '/industries/healthcare/dashboard/payments', section: 'finance' },
+    { id: 'reports', label: 'Reports', href: '/industries/healthcare/dashboard/reports', section: 'finance' },
+    { id: 'settings', label: 'Clinic Settings', href: '/industries/healthcare/dashboard/settings', section: 'settings' },
+    { id: 'account', label: 'Account Settings', href: '/industries/healthcare/dashboard/account', section: 'settings' },
+  ],
+  metrics: [
+    { id: 'patients_today', label: 'Patients Today', emptyValue: '0' },
+    { id: 'appointments', label: 'Appointments', emptyValue: '0' },
+    { id: 'open_visits', label: 'Open Visits', emptyValue: '0' },
+    { id: 'revenue_today', label: 'Revenue Today', emptyValue: '₦0' },
+  ],
+  quickActions: [
+    { id: 'new-patient', label: 'Add Patient', href: '/industries/healthcare/dashboard/patients' },
+    { id: 'book-appointment', label: 'Book Appointment', href: '/industries/healthcare/dashboard/appointments' },
+    { id: 'start-visit', label: 'Start Visit', href: '/industries/healthcare/dashboard/visits' },
+    { id: 'record-payment', label: 'Record Payment', href: '/industries/healthcare/dashboard/payments' },
+  ],
+};
+
+export const EDUCATION: IndustryConfig = {
+  id: 'education',
+  productName: 'Busmo Education',
+  shortName: 'Education',
+  tagline: 'Schools and training, organized.',
+  description:
+    'Manage students, classes, enrollment, staff, fees and school operations from one connected platform.',
+  welcomePath: '/industries/education',
+  loginPath: '/industries/education/login',
+  signupPath: '/industries/education/signup',
+  dashboardPath: '/industries/education/dashboard',
+  features: [
+    'Student records',
+    'Classes and timetable',
+    'Enrollment and admissions',
+    'Attendance tracking',
+    'Teachers and staff',
+    'Fee collection',
+    'Academic reporting',
+  ],
+  benefits: [
+    'See enrollment and class capacity clearly',
+    'Track attendance and fees without spreadsheets',
+    'Keep teachers, students and parents data connected',
+    'One workspace for school operations',
+  ],
+  greetingNoun: 'school',
+  nav: [
+    { id: 'overview', label: 'Overview', href: '/industries/education/dashboard', section: 'main' },
+    { id: 'students', label: 'Students', href: '/industries/education/dashboard/students', section: 'main' },
+    { id: 'classes', label: 'Classes', href: '/industries/education/dashboard/classes', section: 'main' },
+    { id: 'enrollment', label: 'Enrollment', href: '/industries/education/dashboard/enrollment', section: 'main' },
+    { id: 'attendance', label: 'Attendance', href: '/industries/education/dashboard/attendance', section: 'operations' },
+    { id: 'teachers', label: 'Teachers', href: '/industries/education/dashboard/teachers', section: 'operations' },
+    { id: 'timetable', label: 'Timetable', href: '/industries/education/dashboard/timetable', section: 'operations' },
+    { id: 'fees', label: 'Fees', href: '/industries/education/dashboard/fees', section: 'finance' },
+    { id: 'payments', label: 'Payments', href: '/industries/education/dashboard/payments', section: 'finance' },
+    { id: 'reports', label: 'Reports', href: '/industries/education/dashboard/reports', section: 'finance' },
+    { id: 'settings', label: 'School Settings', href: '/industries/education/dashboard/settings', section: 'settings' },
+    { id: 'account', label: 'Account Settings', href: '/industries/education/dashboard/account', section: 'settings' },
+  ],
+  metrics: [
+    { id: 'students', label: 'Active Students', emptyValue: '0' },
+    { id: 'classes', label: 'Classes', emptyValue: '0' },
+    { id: 'attendance_today', label: 'Attendance Today', emptyValue: '—' },
+    { id: 'fees_outstanding', label: 'Fees Outstanding', emptyValue: '₦0' },
+  ],
+  quickActions: [
+    { id: 'add-student', label: 'Add Student', href: '/industries/education/dashboard/students' },
+    { id: 'enroll', label: 'Enroll Student', href: '/industries/education/dashboard/enrollment' },
+    { id: 'mark-attendance', label: 'Mark Attendance', href: '/industries/education/dashboard/attendance' },
+    { id: 'collect-fee', label: 'Collect Fee', href: '/industries/education/dashboard/fees' },
+  ],
+};
+
+
+export const INDUSTRY_CONFIG: Record<
+  'hospitality' | 'professional' | 'healthcare' | 'education',
+  IndustryConfig
+> = {
   hospitality: HOSPITALITY,
   professional: PROFESSIONAL,
+  healthcare: HEALTHCARE,
+  education: EDUCATION,
 };
+
 
 export function getIndustryConfig(id: string): IndustryConfig | null {
   if (!isIndustryId(id)) return null;
@@ -165,11 +290,32 @@ export function resolveProductEdition(opts: {
   ) {
     return 'professional';
   }
+  if (
+    raw === 'healthcare' ||
+    raw.includes('clinic') ||
+    raw.includes('hospital') ||
+    raw.includes('health') ||
+    raw.includes('medical')
+  ) {
+    return 'healthcare';
+  }
+  if (
+    raw === 'education' ||
+    raw.includes('school') ||
+    raw.includes('university') ||
+    raw.includes('college') ||
+    raw.includes('training') ||
+    raw.includes('education')
+  ) {
+    return 'education';
+  }
   return 'business';
 }
 
 export function dashboardPathForEdition(edition: IndustryId): string {
   if (edition === 'hospitality') return HOSPITALITY.dashboardPath;
   if (edition === 'professional') return PROFESSIONAL.dashboardPath;
+  if (edition === 'healthcare') return HEALTHCARE.dashboardPath;
+  if (edition === 'education') return EDUCATION.dashboardPath;
   return '/owner/dashboard';
 }

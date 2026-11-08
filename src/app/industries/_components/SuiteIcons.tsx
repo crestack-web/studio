@@ -195,6 +195,109 @@ export const SuiteIcons: Record<string, React.FC<IconProps>> = {
       </Svg>
     </IconTile>
   ),
+
+  patients: () => (
+    <IconTile bg="#DBEAFE">
+      <Svg color="#2563EB">
+        <circle cx="12" cy="8" r="3.5" />
+        <path d="M5 19c0-3.3 3.1-6 7-6s7 2.7 7 6" />
+      </Svg>
+    </IconTile>
+  ),
+  appointments: () => (
+    <IconTile bg="#E0E7FF">
+      <Svg color="#4F46E5">
+        <rect x="4" y="5" width="16" height="15" rx="2" />
+        <path d="M8 3v4M16 3v4M4 10h16" />
+      </Svg>
+    </IconTile>
+  ),
+  visits: () => (
+    <IconTile bg="#D1FAE5">
+      <Svg color="#059669">
+        <path d="M12 3v18" />
+        <path d="M5 9h14" />
+        <path d="M7 15h10" />
+      </Svg>
+    </IconTile>
+  ),
+  billing: () => (
+    <IconTile bg="#F3E8FF">
+      <Svg color="#7C3AED">
+        <path d="M7 3h8l4 4v14H7z" />
+        <path d="M15 3v4h4" />
+        <path d="M10 12h6M10 16h4" />
+      </Svg>
+    </IconTile>
+  ),
+  supplies: () => (
+    <IconTile bg="#FEF3C7">
+      <Svg color="#D97706">
+        <path d="M3 7l9-4 9 4-9 4-9-4z" />
+        <path d="M3 12l9 4 9-4" />
+        <path d="M3 17l9 4 9-4" />
+      </Svg>
+    </IconTile>
+  ),
+  'clinical-staff': () => (
+    <IconTile bg="#FCE7F3">
+      <Svg color="#DB2777">
+        <circle cx="9" cy="8" r="3" />
+        <circle cx="17" cy="9" r="2.2" />
+        <path d="M3 19c0-2.8 2.7-5 6-5s6 2.2 6 5" />
+        <path d="M15 19c0-1.8 1.3-3.3 3.2-3.8" />
+      </Svg>
+    </IconTile>
+  ),
+  students: () => (
+    <IconTile bg="#E0F2FE">
+      <Svg color="#0284C7">
+        <path d="M12 4l9 4-9 4-9-4 9-4z" />
+        <path d="M5 12v4c0 1.5 3.1 3 7 3s7-1.5 7-3v-4" />
+      </Svg>
+    </IconTile>
+  ),
+  classes: () => (
+    <IconTile bg="#EDE9FE">
+      <Svg color="#6B3FE7">
+        <rect x="3" y="4" width="18" height="14" rx="2" />
+        <path d="M8 20h8" />
+        <path d="M12 18v2" />
+      </Svg>
+    </IconTile>
+  ),
+  enrollment: () => (
+    <IconTile bg="#DCFCE7">
+      <Svg color="#16A34A">
+        <path d="M9 11l3 3 7-7" />
+        <path d="M4 12a8 8 0 101.3-4.4" />
+      </Svg>
+    </IconTile>
+  ),
+  attendance: () => (
+    <IconTile bg="#FFEDD5">
+      <Svg color="#EA580C">
+        <path d="M9 6h11M9 12h11M9 18h11" />
+        <path d="M4 6h.01M4 12h.01M4 18h.01" />
+      </Svg>
+    </IconTile>
+  ),
+  fees: () => (
+    <IconTile bg="#DCFCE7">
+      <Svg color="#16A34A">
+        <path d="M12 3v18" />
+        <path d="M16 7H10.5a2.5 2.5 0 000 5H13.5a2.5 2.5 0 010 5H8" />
+      </Svg>
+    </IconTile>
+  ),
+  teachers: () => (
+    <IconTile bg="#FCE7F3">
+      <Svg color="#DB2777">
+        <circle cx="12" cy="8" r="3.5" />
+        <path d="M5 19c0-3.3 3.1-6 7-6s7 2.7 7 6" />
+      </Svg>
+    </IconTile>
+  ),
   default: () => (
     <IconTile bg="#F3F4F6">
       <Svg color="#6B7280">
