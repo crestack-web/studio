@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { SUITE_FAMILIES, type SuiteFamily } from '@/lib/industries/suite-catalog';
 import styles from './SuiteChrome.module.css';
+import { SuiteProductIcon } from './SuiteIcons';
 
 export function SuiteChrome({
   family,
@@ -103,7 +104,10 @@ export function SuiteProductGrid({ family }: { family: SuiteFamily }) {
     <div className={styles.productGrid}>
       {family.products.map((p) => (
         <article key={p.id} className={styles.productCard}>
-          <h3 className={styles.productName}>{p.name}</h3>
+          <div className={styles.productHeader}>
+            <SuiteProductIcon id={p.id} />
+            <h3 className={styles.productName}>{p.name}</h3>
+          </div>
           <p className={styles.productBlurb}>{p.blurb}</p>
           <Link href={p.href} className={styles.tryLink}>
             Try now <span aria-hidden>›</span>
