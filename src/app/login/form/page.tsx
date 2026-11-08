@@ -5,6 +5,7 @@ import { useState, useEffect, Suspense } from "react";
 import { getSupabase, isSupabaseConfigured, getSupabaseConfigErrorMessage } from "@/lib/supabase";
 import { getOAuthCallbackUrl } from "@/lib/site-url";
 import posthog from 'posthog-js';
+import { redirectAfterLogin } from '@/lib/industries/client-post-login';
 
 function getDeviceInfo() {
   const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
@@ -178,7 +179,7 @@ function BusmoLoginInner() {
     if (!isSupabaseConfigured()) return;
     try {
       const supabase = getSupabase();
-      supabase.auth.getSession().then(({ data: { session } }) => {
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
         if (!session?.user) return;
         const meta = session.user.user_metadata || {};
         const hasBiz = Boolean(meta.businessId || meta.business_id);
@@ -188,7 +189,7 @@ function BusmoLoginInner() {
           window.location.href = '/welcome/signup?google=callback';
           return;
         }
-        window.location.href = '/owner';
+        await redirectAfterLogin(session.access_token);
       }).catch(() => {});
     } catch {}
   }, []);
@@ -258,7 +259,7 @@ function BusmoLoginInner() {
       if (['Staff', 'Cashier', 'Manager', 'Store manager', 'Seller'].includes(role)) {
         window.location.href = '/staff/home';
       } else {
-        window.location.href = '/owner';
+        await redirectAfterLogin(data?.session?.access_token);
       }
     } catch (err: any) {
       const msg = err?.message || '';
