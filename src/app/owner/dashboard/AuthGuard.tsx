@@ -10,57 +10,77 @@ interface AuthGuardProps {
   requiredRole?: 'Owner' | 'Staff';
 }
 
+/**
+ * Owner dashboard guard.
+ * Industry product edition is resolved from the organization via /api/industries/session
+ * (not user_metadata alone). Industry users are sent to their product dashboard.
+ */
 export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requiredRole = 'Owner' }) => {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = getSupabase();
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session?.user) {
+    supabase.auth
+      .getSession()
+      .then(async ({ data: { session } }) => {
+        if (!session?.user) {
+          router.replace('/login');
+          return;
+        }
+
+        const user = session.user;
+        const role = (user.user_metadata?.role as string) || 'Owner';
+
+        if (
+          requiredRole === 'Owner' &&
+          ['Staff', 'Cashier', 'Manager', 'Store manager', 'Seller'].includes(role)
+        ) {
+          router.replace('/staff/home');
+          return;
+        }
+
+        if (requiredRole === 'Staff' && ['Owner', 'Admin'].includes(role)) {
+          router.replace('/owner/dashboard');
+          return;
+        }
+
+        if (requiredRole === 'Owner') {
+          try {
+            const res = await fetch('/api/industries/session', {
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+            if (res.ok) {
+              const json = await res.json();
+              const edition = json.session?.productEdition as string | undefined;
+              if (edition === 'hospitality') {
+                router.replace('/industries/hospitality/dashboard');
+                return;
+              }
+              if (edition === 'professional') {
+                router.replace('/industries/professional/dashboard');
+                return;
+              }
+            }
+          } catch {
+            /* fall through to SME dashboard if session API unavailable */
+          }
+        }
+
+        setIsAuthorized(true);
+      })
+      .catch(() => {
         router.replace('/login');
-        return;
-      }
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
 
-      const user = session.user;
-      const role = (user.user_metadata?.role as string) || 'Owner';
-      setUserRole(role);
-
-      if (requiredRole === 'Owner' && ['Staff', 'Cashier', 'Manager', 'Store manager', 'Seller'].includes(role)) {
-        router.replace('/staff/home');
-        return;
-      }
-
-      if (requiredRole === 'Staff' && ['Owner', 'Admin'].includes(role)) {
-        router.replace('/owner/dashboard');
-        return;
-      }
-
-      const edition = String(
-        (user.user_metadata?.product_edition as string) ||
-          (user.user_metadata?.industry as string) ||
-          ''
-      ).toLowerCase();
-      if (requiredRole === 'Owner' && edition === 'hospitality') {
-        router.replace('/industries/hospitality/dashboard');
-        return;
-      }
-      if (requiredRole === 'Owner' && edition === 'professional') {
-        router.replace('/industries/professional/dashboard');
-        return;
-      }
-
-      setIsAuthorized(true);
-    }).catch(() => {
-      router.replace('/login');
-    }).finally(() => {
-      setIsLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session?.user) {
         router.replace('/login');
       }
