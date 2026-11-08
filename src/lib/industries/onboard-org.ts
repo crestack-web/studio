@@ -10,7 +10,13 @@ export type OnboardInput = {
 };
 
 /**
- * Idempotent organization provisioning for industry signup.
+ * Idempotent organization provisioning for industry / solutions signup.
+ *
+ * Stores edition on existing columns until product_edition migration is applied:
+ * - industry
+ * - category
+ * - metadata.product_edition
+ *
  * Uses business id === userId convention (matches is_business_member).
  * Does not create a second organization if one already exists.
  */
@@ -27,16 +33,23 @@ export async function ensureIndustryOrganization(input: OnboardInput): Promise<
     product_edition: edition,
   });
   if (existingSession.onboarded && existingSession.businessId) {
-    await admin
+    // Soft-update edition fields without requiring product_edition column
+    const { error: upErr } = await admin
       .from('businesses')
       .update({
-        product_edition:
-          existingSession.productEdition === 'business' && edition !== 'business'
-            ? edition
-            : existingSession.productEdition,
+        industry: edition,
+        category: edition === 'business' ? 'retail' : edition,
+        metadata: {
+          product_edition: edition,
+          source: 'industry_onboard',
+        },
         updated_at: new Date().toISOString(),
       })
       .eq('id', existingSession.businessId);
+
+    if (upErr) {
+      console.error('[onboard-org] update existing:', upErr.message);
+    }
 
     return {
       ok: true,
@@ -49,13 +62,13 @@ export async function ensureIndustryOrganization(input: OnboardInput): Promise<
     };
   }
 
-  const payload = {
+  // Columns known to exist on production businesses table (no product_edition required)
+  const basePayload: Record<string, unknown> = {
     id: businessId,
     owner_id: input.userId,
     name,
     category: edition === 'business' ? 'retail' : edition,
     industry: edition,
-    product_edition: edition,
     status: 'active',
     currency: 'NGN',
     metadata: {
@@ -67,30 +80,59 @@ export async function ensureIndustryOrganization(input: OnboardInput): Promise<
 
   const { data: existingBiz } = await admin
     .from('businesses')
-    .select('id, product_edition, owner_id')
+    .select('id, industry, category, metadata, owner_id')
     .eq('id', businessId)
     .maybeSingle();
 
   if (existingBiz) {
-    await admin
+    const { error: upErr } = await admin
       .from('businesses')
       .update({
         name: name || undefined,
-        product_edition: edition,
         industry: edition,
         category: edition === 'business' ? 'retail' : edition,
         metadata: { product_edition: edition, source: 'industry_onboard' },
         updated_at: new Date().toISOString(),
       })
       .eq('id', businessId);
+    if (upErr) {
+      return { ok: false, error: upErr.message || 'Failed to update organization' };
+    }
   } else {
     const { error: insErr } = await admin.from('businesses').insert({
-      ...payload,
+      ...basePayload,
       created_at: new Date().toISOString(),
     });
     if (insErr) {
-      return { ok: false, error: insErr.message || 'Failed to create organization' };
+      // Retry without status/currency if schema differs
+      const msg = (insErr.message || '').toLowerCase();
+      if (msg.includes('schema cache') || msg.includes('column')) {
+        const minimal = {
+          id: businessId,
+          owner_id: input.userId,
+          name,
+          category: edition === 'business' ? 'retail' : edition,
+          industry: edition,
+          metadata: { product_edition: edition, source: 'industry_onboard' },
+        };
+        const { error: ins2 } = await admin.from('businesses').insert(minimal as any);
+        if (ins2) {
+          return { ok: false, error: ins2.message || 'Failed to create organization' };
+        }
+      } else {
+        return { ok: false, error: insErr.message || 'Failed to create organization' };
+      }
     }
+  }
+
+  // Optionally set product_edition if the column exists (ignore errors)
+  try {
+    await admin
+      .from('businesses')
+      .update({ product_edition: edition } as any)
+      .eq('id', businessId);
+  } catch {
+    /* column may not exist yet */
   }
 
   const { data: existingUser } = await admin

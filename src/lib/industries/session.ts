@@ -17,9 +17,13 @@ export type IndustrySession = {
   needsOnboarding: boolean;
 };
 
+/** Safe select — avoids product_edition until migration is applied. */
+const BIZ_SELECT = 'id, name, industry, category, metadata, owner_id';
+
 /**
  * Load authoritative industry session for a user.
  * Membership: owner_id, users.business_id, or id === userId convention.
+ * Edition resolved from industry / category / metadata (and product_edition when present).
  */
 export async function loadIndustrySession(
   userId: string,
@@ -42,7 +46,7 @@ export async function loadIndustrySession(
   if (!businessId) {
     const { data: owned } = await admin
       .from('businesses')
-      .select('id, name, product_edition, industry, category, metadata, owner_id')
+      .select(BIZ_SELECT)
       .eq('owner_id', userId)
       .order('created_at', { ascending: true })
       .limit(1)
@@ -53,7 +57,7 @@ export async function loadIndustrySession(
   if (!businessId) {
     const { data: byId } = await admin
       .from('businesses')
-      .select('id, name, product_edition, industry, category, metadata, owner_id')
+      .select(BIZ_SELECT)
       .eq('id', userId)
       .maybeSingle();
     if (byId) businessId = (byId as any).id;
@@ -76,7 +80,7 @@ export async function loadIndustrySession(
 
   const { data: biz } = await admin
     .from('businesses')
-    .select('id, name, product_edition, industry, category, metadata, owner_id')
+    .select(BIZ_SELECT)
     .eq('id', businessId)
     .maybeSingle();
 
