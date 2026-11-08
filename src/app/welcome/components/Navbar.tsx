@@ -19,6 +19,10 @@ const NAV_LINKS: { label: string; page: Page }[] = [
   { label: 'Help Center', page: 'help' },
 ];
 
+const EXTRA_LINKS: { label: string; href: string }[] = [
+  { label: 'Industries', href: '/industries' },
+];
+
 export const Navbar: React.FC<NavbarProps> = ({ currentPage }) => {
   const scrolled = useScrolled();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -51,13 +55,11 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage }) => {
   return (
     <>
       <nav id="main-nav" className={scrolled ? 'scrolled' : ''}>
-        {/* Logo */}
         <a className="nav-logo" onClick={() => go('home')} role="button" tabIndex={0}>
           <BusmoLogo />
           Busmo
         </a>
 
-        {/* Desktop nav links */}
         <ul className="nav-links nav-links-desktop">
           {NAV_LINKS.map(({ label, page }) => (
             <li key={page}>
@@ -69,9 +71,15 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage }) => {
               </button>
             </li>
           ))}
+          {EXTRA_LINKS.map(({ label, href }) => (
+            <li key={href}>
+              <button type="button" onClick={() => { window.location.href = href; setMobileOpen(false); }}>
+                {label}
+              </button>
+            </li>
+          ))}
         </ul>
 
-        {/* Desktop actions */}
         <div className="nav-actions nav-actions-desktop">
           <button className="btn-ghost" onClick={() => go('verify')}>Verify Statement</button>
           <button className="btn-ghost" onClick={() => go('pricing')}>See Pricing</button>
@@ -79,7 +87,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage }) => {
           <button className="btn-primary" onClick={() => go('signup')}>Get Started</button>
         </div>
 
-        {/* Mobile hamburger */}
         <button
           className="nav-hamburger"
           onClick={() => setMobileOpen(o => !o)}
@@ -97,7 +104,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage }) => {
         </button>
       </nav>
 
-      {/* Mobile drawer */}
       {mobileOpen && (
         <div className="nav-mobile-drawer">
           <ul className="nav-mobile-links">
@@ -107,6 +113,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage }) => {
                   className={currentPage === page ? 'active' : ''}
                   onClick={() => go(page)}
                 >
+                  {label}
+                </button>
+              </li>
+            ))}
+            {EXTRA_LINKS.map(({ label, href }) => (
+              <li key={href}>
+                <button type="button" onClick={() => { window.location.href = href; setMobileOpen(false); }}>
                   {label}
                 </button>
               </li>
