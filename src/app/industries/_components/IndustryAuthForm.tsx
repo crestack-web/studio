@@ -23,6 +23,8 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recovery, setRecovery] = useState<string | null>(null);
+  const [needsEmailConfirm, setNeedsEmailConfirm] = useState(false);
+  const [info, setInfo] = useState<string | null>(null);
 
   async function resolveAndRedirect(fallbackEdition: string) {
     const headers = await bearerHeaders();
@@ -30,7 +32,9 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
     const json = await res.json().catch(() => ({}));
     if (res.ok && json.session) {
       if (json.session.needsOnboarding) {
-        setRecovery('Your account exists but organization setup is incomplete. Enter your business name and continue.');
+        setRecovery(
+          'Your account exists but organization setup is incomplete. Enter your business name and continue.'
+        );
         return false;
       }
       const edition = json.session.productEdition as string;
@@ -60,7 +64,9 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setInfo(null);
     setRecovery(null);
+    setNeedsEmailConfirm(false);
     if (!isSupabaseConfigured()) {
       setError('Authentication is not configured.');
       return;
@@ -68,36 +74,60 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
     setLoading(true);
     try {
       const supabase = getSupabase();
+
       if (mode === 'login') {
-        const { error: err } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        const { error: err } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
         if (err) throw err;
         const ok = await resolveAndRedirect(config.id);
         if (!ok) setLoading(false);
         return;
       }
+
+      // Signup — same path as Busmo Business (/api/auth/signup model)
       const name = businessName.trim() || `${config.shortName} business`;
-      const { data, error: err } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: {
-          data: {
-            role: 'Owner',
-            product_edition: config.id,
-            industry: config.id,
-            category: config.id,
-            businessName: name,
-            onboardingComplete: false,
-            onboarding_complete: false,
-          },
-        },
+      const signupRes = await fetch('/api/industries/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+          businessName: name,
+          productEdition: config.id,
+        }),
       });
-      if (err) throw err;
-      if (!data.session) {
-        setError('Check your email to confirm your account, then sign in to finish setup.');
-        setLoading(false);
-        return;
+      const signupJson = await signupRes.json().catch(() => ({}));
+      if (!signupRes.ok) {
+        if (signupJson?.code === 'email_exists') {
+          throw new Error(signupJson.error || 'An account with this email already exists. Please log in instead.');
+        }
+        throw new Error(signupJson.error || 'Failed to create account. Please try again.');
       }
-      await completeOnboarding(name);
+
+      // Custom confirmation email (same as business signup)
+      if (signupJson.userId && email.trim()) {
+        try {
+          await fetch('/api/auth/send-confirmation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: email.trim(),
+              userId: signupJson.userId,
+              name,
+            }),
+          });
+        } catch {
+          /* non-blocking */
+        }
+      }
+
+      setNeedsEmailConfirm(true);
+      setInfo(
+        'Account created. Check your email to confirm, then sign in to open your workspace.'
+      );
+      setLoading(false);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
       setLoading(false);
@@ -114,6 +144,38 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
       setError(e instanceof Error ? e.message : 'Recovery failed');
       setLoading(false);
     }
+  }
+
+  if (needsEmailConfirm) {
+    return (
+      <div className={styles.authPage}>
+        <div className={styles.authCard}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <img src="/email-logo.png" alt="" width={36} height={36} />
+            <span style={{ fontWeight: 700, color: '#6b3fe7' }}>{config.productName}</span>
+          </div>
+          <h1>Confirm your email</h1>
+          <p className={styles.sub}>
+            We created your {config.shortName.toLowerCase()} workspace. Open the link we sent to{' '}
+            <strong>{email.trim()}</strong>, then sign in.
+          </p>
+          {info && (
+            <div
+              className={styles.authError}
+              style={{ background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0' }}
+            >
+              {info}
+            </div>
+          )}
+          <Link href={config.loginPath} className={styles.authSubmit} style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
+            Go to sign in
+          </Link>
+          <p className={styles.authAlt}>
+            <Link href={config.welcomePath}>← Back to {config.productName}</Link>
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -175,9 +237,13 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
         </form>
         <p className={styles.authAlt}>
           {mode === 'login' ? (
-            <>New here? <Link href={config.signupPath}>Get started</Link></>
+            <>
+              New here? <Link href={config.signupPath}>Get started</Link>
+            </>
           ) : (
-            <>Already have an account? <Link href={config.loginPath}>Sign in</Link></>
+            <>
+              Already have an account? <Link href={config.loginPath}>Sign in</Link>
+            </>
           )}
         </p>
         <p className={styles.authAlt}>

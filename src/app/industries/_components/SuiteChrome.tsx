@@ -57,9 +57,9 @@ export function SuiteChrome({
           </button>
 
           {open && (
-            <div className={styles.menu} role="listbox" aria-label="Busmo products">
+            <div className={styles.menu} role="listbox" aria-label="Busmo Solutions">
               <div className={styles.menuHead}>
-                <span>Busmo products</span>
+                <span>Busmo Solutions</span>
                 <button type="button" className={styles.menuClose} onClick={() => setOpen(false)} aria-label="Close">
                   ×
                 </button>

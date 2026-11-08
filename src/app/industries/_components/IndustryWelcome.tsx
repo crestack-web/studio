@@ -33,7 +33,7 @@ export function IndustryWelcome({ config }: { config: IndustryConfig }) {
           Same Busmo platform. Built for {family.label.toLowerCase()} operations.
         </p>
         <Link href="/industries" style={{ color: '#6b3fe7', fontWeight: 600, fontSize: '0.9rem' }}>
-          Browse all products
+          Browse all solutions
         </Link>
       </section>
     </SuiteChrome>

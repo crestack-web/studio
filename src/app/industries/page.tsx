@@ -12,7 +12,7 @@ export default function IndustriesHubPage() {
   return (
     <SuiteChrome family={family}>
       <section className={styles.hero}>
-        <div className={styles.heroKicker}>Busmo suite</div>
+        <div className={styles.heroKicker}>Busmo Solutions</div>
         <h1>One platform. Built for how you work.</h1>
         <p>
           Switch products the way your team works — Business for SMEs, Hospitality for hotels, Professional for
@@ -28,7 +28,7 @@ export default function IndustriesHubPage() {
         </div>
       </section>
 
-      <div className={styles.sectionTitle}>Choose a product</div>
+      <div className={styles.sectionTitle}>Choose a solution</div>
       <div className={styles.productGrid}>
         {SUITE_FAMILIES.map((f) => (
           <article key={f.id} className={styles.productCard}>
