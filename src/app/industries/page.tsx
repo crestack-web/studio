@@ -1,53 +1,50 @@
-import Link from 'next/link';
-import { HOSPITALITY, PROFESSIONAL } from '@/lib/industries/config';
-import styles from './_components/IndustryShell.module.css';
+'use client';
 
-export const metadata = {
-  title: 'Industries · Busmo',
-  description: 'Busmo industry editions — Hospitality and Professional Services',
-};
+import Link from 'next/link';
+import { SUITE_FAMILIES, getSuiteFamily } from '@/lib/industries/suite-catalog';
+import { SuiteChrome, SuiteProductGrid } from './_components/SuiteChrome';
+import styles from './_components/SuiteChrome.module.css';
 
 export default function IndustriesHubPage() {
+  // Hub opens on Business family by default (suite overview)
+  const family = getSuiteFamily('business');
+
   return (
-    <div className={styles.welcomeRoot}>
-      <nav className={styles.welcomeNav}>
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-          <img src="/email-logo.png" alt="Busmo" width={36} height={36} />
-          <strong style={{ color: '#6b3fe7' }}>Busmo</strong>
-        </Link>
-        <div className={styles.welcomeNavLinks}>
-          <Link href="/" className={styles.btnGhost} style={{ padding: '8px 14px', fontSize: '0.82rem' }}>
-            Business
+    <SuiteChrome family={family}>
+      <section className={styles.hero}>
+        <div className={styles.heroKicker}>Busmo suite</div>
+        <h1>One platform. Built for how you work.</h1>
+        <p>
+          Switch products the way your team works — Business for SMEs, Hospitality for hotels, Professional for
+          service firms. Same design. Same account system. Different operations.
+        </p>
+        <div className={styles.heroCtas}>
+          <Link href={family.signupHref} className={styles.btnPrimary}>
+            Get started
           </Link>
-          <Link href="/pricing" className={styles.btnGhost} style={{ padding: '8px 14px', fontSize: '0.82rem' }}>
-            Pricing
+          <Link href={family.loginHref} className={styles.btnGhost}>
+            Sign in
           </Link>
         </div>
-      </nav>
-
-      <section className={styles.hero}>
-        <div className={styles.heroKicker}>Industries</div>
-        <h1>Same Busmo. Built for your industry.</h1>
-        <p>
-          Choose the edition that matches how you work. Every product shares the Busmo design system and platform
-          foundation — with navigation, metrics and actions tailored to your operations.
-        </p>
       </section>
 
-      <div className={styles.hubGrid}>
-        <Link href={HOSPITALITY.welcomePath} className={styles.hubCard}>
-          <h3>{HOSPITALITY.productName}</h3>
-          <p>{HOSPITALITY.description}</p>
-        </Link>
-        <Link href={PROFESSIONAL.welcomePath} className={styles.hubCard}>
-          <h3>{PROFESSIONAL.productName}</h3>
-          <p>{PROFESSIONAL.description}</p>
-        </Link>
-        <Link href="/" className={styles.hubCard}>
-          <h3>Busmo Business</h3>
-          <p>The original Busmo workspace for retail, restaurants and everyday SMEs.</p>
-        </Link>
+      <div className={styles.sectionTitle}>Choose a product</div>
+      <div className={styles.productGrid}>
+        {SUITE_FAMILIES.map((f) => (
+          <article key={f.id} className={styles.productCard}>
+            <h3 className={styles.productName}>{f.productName}</h3>
+            <p className={styles.productBlurb}>{f.description}</p>
+            <Link href={f.href} className={styles.tryLink}>
+              Open {f.label} <span aria-hidden>›</span>
+            </Link>
+          </article>
+        ))}
       </div>
-    </div>
+
+      <div className={styles.sectionTitle} style={{ marginTop: 28 }}>
+        Featured in Business
+      </div>
+      <SuiteProductGrid family={family} />
+    </SuiteChrome>
   );
 }
