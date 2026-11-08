@@ -153,6 +153,14 @@ const WRITE_ALIASES: Record<string, Record<string, string>> = {
     saleDate: 'sale_date', recordedBy: 'recorded_by',
     recordedByName: 'recorded_by_name', saleId: 'sale_id',
   },
+  production_batches: {
+    batchNumber: 'batch_number', productName: 'product_name', productId: 'product_id',
+    plannedQty: 'planned_qty', actualQty: 'actual_qty', targetDate: 'target_date',
+    startedAt: 'started_at', completedAt: 'completed_at', assignedTo: 'assigned_to',
+    materialCost: 'material_cost', laborCost: 'labor_cost', totalCost: 'total_cost',
+    unitCost: 'unit_cost', yieldPercent: 'yield_percent', stockApplied: 'stock_applied',
+    createdAt: 'created_at', updatedAt: 'updated_at',
+  },
   material_purchases: {
     supplierId: 'supplier_id', supplierName: 'supplier_name',
     materialId: 'material_id', materialName: 'material_name',
@@ -250,6 +258,7 @@ const KNOWN_COLUMNS: Record<string, Set<string>> = {
   material_prices: new Set(['id','business_id','material_id','price_per_unit','effective_from','created_by','metadata','created_at']),
   material_purchases: new Set(['id','business_id','supplier_id','supplier_name','material_id','material_name','weight_kg','price_per_kg','total_amount','amount_paid','balance','payment_status','payment_method','note','purchase_date','recorded_by','recorded_by_name','expense_id','cash_flow_id','metadata','created_at']),
   material_sales: new Set(['id','business_id','material_id','material_name','buyer_name','weight_kg','sell_price_per_kg','cost_per_kg','revenue','cost_of_goods','profit','amount_received','payment_method','sale_date','note','recorded_by','recorded_by_name','sale_id','metadata','created_at']),
+  production_batches: new Set(['id','business_id','batch_number','product_name','product_id','planned_qty','actual_qty','unit','status','priority','target_date','started_at','completed_at','assigned_to','materials','material_cost','labor_cost','total_cost','unit_cost','yield_percent','notes','stock_applied','metadata','created_at','updated_at']),
 };
 
 function parsePath(collectionPath: string): { table: string; businessId?: string; docId?: string } {
