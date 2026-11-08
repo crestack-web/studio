@@ -955,3 +955,54 @@
   background: var(--border);
   border-radius: 3px;
 }
+
+.batchList {
+  display: grid;
+  gap: 12px;
+}
+
+.batchCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.batchTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.batchTop h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+
+.batchNo,
+.batchMeta,
+.materialsLine {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 0.85rem;
+}
+
+.batchNo {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+}
+
+.materialsLine {
+  color: var(--text-2);
+}
+
+.materialRow {
+  display: grid;
+  grid-template-columns: 1fr;
+}
