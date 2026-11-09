@@ -250,7 +250,7 @@ export default function Cashflowpage() {
 
     try {
       setLoading(true);
-      // FIXED: do not filter is_active column (not in schema ? lives in metadata)
+      // FIXED: do not filter is_active column (not in schema — lives in metadata)
       const accountsRaw: any[] = await fetchDocs(`businesses/${resolvedBusinessId}/bankAccounts`);
       const accountsList: BankAccount[] = accountsRaw
         .filter((a) => a.isActive !== false)
@@ -284,7 +284,7 @@ export default function Cashflowpage() {
 
       /**
        * Cash model:
-       * - Cash balance = ? active account currentBalance (live wallets)
+       * - Cash balance = Σ active account currentBalance (live wallets)
        * - Period in/out = bank_transactions only (real cash movements)
        * - Ledger list = bank txs + non-cash notes (credit purchases / unlinked expenses)
        *   so owners still see activity without double-counting cash KPIs
@@ -405,20 +405,20 @@ export default function Cashflowpage() {
       for (const purchase of mappedPurchases) {
         if (!purchase.totalCost || purchase.creditAmount <= 0) continue;
         const purchaseDate = toTxDate(purchase.createdAt);
-        // Paid cash portion is already in bank txs ? only show outstanding credit
+        // Paid cash portion is already in bank txs — only show outstanding credit
         transactionMap.set(`purchase-credit-${purchase.id}`, {
           id: `purchase-credit-${purchase.id}`,
           date: fmtTxDate(purchaseDate),
           sortAt: purchaseDate.getTime(),
           type: 'Supplier credit',
-          description: `Owed on ${purchase.receiptNumber} ? ${purchase.supplierName}`,
+          description: `Owed on ${purchase.receiptNumber} · ${purchase.supplierName}`,
           amount: purchase.creditAmount,
           credit: false,
           accountName: 'Not cash (credit)',
         });
       }
 
-      // 3) Expenses that never hit a bank account (legacy / unlinked) ? show, don't count in cash KPIs
+      // 3) Expenses that never hit a bank account (legacy / unlinked) — show, don't count in cash KPIs
       for (const data of expenseDocs as any[]) {
         const amount = Number(data.amount) || 0;
         if (amount <= 0) continue;
@@ -434,7 +434,7 @@ export default function Cashflowpage() {
           date: fmtTxDate(date),
           sortAt: date.getTime(),
           type: 'Expense (no account)',
-          description: `${desc} ? record money out against an account to update cash`,
+          description: `${desc} · record money out against an account to update cash`,
           amount,
           credit: false,
           accountName: data.paymentMethod || data.payment_method || 'Unlinked',
@@ -507,7 +507,7 @@ export default function Cashflowpage() {
         currentBalance: newBalance,
       });
       const category = moneyTransaction.category || 'Deposit';
-      const desc = [category, moneyTransaction.description].filter(Boolean).join(' ? ');
+      const desc = [category, moneyTransaction.description].filter(Boolean).join(' — ');
       await sbAddDoc(`businesses/${businessId}/bankTransactions`, {
         bankAccountId: moneyTransaction.accountId,
         type: 'money_in',
@@ -541,7 +541,7 @@ export default function Cashflowpage() {
         currentBalance: newBalance,
       });
       const category = moneyTransaction.category || 'Withdrawal';
-      const desc = [category, moneyTransaction.description].filter(Boolean).join(' ? ');
+      const desc = [category, moneyTransaction.description].filter(Boolean).join(' — ');
       await sbAddDoc(`businesses/${businessId}/bankTransactions`, {
         bankAccountId: moneyTransaction.accountId,
         type: 'money_out',
@@ -656,7 +656,7 @@ export default function Cashflowpage() {
         supplierName !== 'No Supplier' ? `Supplier: ${supplierName}` : null,
       ]
         .filter(Boolean)
-        .join(' ? ');
+        .join(' · ');
 
       // Canonical purchases row
       const purchaseId = await sbAddDoc(`businesses/${businessId}/purchases`, {
@@ -671,6 +671,7 @@ export default function Cashflowpage() {
         createdAt: new Date().toISOString(),
       });
 
+      // Linked stock receipt — include supplier + payment so supplier history can load
       await sbAddDoc(`businesses/${businessId}/stockReceipts`, {
         purchaseId,
         supplierId: stockAddition.supplierId || null,
@@ -1036,8 +1037,8 @@ export default function Cashflowpage() {
 
       showToast(
         newBalance <= 0
-          ? `Paid ${formatMoney(paymentAmount)} ? supplier is fully settled`
-          : `Paid ${formatMoney(paymentAmount)} ? still owe ${formatMoney(newBalance)}`
+          ? `Paid ${formatMoney(paymentAmount)} — supplier is fully settled`
+          : `Paid ${formatMoney(paymentAmount)} — still owe ${formatMoney(newBalance)}`
       );
       setActiveAction(null);
       setSupplierPayment({
@@ -1164,7 +1165,7 @@ export default function Cashflowpage() {
           </button>
         </div>
         {bankAccounts.length === 0 ? (
-          <div className={styles.emptyState}><p>No accounts added yet ? add Cash on hand and a bank/POS account</p></div>
+          <div className={styles.emptyState}><p>No accounts added yet — add Cash on hand and a bank/POS account</p></div>
         ) : (
           <>
             {(() => {
@@ -1325,7 +1326,7 @@ export default function Cashflowpage() {
                     </div>
                     <div className={styles.txBody}>
                       <span className={styles.txAccount}>{tx.type}</span>
-                      <span className={styles.txDesc}>{tx.accountName ? `${tx.accountName} ? ` : ''}{tx.description || tx.type}</span>
+                      <span className={styles.txDesc}>{tx.accountName ? `${tx.accountName} — ` : ''}{tx.description || tx.type}</span>
                     </div>
                   </div>
                   <div className={`${styles.txAmount} ${tx.credit ? styles.moneyIn : styles.moneyOut}`}>
