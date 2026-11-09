@@ -80,3 +80,114 @@
 .hubCard:hover { border-color: #6b3fe7; box-shadow: 0 8px 24px rgba(107,63,231,0.1); }
 .hubCard h3 { margin: 0 0 8px; font-size: 1.1rem; font-weight: 800; color: #6b3fe7; }
 .hubCard p { margin: 0; font-size: 0.9rem; color: #555568; line-height: 1.45; }
+
+
+/* Multi-step industry onboarding */
+.stepRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.stepActive { color: #6B3FE7; }
+.stepDone { color: #0D7A43; }
+.stepIdle { color: #98A2B3; }
+.stepSep {
+  flex: 1;
+  height: 2px;
+  background: #E8E8F0;
+  border-radius: 2px;
+  max-width: 48px;
+}
+.intakeBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 4px 0 8px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid #E8E8F0;
+  background: #FAFAFC;
+  max-height: min(55vh, 420px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.intakeHead strong {
+  display: block;
+  font-size: 14px;
+  color: #0A0A0F;
+  margin-bottom: 8px;
+}
+.outcomeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.outcomeChip {
+  font-size: 10px;
+  font-weight: 600;
+  color: #0D7A43;
+  background: #E8F8F0;
+  border: 1px solid #C6EEDA;
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip,
+.chipActive {
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1.5px solid #E8E8F0;
+  background: #fff;
+  color: #555568;
+}
+.chipActive {
+  border-color: #6B3FE7;
+  background: #F3EFFE;
+  color: #6B3FE7;
+}
+.fieldHelp {
+  font-size: 11px;
+  color: #8888A0;
+}
+.authActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+.authActions .btnPrimary {
+  flex: 1;
+}
+.btnGhost {
+  border-radius: 12px;
+  padding: 12px 16px;
+  border: 1.5px solid #E8E8F0;
+  background: #fff;
+  color: #555568;
+  font-weight: 600;
+  cursor: pointer;
+}
+.authInfo {
+  background: #F3EFFE;
+  color: #4C1D95;
+  border: 1px solid #D4C6FA;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.authFooterLinks {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 13px;
+}
