@@ -31,6 +31,12 @@ export async function POST(req: NextRequest) {
 
   const productEdition = normalizeProductEdition(body.productEdition || body.edition);
   const businessName = String(body.businessName || body.name || '').trim();
+  const solutionDetails =
+    body.solutionDetails && typeof body.solutionDetails === 'object'
+      ? body.solutionDetails
+      : body.solution_details && typeof body.solution_details === 'object'
+        ? body.solution_details
+        : {};
 
   if (!businessName) {
     return NextResponse.json({ error: 'businessName required' }, { status: 400 });
@@ -46,6 +52,7 @@ export async function POST(req: NextRequest) {
       email: user.email,
       businessName,
       productEdition: productEdition as ProductEdition,
+      solutionDetails,
     });
 
     if (!result.ok) {
