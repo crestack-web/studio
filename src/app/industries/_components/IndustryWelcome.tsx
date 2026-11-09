@@ -1,10 +1,11 @@
-'use client';
+\'use client\';
 
 import Link from 'next/link';
 import Image from 'next/image';
 import type { IndustryConfig } from '@/lib/industries/types';
 import { getSuiteFamily } from '@/lib/industries/suite-catalog';
 import { SuiteChrome, SuiteProductGrid } from './SuiteChrome';
+import { SuiteInstallAppButton } from './SuiteInstallAppButton';
 import styles from './SuiteChrome.module.css';
 
 export function IndustryWelcome({ config }: { config: IndustryConfig }) {
@@ -36,6 +37,7 @@ export function IndustryWelcome({ config }: { config: IndustryConfig }) {
             Sign in
           </Link>
         </div>
+        <SuiteInstallAppButton productName={family.productName} />
       </section>
 
       <div className={styles.sectionTitle}>Apps in {family.label}</div>
