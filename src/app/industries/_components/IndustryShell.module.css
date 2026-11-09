@@ -191,3 +191,18 @@
   text-align: center;
   font-size: 13px;
 }
+
+.authBrand { display:flex; align-items:center; gap:10px; font-weight:700; color:#6b3fe7; font-size:0.95rem; }
+.authLogo {
+  width:28px; height:28px; border-radius:999px; background:#6b3fe7; color:#fff;
+  display:inline-flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;
+}
+.authLead { margin:0 0 18px; font-size:0.88rem; color:#6b7280; line-height:1.45; }
+.authForm { display:flex; flex-direction:column; }
+.authSwitch { margin-top:16px; text-align:center; font-size:0.88rem; color:#6b7280; }
+.authSwitch a { color:#6b3fe7; font-weight:600; text-decoration:none; }
+.authForm .btnPrimary {
+  width:100%; justify-content:center; margin-top:4px; cursor:pointer;
+  border-radius:12px; padding:13px 18px;
+}
+.authForm .btnPrimary:disabled { opacity:0.65; cursor:not-allowed; }
