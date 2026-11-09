@@ -90,6 +90,8 @@ export const SUITE_FAMILIES: SuiteFamily[] = [
     loginHref: PROFESSIONAL.loginPath,
     tagline: PROFESSIONAL.tagline,
     description: PROFESSIONAL.description,
+    heroImage: '/industries/professional-hero.jpg',
+    heroImageAlt: 'Professional team meeting in a modern office',
     products: [
       { id: 'projects', name: 'Projects', blurb: 'Active engagements, deadlines, and delivery status.', href: PROFESSIONAL.signupPath },
       { id: 'clients', name: 'Clients', blurb: 'Client records tied to projects and invoices.', href: PROFESSIONAL.signupPath },
