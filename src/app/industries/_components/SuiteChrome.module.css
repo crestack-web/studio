@@ -315,3 +315,56 @@
     padding-bottom: 96px;
   }
 }
+
+
+.installBlock {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.btnInstall {
+  appearance: none;
+  border: 1.5px solid #6b3fe7;
+  background: #fff;
+  color: #6b3fe7;
+  border-radius: 999px;
+  padding: 11px 18px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.btnInstall:hover:not(:disabled) {
+  background: #f3f0ff;
+}
+
+.btnInstall:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.installHint {
+  margin: 0;
+  max-width: 360px;
+  color: #6b7280;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.installTip {
+  margin: 0;
+  max-width: 400px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #faf8ff;
+  border: 1px solid #e8e0ff;
+  color: #4c1d95;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  text-align: center;
+}
