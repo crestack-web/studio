@@ -52,7 +52,7 @@ export default function BusmoOnboarding() {
     solutionDetails: {},
   });
 
-  const handleChange = useCallback((key: keyof FormState, value: string | string[]) => {
+  const handleChange = useCallback((key: keyof FormState, value: any) => {
     setData((prev) => ({ ...prev, [key]: value }));
   }, []);
 
