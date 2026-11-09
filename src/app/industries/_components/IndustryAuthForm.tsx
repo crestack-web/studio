@@ -33,6 +33,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
   const [recovery, setRecovery] = useState<string | null>(null);
   const [needsEmailConfirm, setNeedsEmailConfirm] = useState(false);
   const [info, setInfo] = useState<string | null>(null);
+  const [awaitingConfirm, setAwaitingConfirm] = useState(false);
 
   function setDetail(fieldId: string, value: string | string[]) {
     setSolutionDetails((prev) => ({ ...prev, [fieldId]: value }));
@@ -190,21 +191,35 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
         throw new Error(signupJson.error || 'Could not create account');
       }
 
-      // If API created user but no session, sign in then onboard
-      if (!signupJson.session) {
-        const { error: loginErr } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-        if (loginErr) {
-          setNeedsEmailConfirm(true);
-          setInfo(signupJson.message || 'Account created. Confirm email if required, then sign in.');
-          setLoading(false);
-          return;
+      // Same as Busmo Business: org may already be provisioned; require email confirmation before dashboard
+      if (signupJson.needsEmailConfirm || signupJson.userId) {
+        // Client-side confirmation send as backup if server did not
+        if (!signupJson.confirmationSent && signupJson.userId) {
+          try {
+            await fetch('/api/auth/send-confirmation', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: email.trim(),
+                userId: signupJson.userId,
+                name: name,
+              }),
+            });
+          } catch (e) {
+            console.error('send-confirmation failed', e);
+          }
         }
+        setAwaitingConfirm(true);
+        setNeedsEmailConfirm(true);
+        setInfo(
+          signupJson.message ||
+            `Account created. We sent a confirmation email to ${email.trim()}. Confirm your email, then sign in.`
+        );
+        setLoading(false);
+        return;
       }
 
-      // Prefer server onboard if signup API already finished; else complete here
+      // Legacy path: session present and no confirm gate
       if (signupJson.dashboardPath && signupJson.onboarded) {
         window.location.href = signupJson.dashboardPath;
         return;
@@ -274,6 +289,24 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
         </div>
       )}
 
+      {awaitingConfirm ? (
+        <div className={styles.previewBox}>
+          <div className={styles.previewTitle}>Check your email</div>
+          <p className={styles.previewSub}>
+            We sent a confirmation link to <strong>{email.trim()}</strong>. Confirm your address, then sign in to open {config.productName}.
+            A welcome message is on its way as well.
+          </p>
+          <div className={styles.authActions} style={{ marginTop: 16 }}>
+            <Link
+              href={config.loginPath}
+              className={styles.btnPrimary}
+              style={{ textAlign: 'center', width: '100%', justifyContent: 'center' }}
+            >
+              Go to sign in
+            </Link>
+          </div>
+        </div>
+      ) : (
       <form onSubmit={onSubmit} className={styles.authForm}>
         {(mode === 'login' || (mode === 'signup' && !showDetails) || recovery) && (
           <>
@@ -412,6 +445,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
           </button>
         </div>
       </form>
+      )}
 
       <p className={styles.authSwitch}>
         {mode === 'login' ? (
