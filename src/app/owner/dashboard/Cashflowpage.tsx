@@ -609,15 +609,6 @@ export default function Cashflowpage() {
       else {
         paidAmount = Math.min(Number(stockAddition.paymentAmount) || 0, purchaseAmount);
         creditAmount = Math.max(0, purchaseAmount - paidAmount);
-        if (paidAmount <= 0) {
-          showToast('Enter how much you paid the supplier for partial payment');
-          setIsAddingPurchase(false);
-          return;
-        }
-        if (paidAmount >= purchaseAmount) {
-          paidAmount = purchaseAmount;
-          creditAmount = 0;
-        }
       }
 
       const supplier = stockAddition.supplierId
@@ -671,27 +662,12 @@ export default function Cashflowpage() {
         createdAt: new Date().toISOString(),
       });
 
-      // Linked stock receipt — include supplier + payment so supplier history can load
+      // Linked stock receipt (schema: purchase_id, items, note only)
       await sbAddDoc(`businesses/${businessId}/stockReceipts`, {
         purchaseId,
-        supplierId: stockAddition.supplierId || null,
-        supplierName: supplierName !== 'No Supplier' ? supplierName : null,
         items: purchaseItems,
-        subtotal: purchaseAmount,
-        tax: 0,
-        total: purchaseAmount,
-        totalCost: purchaseAmount,
-        totalQuantity: stockAddition.quantity,
-        paymentMethod: stockAddition.paymentMethod,
-        paidAmount,
-        creditAmount,
-        receiptNumber: stockAddition.referenceNumber || `PUR-${String(purchaseId).slice(0, 8)}`,
         note: purchaseNote || `Stock in: ${product.name} x${stockAddition.quantity}`,
-        notes: purchaseNote || null,
-        bankAccountId: stockAddition.bankAccountId || null,
         createdBy: user?.id || null,
-        createdByName: user?.name || null,
-        receivedAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
       });
 
@@ -750,61 +726,20 @@ export default function Cashflowpage() {
         });
         await sbAddDoc(`businesses/${businessId}/supplierCredit`, {
           supplierId: stockAddition.supplierId,
-          supplierName,
-          purchaseId,
           amount: creditAmount,
-          paid: paidAmount > 0 ? paidAmount : 0,
+          paid: 0,
           balance: creditAmount,
-          status: paidAmount > 0 ? 'partial' : 'open',
+          status: 'open',
           dueDate: null,
           createdAt: new Date().toISOString(),
-        });
-        await sbAddDoc(`businesses/${businessId}/supplierLedger`, {
-          supplierId: stockAddition.supplierId,
-          supplierName,
-          type: 'purchase',
-          amount: purchaseAmount,
-          paidAmount,
-          creditAmount,
-          balanceAfter: currentBal + creditAmount,
-          description: `Purchase: ${product.name} x${stockAddition.quantity} (${stockAddition.paymentMethod})`,
-          reference: purchaseId,
-          referenceType: 'purchase',
-          paymentMethod: stockAddition.paymentMethod,
-          date: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          createdBy: user?.id || null,
-          createdByName: user?.name || null,
         });
       } else if (stockAddition.supplierId) {
         const totalPurchases = Number((supplier as any)?.totalPurchases) || 0;
         const purchaseCount = Number((supplier as any)?.purchaseCount) || 0;
-        const totalPayments = Number((supplier as any)?.totalPayments) || 0;
-        const paymentCount = Number((supplier as any)?.paymentCount) || 0;
         await sbUpdateDoc(`businesses/${businessId}/suppliers`, stockAddition.supplierId, {
           totalPurchases: totalPurchases + purchaseAmount,
           purchaseCount: purchaseCount + 1,
-          totalPayments: totalPayments + paidAmount,
-          paymentCount: paidAmount > 0 ? paymentCount + 1 : paymentCount,
           lastPurchaseDate: new Date().toISOString(),
-          ...(paidAmount > 0 ? { lastPaymentDate: new Date().toISOString() } : {}),
-        });
-        await sbAddDoc(`businesses/${businessId}/supplierLedger`, {
-          supplierId: stockAddition.supplierId,
-          supplierName,
-          type: paidAmount >= purchaseAmount ? 'purchase_paid' : 'purchase',
-          amount: purchaseAmount,
-          paidAmount,
-          creditAmount: 0,
-          balanceAfter: Number(supplier?.currentBalance) || 0,
-          description: `Purchase: ${product.name} x${stockAddition.quantity} (paid in full)`,
-          reference: purchaseId,
-          referenceType: 'purchase',
-          paymentMethod: stockAddition.paymentMethod,
-          date: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          createdBy: user?.id || null,
-          createdByName: user?.name || null,
         });
       }
 
@@ -1009,30 +944,7 @@ export default function Cashflowpage() {
         balanceAfter: bankBal - paymentAmount,
         description: `Supplier payment: ${supplier.supplierName || supplier.businessName || supplier.name || 'Supplier'}`,
         reference: supplierPayment.supplierId,
-        referenceType: 'supplier_payment',
-        category: 'supplier_payment',
         createdAt: new Date().toISOString(),
-      });
-
-      await sbAddDoc(`businesses/${businessId}/supplierLedger`, {
-        supplierId: supplierPayment.supplierId,
-        supplierName: supplier.supplierName || supplier.businessName || supplier.name || 'Supplier',
-        type: 'payment',
-        amount: paymentAmount,
-        paidAmount: paymentAmount,
-        creditAmount: 0,
-        balanceAfter: newBalance,
-        description:
-          supplierPayment.description ||
-          `Payment to supplier (${supplierPayment.paymentMethod || 'cash'})`,
-        reference: supplierPayment.supplierId,
-        referenceType: 'supplier_payment',
-        paymentMethod: supplierPayment.paymentMethod || 'cash',
-        bankAccountId: accountId,
-        date: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        createdBy: user?.id || null,
-        createdByName: user?.name || null,
       });
 
       showToast(
