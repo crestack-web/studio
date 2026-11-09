@@ -53,6 +53,7 @@ export async function POST(req: NextRequest) {
       user_metadata: {
         role: 'Owner',
         product_edition: productEdition,
+      solutionDetails: body.solutionDetails || {},
         industry: productEdition,
         category: productEdition === 'business' ? 'retail' : productEdition,
         businessName,
