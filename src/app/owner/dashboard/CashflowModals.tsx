@@ -141,45 +141,12 @@ export default function CashflowModals(p: any) {
                     </div>
                     <div className={styles.formGroup}>
                       <label className={styles.formLabel}>Payment Method</label>
-                      <select className={styles.formInput} value={stockAddition.paymentMethod} onChange={(e) => setStockAddition({ ...stockAddition, paymentMethod: e.target.value as 'cash' | 'credit' | 'partial' })}>
+                      <select className={styles.formInput} value={stockAddition.paymentMethod} onChange={(e) => setStockAddition({ ...stockAddition, paymentMethod: e.target.value })}>
                         <option value="credit">Credit (Pay Later)</option>
                         <option value="cash">Cash (Full Payment)</option>
                         <option value="partial">Partial Payment</option>
                       </select>
                     </div>
-                    {stockAddition.paymentMethod === 'partial' && (
-                      <div className={styles.formGroup}>
-                        <label className={styles.formLabel}>Amount Paid Now</label>
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          className={styles.formInput}
-                          value={stockAddition.paymentAmount || ''}
-                          onChange={(e) =>
-                            setStockAddition({
-                              ...stockAddition,
-                              paymentAmount: parseFloat(e.target.value) || 0,
-                            })
-                          }
-                          placeholder="How much did you pay the supplier?"
-                        />
-                        {stockAddition.quantity > 0 && stockAddition.costPrice > 0 && (
-                          <span className={styles.formHint}>
-                            Total: {formatMoney(Number(stockAddition.costPrice) * Number(stockAddition.quantity))}
-                            {Number(stockAddition.paymentAmount) > 0
-                              ? ` · Remaining credit: ${formatMoney(
-                                  Math.max(
-                                    0,
-                                    Number(stockAddition.costPrice) * Number(stockAddition.quantity) -
-                                      Number(stockAddition.paymentAmount)
-                                  )
-                                )}`
-                              : ''}
-                          </span>
-                        )}
-                      </div>
-                    )}
                     {(stockAddition.paymentMethod === 'cash' || stockAddition.paymentMethod === 'partial') && (
                       <div className={styles.formGroup}>
                         <label className={styles.formLabel}>Select Bank Account</label>
@@ -372,7 +339,7 @@ export default function CashflowModals(p: any) {
                     className={styles.formInput}
                     value={supplierPayment.paymentMethod}
                     onChange={(e) =>
-                      setSupplierPayment({ ...supplierPayment, paymentMethod: e.target.value as 'cash' | 'transfer' | 'pos' })
+                      setSupplierPayment({ ...supplierPayment, paymentMethod: e.target.value })
                     }
                   >
                     <option value="cash">Cash</option>
