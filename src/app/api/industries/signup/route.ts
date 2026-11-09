@@ -6,6 +6,14 @@ import {
   pathForEdition,
   type ProductEdition,
 } from '@/lib/industries/resolve-edition';
+import { sendTransactionalEmail } from '@/services/email/brevo-service';
+import {
+  createEmailConfirmToken,
+  buildConfirmEmailUrl,
+  buildConfirmationEmailHtml,
+} from '@/lib/email-confirmation';
+import { queueSolutionWelcomeEmail } from '@/services/email/solution-welcome';
+import { getIndustryConfig } from '@/lib/industries/config';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -138,6 +146,40 @@ export async function POST(req: NextRequest) {
       console.error('[industries/signup] metadata update:', e);
     }
 
+    // Mirror Busmo Business: Resend verification + welcome (do not block on failures)
+    let confirmationSent = false;
+    try {
+      const origin =
+        process.env.NEXT_PUBLIC_APP_URL ||
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        'https://www.busmo.io';
+      const cfg = getIndustryConfig(org.productEdition as any);
+      const displayName = businessName || cfg?.productName || 'there';
+      const token = createEmailConfirmToken(userId, email);
+      const confirmUrl = buildConfirmEmailUrl(token, origin);
+      const htmlContent = buildConfirmationEmailHtml({
+        name: displayName,
+        confirmUrl,
+      });
+      const product = cfg?.productName || 'Busmo';
+      await sendTransactionalEmail({
+        to: [{ email, name: displayName }],
+        subject: `Confirm your ${product} email address`,
+        htmlContent,
+      });
+      confirmationSent = true;
+    } catch (mailErr) {
+      console.error('[industries/signup] confirmation email failed', mailErr);
+    }
+
+    queueSolutionWelcomeEmail({
+      email,
+      name: businessName,
+      businessName,
+      productEdition: org.productEdition,
+      loginPath: pathForEdition(org.productEdition).replace('/dashboard', '/login'),
+    });
+
     return NextResponse.json({
       ok: true,
       userId,
@@ -146,8 +188,10 @@ export async function POST(req: NextRequest) {
       productEdition: org.productEdition,
       dashboardPath: pathForEdition(org.productEdition),
       emailConfirmed: false,
-      // Mirror business signup: confirm email before full access
       needsEmailConfirm: true,
+      confirmationSent,
+      message:
+        'Account created. Check your email to confirm, then sign in to open your workspace.',
     });
   } catch (err: any) {
     console.error('[industries/signup]', err);
