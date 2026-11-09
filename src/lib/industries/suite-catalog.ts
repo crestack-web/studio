@@ -19,6 +19,9 @@ export type SuiteFamily = {
   tagline: string;
   description: string;
   products: SuiteProduct[];
+  /** Optional full-bleed hero image for the solutions welcome page */
+  heroImage?: string;
+  heroImageAlt?: string;
 };
 
 const businessProducts: SuiteProduct[] = [
@@ -67,6 +70,8 @@ export const SUITE_FAMILIES: SuiteFamily[] = [
     loginHref: HOSPITALITY.loginPath,
     tagline: HOSPITALITY.tagline,
     description: HOSPITALITY.description,
+    heroImage: '/industries/hospitality-hero.jpg',
+    heroImageAlt: 'Hotel front desk welcoming guests',
     products: [
       { id: 'reservations', name: 'Reservations', blurb: 'Bookings, availability, and stay status in one view.', href: HOSPITALITY.signupPath },
       { id: 'rooms', name: 'Rooms', blurb: 'Room inventory, types, and readiness at a glance.', href: HOSPITALITY.signupPath },
@@ -104,6 +109,8 @@ export const SUITE_FAMILIES: SuiteFamily[] = [
     loginHref: HEALTHCARE.loginPath,
     tagline: HEALTHCARE.tagline,
     description: HEALTHCARE.description,
+    heroImage: '/industries/healthcare-hero.jpg',
+    heroImageAlt: 'Clinic reception assisting a patient',
     products: [
       { id: 'patients', name: 'Patients', blurb: 'Patient records and visit history in one place.', href: HEALTHCARE.signupPath },
       { id: 'appointments', name: 'Appointments', blurb: 'Schedule visits and manage daily capacity.', href: HEALTHCARE.signupPath },
