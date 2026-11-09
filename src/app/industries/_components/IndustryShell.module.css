@@ -62,7 +62,22 @@
 .previewMetric strong { font-size: 0.95rem; }
 @media (max-width: 640px) { .previewMetrics { grid-template-columns: 1fr 1fr; } }
 .footer { border-top: 1px solid #e8e8f0; padding: 24px 20px; text-align: center; font-size: 0.82rem; color: #6b7280; }
-.authPage { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; background: linear-gradient(160deg, #f4f4f8 0%, #ebe7ff 100%); }
+.authPage {
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: linear-gradient(160deg, #f4f4f8 0%, #ebe7ff 100%);
+  box-sizing: border-box;
+}
+.authPage .authCard {
+  margin-left: auto;
+  margin-right: auto;
+  flex-shrink: 0;
+}
 .authCard { width: 100%; max-width: 420px; background: #fff; border-radius: 18px; border: 1px solid #e8e8f0; padding: 28px 22px; box-shadow: 0 12px 40px rgba(15,23,42,0.08); }
 .authCard h1 { margin: 8px 0 4px; font-size: 1.35rem; font-weight: 800; }
 .authCard .sub { margin: 0 0 18px; font-size: 0.88rem; color: #6b7280; }
