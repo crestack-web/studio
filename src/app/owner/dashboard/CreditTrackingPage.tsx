@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from './AppContext';
 import { useCurrency } from './CurrencyContext';
-import { fetchDocs, addDoc as sbAddDoc, updateDoc as sbUpdateDoc } from '@/lib/supabase-client-data';
+import { fetchDocs, addDoc as sbAddDoc } from '@/lib/supabase-client-data';
 import { useBranch } from '@/context/BranchContext';
-import { Users, RefreshCw, Plus, AlertCircle, Wallet } from 'lucide-react';
+import { Users, RefreshCw, Plus, AlertCircle } from 'lucide-react';
 import styles from './CreditTrackingPage.module.css';
 
 export function CreditTrackingPage() {
@@ -17,15 +17,8 @@ export function CreditTrackingPage() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
-  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showPayModal, setShowPayModal] = useState(false);
-  const [payingSupplier, setPayingSupplier] = useState<any | null>(null);
-  const [payAmount, setPayAmount] = useState('');
-  const [payMethod, setPayMethod] = useState<'cash' | 'transfer' | 'pos'>('cash');
-  const [payAccountId, setPayAccountId] = useState('');
-  const [isPaying, setIsPaying] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
@@ -39,56 +32,24 @@ export function CreditTrackingPage() {
     }
     setLoading(true);
     try {
-      const [suppliersData, customersData, transactionsData, creditRows, accountsRaw] = await Promise.all([
+      const [suppliersData, customersData, transactionsData] = await Promise.all([
         fetchDocs<any>(`businesses/${businessId}/suppliers`).catch(() => []),
         fetchDocs<any>(`businesses/${businessId}/credit_customers`).catch(() => []),
         fetchDocs<any>(`businesses/${businessId}/credit_transactions`, { limit: 200 }).catch(() => []),
-        fetchDocs<any>(`businesses/${businessId}/supplierCredit`, { limit: 300 }).catch(() => []),
-        fetchDocs<any>(`businesses/${businessId}/bankAccounts`).catch(() => []),
       ]);
-
-      const owed = new Map<string, number>();
-      for (const c of creditRows as any[]) {
-        const sid = String(c.supplierId || c.supplier_id || '');
-        if (!sid) continue;
-        const bal =
-          Number(c.balance ?? Math.max(0, Number(c.amount || 0) - Number(c.paid || 0))) || 0;
-        if (bal > 0 && String(c.status || 'open').toLowerCase() !== 'paid') {
-          owed.set(sid, (owed.get(sid) || 0) + bal);
-        }
-      }
 
       setSuppliers(
         (suppliersData || [])
           .filter((s: any) => s.active !== false && String(s.status || 'active') !== 'inactive')
-          .map((data: any) => {
-            const creditOwed = owed.get(String(data.id)) || 0;
-            const meta = Number(data.currentBalance ?? data.balance ?? 0) || 0;
-            return {
-              id: data.id,
-              name: data.supplierName || data.businessName || data.name || 'Supplier',
-              phone: data.phone || '',
-              currentBalance: creditOwed > 0 ? creditOwed : meta,
-              totalPurchases: Number(data.totalPurchases) || 0,
-              totalPayments: Number(data.totalPayments) || 0,
-              paymentTerms: data.paymentTerms || 'net_30',
-              purchaseCount: Number(data.purchaseCount) || 0,
-              paymentCount: Number(data.paymentCount) || 0,
-              creditLimit: Number(data.creditLimit) || 0,
-            };
-          })
-      );
-
-      setBankAccounts(
-        (accountsRaw || [])
-          .filter((a: any) => a.isActive !== false)
-          .map((a: any) => ({
-            id: a.id,
-            accountName: a.accountName || a.name || 'Account',
-            bankName: a.bankName || '',
-            currentBalance: Number(a.currentBalance) || 0,
-            isDefault: Boolean(a.isDefault || a.isPrimary),
-            isPosDefault: Boolean(a.isPosDefault),
+          .map((data: any) => ({
+            id: data.id,
+            name: data.supplierName || data.businessName || data.name || 'Supplier',
+            phone: data.phone || '',
+            currentBalance: Number(data.currentBalance ?? data.balance ?? 0) || 0,
+            totalPurchases: Number(data.totalPurchases) || 0,
+            totalPayments: Number(data.totalPayments) || 0,
+            paymentTerms: data.paymentTerms || 'net_30',
+            purchaseCount: Number(data.purchaseCount) || 0,
           }))
       );
 
@@ -166,180 +127,6 @@ export function CreditTrackingPage() {
     return s.name.toLowerCase().includes(q) || (s.phone || '').includes(q);
   });
 
-  const openPaySupplier = (supplier: any) => {
-    setPayingSupplier(supplier);
-    setPayAmount(supplier.currentBalance > 0 ? String(supplier.currentBalance) : '');
-    setPayMethod('cash');
-    const cashAcc =
-      bankAccounts.find((a) => /cash|till|float|drawer/i.test(`${a.accountName} ${a.bankName}`)) ||
-      bankAccounts.find((a) => a.isDefault) ||
-      bankAccounts[0];
-    setPayAccountId(cashAcc?.id || '');
-    setShowPayModal(true);
-  };
-
-  const handlePaySupplier = async () => {
-    if (!businessId || !payingSupplier) return;
-    let paymentAmount = parseFloat(payAmount) || 0;
-    if (paymentAmount <= 0) {
-      showToast('Enter a payment amount');
-      return;
-    }
-    const outstanding = Number(payingSupplier.currentBalance) || 0;
-    if (paymentAmount > outstanding + 0.001) {
-      showToast(`Capping to outstanding ${formatMoney(outstanding)}`);
-      paymentAmount = outstanding;
-    }
-    if (paymentAmount <= 0) {
-      showToast('Nothing outstanding for this supplier');
-      return;
-    }
-
-    let accountId = payAccountId;
-    if (!accountId) {
-      const cashAcc =
-        bankAccounts.find((a) => /cash|till|float|drawer/i.test(`${a.accountName} ${a.bankName}`)) ||
-        bankAccounts.find((a) => a.isDefault) ||
-        bankAccounts[0];
-      accountId = cashAcc?.id;
-    }
-    if (!accountId) {
-      showToast('Add a bank/cash account first so the payment can update cash balance');
-      return;
-    }
-
-    setIsPaying(true);
-    try {
-      const accounts = await fetchDocs(`businesses/${businessId}/bankAccounts`, {
-        filters: [{ field: 'id', op: '=', value: accountId }],
-        limit: 1,
-      });
-      if (!accounts[0]) throw new Error('Bank account not found');
-      const bankBal = Number((accounts[0] as any).currentBalance) || 0;
-      if (bankBal < paymentAmount) throw new Error('Insufficient bank/cash balance');
-
-      const creditRows = await fetchDocs(`businesses/${businessId}/supplierCredit`, { limit: 300 }).catch(
-        () => []
-      );
-      const openCredits = (creditRows as any[]).filter(
-        (c) =>
-          String(c.supplierId || c.supplier_id) === String(payingSupplier.id) &&
-          Number(c.balance ?? Math.max(0, Number(c.amount || 0) - Number(c.paid || 0))) > 0 &&
-          String(c.status || 'open').toLowerCase() !== 'paid'
-      );
-
-      let remaining = paymentAmount;
-      for (const credit of openCredits) {
-        if (remaining <= 0) break;
-        const bal =
-          Number(credit.balance ?? Math.max(0, Number(credit.amount || 0) - Number(credit.paid || 0))) ||
-          0;
-        if (bal <= 0) continue;
-        const apply = Math.min(remaining, bal);
-        const newPaid = (Number(credit.paid) || 0) + apply;
-        const newBal = Math.max(0, bal - apply);
-        await sbUpdateDoc(`businesses/${businessId}/supplierCredit`, credit.id, {
-          paid: newPaid,
-          balance: newBal,
-          status: newBal <= 0 ? 'paid' : 'open',
-        });
-        remaining -= apply;
-      }
-
-      const purchasesForSupplier = (
-        await fetchDocs(`businesses/${businessId}/purchases`, {
-          orderBy: { field: 'created_at', ascending: true },
-          limit: 200,
-        }).catch(() => [])
-      ).filter((p: any) => {
-        if (String(p.supplierId || p.supplier_id) !== String(payingSupplier.id)) return false;
-        const bal = Number(p.balance ?? 0) || 0;
-        return bal > 0 || String(p.status || '').toLowerCase() !== 'paid';
-      });
-      let purchaseRemaining = paymentAmount;
-      for (const p of purchasesForSupplier as any[]) {
-        if (purchaseRemaining <= 0) break;
-        const total = Number(p.total ?? p.totalCost ?? 0) || 0;
-        const alreadyPaid = Number(p.paid ?? 0) || 0;
-        const bal = Number(p.balance ?? Math.max(0, total - alreadyPaid)) || 0;
-        if (bal <= 0) continue;
-        const apply = Math.min(purchaseRemaining, bal);
-        const newPaid = alreadyPaid + apply;
-        const newBal = Math.max(0, bal - apply);
-        await sbUpdateDoc(`businesses/${businessId}/purchases`, p.id, {
-          paid: newPaid,
-          balance: newBal,
-          status: newBal <= 0 ? 'paid' : 'partial',
-        });
-        purchaseRemaining -= apply;
-      }
-
-      const newBalance = Math.max(0, outstanding - paymentAmount);
-      const totalPayments = (Number(payingSupplier.totalPayments) || 0) + paymentAmount;
-      const paymentCount = (Number(payingSupplier.paymentCount) || 0) + 1;
-      const creditLimit = Number(payingSupplier.creditLimit) || 0;
-
-      await sbUpdateDoc(`businesses/${businessId}/suppliers`, payingSupplier.id, {
-        currentBalance: newBalance,
-        totalPayments,
-        paymentCount,
-        lastPaymentDate: new Date().toISOString(),
-        creditUtilization: creditLimit > 0 ? (newBalance / creditLimit) * 100 : 0,
-      });
-
-      await sbUpdateDoc(`businesses/${businessId}/bankAccounts`, accountId, {
-        currentBalance: bankBal - paymentAmount,
-      });
-
-      await sbAddDoc(`businesses/${businessId}/bankTransactions`, {
-        bankAccountId: accountId,
-        accountName: (accounts[0] as any).accountName || (accounts[0] as any).name,
-        type: 'money_out',
-        amount: paymentAmount,
-        balanceAfter: bankBal - paymentAmount,
-        description: `Supplier payment: ${payingSupplier.name}`,
-        reference: payingSupplier.id,
-        referenceType: 'supplier_payment',
-        category: 'supplier_payment',
-        createdAt: new Date().toISOString(),
-      });
-
-      await sbAddDoc(`businesses/${businessId}/supplierLedger`, {
-        supplierId: payingSupplier.id,
-        supplierName: payingSupplier.name,
-        type: 'payment',
-        amount: paymentAmount,
-        paidAmount: paymentAmount,
-        creditAmount: 0,
-        balanceAfter: newBalance,
-        description: `Payment to supplier (${payMethod})`,
-        reference: payingSupplier.id,
-        referenceType: 'supplier_payment',
-        paymentMethod: payMethod,
-        bankAccountId: accountId,
-        date: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        createdBy: user?.id || null,
-        createdByName: user?.name || null,
-      });
-
-      showToast(
-        newBalance <= 0
-          ? `Paid ${formatMoney(paymentAmount)} - supplier is fully settled`
-          : `Paid ${formatMoney(paymentAmount)} - still owe ${formatMoney(newBalance)}`
-      );
-      setShowPayModal(false);
-      setPayingSupplier(null);
-      setPayAmount('');
-      loadData();
-    } catch (e: any) {
-      console.error(e);
-      showToast(`Failed to pay supplier: ${e.message || 'Unknown error'}`);
-    } finally {
-      setIsPaying(false);
-    }
-  };
-
   const handleAddCustomer = async () => {
     if (!businessId || !customerName.trim()) {
       showToast('Enter customer name');
@@ -387,46 +174,6 @@ export function CreditTrackingPage() {
     );
   }
 
-  const renderSupplierCard = (s: any, showPay: boolean) => (
-    <div key={s.id} className={styles.supplierCreditCard}>
-      <div className={styles.supplierCreditHeader}>
-        <div>
-          <div className={styles.supplierCreditName}>{s.name}</div>
-          <p className={styles.supplierCreditMeta}>
-            {s.paymentTerms} | {s.purchaseCount} purchases
-            {s.phone ? ` | ${s.phone}` : ''}
-          </p>
-        </div>
-        <span className={styles.supplierCreditBadge}>
-          {formatMoney(s.currentBalance)}
-          {s.currentBalance > 0 ? ' owing' : ''}
-        </span>
-      </div>
-      <div className={styles.supplierCreditStats}>
-        <div className={styles.supplierCreditStat}>
-          <span className={styles.supplierCreditLabel}>Purchases</span>
-          <span className={styles.supplierCreditValue}>{formatMoney(s.totalPurchases)}</span>
-        </div>
-        <div className={styles.supplierCreditStat}>
-          <span className={styles.supplierCreditLabel}>Payments</span>
-          <span className={styles.supplierCreditValue}>{formatMoney(s.totalPayments)}</span>
-        </div>
-      </div>
-      {showPay && s.currentBalance > 0 && (
-        <div style={{ marginTop: 12 }}>
-          <button
-            type="button"
-            className={styles.primaryButton}
-            onClick={() => openPaySupplier(s)}
-            style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-          >
-            <Wallet size={16} /> Pay supplier
-          </button>
-        </div>
-      )}
-    </div>
-  );
-
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -471,7 +218,7 @@ export function CreditTrackingPage() {
       <div style={{ marginBottom: 16 }}>
         <input
           className={styles.input}
-          placeholder="Search name, phone, amount..."
+          placeholder="Search name, phone, amount…"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           style={{ maxWidth: 360 }}
@@ -494,7 +241,7 @@ export function CreditTrackingPage() {
       {loading ? (
         <div className={styles.loadingContainer}>
           <div className={styles.spinner} />
-          <p>Loading credit data...</p>
+          <p>Loading credit data…</p>
         </div>
       ) : (
         <div className={styles.contentArea}>
@@ -513,7 +260,7 @@ export function CreditTrackingPage() {
                         <div className={styles.customerName}>{tx.customerName}</div>
                         <div className={styles.transactionDate}>
                           {tx.issuedDate ? new Date(tx.issuedDate).toLocaleDateString() : ''}
-                          {tx.dueDate ? ` | due ${tx.dueDate.toLocaleDateString()}` : ''}
+                          {tx.dueDate ? ` · due ${tx.dueDate.toLocaleDateString()}` : ''}
                         </div>
                       </div>
                       <span className={`${styles.statusBadge} ${
@@ -550,7 +297,27 @@ export function CreditTrackingPage() {
                   <p>Balances appear when purchases are tied to suppliers</p>
                 </div>
               ) : (
-                filteredSuppliers.filter((s) => s.currentBalance > 0).map((s) => renderSupplierCard(s, true))
+                filteredSuppliers.filter((s) => s.currentBalance > 0).map((s) => (
+                  <div key={s.id} className={styles.supplierCreditCard}>
+                    <div className={styles.supplierCreditHeader}>
+                      <div>
+                        <div className={styles.supplierCreditName}>{s.name}</div>
+                        <p className={styles.supplierCreditMeta}>{s.paymentTerms} · {s.purchaseCount} purchases</p>
+                      </div>
+                      <span className={styles.supplierCreditBadge}>{formatMoney(s.currentBalance)}</span>
+                    </div>
+                    <div className={styles.supplierCreditStats}>
+                      <div className={styles.supplierCreditStat}>
+                        <span className={styles.supplierCreditLabel}>Purchases</span>
+                        <span className={styles.supplierCreditValue}>{formatMoney(s.totalPurchases)}</span>
+                      </div>
+                      <div className={styles.supplierCreditStat}>
+                        <span className={styles.supplierCreditLabel}>Payments</span>
+                        <span className={styles.supplierCreditValue}>{formatMoney(s.totalPayments)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           )}
@@ -589,7 +356,17 @@ export function CreditTrackingPage() {
                   <p>Add suppliers from the Suppliers page</p>
                 </div>
               ) : (
-                filteredSuppliers.map((s) => renderSupplierCard(s, true))
+                filteredSuppliers.map((s) => (
+                  <div key={s.id} className={styles.supplierCreditCard}>
+                    <div className={styles.supplierCreditHeader}>
+                      <div>
+                        <div className={styles.supplierCreditName}>{s.name}</div>
+                        <p className={styles.supplierCreditMeta}>{s.phone || 'No phone'}</p>
+                      </div>
+                      <span className={styles.supplierCreditBadge}>{formatMoney(s.currentBalance)} owing</span>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           )}
@@ -621,58 +398,7 @@ export function CreditTrackingPage() {
             <div className={styles.modalActions}>
               <button type="button" className={styles.cancelButton} onClick={() => setShowAddModal(false)} disabled={isAdding}>Cancel</button>
               <button type="button" className={styles.submitButton} onClick={handleAddCustomer} disabled={isAdding}>
-                {isAdding ? 'Saving...' : 'Add customer'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showPayModal && payingSupplier && (
-        <div className={styles.modalOverlay} onClick={() => !isPaying && setShowPayModal(false)}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <h3 className={styles.modalTitle}>Pay {payingSupplier.name}</h3>
-            <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--text-3)' }}>
-              Outstanding: <strong>{formatMoney(payingSupplier.currentBalance)}</strong>. This debits cash and updates supplier history.
-            </p>
-            <div className={styles.modalBody}>
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Amount</label>
-                <input
-                  className={styles.input}
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={payAmount}
-                  onChange={(e) => setPayAmount(e.target.value)}
-                />
-              </div>
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Method</label>
-                <select className={styles.input} value={payMethod} onChange={(e) => setPayMethod(e.target.value as any)}>
-                  <option value="cash">Cash</option>
-                  <option value="transfer">Bank transfer</option>
-                  <option value="pos">POS / Card</option>
-                </select>
-              </div>
-              <div className={styles.formGroup}>
-                <label className={styles.label}>Pay from account</label>
-                <select className={styles.input} value={payAccountId} onChange={(e) => setPayAccountId(e.target.value)}>
-                  <option value="">Auto (cash / default)</option>
-                  {bankAccounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.accountName} {a.bankName ? `| ${a.bankName}` : ''} ({formatMoney(a.currentBalance)})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className={styles.modalActions}>
-              <button type="button" className={styles.cancelButton} onClick={() => setShowPayModal(false)} disabled={isPaying}>
-                Cancel
-              </button>
-              <button type="button" className={styles.submitButton} onClick={handlePaySupplier} disabled={isPaying}>
-                {isPaying ? 'Paying...' : 'Record payment'}
+                {isAdding ? 'Saving…' : 'Add customer'}
               </button>
             </div>
           </div>
