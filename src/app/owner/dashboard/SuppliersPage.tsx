@@ -71,7 +71,7 @@ function paymentTermsLabel(terms?: string) {
     net_60: 'Net 60 days',
     net_90: 'Net 90 days',
   };
-  return map[terms || ''] || terms || '-';
+  return map[terms || ''] || terms || '—';
 }
 
 export default function SuppliersPage() {
@@ -344,7 +344,7 @@ export default function SuppliersPage() {
       const explicitlyEnabled = prefForFeature != null && prefForFeature[1] === true;
 
       // Onboarding selection always counts as enabled for this feature.
-      // Preference key missing ? off (only an explicit false in settings turns it off).
+      // Preference key missing ≠ off (only an explicit false in settings turns it off).
       // Trial unlocks plan-allowed optional features so setup is not blocked.
       if (
         !explicitlyDisabled &&
@@ -397,216 +397,47 @@ export default function SuppliersPage() {
         return;
       }
 
+      const receiptsData = await fetchDocs<Record<string, unknown>>(
+        `businesses/${bid}/stockReceipts`,
+        {
+          filters: [{ field: 'supplierId', op: '=', value: supplier.id }],
+          orderBy: { field: 'created_at', ascending: false },
+        }
+      );
       const receiptsList: StockReceipt[] = [];
 
-      // 1) stockReceipts - try filtered query, fall back to full scan if orderBy/index fails
-      try {
-        let receiptsData: Record<string, unknown>[] = [];
-        try {
-          receiptsData = await fetchDocs<Record<string, unknown>>(
-            `businesses/${bid}/stockReceipts`,
-            {
-              filters: [{ field: 'supplierId', op: '=', value: supplier.id }],
-              orderBy: { field: 'created_at', ascending: false },
-            }
-          );
-        } catch {
-          const all = await fetchDocs<Record<string, unknown>>(
-            `businesses/${bid}/stockReceipts`,
-            { limit: 300 }
-          );
-          receiptsData = (all || []).filter(
-            (r) => String(r.supplierId || r.supplier_id || '') === String(supplier.id)
-          );
-        }
+      receiptsData.forEach((data: Record<string, unknown>) => {
+        const createdAtDate = data.createdAt
+          ? new Date(data.createdAt as string)
+          : new Date();
+        const receivedDate = data.receivedAt
+          ? new Date(data.receivedAt as string)
+          : createdAtDate;
 
-        (receiptsData || []).forEach((data: Record<string, unknown>) => {
-          const createdAtDate = data.createdAt
-            ? new Date(data.createdAt as string)
-            : data.created_at
-              ? new Date(data.created_at as string)
-              : new Date();
-          const receivedDate = data.receivedAt
-            ? new Date(data.receivedAt as string)
-            : createdAtDate;
-          const total =
-            Number(data.total ?? data.totalCost ?? data.subtotal ?? 0) || 0;
-          const paid = Number(data.paidAmount ?? data.paid ?? 0) || 0;
-          const credit = Number(data.creditAmount ?? data.balance ?? Math.max(0, total - paid)) || 0;
-          receiptsList.push({
-            id: data.id as string,
-            businessId: bid,
-            supplierId: (data.supplierId as string) || supplier.id,
-            supplierName:
-              (data.supplierName as string) ||
-              supplier.businessName ||
-              'Unknown Supplier',
-            purchaseOrderId: data.purchaseOrderId as string,
-            receiptNumber:
-              (data.receiptNumber as string) ||
-              (data.note as string) ||
-              (data.id as string),
-            items: (data.items as StockReceipt['items']) || [],
-            subtotal: Number(data.subtotal) || total,
-            tax: (data.tax as number) || 0,
-            total,
-            receivedDate,
-            notes: [
-              data.notes ? String(data.notes) : '',
-              data.note ? String(data.note) : '',
-              data.paymentMethod ? `Payment: ${data.paymentMethod}` : '',
-              paid ? `Paid ${paid}` : '',
-              credit > 0 ? `Credit ${credit}` : '',
-            ]
-              .filter(Boolean)
-              .join(' | '),
-            receivedBy: (data.receivedBy as string) || (data.createdBy as string) || user?.id || '',
-            receivedByName: (data.receivedByName as string) || (data.createdByName as string) || 'Unknown',
-            createdAt: createdAtDate,
-            updatedAt: data.updatedAt
-              ? new Date(data.updatedAt as string)
-              : createdAtDate,
-          });
+        receiptsList.push({
+          id: data.id as string,
+          businessId: bid,
+          supplierId: data.supplierId as string,
+          supplierName:
+            (data.supplierName as string) ||
+            supplier.businessName ||
+            'Unknown Supplier',
+          purchaseOrderId: data.purchaseOrderId as string,
+          receiptNumber: (data.receiptNumber as string) || (data.id as string),
+          items: (data.items as StockReceipt['items']) || [],
+          subtotal: (data.subtotal as number) || 0,
+          tax: (data.tax as number) || 0,
+          total: (data.total as number) || 0,
+          receivedDate,
+          notes: data.notes as string,
+          receivedBy: (data.receivedBy as string) || user?.id || '',
+          receivedByName: (data.receivedByName as string) || 'Unknown',
+          createdAt: createdAtDate,
+          updatedAt: data.updatedAt
+            ? new Date(data.updatedAt as string)
+            : createdAtDate,
         });
-      } catch (e) {
-        console.warn('[suppliers] stockReceipts load', e);
-      }
-
-      // 2) purchases linked to this supplier (covers cashflow partial/credit purchases)
-      try {
-        let purchaseRows: Record<string, unknown>[] = [];
-        try {
-          purchaseRows = await fetchDocs<Record<string, unknown>>(
-            `businesses/${bid}/purchases`,
-            {
-              filters: [{ field: 'supplierId', op: '=', value: supplier.id }],
-              orderBy: { field: 'created_at', ascending: false },
-              limit: 100,
-            }
-          );
-        } catch {
-          const all = await fetchDocs<Record<string, unknown>>(
-            `businesses/${bid}/purchases`,
-            { limit: 300 }
-          );
-          purchaseRows = (all || []).filter(
-            (p) => String(p.supplierId || p.supplier_id || '') === String(supplier.id)
-          );
-        }
-
-        const existingIds = new Set(receiptsList.map((r) => r.id));
-        (purchaseRows || []).forEach((data: Record<string, unknown>) => {
-          const id = String(data.id);
-          // Avoid duplicating if stockReceipt already references this purchase
-          if (existingIds.has(id) || existingIds.has(`pur-${id}`)) return;
-          const createdAtDate = data.createdAt
-            ? new Date(data.createdAt as string)
-            : data.created_at
-              ? new Date(data.created_at as string)
-              : new Date();
-          const total = Number(data.total ?? data.totalCost ?? data.totalAmount ?? 0) || 0;
-          const paid = Number(data.paid ?? data.paidAmount ?? 0) || 0;
-          const credit =
-            Number(data.balance ?? data.creditAmount ?? Math.max(0, total - paid)) || 0;
-          const items = Array.isArray(data.items) ? (data.items as any[]) : [];
-          receiptsList.push({
-            id: `pur-${id}`,
-            businessId: bid,
-            supplierId: supplier.id,
-            supplierName: supplier.businessName || supplier.supplierName,
-            receiptNumber:
-              (data.receiptNumber as string) ||
-              (data.note as string) ||
-              `PUR-${id.slice(0, 8)}`,
-            items: items.map((it) => ({
-              productId: String(it.productId || ''),
-              productName: String(it.productName || it.name || 'Item'),
-              quantity: Number(it.quantity) || 0,
-              unit: String(it.unit || 'unit'),
-              unitCost: Number(it.unitCost ?? it.costPrice ?? 0) || 0,
-              totalCost: Number(it.totalCost ?? 0) || 0,
-            })),
-            subtotal: total,
-            tax: 0,
-            total,
-            receivedDate: createdAtDate,
-            notes: [
-              data.note ? String(data.note) : '',
-              data.status ? `Status: ${data.status}` : '',
-              paid ? `Paid ${paid}` : '',
-              credit > 0 ? `Balance ${credit}` : '',
-            ]
-              .filter(Boolean)
-              .join(' | '),
-            receivedBy: String(data.createdBy || user?.id || ''),
-            receivedByName: 'Purchase',
-            createdAt: createdAtDate,
-            updatedAt: createdAtDate,
-          });
-        });
-      } catch (e) {
-        console.warn('[suppliers] purchases load', e);
-      }
-
-      // 3) supplierLedger payments (running balance history)
-      try {
-        let ledgerRows: Record<string, unknown>[] = [];
-        try {
-          ledgerRows = await fetchDocs<Record<string, unknown>>(
-            `businesses/${bid}/supplierLedger`,
-            {
-              filters: [{ field: 'supplierId', op: '=', value: supplier.id }],
-              orderBy: { field: 'created_at', ascending: false },
-              limit: 100,
-            }
-          );
-        } catch {
-          const all = await fetchDocs<Record<string, unknown>>(
-            `businesses/${bid}/supplierLedger`,
-            { limit: 300 }
-          );
-          ledgerRows = (all || []).filter(
-            (r) => String(r.supplierId || r.supplier_id || '') === String(supplier.id)
-          );
-        }
-
-        (ledgerRows || []).forEach((data: Record<string, unknown>) => {
-          const type = String(data.type || '').toLowerCase();
-          if (type !== 'payment' && type !== 'supplier_payment') return;
-          const createdAtDate = data.createdAt
-            ? new Date(data.createdAt as string)
-            : data.date
-              ? new Date(data.date as string)
-              : new Date();
-          const amount = Number(data.amount ?? data.paidAmount ?? 0) || 0;
-          const balanceAfter = Number(data.balanceAfter ?? 0) || 0;
-          receiptsList.push({
-            id: `led-${data.id}`,
-            businessId: bid,
-            supplierId: supplier.id,
-            supplierName: supplier.businessName || supplier.supplierName,
-            receiptNumber: `PAY-${String(data.id).slice(0, 6).toUpperCase()}`,
-            items: [],
-            subtotal: amount,
-            tax: 0,
-            total: amount,
-            receivedDate: createdAtDate,
-            notes: [
-              data.description ? String(data.description) : 'Supplier payment',
-              data.paymentMethod ? `Method: ${data.paymentMethod}` : '',
-              `Balance after: ${balanceAfter}`,
-            ]
-              .filter(Boolean)
-              .join(' | '),
-            receivedBy: String(data.createdBy || ''),
-            receivedByName: String(data.createdByName || 'Payment'),
-            createdAt: createdAtDate,
-            updatedAt: createdAtDate,
-          });
-        });
-      } catch (e) {
-        console.warn('[suppliers] ledger load', e);
-      }
+      });
 
       // Material collection purchases for this supplier (recycling category)
       try {
@@ -616,15 +447,7 @@ export default function SuppliersPage() {
             filters: [{ field: 'supplierId', op: '=', value: supplier.id }],
             orderBy: { field: 'created_at', ascending: false },
           }
-        ).catch(async () => {
-          const all = await fetchDocs<Record<string, unknown>>(
-            `businesses/${bid}/materialPurchases`,
-            { limit: 200 }
-          );
-          return (all || []).filter(
-            (r) => String(r.supplierId || r.supplier_id || '') === String(supplier.id)
-          );
-        });
+        );
         (materialRows || []).forEach((data: Record<string, unknown>) => {
           const createdAtDate = data.createdAt
             ? new Date(data.createdAt as string)
@@ -675,7 +498,7 @@ export default function SuppliersPage() {
               data.note ? String(data.note) : '',
             ]
               .filter(Boolean)
-              .join(' | '),
+              .join(' · '),
             receivedBy: String(data.recordedBy ?? data.recorded_by ?? (user?.id ?? '')),
             receivedByName: String(
               data.recordedByName ?? data.recorded_by_name ?? 'Material collection'
@@ -694,29 +517,6 @@ export default function SuppliersPage() {
       );
 
       setSupplierReceipts(receiptsList);
-
-      // Refresh supplier balance from credit rows for accuracy on the detail panel
-      try {
-        const creditRows = await fetchDocs<Record<string, unknown>>(
-          `businesses/${bid}/supplierCredit`,
-          { limit: 300 }
-        ).catch(() => []);
-        let owed = 0;
-        (creditRows || []).forEach((c) => {
-          if (String(c.supplierId || c.supplier_id || '') !== String(supplier.id)) return;
-          const bal =
-            Number(c.balance ?? Math.max(0, Number(c.amount || 0) - Number(c.paid || 0))) || 0;
-          if (bal > 0 && String(c.status || 'open').toLowerCase() !== 'paid') owed += bal;
-        });
-        if (owed > 0 || supplier.currentBalance) {
-          setSelectedSupplier({
-            ...supplier,
-            currentBalance: owed > 0 ? owed : supplier.currentBalance,
-          });
-        }
-      } catch {
-        /* non-fatal */
-      }
 
       const productIds = new Set<string>();
       receiptsList.forEach((receipt) => {
@@ -748,18 +548,22 @@ export default function SuppliersPage() {
       setSupplierProducts(productsList);
     } catch (error) {
       console.error('Error loading supplier details:', error);
-      showToast(t('toast.supplierDetailsFailed') || 'Failed to load supplier history');
-      // Keep panel open with empty history instead of failing hard
-      setSupplierReceipts([]);
-      setSupplierProducts([]);
+      showToast(t('toast.supplierDetailsFailed') || 'Failed to load details');
     } finally {
       setIsLoadingDetails(false);
     }
   };
 
+  const formatDate = (timestamp: Date | string | undefined) => {
+    if (!timestamp) return '—';
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return '—';
+    return date.toLocaleDateString();
+  };
+
   const handleCreateSupplier = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Read form fields BEFORE any await - React clears currentTarget after the event handler yields.
+    // Read form fields BEFORE any await — React clears currentTarget after the event handler yields.
     const form = e.currentTarget;
     const formData = new FormData(form);
     const supplierName = (formData.get('supplierName') as string)?.trim() || '';
@@ -867,7 +671,7 @@ export default function SuppliersPage() {
       <div className={styles.wrapper}>
         <div className={styles.loadingState}>
           <div className={styles.spinner} />
-          <p className={styles.loadingText}>Loading suppliers...</p>
+          <p className={styles.loadingText}>Loading suppliers…</p>
         </div>
       </div>
     );
@@ -959,7 +763,7 @@ export default function SuppliersPage() {
           <input
             type="search"
             className={styles.searchInput}
-            placeholder="Search name, phone, email..."
+            placeholder="Search name, phone, email…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -1027,7 +831,7 @@ export default function SuppliersPage() {
                       <p className={styles.supplierMeta}>
                         {supplier.purchaseCount || 0} purchases
                         {supplier.lastPurchaseDate
-                          ? ` | last ${formatDate(supplier.lastPurchaseDate)}`
+                          ? ` · last ${formatDate(supplier.lastPurchaseDate)}`
                           : ''}
                       </p>
                     </div>
@@ -1102,7 +906,7 @@ export default function SuppliersPage() {
                 {isLoadingDetails ? (
                   <div className={styles.detailLoading}>
                     <Loader2 size={24} className={styles.spin} />
-                    <span>Loading details...</span>
+                    <span>Loading details…</span>
                   </div>
                 ) : (
                   <>
@@ -1217,7 +1021,7 @@ export default function SuppliersPage() {
                               <div className={styles.receiptItems}>
                                 {receipt.items.slice(0, 3).map((item, index) => (
                                   <div key={index} className={styles.receiptItemLine}>
-                                    {item.productName} ? {item.quantity}
+                                    {item.productName} × {item.quantity}
                                   </div>
                                 ))}
                                 {receipt.items.length > 3 && (
@@ -1293,7 +1097,7 @@ export default function SuppliersPage() {
                       name="phone"
                       className={styles.formInput}
                       required
-                      placeholder="+234..."
+                      placeholder="+234…"
                       disabled={isCreatingSupplier}
                     />
                   </div>
@@ -1354,7 +1158,7 @@ export default function SuppliersPage() {
                     {isCreatingSupplier ? (
                       <>
                         <Loader2 size={16} className={styles.spin} />
-                        Creating...
+                        Creating…
                       </>
                     ) : (
                       'Create supplier'
