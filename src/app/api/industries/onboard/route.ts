@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/industries/onboard
- * Body: { businessName, productEdition }
+ * Body: { businessName, productEdition, solutionDetails? }
  * Idempotent organization provisioning. Metadata updated only after org is confirmed.
  */
 export async function POST(req: NextRequest) {
@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
           industry: result.productEdition,
           category: result.productEdition === 'business' ? 'retail' : result.productEdition,
           businessName,
+          solutionDetails,
           onboardingComplete: true,
           onboarding_complete: true,
           role: 'Owner',
