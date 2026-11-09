@@ -233,6 +233,8 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
     const defaults = CATEGORY_FEATURES[category] || CATEGORY_FEATURES["retail"];
     setSelectedFeatures(defaults);
     onChange("selectedFeatures", defaults);
+    setSolutionDetails({});
+    onChange("solutionDetails", {});
   };
 
   const selectAll = () => {
