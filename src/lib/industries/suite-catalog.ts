@@ -131,6 +131,8 @@ export const SUITE_FAMILIES: SuiteFamily[] = [
     loginHref: EDUCATION.loginPath,
     tagline: EDUCATION.tagline,
     description: EDUCATION.description,
+    heroImage: '/industries/education-hero.jpg',
+    heroImageAlt: 'Students learning together in a study hall',
     products: [
       { id: 'students', name: 'Students', blurb: 'Student records, classes and enrollment status.', href: EDUCATION.signupPath },
       { id: 'classes', name: 'Classes', blurb: 'Class lists, capacity and teachers.', href: EDUCATION.signupPath },
