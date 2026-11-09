@@ -16,6 +16,7 @@ import {
   PRO_ONLY_FEATURES,
   STANDARD_OR_PRO_FEATURES,
 } from "./onboarding-constants";
+import { validateSolutionDetails } from "./solution-intake";
 
 const STEP_COPY: Record<number, { title: string; sub: string }> = {
   1: {
@@ -48,6 +49,7 @@ export default function BusmoOnboarding() {
     fullName: "", countryCode: "+234", phone: "", country: "nigeria",
     selectedCategory: "retail",
     selectedFeatures: ["Sales Recording", "Inventory Tracking", "Staff Management"],
+    solutionDetails: {},
   });
 
   const handleChange = useCallback((key: keyof FormState, value: string | string[]) => {
@@ -139,6 +141,7 @@ export default function BusmoOnboarding() {
         const manualAnalysis = {
           businessType: categoryLabel,
           businessTypeConfidence: 1.0,
+          solutionDetails: data.solutionDetails || {},
           operationalNeeds: selectedFeatures?.slice(0, 4) || ["Inventory Management", "Staff Management"],
           productTypes: ["Products"],
           recommendedCategories: [categoryLabel, "General"],
@@ -582,7 +585,10 @@ function isStepValid(step: number, data: FormState, isGoogleAuth: boolean): bool
     );
   }
   if (step === 2) {
-    return !!data.selectedCategory && Array.isArray(data.selectedFeatures) && data.selectedFeatures.length > 0;
+    if (!data.selectedCategory || !Array.isArray(data.selectedFeatures) || data.selectedFeatures.length === 0) {
+      return false;
+    }
+    return validateSolutionDetails(data.selectedCategory, data.solutionDetails) === null;
   }
   if (step === 3) {
     return !!data.businessAnalysis;
