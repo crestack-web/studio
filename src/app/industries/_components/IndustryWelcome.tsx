@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import type { IndustryConfig } from '@/lib/industries/types';
 import { getSuiteFamily } from '@/lib/industries/suite-catalog';
 import { SuiteChrome, SuiteProductGrid } from './SuiteChrome';
@@ -12,6 +13,18 @@ export function IndustryWelcome({ config }: { config: IndustryConfig }) {
   return (
     <SuiteChrome family={family}>
       <section className={styles.hero}>
+        {family.heroImage ? (
+          <div className={styles.heroMedia}>
+            <Image
+              src={family.heroImage}
+              alt={family.heroImageAlt || family.productName}
+              fill
+              priority
+              sizes="(max-width: 768px) 100vw, 720px"
+              className={styles.heroImage}
+            />
+          </div>
+        ) : null}
         <div className={styles.heroKicker}>{family.productName}</div>
         <h1>{family.tagline}</h1>
         <p>{family.description}</p>
