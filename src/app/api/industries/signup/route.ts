@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       user_metadata: {
         role: 'Owner',
         product_edition: productEdition,
-      solutionDetails: body.solutionDetails || {},
+        solutionDetails: body.solutionDetails || {},
         industry: productEdition,
         category: productEdition === 'business' ? 'retail' : productEdition,
         businessName,
@@ -90,11 +90,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to create account.' }, { status: 500 });
     }
 
+    const solutionDetails =
+      body.solutionDetails && typeof body.solutionDetails === 'object'
+        ? body.solutionDetails
+        : {};
+
     const org = await ensureIndustryOrganization({
       userId,
       email,
       businessName,
       productEdition: productEdition as ProductEdition,
+      solutionDetails,
     });
 
     if (!org.ok) {
