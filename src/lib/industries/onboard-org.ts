@@ -7,6 +7,8 @@ export type OnboardInput = {
   email?: string | null;
   businessName: string;
   productEdition: ProductEdition;
+  /** Extractive onboarding answers for this solution */
+  solutionDetails?: Record<string, string | string[]>;
 };
 
 /**
@@ -42,6 +44,7 @@ export async function ensureIndustryOrganization(input: OnboardInput): Promise<
         metadata: {
           product_edition: edition,
           source: 'industry_onboard',
+          solution_details: input.solutionDetails || {},
         },
         updated_at: new Date().toISOString(),
       })
@@ -74,6 +77,7 @@ export async function ensureIndustryOrganization(input: OnboardInput): Promise<
     metadata: {
       product_edition: edition,
       source: 'industry_onboard',
+      solution_details: input.solutionDetails || {},
     },
     updated_at: new Date().toISOString(),
   };
@@ -91,7 +95,11 @@ export async function ensureIndustryOrganization(input: OnboardInput): Promise<
         name: name || undefined,
         industry: edition,
         category: edition === 'business' ? 'retail' : edition,
-        metadata: { product_edition: edition, source: 'industry_onboard' },
+        metadata: {
+          product_edition: edition,
+          source: 'industry_onboard',
+          solution_details: input.solutionDetails || {},
+        },
         updated_at: new Date().toISOString(),
       })
       .eq('id', businessId);
