@@ -241,7 +241,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
           ? `Sign in to ${config.productName}`
           : showDetails
             ? intake.sub
-            : `Start ${config.productName} for your ${config.greetingNoun}`}
+            : `Two quick steps — account, then how your ${config.greetingNoun} operates.`}
       </p>
 
       {mode === 'signup' && !recovery && (
@@ -249,6 +249,18 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
           <span className={!showDetails ? styles.stepActive : styles.stepDone}>1. Account</span>
           <span className={styles.stepSep} />
           <span className={showDetails ? styles.stepActive : styles.stepIdle}>2. Operations</span>
+        </div>
+      )}
+
+      {mode === 'signup' && !showDetails && !recovery && (
+        <div className={styles.previewBox}>
+          <div className={styles.previewTitle}>After account, we&apos;ll ask about</div>
+          <div className={styles.outcomeRow}>
+            {intake.outcomes.map((o) => (
+              <span key={o} className={styles.outcomeChip}>{o}</span>
+            ))}
+          </div>
+          <p className={styles.previewSub}>{intake.headline}</p>
         </div>
       )}
 
@@ -394,8 +406,8 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
               : mode === 'login' && !recovery
                 ? 'Sign in'
                 : showDetails
-                  ? 'Finish setup'
-                  : 'Continue'}
+                  ? 'Finish setup & open dashboard'
+                  : 'Continue to operations →'}
           </button>
         </div>
       </form>
