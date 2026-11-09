@@ -177,7 +177,7 @@ export async function POST(req: NextRequest) {
       name: businessName,
       businessName,
       productEdition: org.productEdition,
-      loginPath: pathForEdition(org.productEdition).replace('/dashboard', '/login'),
+      loginPath: getIndustryConfig(org.productEdition as any)?.loginPath,
     });
 
     return NextResponse.json({
