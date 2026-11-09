@@ -221,6 +221,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
     mode === 'signup' && (signupStep === 'details' || !!recovery);
 
   return (
+    <div className={styles.authPage}>
     <div className={styles.authCard}>
       <div className={styles.authBrand}>
         <span className={styles.authLogo} aria-hidden>
@@ -428,6 +429,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
         {' · '}
         <Link href="/welcome/login">Busmo Business login</Link>
       </p>
+    </div>
     </div>
   );
 }
