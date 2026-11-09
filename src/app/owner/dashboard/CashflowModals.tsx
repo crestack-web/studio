@@ -141,7 +141,7 @@ export default function CashflowModals(p: any) {
                     </div>
                     <div className={styles.formGroup}>
                       <label className={styles.formLabel}>Payment Method</label>
-                      <select className={styles.formInput} value={stockAddition.paymentMethod} onChange={(e) => setStockAddition({ ...stockAddition, paymentMethod: e.target.value })}>
+                      <select className={styles.formInput} value={stockAddition.paymentMethod} onChange={(e) => setStockAddition({ ...stockAddition, paymentMethod: e.target.value as 'cash' | 'credit' | 'partial' })}>
                         <option value="credit">Credit (Pay Later)</option>
                         <option value="cash">Cash (Full Payment)</option>
                         <option value="partial">Partial Payment</option>
@@ -372,7 +372,7 @@ export default function CashflowModals(p: any) {
                     className={styles.formInput}
                     value={supplierPayment.paymentMethod}
                     onChange={(e) =>
-                      setSupplierPayment({ ...supplierPayment, paymentMethod: e.target.value })
+                      setSupplierPayment({ ...supplierPayment, paymentMethod: e.target.value as 'cash' | 'transfer' | 'pos' })
                     }
                   >
                     <option value="cash">Cash</option>
