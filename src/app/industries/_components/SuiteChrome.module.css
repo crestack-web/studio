@@ -150,6 +150,23 @@
   padding: 12px 4px 28px;
 }
 
+.heroMedia {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  max-height: 320px;
+  margin: 0 auto 20px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #e8e8f0;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.1);
+}
+
+.heroImage {
+  object-fit: cover;
+  object-position: center;
+}
+
 .heroKicker {
   font-size: 0.72rem;
   font-weight: 700;
