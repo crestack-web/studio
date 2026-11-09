@@ -8,6 +8,7 @@ import {
   PRO_ONLY_FEATURES,
   STANDARD_OR_PRO_FEATURES,
 } from "./onboarding-constants";
+import { getSolutionIntake } from "./solution-intake";
 
 export type FormState = {
   businessName: string;
@@ -21,6 +22,8 @@ export type FormState = {
   businessAnalysis?: any;
   selectedCategory?: string;
   selectedFeatures?: string[];
+  /** Per-solution answers used to tailor product setup */
+  solutionDetails?: Record<string, string | string[]>;
   googleUserId?: string;
 };
 
@@ -185,12 +188,16 @@ function StepOne({ data, onChange, onGoogleSignIn }: {
   );
 }
 
-function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof FormState, v: string | string[]) => void }) {
+function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof FormState, v: any) => void }) {
   const [selectedCategory, setSelectedCategory] = useState(data.selectedCategory || "retail");
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>(
     Array.isArray(data.selectedFeatures) ? data.selectedFeatures :
     (typeof data.selectedFeatures === "string" ? JSON.parse(data.selectedFeatures as any) : CATEGORY_FEATURES["retail"])
   );
+  const [solutionDetails, setSolutionDetails] = useState<Record<string, string | string[]>>(
+    data.solutionDetails && typeof data.solutionDetails === "object" ? data.solutionDetails : {}
+  );
+  const intake = getSolutionIntake(selectedCategory);
 
   useEffect(() => {
     if (data.selectedCategory && data.selectedCategory !== selectedCategory) setSelectedCategory(data.selectedCategory);
@@ -279,6 +286,97 @@ function StepTwo({ data, onChange }: { data: FormState; onChange: (k: keyof Form
             );
           })}
         </div>
+      </div>
+
+
+      {/* Solution-specific discovery */}
+      <div style={{
+        display: "flex", flexDirection: "column", gap: 14,
+        padding: 14, borderRadius: 14, border: "1.5px solid #E8E8F0", background: "#FAFAFC",
+      }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#0A0A0F", fontFamily: "'Sora', sans-serif" }}>
+            {intake.headline}
+          </div>
+          <p style={{ margin: "6px 0 0", fontSize: 12, color: "#8888A0", lineHeight: 1.45 }}>
+            {intake.sub}
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+            {intake.outcomes.map((o) => (
+              <span key={o} style={{
+                fontSize: 10, fontWeight: 600, color: "#0D7A43", background: "#E8F8F0",
+                border: "1px solid #C6EEDA", borderRadius: 999, padding: "3px 8px",
+              }}>{o}</span>
+            ))}
+          </div>
+        </div>
+        {intake.fields.map((field) => {
+          const value = solutionDetails[field.id];
+          return (
+            <div key={field.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "#333348" }}>
+                {field.label}{field.required ? " *" : ""}
+              </label>
+              {field.type === "text" || field.type === "number" ? (
+                <input
+                  type={field.type === "number" ? "number" : "text"}
+                  value={typeof value === "string" ? value : ""}
+                  placeholder={field.placeholder || ""}
+                  onChange={(e) => {
+                    const next = { ...solutionDetails, [field.id]: e.target.value };
+                    setSolutionDetails(next);
+                    onChange("solutionDetails", next);
+                  }}
+                  style={{
+                    height: 42, borderRadius: 10, border: "1.5px solid #E8E8F0",
+                    padding: "0 12px", fontSize: 13, fontFamily: "'DM Sans', sans-serif",
+                  }}
+                />
+              ) : (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {(field.options || []).map((opt) => {
+                    const active = field.type === "multi"
+                      ? Array.isArray(value) && value.includes(opt.id)
+                      : value === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          let nextVal: string | string[];
+                          if (field.type === "multi") {
+                            const arr = Array.isArray(value) ? [...value] : [];
+                            if (arr.includes(opt.id)) nextVal = arr.filter((x) => x !== opt.id);
+                            else nextVal = [...arr, opt.id];
+                          } else {
+                            nextVal = opt.id;
+                          }
+                          const next = { ...solutionDetails, [field.id]: nextVal };
+                          setSolutionDetails(next);
+                          onChange("solutionDetails", next);
+                        }}
+                        aria-pressed={active}
+                        style={{
+                          padding: "8px 12px", borderRadius: 999, fontSize: 12, cursor: "pointer",
+                          fontWeight: active ? 700 : 500,
+                          color: active ? "#6B3FE7" : "#555568",
+                          background: active ? "#F3EFFE" : "#fff",
+                          border: active ? "1.5px solid #6B3FE7" : "1.5px solid #E8E8F0",
+                          fontFamily: "'DM Sans', sans-serif",
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {field.help ? (
+                <span style={{ fontSize: 11, color: "#8888A0" }}>{field.help}</span>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
