@@ -105,6 +105,7 @@ export const PROFESSIONAL: IndustryConfig = {
   greetingNoun: 'firm',
   nav: [
     { id: 'overview', label: 'Overview', href: '/industries/professional/dashboard', section: 'main' },
+    { id: 'front-desk', label: 'Staff Workspace', href: '/industries/professional/front-desk', section: 'main' },
     { id: 'projects', label: 'Projects', href: '/industries/professional/dashboard/projects', section: 'main' },
     { id: 'clients', label: 'Clients', href: '/industries/professional/dashboard/clients', section: 'main' },
     { id: 'tasks', label: 'Tasks', href: '/industries/professional/dashboard/tasks', section: 'main' },
@@ -128,6 +129,7 @@ export const PROFESSIONAL: IndustryConfig = {
   ],
   quickActions: [
     { id: 'create-project', label: 'Create Project', href: '/industries/professional/dashboard/projects' },
+    { id: 'open-workspace', label: 'Open Staff Workspace', href: '/industries/professional/front-desk' },
     { id: 'add-client', label: 'Add Client', href: '/industries/professional/dashboard/clients' },
     { id: 'assign-task', label: 'Assign Task', href: '/industries/professional/dashboard/tasks' },
     { id: 'log-hours', label: 'Log Hours', href: '/industries/professional/dashboard/time' },
@@ -166,6 +168,7 @@ export const HEALTHCARE: IndustryConfig = {
   greetingNoun: 'clinic',
   nav: [
     { id: 'overview', label: 'Overview', href: '/industries/healthcare/dashboard', section: 'main' },
+    { id: 'front-desk', label: 'Reception', href: '/industries/healthcare/front-desk', section: 'main' },
     { id: 'patients', label: 'Patients', href: '/industries/healthcare/dashboard/patients', section: 'main' },
     { id: 'appointments', label: 'Appointments', href: '/industries/healthcare/dashboard/appointments', section: 'main' },
     { id: 'visits', label: 'Visits', href: '/industries/healthcare/dashboard/visits', section: 'main' },
@@ -186,6 +189,7 @@ export const HEALTHCARE: IndustryConfig = {
   ],
   quickActions: [
     { id: 'new-patient', label: 'Add Patient', href: '/industries/healthcare/dashboard/patients' },
+    { id: 'open-reception', label: 'Open Reception', href: '/industries/healthcare/front-desk' },
     { id: 'book-appointment', label: 'Book Appointment', href: '/industries/healthcare/dashboard/appointments' },
     { id: 'start-visit', label: 'Start Visit', href: '/industries/healthcare/dashboard/visits' },
     { id: 'record-payment', label: 'Record Payment', href: '/industries/healthcare/dashboard/payments' },
@@ -221,6 +225,7 @@ export const EDUCATION: IndustryConfig = {
   greetingNoun: 'school',
   nav: [
     { id: 'overview', label: 'Overview', href: '/industries/education/dashboard', section: 'main' },
+    { id: 'front-desk', label: 'Front Office', href: '/industries/education/front-desk', section: 'main' },
     { id: 'students', label: 'Students', href: '/industries/education/dashboard/students', section: 'main' },
     { id: 'classes', label: 'Classes', href: '/industries/education/dashboard/classes', section: 'main' },
     { id: 'enrollment', label: 'Enrollment', href: '/industries/education/dashboard/enrollment', section: 'main' },
@@ -240,6 +245,7 @@ export const EDUCATION: IndustryConfig = {
     { id: 'fees_outstanding', label: 'Fees Outstanding', emptyValue: '₦0' },
   ],
   quickActions: [
+    { id: 'open-front-office', label: 'Open Front Office', href: '/industries/education/front-desk' },
     { id: 'add-student', label: 'Add Student', href: '/industries/education/dashboard/students' },
     { id: 'enroll', label: 'Enroll Student', href: '/industries/education/dashboard/enrollment' },
     { id: 'mark-attendance', label: 'Mark Attendance', href: '/industries/education/dashboard/attendance' },
