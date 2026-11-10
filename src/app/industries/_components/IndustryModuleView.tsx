@@ -725,7 +725,7 @@ export function IndustryModuleView({
         <Shell title={label} subtitle="Live operations run on the staff front desk.">
           <Panel title="Staff front desk">
             <p className={styles.greetingSub} style={{ marginBottom: 14 }}>
-              Occupancy board, check-in/out, and today's activity are optimized for the front desk experience.
+              Occupancy board, check-in/out, and today activity are optimized for the front desk experience.
             </p>
             <Link href="/industries/hospitality/front-desk" className={styles.btnPrimary}>
               Open front desk
