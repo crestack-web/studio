@@ -58,53 +58,19 @@ export function IndustryDashboardClient({
   const [gateError, setGateError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
+  // TEMP: auth disabled for dashboard QA — restore session gate before production
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const supabase = getSupabase();
-        const { data } = await supabase.auth.getSession();
-        if (!data.session?.user) {
-          router.replace(config.loginPath);
-          return;
-        }
-        if (!cancelled) setUserEmail(data.session.user.email || '');
-        const res = await fetch('/api/industries/session', {
-          headers: { Authorization: `Bearer ${data.session.access_token}` },
-        });
-        const json = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          if (!cancelled) {
-            setGateError(json.error || 'Could not verify your organization.');
-            setAuthChecked(true);
-          }
-          return;
-        }
-        const s = json.session as SessionState;
-        if (cancelled) return;
-        if (s.needsOnboarding || !s.onboarded) {
-          router.replace(`${config.signupPath}?recover=1`);
-          return;
-        }
-        if (s.productEdition !== config.id) {
-          if (s.productEdition === 'hospitality') router.replace('/industries/hospitality/dashboard');
-          else if (s.productEdition === 'professional') router.replace('/industries/professional/dashboard');
-          else if (s.productEdition === 'healthcare') router.replace('/industries/healthcare/dashboard');
-          else if (s.productEdition === 'education') router.replace('/industries/education/dashboard');
-          else router.replace('/owner/dashboard');
-          return;
-        }
-        setSession(s);
-        setDisplayName(s.businessName || config.productName);
-        setAuthChecked(true);
-      } catch {
-        router.replace(config.loginPath);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [config.id, config.loginPath, config.productName, config.signupPath, router]);
+    setSession({
+      businessId: 'preview',
+      businessName: config.productName,
+      productEdition: config.id,
+      needsOnboarding: false,
+      onboarded: true,
+    });
+    setDisplayName(config.productName);
+    setUserEmail('preview@busmo.io');
+    setAuthChecked(true);
+  }, [config.id, config.productName]);
 
   const activeId = useMemo(() => (!section || section === 'overview' ? 'overview' : section), [section]);
   const dateLabel = useMemo(
@@ -254,8 +220,7 @@ export function IndustryDashboardClient({
             <button
               type="button"
               className={styles.signOut}
-              onClick={async () => {
-                await getSupabase().auth.signOut();
+              onClick={() => {
                 window.location.href = config.loginPath;
               }}
             >
