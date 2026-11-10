@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { getSupabase } from '@/lib/supabase';
 import type { IndustryConfig } from '@/lib/industries/types';
 import styles from './FrontDesk.module.css';
+import { IndustryMO } from './IndustryMO';
 
 type Room = {
   id: string;
@@ -382,6 +383,7 @@ export function FrontDeskDashboard({
           </section>
         </div>
       </div>
+      <IndustryMO config={config} businessName={propertyName} />
     </div>
   );
 }
