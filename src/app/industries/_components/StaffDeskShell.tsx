@@ -56,7 +56,7 @@ export function StaffDeskShell({
           <img src={logo} alt="" className={styles.logo} />
           <div>
             <div className={styles.brandName}>{brandName}</div>
-            <div className={styles.brandSub}>{config.shortName} · live desk</div>
+            <div className={styles.brandSub}>Staff portal · {config.shortName}</div>
           </div>
         </div>
         <nav className={styles.nav}>
@@ -74,8 +74,11 @@ export function StaffDeskShell({
         </nav>
         <div className={styles.sidebarFoot}>
           <Link href={ownerHref} className={styles.linkQuiet} onClick={() => setOpen(false)}>
-            Owner overview →
+            Owner console →
           </Link>
+          <p style={{ margin: '8px 0 0', fontSize: 11, color: '#9ca3af', lineHeight: 1.35 }}>
+            Staff portal is separate from the owner dashboard — same as Busmo Business staff vs owner.
+          </p>
         </div>
       </aside>
 
