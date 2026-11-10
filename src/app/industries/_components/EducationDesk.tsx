@@ -20,8 +20,7 @@ export function EducationDesk({ config }: { config: IndustryConfig }) {
   const [busy, setBusy] = useState(false);
 
   const headers = useCallback(async () => {
-    // TEMP: auth optional for QA
-    const { data: s } = await getSupabase().auth.getSession();
+        const { data: s } = await getSupabase().auth.getSession();
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (s.session?.access_token) headers.Authorization = `Bearer ${s.session.access_token}`;
     return headers;
@@ -33,6 +32,14 @@ export function EducationDesk({ config }: { config: IndustryConfig }) {
       const res = await fetch('/api/industries/education/desk', { headers: h });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Failed');
+      if (res.status === 401) {
+        router.replace(config.loginPath || '/industries/education/login');
+        return;
+      }
+      if (!res.ok) {
+        setError(json.error || 'Failed to load');
+        return;
+      }
       setData(json);
     } catch (e: any) {
       setError(e?.message || 'Failed to load');

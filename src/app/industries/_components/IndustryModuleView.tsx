@@ -17,28 +17,8 @@ function naira(n: number) {
   return `NGN ${Number(n || 0).toLocaleString()}`;
 }
 
-function storageKey(edition: string, module: string) {
-  return `busmo_mod_${edition}_${module}`;
-}
 
-function readLocal(edition: string, module: string): any[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(storageKey(edition, module));
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
 
-function writeLocal(edition: string, module: string, rows: any[]) {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(storageKey(edition, module), JSON.stringify(rows.slice(0, 200)));
-  } catch {
-    /* ignore */
-  }
-}
 
 function Shell({
   title,
@@ -427,7 +407,6 @@ function RecordsModule({
   const [source, setSource] = useState<'api' | 'local'>('local');
 
   const load = useCallback(async () => {
-    const local = readLocal(config.id, section);
     const h = await authHeaders();
     try {
       const res = await fetch(
@@ -435,19 +414,23 @@ function RecordsModule({
         { headers: h }
       );
       const json = await res.json().catch(() => ({}));
-      const apiRows = Array.isArray(json.records) ? json.records : [];
-      if (apiRows.length > 0 || (res.ok && !json.warning && !json.preview)) {
-        setRows(apiRows);
+      if (res.status === 401 || res.status === 403) {
+        setRows([]);
         setSource('api');
-        writeLocal(config.id, section, apiRows);
+        setMsg(json.error || 'Sign in required');
         return;
       }
-      // merge: prefer local if API empty
-      setRows(local);
-      setSource(apiRows.length || res.ok ? 'api' : 'local');
+      if (!res.ok) {
+        setRows([]);
+        setMsg(json.error || 'Could not load');
+        return;
+      }
+      setRows(Array.isArray(json.records) ? json.records : []);
+      setSource('api');
+      setMsg(null);
     } catch {
-      setRows(local);
-      setSource('local');
+      setRows([]);
+      setMsg('Could not load records');
     }
   }, [config.id, section]);
 
@@ -485,34 +468,9 @@ function RecordsModule({
         await load();
         return;
       }
-      // local fallback
-      const row = {
-        id: `local-${Date.now()}`,
-        ...payload,
-        occurred_at: payload.occurredAt,
-        status: payload.status,
-      };
-      const next = [row, ...readLocal(config.id, section)];
-      writeLocal(config.id, section, next);
-      setRows(next);
-      setSource('local');
-      setTitle('');
-      setAmount('');
-      setNotes('');
-      setMsg(res.status === 401 ? 'Saved on this device (sign in to sync)' : 'Saved on this device');
+      setMsg(json.error || 'Could not save — sign in required');
     } catch {
-      const row = {
-        id: `local-${Date.now()}`,
-        title: payload.title,
-        status: payload.status,
-        amount: payload.amount,
-        notes: payload.notes,
-        occurred_at: payload.occurredAt,
-      };
-      const next = [row, ...readLocal(config.id, section)];
-      writeLocal(config.id, section, next);
-      setRows(next);
-      setMsg('Saved on this device');
+      setMsg('Could not save — check network and sign-in');
     } finally {
       setBusy(false);
     }
@@ -521,16 +479,6 @@ function RecordsModule({
   async function setStatus(id: string, status: string) {
     setBusy(true);
     try {
-      if (String(id).startsWith('local-') || source === 'local') {
-        const next = readLocal(config.id, section).map((r) =>
-          r.id === id ? { ...r, status } : r
-        );
-        // also update in-memory rows that came from api id
-        const merged = rows.map((r) => (r.id === id ? { ...r, status } : r));
-        writeLocal(config.id, section, next.length ? next : merged);
-        setRows(merged);
-        return;
-      }
       const h = await authHeaders();
       const res = await fetch('/api/industries/records', {
         method: 'PATCH',
@@ -538,9 +486,8 @@ function RecordsModule({
         body: JSON.stringify({ edition: config.id, id, status }),
       });
       if (!res.ok) {
-        const merged = rows.map((r) => (r.id === id ? { ...r, status } : r));
-        setRows(merged);
-        writeLocal(config.id, section, merged);
+        const json = await res.json().catch(() => ({}));
+        setMsg(json.error || 'Could not update status');
         return;
       }
       await load();
@@ -583,7 +530,7 @@ function RecordsModule({
         <div className={styles.metricCard}>
           <div className={styles.metricLabel}>Storage</div>
           <div className={styles.metricValue} style={{ fontSize: '0.95rem' }}>
-            {source === 'api' ? 'Cloud' : 'Device'}
+            'Cloud'
           </div>
         </div>
       </div>
@@ -688,13 +635,7 @@ function HospitalityRooms({ config }: { config: IndustryConfig }) {
     const h = await authHeaders();
     const res = await fetch('/api/industries/hospitality/front-desk', { headers: h });
     const json = await res.json().catch(() => ({}));
-    const apiRooms = json.rooms || [];
-    if (apiRooms.length) {
-      setRooms(apiRooms);
-      writeLocal(config.id, 'rooms', apiRooms);
-    } else {
-      setRooms(readLocal(config.id, 'rooms'));
-    }
+    setRooms(json.rooms || []);
   }, [config.id]);
 
   useEffect(() => {
@@ -725,19 +666,7 @@ function HospitalityRooms({ config }: { config: IndustryConfig }) {
         await load();
         return;
       }
-      const row = {
-        id: `local-${Date.now()}`,
-        room_number: roomNumber.trim(),
-        floor,
-        category,
-        rate_amount: Number(rate) || 0,
-        status: 'available',
-      };
-      const next = [row, ...readLocal(config.id, 'rooms')];
-      writeLocal(config.id, 'rooms', next);
-      setRooms(next);
-      setRoomNumber('');
-      setMsg('Saved on this device');
+      setMsg(json.error || 'Could not add room — sign in required');
     } finally {
       setBusy(false);
     }
@@ -824,13 +753,7 @@ function HospitalityReservations({ config }: { config: IndustryConfig }) {
     const h = await authHeaders();
     const res = await fetch('/api/industries/hospitality/front-desk', { headers: h });
     const json = await res.json().catch(() => ({}));
-    const api = json.recentBookings || [];
-    if (api.length) {
-      setBookings(api);
-      writeLocal(config.id, 'reservations', api);
-    } else {
-      setBookings(readLocal(config.id, 'reservations'));
-    }
+    setBookings(json.recentBookings || []);
   }, [config.id]);
 
   useEffect(() => {
@@ -861,19 +784,7 @@ function HospitalityReservations({ config }: { config: IndustryConfig }) {
         await load();
         return;
       }
-      const row = {
-        id: `local-${Date.now()}`,
-        guest_name: guestName.trim(),
-        amount: Number(amount) || 0,
-        check_in_date: new Date().toISOString().slice(0, 10),
-        status: 'confirmed',
-      };
-      const next = [row, ...readLocal(config.id, 'reservations')];
-      writeLocal(config.id, 'reservations', next);
-      setBookings(next);
-      setGuestName('');
-      setAmount('');
-      setMsg('Saved on this device');
+      setMsg('Could not create booking — sign in required');
     } finally {
       setBusy(false);
     }

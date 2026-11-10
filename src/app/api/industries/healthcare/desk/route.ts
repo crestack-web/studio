@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/app/api/mo-sales/_auth';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { loadIndustrySession } from '@/lib/industries/session';
+import { resolveIndustryAccess, canAccessDesk, canMutateDesk } from '@/lib/industries/access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

@@ -2,24 +2,35 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/app/api/mo-sales/_auth';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { loadIndustrySession } from '@/lib/industries/session';
+import {
+  resolveIndustryAccess,
+  canMutateOwnerData,
+  canAccessOwnerConsole,
+} from '@/lib/industries/access';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-async function resolveBusiness(req: NextRequest, editionHint?: string) {
+async function resolveContext(req: NextRequest, editionHint?: string) {
   const user = await getAuthUser(req);
-  if (!user) {
-    // QA mode: allow preview business when no auth (temp)
-    const preview = req.headers.get('x-preview-business');
-    if (preview) return { businessId: preview, edition: editionHint || 'hospitality' };
-    return null;
-  }
+  if (!user) return { error: 'Unauthorized', status: 401 as const };
+
   const meta = { ...((user.user_metadata || {}) as Record<string, unknown>) };
   if (editionHint) meta.product_edition = editionHint;
   const session = await loadIndustrySession(user.id, meta);
-  if (!session.businessId) return null;
+  if (!session.businessId) {
+    return { error: 'No business membership', status: 403 as const };
+  }
+
+  const access = await resolveIndustryAccess(user.id, session.businessId as string);
+  if (!access || !canAccessOwnerConsole(access.role)) {
+    return { error: 'Forbidden', status: 403 as const };
+  }
+
   return {
-    businessId: session.businessId as string,
+    userId: user.id,
+    businessId: access.businessId,
+    role: access.role,
     edition: (session.productEdition || editionHint || 'business') as string,
   };
 }
@@ -27,15 +38,9 @@ async function resolveBusiness(req: NextRequest, editionHint?: string) {
 export async function GET(req: NextRequest) {
   const edition = req.nextUrl.searchParams.get('edition') || undefined;
   const moduleName = req.nextUrl.searchParams.get('module') || '';
-  const ctx = await resolveBusiness(req, edition);
-  if (!ctx) {
-    // Return empty for unauthenticated QA rather than hard fail
-    return NextResponse.json({
-      ok: true,
-      records: [],
-      metrics: { count: 0, open: 0, amount: 0 },
-      preview: true,
-    });
+  const ctx = await resolveContext(req, edition);
+  if ('error' in ctx) {
+    return NextResponse.json({ error: ctx.error }, { status: ctx.status });
   }
 
   const admin = getSupabaseAdmin();
@@ -51,30 +56,34 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await q;
   if (error) {
-    return NextResponse.json({
-      ok: true,
-      records: [],
-      metrics: { count: 0, open: 0, amount: 0 },
-      warning: error.message,
-    });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   const rows = data || [];
-  const open = rows.filter((r: any) => !['done', 'completed', 'paid', 'closed', 'checked_out', 'cancelled'].includes(String(r.status))).length;
+  const open = rows.filter(
+    (r: any) =>
+      !['done', 'completed', 'paid', 'closed', 'checked_out', 'cancelled'].includes(String(r.status))
+  ).length;
   const amount = rows.reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
 
   return NextResponse.json({
     ok: true,
     records: rows,
     metrics: { count: rows.length, open, amount },
+    role: ctx.role,
   });
 }
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const edition = String(body.edition || body.productEdition || '');
-  const ctx = await resolveBusiness(req, edition || undefined);
-  if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const ctx = await resolveContext(req, edition || undefined);
+  if ('error' in ctx) {
+    return NextResponse.json({ error: ctx.error }, { status: ctx.status });
+  }
+  if (!canMutateOwnerData(ctx.role)) {
+    return NextResponse.json({ error: 'Owner role required' }, { status: 403 });
+  }
 
   const moduleName = String(body.module || '').trim();
   const title = String(body.title || '').trim();
@@ -106,8 +115,13 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const edition = String(body.edition || '');
-  const ctx = await resolveBusiness(req, edition || undefined);
-  if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const ctx = await resolveContext(req, edition || undefined);
+  if ('error' in ctx) {
+    return NextResponse.json({ error: ctx.error }, { status: ctx.status });
+  }
+  if (!canMutateOwnerData(ctx.role)) {
+    return NextResponse.json({ error: 'Owner role required' }, { status: 403 });
+  }
 
   const id = String(body.id || '');
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });

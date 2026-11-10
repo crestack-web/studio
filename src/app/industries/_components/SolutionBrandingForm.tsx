@@ -29,8 +29,7 @@ export function SolutionBrandingForm({
   useEffect(() => {
     (async () => {
       try {
-        // TEMP: auth optional for QA
-        const { data } = await getSupabase().auth.getSession();
+                const { data } = await getSupabase().auth.getSession();
         const headers: Record<string, string> = {};
         if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
         const res = await fetch(`/api/industries/branding?edition=${edition}`, { headers });

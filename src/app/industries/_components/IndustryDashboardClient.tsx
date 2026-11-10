@@ -62,19 +62,48 @@ export function IndustryDashboardClient({
   const [liveMetrics, setLiveMetrics] = useState<Record<string, string | number>>({});
 
 
-  // TEMP: auth disabled for dashboard QA — restore session gate before production
   useEffect(() => {
-    setSession({
-      businessId: 'preview',
-      businessName: config.productName,
-      productEdition: config.id,
-      needsOnboarding: false,
-      onboarded: true,
-    });
-    setDisplayName(config.productName);
-    setUserEmail('preview@busmo.io');
-    setAuthChecked(true);
-  }, [config.id, config.productName]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = getSupabase();
+        const { data: auth } = await supabase.auth.getUser();
+        if (!auth.user) {
+          router.replace(config.loginPath || `/industries/${config.id}/login`);
+          return;
+        }
+        const { data: sess } = await supabase.auth.getSession();
+        const headers: Record<string, string> = {};
+        if (sess.session?.access_token) {
+          headers.Authorization = `Bearer ${sess.session.access_token}`;
+        }
+        const res = await fetch('/api/industries/session', { headers });
+        const json = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (!res.ok || !json.businessId) {
+          if (json.needsOnboarding) {
+            router.replace(config.signupPath || `/industries/${config.id}/signup`);
+            return;
+          }
+          setGateError(json.error || 'Sign in required');
+          setAuthChecked(true);
+          return;
+        }
+        setSession(json);
+        setDisplayName(json.businessName || config.productName);
+        setUserEmail(auth.user.email || '');
+        setAuthChecked(true);
+      } catch (e: any) {
+        if (!cancelled) {
+          setGateError(e?.message || 'Auth failed');
+          setAuthChecked(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [config.id, config.productName, config.loginPath, config.signupPath, router]);
 
   useEffect(() => {
     if (!authChecked) return;

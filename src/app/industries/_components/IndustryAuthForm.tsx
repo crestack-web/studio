@@ -191,26 +191,14 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
         throw new Error(signupJson.error || 'Could not create account');
       }
 
-      // TEMP QA: skip email confirmation gate — sign in and open dashboard
-      if (signupJson.userId || signupJson.ok) {
-        try {
-          const { error: loginErr } = await supabase.auth.signInWithPassword({
-            email: email.trim(),
-            password,
-          });
-          if (loginErr) {
-            setInfo(
-              signupJson.message ||
-                'Account created. Sign in with your email and password to open the workspace.'
-            );
-            setLoading(false);
-            return;
-          }
-        } catch (e) {
-          console.error('post-signup sign-in', e);
-        }
-        const dest = signupJson.dashboardPath || config.dashboardPath;
-        window.location.href = dest;
+      // Require email confirmation before dashboard access
+      if (signupJson.needsEmailConfirm || signupJson.userId || signupJson.ok) {
+        setNeedsEmailConfirm(true);
+        setInfo(
+          signupJson.message ||
+            'Account created. Confirm your email, then sign in to open the workspace.'
+        );
+        setLoading(false);
         return;
       }
 
