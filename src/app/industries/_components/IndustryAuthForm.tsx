@@ -191,31 +191,26 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
         throw new Error(signupJson.error || 'Could not create account');
       }
 
-      // Same as Busmo Business: org may already be provisioned; require email confirmation before dashboard
-      if (signupJson.needsEmailConfirm || signupJson.userId) {
-        // Client-side confirmation send as backup if server did not
-        if (!signupJson.confirmationSent && signupJson.userId) {
-          try {
-            await fetch('/api/auth/send-confirmation', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                email: email.trim(),
-                userId: signupJson.userId,
-                name: name,
-              }),
-            });
-          } catch (e) {
-            console.error('send-confirmation failed', e);
+      // TEMP QA: skip email confirmation gate — sign in and open dashboard
+      if (signupJson.userId || signupJson.ok) {
+        try {
+          const { error: loginErr } = await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password,
+          });
+          if (loginErr) {
+            setInfo(
+              signupJson.message ||
+                'Account created. Sign in with your email and password to open the workspace.'
+            );
+            setLoading(false);
+            return;
           }
+        } catch (e) {
+          console.error('post-signup sign-in', e);
         }
-        setAwaitingConfirm(true);
-        setNeedsEmailConfirm(true);
-        setInfo(
-          signupJson.message ||
-            `Account created. We sent a confirmation email to ${email.trim()}. Confirm your email, then sign in.`
-        );
-        setLoading(false);
+        const dest = signupJson.dashboardPath || config.dashboardPath;
+        window.location.href = dest;
         return;
       }
 
