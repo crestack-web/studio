@@ -43,6 +43,7 @@ export const HOSPITALITY: IndustryConfig = {
   greetingNoun: 'hotel',
   nav: [
     { id: 'overview', label: 'Overview', href: '/industries/hospitality/dashboard', section: 'main' },
+    { id: 'ask-mo', label: 'Ask MO', href: '/industries/hospitality/dashboard#ask-mo', section: 'main' },
     { id: 'reservations', label: 'Reservations', href: '/industries/hospitality/dashboard/reservations', section: 'main' },
     { id: 'rooms', label: 'Rooms', href: '/industries/hospitality/dashboard/rooms', section: 'main' },
     { id: 'guests', label: 'Guests', href: '/industries/hospitality/dashboard/guests', section: 'main' },
@@ -105,6 +106,7 @@ export const PROFESSIONAL: IndustryConfig = {
   greetingNoun: 'firm',
   nav: [
     { id: 'overview', label: 'Overview', href: '/industries/professional/dashboard', section: 'main' },
+    { id: 'ask-mo', label: 'Ask MO', href: '/industries/professional/dashboard#ask-mo', section: 'main' },
     { id: 'front-desk', label: 'Staff Workspace', href: '/industries/professional/front-desk', section: 'main' },
     { id: 'projects', label: 'Projects', href: '/industries/professional/dashboard/projects', section: 'main' },
     { id: 'clients', label: 'Clients', href: '/industries/professional/dashboard/clients', section: 'main' },
@@ -168,6 +170,7 @@ export const HEALTHCARE: IndustryConfig = {
   greetingNoun: 'clinic',
   nav: [
     { id: 'overview', label: 'Overview', href: '/industries/healthcare/dashboard', section: 'main' },
+    { id: 'ask-mo', label: 'Ask MO', href: '/industries/healthcare/dashboard#ask-mo', section: 'main' },
     { id: 'front-desk', label: 'Reception', href: '/industries/healthcare/front-desk', section: 'main' },
     { id: 'patients', label: 'Patients', href: '/industries/healthcare/dashboard/patients', section: 'main' },
     { id: 'appointments', label: 'Appointments', href: '/industries/healthcare/dashboard/appointments', section: 'main' },
@@ -225,6 +228,7 @@ export const EDUCATION: IndustryConfig = {
   greetingNoun: 'school',
   nav: [
     { id: 'overview', label: 'Overview', href: '/industries/education/dashboard', section: 'main' },
+    { id: 'ask-mo', label: 'Ask MO', href: '/industries/education/dashboard#ask-mo', section: 'main' },
     { id: 'front-desk', label: 'Front Office', href: '/industries/education/front-desk', section: 'main' },
     { id: 'students', label: 'Students', href: '/industries/education/dashboard/students', section: 'main' },
     { id: 'classes', label: 'Classes', href: '/industries/education/dashboard/classes', section: 'main' },
