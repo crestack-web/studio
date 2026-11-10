@@ -29,14 +29,11 @@ export function SolutionBrandingForm({
   useEffect(() => {
     (async () => {
       try {
+        // TEMP: auth optional for QA
         const { data } = await getSupabase().auth.getSession();
-        if (!data.session) {
-          router.replace(loginPath);
-          return;
-        }
-        const res = await fetch(`/api/industries/branding?edition=${edition}`, {
-          headers: { Authorization: `Bearer ${data.session.access_token}` },
-        });
+        const headers: Record<string, string> = {};
+        if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
+        const res = await fetch(`/api/industries/branding?edition=${edition}`, { headers });
         const json = await res.json();
         if (json.branding) {
           setDisplayName(json.branding.display_name || '');
