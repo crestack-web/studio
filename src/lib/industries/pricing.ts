@@ -1,183 +1,489 @@
 /**
- * Pricing for Busmo industry solutions (Healthcare, Hospitality, Professional, Education).
- * Amounts align with Busmo Business tiers for operational consistency.
+ * Busmo Solutions & Enterprise pricing — industry-specific models.
+ * Annual ≈ 10× monthly (≈ 2 months free). Education also supports term pricing.
  */
-import type { IndustryId } from './types';
 
-export type SolutionPlanId = 'starter' | 'standard' | 'pro';
+export type SolutionFamily =
+  | 'business'
+  | 'hospitality'
+  | 'education'
+  | 'professional'
+  | 'healthcare'
+  | 'enterprise';
 
-export type SolutionPlan = {
-  id: SolutionPlanId;
+export type SolutionPlanPublic = {
+  id: string;
   name: string;
+  capacity?: string;
   tagline: string;
-  monthlyPrice: number;
-  yearlyPrice: number;
+  monthlyPrice: number | null;
+  yearlyPrice: number | null;
+  termPrice?: number | null;
   popular?: boolean;
   cta: string;
   features: string[];
+  isFree?: boolean;
+  isEnterprise?: boolean;
+};
+
+export type SolutionPricingPage = {
+  family: SolutionFamily;
+  productName: string;
+  modelLabel: string;
+  headline: string;
+  subhead: string;
+  billingNote: string;
+  plans: SolutionPlanPublic[];
+  addOns?: { name: string; model: string }[];
 };
 
 export function formatSolutionNaira(amount: number): string {
   return `₦${amount.toLocaleString('en-NG')}`;
 }
 
-const SHARED_TRIAL = '14-day free trial';
-
-const BASE_AMOUNTS = {
-  starter: { monthly: 7_500, yearly: 75_000 },
-  standard: { monthly: 20_000, yearly: 200_000 },
-  pro: { monthly: 40_000, yearly: 400_000 },
-} as const;
-
-type SolutionPricingPack = {
-  productName: string;
-  headline: string;
-  subhead: string;
-  plans: SolutionPlan[];
-};
-
-function pack(
-  productName: string,
-  short: string,
-  featureSets: [string[], string[], string[]]
-): SolutionPricingPack {
-  return {
-    productName,
-    headline: `Simple pricing for ${short}`,
-    subhead: `Same clear tiers as Busmo Business. ${SHARED_TRIAL} on every plan.`,
+export const SOLUTION_PRICING: Record<
+  'hospitality' | 'education' | 'professional' | 'healthcare',
+  SolutionPricingPage
+> = {
+  hospitality: {
+    family: 'hospitality',
+    productName: 'Busmo Hospitality',
+    modelLabel: 'Room capacity + properties',
+    headline: 'Pricing built for hotels & hospitality',
+    subhead:
+      'Priced by room capacity so smaller properties start lean and larger hotels scale with operations.',
+    billingNote:
+      'Monthly billing suits hotels. Annual plans include ~2 months free. Channel managers, SMS and payment gateway fees are separate where used.',
     plans: [
       {
         id: 'starter',
-        name: `${short} Start`,
-        tagline: `Core ${short.toLowerCase()} operations`,
-        monthlyPrice: BASE_AMOUNTS.starter.monthly,
-        yearlyPrice: BASE_AMOUNTS.starter.yearly,
-        cta: `Start ${short}`,
-        features: [...featureSets[0], SHARED_TRIAL],
+        name: 'Starter',
+        capacity: 'Up to 15 rooms',
+        tagline: 'Guesthouses and small hotels',
+        monthlyPrice: 25_000,
+        yearlyPrice: 250_000,
+        cta: 'Start Hospitality',
+        features: [
+          'Room management',
+          'Reservations',
+          'Guest records',
+          'Check-in / check-out',
+          'Basic billing',
+          'Occupancy reports',
+          '14-day free trial',
+        ],
       },
       {
-        id: 'standard',
-        name: `${short} Control`,
-        tagline: `Full control for growing teams`,
-        monthlyPrice: BASE_AMOUNTS.standard.monthly,
-        yearlyPrice: BASE_AMOUNTS.standard.yearly,
+        id: 'growth',
+        name: 'Growth',
+        capacity: 'Up to 50 rooms',
+        tagline: 'Busy hotels with F&B and staff',
+        monthlyPrice: 60_000,
+        yearlyPrice: 600_000,
         popular: true,
-        cta: `Get ${short} Control`,
-        features: [...featureSets[1], SHARED_TRIAL],
+        cta: 'Get Growth',
+        features: [
+          'Everything in Starter',
+          'Housekeeping',
+          'Maintenance',
+          'Staff management',
+          'Restaurant billing',
+          'Revenue reports',
+          'Multiple room categories',
+          '14-day free trial',
+        ],
       },
       {
-        id: 'pro',
-        name: `${short} Scale`,
-        tagline: `Multi-location & advanced ops`,
-        monthlyPrice: BASE_AMOUNTS.pro.monthly,
-        yearlyPrice: BASE_AMOUNTS.pro.yearly,
-        cta: `Get ${short} Scale`,
-        features: [...featureSets[2], SHARED_TRIAL],
+        id: 'professional',
+        name: 'Professional',
+        capacity: 'Up to 150 rooms',
+        tagline: 'Multi-property ready operations',
+        monthlyPrice: 150_000,
+        yearlyPrice: 1_500_000,
+        cta: 'Get Professional',
+        features: [
+          'Everything in Growth',
+          'Advanced operational reports',
+          'Multi-property support',
+          'Advanced permissions',
+          'Centralized reporting',
+          'Advanced integrations',
+          '14-day free trial',
+        ],
+      },
+      {
+        id: 'enterprise',
+        name: 'Enterprise',
+        capacity: '150+ rooms / groups',
+        tagline: 'Hotel groups & chains',
+        monthlyPrice: null,
+        yearlyPrice: null,
+        isEnterprise: true,
+        cta: 'Talk to sales',
+        features: [
+          'Hotel groups',
+          'Multiple properties',
+          'Centralized operations',
+          'Custom workflows',
+          'Dedicated support',
+          'Integrations',
+        ],
       },
     ],
-  };
-}
-
-export const SOLUTION_PRICING: Record<
-  Exclude<IndustryId, 'business'>,
-  SolutionPricingPack
-> = {
-  healthcare: pack('Busmo Healthcare', 'Healthcare', [
-    [
-      'Patient records',
-      'Appointments',
-      'Visit logging',
-      'Basic billing',
-      'Clinical staff (limited)',
+    addOns: [
+      { name: 'Additional property', model: 'Monthly' },
+      { name: 'WhatsApp automation', model: 'Usage-based' },
+      { name: 'Premium support', model: 'Monthly' },
     ],
-    [
-      'Everything in Start',
-      'Rooms / beds',
-      'Medical supplies',
-      'Full billing & payments',
-      'Clinic revenue reports',
-      'More staff seats',
+  },
+  education: {
+    family: 'education',
+    productName: 'Busmo Education',
+    modelLabel: 'Active student enrollment',
+    headline: 'Pricing built for schools',
+    subhead:
+      'Priced by active students. Support monthly, termly, and annual billing to match academic cycles.',
+    billingNote:
+      'Term pricing aligns with school calendars. Free plan covers up to 100 students.',
+    plans: [
+      {
+        id: 'free',
+        name: 'Free',
+        capacity: 'Up to 100 students',
+        tagline: 'Small schools getting started',
+        monthlyPrice: 0,
+        yearlyPrice: 0,
+        termPrice: 0,
+        isFree: true,
+        cta: 'Start free',
+        features: ['Students', 'Classes', 'Basic attendance', 'Basic fees', 'Staff records'],
+      },
+      {
+        id: 'starter',
+        name: 'Starter',
+        capacity: 'Up to 200 students',
+        tagline: 'Nursery to secondary entry',
+        monthlyPrice: 15_000,
+        yearlyPrice: 150_000,
+        termPrice: 45_000,
+        cta: 'Start Education',
+        features: [
+          'Students',
+          'Classes',
+          'Attendance',
+          'Basic fees',
+          'Results',
+          'Staff records',
+          '14-day free trial',
+        ],
+      },
+      {
+        id: 'growth',
+        name: 'Growth',
+        capacity: 'Up to 600 students',
+        tagline: 'Growing schools with fee ops',
+        monthlyPrice: 30_000,
+        yearlyPrice: 300_000,
+        termPrice: 90_000,
+        popular: true,
+        cta: 'Get Growth',
+        features: [
+          'Everything in Starter',
+          'Parent portal',
+          'Fee management',
+          'Digital receipts',
+          'Communication',
+          'Report cards',
+          'Financial reporting',
+          '14-day free trial',
+        ],
+      },
+      {
+        id: 'professional',
+        name: 'Professional',
+        capacity: 'Up to 1,200 students',
+        tagline: 'Larger schools & academies',
+        monthlyPrice: 60_000,
+        yearlyPrice: 600_000,
+        termPrice: 180_000,
+        cta: 'Get Professional',
+        features: [
+          'Everything in Growth',
+          'Advanced analytics',
+          'Academic management',
+          'Custom reports',
+          'Advanced permissions',
+          'Integrations',
+          '14-day free trial',
+        ],
+      },
+      {
+        id: 'enterprise',
+        name: 'Enterprise',
+        capacity: '1,200+ / school groups',
+        tagline: 'Multi-campus institutions',
+        monthlyPrice: null,
+        yearlyPrice: null,
+        termPrice: null,
+        isEnterprise: true,
+        cta: 'Talk to sales',
+        features: [
+          'School groups',
+          'Multiple campuses',
+          'Centralized administration',
+          'Dedicated onboarding',
+          'Custom integrations',
+        ],
+      },
     ],
-    [
-      'Everything in Control',
-      'Multi-location clinics',
-      'Advanced reporting',
-      'Priority support',
-      'Unlimited staff seats',
+    addOns: [
+      { name: 'Additional campus', model: 'Monthly' },
+      { name: 'SMS / parent alerts', model: 'Usage-based' },
+      { name: 'Data migration', model: 'One-time' },
     ],
-  ]),
-  hospitality: pack('Busmo Hospitality', 'Hospitality', [
-    [
-      'Room inventory',
-      'Reservations',
-      'Guest check-in / out',
-      'Basic front desk',
-      'Limited staff access',
+  },
+  professional: {
+    family: 'professional',
+    productName: 'Busmo Professional',
+    modelLabel: 'Team seats + capabilities',
+    headline: 'Pricing for project-based firms',
+    subhead: 'Priced by team size for agencies, consultants, studios and construction teams.',
+    billingNote: 'Annual plans include ~2 months free. Extra seats can be added without always jumping plans.',
+    plans: [
+      {
+        id: 'starter',
+        name: 'Starter',
+        capacity: 'Up to 3 users',
+        tagline: 'Solo operators and tiny teams',
+        monthlyPrice: 15_000,
+        yearlyPrice: 150_000,
+        cta: 'Start Professional',
+        features: ['Clients', 'Projects', 'Tasks', 'Scheduling', 'Basic billing', '14-day free trial'],
+      },
+      {
+        id: 'team',
+        name: 'Team',
+        capacity: 'Up to 10 users',
+        tagline: 'Collaborative project delivery',
+        monthlyPrice: 40_000,
+        yearlyPrice: 400_000,
+        popular: true,
+        cta: 'Get Team',
+        features: [
+          'Everything in Starter',
+          'Team collaboration',
+          'Time tracking',
+          'Client communication',
+          'Project budgets',
+          'Invoicing',
+          '14-day free trial',
+        ],
+      },
+      {
+        id: 'business',
+        name: 'Business',
+        capacity: 'Up to 30 users',
+        tagline: 'Multi-team professional firms',
+        monthlyPrice: 100_000,
+        yearlyPrice: 1_000_000,
+        cta: 'Get Business',
+        features: [
+          'Everything in Team',
+          'Resource allocation',
+          'Project profitability',
+          'Advanced permissions',
+          'Multiple teams',
+          'Advanced analytics',
+          '14-day free trial',
+        ],
+      },
+      {
+        id: 'enterprise',
+        name: 'Enterprise',
+        capacity: 'Custom seats',
+        tagline: 'Large organizations',
+        monthlyPrice: null,
+        yearlyPrice: null,
+        isEnterprise: true,
+        cta: 'Talk to sales',
+        features: [
+          'Multiple departments',
+          'Custom workflows',
+          'Integrations',
+          'Centralized reporting',
+          'Dedicated support',
+        ],
+      },
     ],
-    [
-      'Everything in Start',
-      'Housekeeping status',
-      'F&B sales (if enabled)',
-      'Revenue reports',
-      'More staff seats',
+    addOns: [
+      { name: 'Additional seats', model: 'Monthly' },
+      { name: 'AI credits', model: 'Usage-based' },
+      { name: 'Custom integrations', model: 'Implementation fee' },
     ],
-    [
-      'Everything in Control',
-      'Multi-property support',
-      'Advanced reporting',
-      'Priority support',
-      'Unlimited staff seats',
+  },
+  healthcare: {
+    family: 'healthcare',
+    productName: 'Busmo Healthcare',
+    modelLabel: 'Facility size + operational modules',
+    headline: 'Pricing for clinic operations',
+    subhead:
+      'Administrative and operational software for clinics — patients, appointments, billing and facility ops.',
+    billingNote:
+      'Clinical records, lab and prescription modules may be packaged separately with proper safeguards. Annual ≈ 2 months free.',
+    plans: [
+      {
+        id: 'starter',
+        name: 'Starter',
+        capacity: 'Small clinics',
+        tagline: 'Patient admin & appointments',
+        monthlyPrice: 40_000,
+        yearlyPrice: 400_000,
+        cta: 'Start Healthcare',
+        features: [
+          'Patient administration',
+          'Appointments',
+          'Visit logging',
+          'Basic billing',
+          'Staff scheduling basics',
+          '14-day free trial',
+        ],
+      },
+      {
+        id: 'growth',
+        name: 'Growth',
+        capacity: 'Medium clinics',
+        tagline: 'Full clinic operations',
+        monthlyPrice: 100_000,
+        yearlyPrice: 1_000_000,
+        popular: true,
+        cta: 'Get Growth',
+        features: [
+          'Everything in Starter',
+          'Facility operations',
+          'Pharmacy / supplies inventory',
+          'Full billing & payments',
+          'Revenue reporting',
+          'More staff seats',
+          '14-day free trial',
+        ],
+      },
+      {
+        id: 'professional',
+        name: 'Professional',
+        capacity: 'Larger clinics',
+        tagline: 'High-volume facilities',
+        monthlyPrice: 250_000,
+        yearlyPrice: 2_500_000,
+        cta: 'Get Professional',
+        features: [
+          'Everything in Growth',
+          'Advanced reporting',
+          'Advanced permissions',
+          'Multi-module operations',
+          'Priority support',
+          '14-day free trial',
+        ],
+      },
+      {
+        id: 'enterprise',
+        name: 'Enterprise',
+        capacity: 'Hospitals / groups',
+        tagline: 'Hospital groups & networks',
+        monthlyPrice: null,
+        yearlyPrice: null,
+        isEnterprise: true,
+        cta: 'Talk to sales',
+        features: [
+          'Multi-facility groups',
+          'Centralized administration',
+          'Custom workflows',
+          'Dedicated onboarding',
+          'SLAs & integrations',
+        ],
+      },
     ],
-  ]),
-  professional: pack('Busmo Professional', 'Professional', [
-    [
-      'Clients',
-      'Projects / engagements',
-      'Basic invoicing',
-      'Task list',
-      'Limited team seats',
+    addOns: [
+      { name: 'Additional location', model: 'Monthly' },
+      { name: 'Premium support', model: 'Monthly' },
+      { name: 'Data migration', model: 'One-time' },
     ],
-    [
-      'Everything in Start',
-      'Time tracking',
-      'Retainers & outstanding',
-      'Team workload',
-      'More seats',
-    ],
-    [
-      'Everything in Control',
-      'Advanced reporting',
-      'Multi-office ready',
-      'Priority support',
-      'Unlimited seats',
-    ],
-  ]),
-  education: pack('Busmo Education', 'Education', [
-    [
-      'Students',
-      'Fee collection',
-      'Classes / cohorts',
-      'Basic staff access',
-      'Payment methods',
-    ],
-    [
-      'Everything in Start',
-      'Outstanding fees',
-      'Materials / inventory (optional)',
-      'Staff management',
-      'Reports',
-    ],
-    [
-      'Everything in Control',
-      'Multi-campus',
-      'Advanced reporting',
-      'Priority support',
-      'Unlimited staff',
-    ],
-  ]),
+  },
 };
 
-export function getSolutionPricing(industryId: string): SolutionPricingPack {
-  const key = industryId as Exclude<IndustryId, 'business'>;
+export const ENTERPRISE_PRICING = {
+  productName: 'Busmo Enterprise',
+  headline: 'Business infrastructure, not just a higher plan',
+  subhead: 'Implementation, multi-location operations, SLAs and dedicated partnership.',
+  indications: [
+    { customer: 'Growing organization', software: 'From ₦250,000/mo', implementation: 'From ₦500,000' },
+    { customer: 'Multi-location business', software: 'From ₦500,000/mo', implementation: 'From ₦1.5M' },
+    { customer: 'Large organization', software: 'From ₦1M/mo', implementation: 'From ₦3M' },
+    { customer: 'Enterprise group', software: 'Custom', implementation: 'Custom' },
+  ],
+  includes: [
+    'Dedicated onboarding',
+    'Data migration',
+    'Multiple locations',
+    'Advanced permissions',
+    'Custom integrations',
+    'Account management',
+    'SLAs',
+    'Training & custom reports',
+  ],
+};
+
+export function getSolutionPricing(industryId: string): SolutionPricingPage {
+  const key = industryId as keyof typeof SOLUTION_PRICING;
   return SOLUTION_PRICING[key] || SOLUTION_PRICING.professional;
 }
+
+export const PRICING_HUB = [
+  {
+    id: 'business',
+    title: 'Busmo Business',
+    model: 'Business size + features',
+    href: '/pricing/business',
+    blurb: 'Retail, wholesale and commerce — free to enterprise.',
+    fromLabel: 'From ₦0',
+  },
+  {
+    id: 'hospitality',
+    title: 'Busmo Hospitality',
+    model: 'Room capacity + locations',
+    href: '/industries/hospitality#pricing',
+    blurb: 'Hotels, guesthouses and resorts.',
+    fromLabel: 'From ₦25,000/mo',
+  },
+  {
+    id: 'education',
+    title: 'Busmo Education',
+    model: 'Student enrollment',
+    href: '/industries/education#pricing',
+    blurb: 'Schools with monthly, termly or annual billing.',
+    fromLabel: 'From ₦0',
+  },
+  {
+    id: 'professional',
+    title: 'Busmo Professional',
+    model: 'Team size + projects',
+    href: '/industries/professional#pricing',
+    blurb: 'Agencies, consultants and project firms.',
+    fromLabel: 'From ₦15,000/mo',
+  },
+  {
+    id: 'healthcare',
+    title: 'Busmo Healthcare',
+    model: 'Facility size + modules',
+    href: '/industries/healthcare#pricing',
+    blurb: 'Clinic operations — patients, appointments, billing.',
+    fromLabel: 'From ₦40,000/mo',
+  },
+  {
+    id: 'enterprise',
+    title: 'Busmo Enterprise',
+    model: 'Custom contracts',
+    href: '/pricing#enterprise',
+    blurb: 'Groups, implementation and SLAs.',
+    fromLabel: 'Custom',
+  },
+] as const;
