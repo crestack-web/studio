@@ -79,6 +79,7 @@ export function FrontDeskDashboard({
   const [error, setError] = useState<string | null>(null);
   const [floor, setFloor] = useState<string>('all');
   const [busy, setBusy] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const authHeaders = useCallback(async () => {
     const supabase = getSupabase();
@@ -190,10 +191,18 @@ export function FrontDeskDashboard({
 
   return (
     <div className={styles.page}>
-      <aside className={styles.sidebar}>
+      {sidebarOpen ? (
+        <div className={styles.overlay} onClick={() => setSidebarOpen(false)} aria-hidden />
+      ) : null}
+      <aside className={[styles.sidebar, sidebarOpen ? styles.sidebarOpen : ''].join(' ')}>
+        <div className={styles.busmoMark}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/sidebar-logo.png" alt="Busmo" />
+          <span>BUSMO</span>
+        </div>
         <div className={styles.brand}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logoUrl} alt="" className={styles.logo} />
+          <img src={logoUrl || '/sidebar-logo.png'} alt="" className={styles.logo} />
           <div>
             <div className={styles.brandName}>{propertyName}</div>
             <div className={styles.brandSub}>Front desk</div>
@@ -201,15 +210,15 @@ export function FrontDeskDashboard({
         </div>
         <nav className={styles.nav}>
           <span className={styles.navActive}>Dashboard</span>
-          <Link href={`${config.dashboardPath}/reservations`}>Bookings</Link>
-          <Link href={`${config.dashboardPath}/rooms`}>Rooms</Link>
-          <Link href={`${config.dashboardPath}/guests`}>Guests</Link>
+          <Link href={`${config.dashboardPath}/reservations`} onClick={() => setSidebarOpen(false)}>Bookings</Link>
+          <Link href={`${config.dashboardPath}/rooms`} onClick={() => setSidebarOpen(false)}>Rooms</Link>
+          <Link href={`${config.dashboardPath}/guests`} onClick={() => setSidebarOpen(false)}>Guests</Link>
           {mode === 'owner-preview' ? (
-            <Link href={`${config.dashboardPath}/settings`}>Hotel settings</Link>
+            <Link href={`${config.dashboardPath}/settings`} onClick={() => setSidebarOpen(false)}>Hotel settings</Link>
           ) : null}
         </nav>
         <div className={styles.sidebarFoot}>
-          <Link href={config.dashboardPath} className={styles.linkQuiet}>
+          <Link href={config.dashboardPath} className={styles.linkQuiet} onClick={() => setSidebarOpen(false)}>
             Owner overview →
           </Link>
         </div>
@@ -217,13 +226,25 @@ export function FrontDeskDashboard({
 
       <div className={styles.main}>
         <header className={styles.topbar}>
-          <div>
-            <h1>Dashboard</h1>
-            <p className={styles.topHint}>Live room status and today’s front-desk activity</p>
+          <div className={styles.topbarTitleRow}>
+            <button type="button" className={styles.menuBtn} aria-label="Open menu" onClick={() => setSidebarOpen(true)}>
+              ☰
+            </button>
+            <div>
+              <div className={styles.busmoMark} style={{ marginBottom: 6 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/sidebar-logo.png" alt="Busmo" />
+                <span>BUSMO</span>
+              </div>
+              <h1>Dashboard</h1>
+              <p className={styles.topHint}>Live room status and today’s front-desk activity</p>
+            </div>
           </div>
-          <Link href={`${config.dashboardPath}/reservations`} className={styles.primaryBtn}>
-            + New Booking
-          </Link>
+          <div className={styles.topbarActions}>
+            <Link href={`${config.dashboardPath}/reservations`} className={styles.primaryBtn}>
+              + New Booking
+            </Link>
+          </div>
         </header>
 
         {error ? <div className={styles.error}>{error}</div> : null}
