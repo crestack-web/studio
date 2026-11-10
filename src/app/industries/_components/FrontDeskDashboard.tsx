@@ -82,10 +82,11 @@ export function FrontDeskDashboard({
 
   const authHeaders = useCallback(async () => {
     const supabase = getSupabase();
+    // TEMP: auth optional for QA
     const { data: sess } = await supabase.auth.getSession();
-    const token = sess.session?.access_token;
-    if (!token) throw new Error('Not signed in');
-    return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (sess.session?.access_token) headers.Authorization = `Bearer ${sess.session.access_token}`;
+    return headers;
   }, []);
 
   const load = useCallback(async () => {
@@ -94,8 +95,15 @@ export function FrontDeskDashboard({
       const headers = await authHeaders();
       const res = await fetch('/api/industries/hospitality/front-desk', { headers });
       const json = await res.json().catch(() => ({}));
+      // TEMP: ignore 401 during QA — show empty desk
       if (res.status === 401) {
-        router.replace(config.loginPath);
+        setData({
+          settings: { property_name: config.productName, logo_url: null, currency: 'NGN' },
+          metrics: { occupancyRate: 0, checkInsToday: 0, availableRooms: 0, totalRooms: 0, occupiedRooms: 0, totalRevenue: 0 },
+          floors: [],
+          rooms: [],
+          recentBookings: [],
+        } as any);
         return;
       }
       if (!res.ok) throw new Error(json.error || 'Failed to load front desk');
