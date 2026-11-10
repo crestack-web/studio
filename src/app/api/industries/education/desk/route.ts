@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 async function biz(req: NextRequest) {
   const user = await getAuthUser(req);
   if (!user) return null;
-  const s = await loadIndustrySession(user.id, { product_edition: 'education' });
+  const s = await loadIndustrySession(user.id, user.user_metadata as Record<string, unknown>);
   return s.businessId || null;
 }
 
