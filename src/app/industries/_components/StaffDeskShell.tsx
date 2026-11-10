@@ -1,9 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import type { IndustryConfig } from '@/lib/industries/types';
 import styles from './FrontDesk.module.css';
+
+const BUSMO_LOGO = '/sidebar-logo.png';
 
 export function StaffDeskShell({
   config,
@@ -32,10 +34,22 @@ export function StaffDeskShell({
   warning?: string | null;
   error?: string | null;
 }) {
-  const logo = logoUrl || '/email-logo.png';
+  const [open, setOpen] = useState(false);
+  // Property logo if set; otherwise Busmo mark
+  const logo = logoUrl || BUSMO_LOGO;
+
   return (
     <div className={styles.page}>
-      <aside className={styles.sidebar}>
+      {open ? (
+        <div className={styles.overlay} onClick={() => setOpen(false)} aria-hidden />
+      ) : null}
+
+      <aside className={[styles.sidebar, open ? styles.sidebarOpen : ''].join(' ')}>
+        <div className={styles.busmoMark}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={BUSMO_LOGO} alt="Busmo" />
+          <span>BUSMO</span>
+        </div>
         <div className={styles.brand}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={logo} alt="" className={styles.logo} />
@@ -51,28 +65,46 @@ export function StaffDeskShell({
                 {n.label}
               </span>
             ) : (
-              <Link key={n.href} href={n.href}>
+              <Link key={n.href} href={n.href} onClick={() => setOpen(false)}>
                 {n.label}
               </Link>
             )
           )}
         </nav>
         <div className={styles.sidebarFoot}>
-          <Link href={ownerHref} className={styles.linkQuiet}>
+          <Link href={ownerHref} className={styles.linkQuiet} onClick={() => setOpen(false)}>
             Owner overview →
           </Link>
         </div>
       </aside>
+
       <div className={styles.main}>
         <header className={styles.topbar}>
-          <div>
-            <h1>{title}</h1>
-            <p className={styles.topHint}>{subtitle}</p>
+          <div className={styles.topbarTitleRow}>
+            <button
+              type="button"
+              className={styles.menuBtn}
+              aria-label="Open menu"
+              onClick={() => setOpen(true)}
+            >
+              ☰
+            </button>
+            <div>
+              <div className={styles.busmoMark} style={{ marginBottom: 6 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={BUSMO_LOGO} alt="Busmo" />
+                <span>BUSMO</span>
+              </div>
+              <h1>{title}</h1>
+              <p className={styles.topHint}>{subtitle}</p>
+            </div>
           </div>
-          {actions}
+          {actions ? <div className={styles.topbarActions}>{actions}</div> : null}
         </header>
+
         {error ? <div className={styles.error}>{error}</div> : null}
         {warning ? <div className={styles.warn}>{warning}</div> : null}
+
         <div className={styles.metrics}>
           {metrics.map((m) => (
             <div key={m.label} className={styles.metric}>
