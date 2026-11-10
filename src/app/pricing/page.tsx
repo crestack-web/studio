@@ -14,6 +14,7 @@ import {
   type BusmoPlan,
   type PlanId,
 } from '@/lib/pricing';
+import { PRICING_HUB, ENTERPRISE_PRICING } from '@/lib/industries/pricing';
 
 export default function PricingPage() {
   const [mode, setMode] = useState<'monthly' | 'yearly'>('monthly');
@@ -164,11 +165,38 @@ export default function PricingPage() {
               <em>cash and staff</em>
             </h1>
             <p className="section-sub">
-              {POSITIONING.headline}
+              Find the right Busmo for your business — one platform, industry-specific pricing.
               <br />
-              Choose <strong>Busmo Start</strong>, <strong>Busmo Control</strong>, or{' '}
-              <strong>Busmo Scale</strong>. 14-day free trial. Cancel anytime.
+              14-day free trial on paid plans. Annual billing saves ~2 months.
             </p>
+          </div>
+
+          <div className="pricing-hub" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, margin: '28px 0 36px' }}>
+            {PRICING_HUB.map((item) => (
+              <a
+                key={item.id}
+                href={item.href}
+                style={{
+                  display: 'block',
+                  padding: '16px 14px',
+                  borderRadius: 14,
+                  border: '1.5px solid #e8e8f0',
+                  background: '#fff',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                }}
+              >
+                <div style={{ fontWeight: 800, fontSize: 15, color: '#0a0a0f' }}>{item.title}</div>
+                <div style={{ fontSize: 12, color: '#6b3fe7', fontWeight: 600, marginTop: 4 }}>{item.model}</div>
+                <div style={{ fontSize: 13, color: '#6b7280', marginTop: 8, lineHeight: 1.4 }}>{item.blurb}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, marginTop: 10 }}>{item.fromLabel}</div>
+              </a>
+            ))}
+          </div>
+
+          <div className="section-head center" style={{ marginTop: 8 }}>
+            <h2 className="section-title" style={{ fontSize: '1.35rem' }}>Busmo Business</h2>
+            <p className="section-sub">Business size + features. Free, Starter, Growth, and Business.</p>
           </div>
 
           <div className="pricing-toggle">
@@ -316,6 +344,25 @@ export default function PricingPage() {
       </main>
 
       <LangProvider>
+        
+        <section id="enterprise" className="max-w" style={{ margin: '48px auto 32px', padding: '0 16px' }}>
+          <div className="section-head center">
+            <h2 className="section-title" style={{ fontSize: '1.35rem' }}>{ENTERPRISE_PRICING.productName}</h2>
+            <p className="section-sub">{ENTERPRISE_PRICING.subhead}</p>
+          </div>
+          <div style={{ display: 'grid', gap: 10, maxWidth: 640, margin: '0 auto' }}>
+            {ENTERPRISE_PRICING.indications.map((row) => (
+              <div key={row.customer} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '12px 14px', border: '1px solid #e8e8f0', borderRadius: 12, background: '#fff', fontSize: 14 }}>
+                <strong>{row.customer}</strong>
+                <span style={{ color: '#6b7280', textAlign: 'right' }}>{row.software}<br/>Impl. {row.implementation}</span>
+              </div>
+            ))}
+          </div>
+          <p style={{ textAlign: 'center', marginTop: 16 }}>
+            <a href="mailto:busmohq@gmail.com?subject=Busmo%20Enterprise" style={{ color: '#6b3fe7', fontWeight: 700 }}>Talk to sales →</a>
+          </p>
+        </section>
+
         <Footer onNavigate={handleNavigate} />
       </LangProvider>
 
