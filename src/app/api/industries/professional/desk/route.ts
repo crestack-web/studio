@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
       .select('*')
       .eq('business_id', businessId)
       .in('status', ['open', 'in_progress'])
-      .order('due_date', { ascending: true, nullsFirst: false })
+      .order('due_date', { ascending: true })
       .limit(40),
   ]);
 
