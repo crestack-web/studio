@@ -99,7 +99,7 @@ export function HealthcareDesk({ config }: { config: IndustryConfig }) {
         { label: 'Patients on file', value: m.patients ?? 0, hint: 'registered' },
       ]}
       error={error}
-      warning={data?.warnings?.length ? 'Apply migration 0027_solution_staff_desks.sql if tables are missing. Set logo under Branding.' : null}
+      warning={null}
       actions={
         <form onSubmit={walkIn} style={{ display: 'flex', gap: 8 }}>
           <input
