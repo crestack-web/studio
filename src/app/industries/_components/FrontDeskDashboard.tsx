@@ -198,12 +198,12 @@ export function FrontDeskDashboard({
       <aside className={[styles.sidebar, sidebarOpen ? styles.sidebarOpen : ''].join(' ')}>
         <div className={styles.busmoMark}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/sidebar-logo.png" alt="Busmo" />
+          <img src="/email-logo.png" alt="Busmo" />
           <span>BUSMO</span>
         </div>
         <div className={styles.brand}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logoUrl || '/sidebar-logo.png'} alt="" className={styles.logo} />
+          <img src={logoUrl || '/email-logo.png'} alt="" className={styles.logo} />
           <div>
             <div className={styles.brandName}>{propertyName}</div>
             <div className={styles.brandSub}>Front desk</div>
@@ -234,7 +234,7 @@ export function FrontDeskDashboard({
             <div>
               <div className={styles.busmoMark} style={{ marginBottom: 6 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/sidebar-logo.png" alt="Busmo" />
+                <img src="/email-logo.png" alt="Busmo" />
                 <span>BUSMO</span>
               </div>
               <h1>Dashboard</h1>
