@@ -6,6 +6,7 @@ import type { IndustryConfig } from '@/lib/industries/types';
 import { getSuiteFamily } from '@/lib/industries/suite-catalog';
 import { SuiteChrome, SuiteProductGrid } from './SuiteChrome';
 import { SuiteInstallAppButton } from './SuiteInstallAppButton';
+import { IndustryPricing } from './IndustryPricing';
 import styles from './SuiteChrome.module.css';
 
 export function IndustryWelcome({ config }: { config: IndustryConfig }) {
@@ -41,7 +42,8 @@ export function IndustryWelcome({ config }: { config: IndustryConfig }) {
       </section>
 
       <div className={styles.sectionTitle}>Apps in {family.label}</div>
-      <SuiteProductGrid family={family} />
+      <IndustryPricing config={config} />
+          <SuiteProductGrid family={family} />
 
       <section style={{ marginTop: 28, textAlign: 'center' }}>
         <p style={{ color: '#6b7280', fontSize: '0.88rem', marginBottom: 12 }}>
