@@ -924,22 +924,6 @@ function HospitalityReservations({ config }: { config: IndustryConfig }) {
   );
 }
 
-function DeskLink({ config, title, body }: { config: IndustryConfig; title: string; body: string }) {
-  return (
-    <Shell title={title} subtitle={body}>
-      <Panel title="Live staff desk">
-        <p className={styles.greetingSub} style={{ marginBottom: 14 }}>
-          Day-to-day operations for this area run on the staff desk with live metrics and actions.
-        </p>
-        <Link href={deskPath(config)} className={styles.btnPrimary}>
-          Open {title.toLowerCase()}
-        </Link>
-      </Panel>
-      <RecordsModule config={config} section={title.toLowerCase().replace(/\s+/g, '-')} label={title} />
-    </Shell>
-  );
-}
-
 export function IndustryModuleView({
   config,
   section,
