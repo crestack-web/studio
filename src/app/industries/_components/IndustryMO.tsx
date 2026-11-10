@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { IndustryConfig } from '@/lib/industries/types';
 import styles from './IndustryMO.module.css';
+import { MoIcon } from '@/app/owner/dashboard/NavIcons';
 
 type Msg = { id: string; role: 'user' | 'mo'; text: string };
 
@@ -98,8 +99,9 @@ export function IndustryMO({
         aria-label="Open MO"
         onClick={() => setOpen(true)}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/email-logo.png" alt="" />
+        <span className={styles.fabIcon}>
+          <MoIcon size={14} />
+        </span>
         <span>MO</span>
       </button>
 
@@ -107,8 +109,9 @@ export function IndustryMO({
         <div className={styles.panel} role="dialog" aria-label="Ask MO">
           <header className={styles.head}>
             <div className={styles.headBrand}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/email-logo.png" alt="" />
+              <span className={styles.headIcon}>
+                <MoIcon size={16} />
+              </span>
               <div>
                 <strong>MO</strong>
                 <small>
