@@ -11,6 +11,9 @@ import styles from './SuiteChrome.module.css';
 
 export function IndustryWelcome({ config }: { config: IndustryConfig }) {
   const family = getSuiteFamily(config.id);
+  if (!family) {
+    return null;
+  }
 
   return (
     <SuiteChrome family={family}>
