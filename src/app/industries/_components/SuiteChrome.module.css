@@ -519,3 +519,66 @@
   font-size: 0.82rem;
   color: #8888a0;
 }
+
+.pricingCapacity {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #6b3fe7;
+  margin-top: 2px;
+}
+.billingToggle {
+  display: inline-flex;
+  gap: 4px;
+  margin-top: 16px;
+  padding: 4px;
+  background: #f3f0ff;
+  border-radius: 999px;
+}
+.billingBtn,
+.billingActive {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: #555568;
+}
+.billingActive {
+  background: #fff;
+  color: #6b3fe7;
+  box-shadow: 0 1px 4px rgba(15,23,42,0.08);
+}
+.addOns {
+  margin: 28px auto 0;
+  max-width: 720px;
+  padding: 16px 18px;
+  border: 1px solid #e8e8f0;
+  border-radius: 14px;
+  background: #fafafc;
+}
+.addOns h3 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+}
+.addOns ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.addOns li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.86rem;
+  color: #333348;
+}
+.addOns li span {
+  color: #8888a0;
+}
+.pricingGrid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
