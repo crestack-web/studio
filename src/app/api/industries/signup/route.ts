@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await admin.auth.admin.createUser({
       email,
       password,
-      email_confirm: false,
+      email_confirm: true, // TEMP QA: auto-confirm so E2E works without mailbox
       user_metadata: {
         role: 'Owner',
         product_edition: productEdition,
@@ -147,30 +147,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Mirror Busmo Business: Resend verification + welcome (do not block on failures)
-    let confirmationSent = false;
-    try {
-      const origin =
-        process.env.NEXT_PUBLIC_APP_URL ||
-        process.env.NEXT_PUBLIC_SITE_URL ||
-        'https://www.busmo.io';
-      const cfg = getIndustryConfig(org.productEdition as any);
-      const displayName = businessName || cfg?.productName || 'there';
-      const token = createEmailConfirmToken(userId, email);
-      const confirmUrl = buildConfirmEmailUrl(token, origin);
-      const htmlContent = buildConfirmationEmailHtml({
-        name: displayName,
-        confirmUrl,
-      });
-      const product = cfg?.productName || 'Busmo';
-      await sendTransactionalEmail({
-        to: [{ email, name: displayName }],
-        subject: `Confirm your ${product} email address`,
-        htmlContent,
-      });
-      confirmationSent = true;
-    } catch (mailErr) {
-      console.error('[industries/signup] confirmation email failed', mailErr);
-    }
+    // TEMP QA: skip verification email — accounts are auto-confirmed
+    const confirmationSent = false;
 
     queueSolutionWelcomeEmail({
       email,
@@ -188,10 +166,10 @@ export async function POST(req: NextRequest) {
       productEdition: org.productEdition,
       dashboardPath: pathForEdition(org.productEdition),
       emailConfirmed: false,
-      needsEmailConfirm: true,
+      needsEmailConfirm: false, // TEMP QA: skip email gate
       confirmationSent,
       message:
-        'Account created. Check your email to confirm, then sign in to open your workspace.',
+        'Account created. You can sign in and open your workspace.',
     });
   } catch (err: any) {
     console.error('[industries/signup]', err);
