@@ -94,7 +94,7 @@ export function ProfessionalDesk({ config }: { config: IndustryConfig }) {
         { label: 'With due date', value: m.dueSoon ?? 0, hint: 'scheduled work' },
       ]}
       error={error}
-      warning={data?.warnings?.length ? 'Apply migration 0027 if tables are missing. Set firm logo under Branding.' : null}
+      warning={null}
       actions={
         <form onSubmit={addTask} style={{ display: 'flex', gap: 8 }}>
           <input
