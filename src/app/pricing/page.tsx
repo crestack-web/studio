@@ -194,7 +194,7 @@ export default function PricingPage() {
             ))}
           </div>
 
-          <div className="section-head center" style={{ marginTop: 8 }}>
+          <div id="business" className="section-head center" style={{ marginTop: 8 }}>
             <h2 className="section-title" style={{ fontSize: '1.35rem' }}>Busmo Business</h2>
             <p className="section-sub">Business size + features. Free, Starter, Growth, and Business.</p>
           </div>
