@@ -263,7 +263,7 @@ function RecordsModule({
       setMsg('Saved');
       await load();
     } catch (err: any) {
-      setMsg(err?.message || 'Failed — sign in and apply migration 0028 if needed');
+      setMsg(err?.message || 'Failed - sign in and apply migration 0028 if needed');
     } finally {
       setBusy(false);
     }
@@ -388,7 +388,7 @@ function RecordsModule({
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 14 }}>{r.title}</div>
                     <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
-                      {r.notes || '—'}
+                      {r.notes || '-'}
                       {Number(r.amount) ? ` · ${naira(Number(r.amount))}` : ''}
                       {r.occurred_at
                         ? ` · ${new Date(r.occurred_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}`
@@ -566,7 +566,7 @@ function HospitalityRooms({ config }: { config: IndustryConfig }) {
                   <div>
                     <div style={{ fontWeight: 800 }}>Room {r.room_number}</div>
                     <div style={{ fontSize: 12, color: '#6b7280' }}>
-                      Floor {r.floor || '—'} · {r.category || 'Standard'} · {naira(Number(r.rate_amount || 0))}/night
+                      Floor {r.floor || '-'} · {r.category || 'Standard'} · {naira(Number(r.rate_amount || 0))}/night
                     </div>
                   </div>
                   <span style={statusStyle}>{r.status}</span>
@@ -659,7 +659,7 @@ function HospitalityReservations({ config }: { config: IndustryConfig }) {
                   <div>
                     <div style={{ fontWeight: 700 }}>{b.guest_name}</div>
                     <div style={{ fontSize: 12, color: '#6b7280' }}>
-                      {b.check_in_date || '—'} · {naira(Number(b.amount || 0))}
+                      {b.check_in_date || '-'} · {naira(Number(b.amount || 0))}
                     </div>
                   </div>
                   <span style={statusStyle}>{b.status}</span>
@@ -725,7 +725,7 @@ export function IndustryModuleView({
         <Shell title={label} subtitle="Live operations run on the staff front desk.">
           <Panel title="Staff front desk">
             <p className={styles.greetingSub} style={{ marginBottom: 14 }}>
-              Occupancy board, check-in/out, and today’s activity are optimized for the front desk experience.
+              Occupancy board, check-in/out, and today's activity are optimized for the front desk experience.
             </p>
             <Link href="/industries/hospitality/front-desk" className={styles.btnPrimary}>
               Open front desk
@@ -772,6 +772,6 @@ export function IndustryModuleView({
     );
   }
 
-  // All other modules — full CRUD records
+  // All other modules - full CRUD records
   return <RecordsModule config={config} section={section} label={label} />;
 }
