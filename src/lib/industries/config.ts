@@ -65,6 +65,7 @@ export const HOSPITALITY: IndustryConfig = {
     { id: 'revenue_today', label: "Today's Revenue", emptyValue: '₦0' },
   ],
   quickActions: [
+    { id: 'open-front-desk', label: 'Open Front Desk', href: '/industries/hospitality/front-desk' },
     { id: 'new-reservation', label: 'New Reservation', href: '/industries/hospitality/dashboard/reservations' },
     { id: 'check-in', label: 'Check In Guest', href: '/industries/hospitality/dashboard/checkin' },
     { id: 'check-out', label: 'Check Out Guest', href: '/industries/hospitality/dashboard/checkin' },
