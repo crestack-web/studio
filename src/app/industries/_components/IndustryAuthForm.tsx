@@ -179,11 +179,18 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
             },
           });
           if (signErr) throw signErr;
+          // Prefer immediate session; if none, sign in with password (no email verification gate)
           if (!signData.session) {
-            setNeedsEmailConfirm(true);
-            setInfo('Check your email to confirm your account, then sign in to finish setup.');
-            setLoading(false);
-            return;
+            const { error: loginErr } = await supabase.auth.signInWithPassword({
+              email: email.trim(),
+              password,
+            });
+            if (loginErr) {
+              throw new Error(
+                loginErr.message ||
+                  'Account created. Please sign in with your email and password.'
+              );
+            }
           }
           await completeOnboarding(name);
           return;
@@ -191,7 +198,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
         throw new Error(signupJson.error || 'Could not create account');
       }
 
-      // TEMP QA: skip email confirmation gate — sign in and open dashboard
+      // Sign in immediately — no email verification required
       if (signupJson.userId || signupJson.ok) {
         try {
           const { error: loginErr } = await supabase.auth.signInWithPassword({
@@ -201,7 +208,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
           if (loginErr) {
             setInfo(
               signupJson.message ||
-                'Account created. Sign in with your email and password to open the workspace.'
+                'Account created. Use the login form with the same email and password.'
             );
             setLoading(false);
             return;

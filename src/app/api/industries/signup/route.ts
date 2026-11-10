@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await admin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // TEMP QA: auto-confirm so E2E works without mailbox
+      email_confirm: true, // Auto-confirm — solutions signup does not require email verification
       user_metadata: {
         role: 'Owner',
         product_edition: productEdition,
@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Mirror Busmo Business: Resend verification + welcome (do not block on failures)
-    // TEMP QA: skip verification email — accounts are auto-confirmed
+    // No verification email — account is usable immediately
     const confirmationSent = false;
 
     queueSolutionWelcomeEmail({
@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
       productEdition: org.productEdition,
       dashboardPath: pathForEdition(org.productEdition),
       emailConfirmed: false,
-      needsEmailConfirm: false, // TEMP QA: skip email gate
+      needsEmailConfirm: false,
       confirmationSent,
       message:
         'Account created. You can sign in and open your workspace.',
