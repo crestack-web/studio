@@ -7,6 +7,7 @@ import { getSupabase } from '@/lib/supabase';
 import type { IndustryConfig } from '@/lib/industries/types';
 import { getSuiteFamily } from '@/lib/industries/suite-catalog';
 import styles from './IndustryShell.module.css';
+import { IndustryMO } from './IndustryMO';
 
 const SECTION_ORDER = ['main', 'operations', 'finance', 'settings'] as const;
 const SECTION_LABELS: Record<string, string> = {
@@ -338,6 +339,7 @@ export function IndustryDashboardClient({
           )}
         </div>
       </div>
+      <IndustryMO config={config} businessName={displayName} />
     </div>
   );
 }
