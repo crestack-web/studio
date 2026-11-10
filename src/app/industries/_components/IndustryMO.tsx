@@ -99,7 +99,7 @@ export function IndustryMO({
         onClick={() => setOpen(true)}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/sidebar-logo.png" alt="" />
+        <img src="/email-logo.png" alt="" />
         <span>MO</span>
       </button>
 
@@ -108,7 +108,7 @@ export function IndustryMO({
           <header className={styles.head}>
             <div className={styles.headBrand}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/sidebar-logo.png" alt="" />
+              <img src="/email-logo.png" alt="" />
               <div>
                 <strong>MO</strong>
                 <small>
