@@ -8,6 +8,7 @@ import type { IndustryConfig } from '@/lib/industries/types';
 import { getSuiteFamily } from '@/lib/industries/suite-catalog';
 import styles from './IndustryShell.module.css';
 import { IndustryMO } from './IndustryMO';
+import { IndustryModuleView } from './IndustryModuleView';
 
 const SECTION_ORDER = ['main', 'operations', 'finance', 'settings'] as const;
 const SECTION_LABELS: Record<string, string> = {
@@ -319,23 +320,7 @@ export function IndustryDashboardClient({
               </section>
             </>
           ) : (
-            <div className={styles.placeholderPage}>
-              <p className={styles.eyebrow}>Module</p>
-              <h2>{config.nav.find((n) => n.id === activeId)?.label || activeId}</h2>
-              <p>
-                This module is wired into {config.productName} navigation. Deep workflows connect here
-                as your operational data is added — the staff desk already handles day-to-day
-                activity.
-              </p>
-              <div className={styles.placeholderActions}>
-                <Link href={deskHref} className={styles.btnPrimary}>
-                  Open {deskLabel(config)}
-                </Link>
-                <Link href={config.dashboardPath} className={styles.btnGhost}>
-                  Back to overview
-                </Link>
-              </div>
-            </div>
+            <IndustryModuleView config={config} section={activeId} />
           )}
         </div>
       </div>
