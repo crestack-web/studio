@@ -560,9 +560,9 @@ function RecordsModule({
       title={label}
       subtitle={spec.subtitle}
       actions={
-        <Link href={deskPath(config)} className={styles.btnGhost}>
-          Staff desk
-        </Link>
+        <a href={deskPath(config)} className={styles.btnGhost}>
+          Staff portal
+        </a>
       }
     >
       <div className={styles.metricsGrid}>
@@ -971,7 +971,7 @@ export function IndustryModuleView({
         <Shell title={label} subtitle="Live room board and check-in.">
           <Panel title="Front desk">
             <Link href="/industries/hospitality/front-desk" className={styles.btnPrimary}>
-              Open front desk
+              Open staff portal
             </Link>
           </Panel>
         </Shell>
