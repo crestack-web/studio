@@ -206,7 +206,7 @@ export function FrontDeskDashboard({
           <img src={logoUrl || '/email-logo.png'} alt="" className={styles.logo} />
           <div>
             <div className={styles.brandName}>{propertyName}</div>
-            <div className={styles.brandSub}>Front desk</div>
+            <div className={styles.brandSub}>Staff portal · Front desk</div>
           </div>
         </div>
         <nav className={styles.nav}>
@@ -220,7 +220,7 @@ export function FrontDeskDashboard({
         </nav>
         <div className={styles.sidebarFoot}>
           <Link href={config.dashboardPath} className={styles.linkQuiet} onClick={() => setSidebarOpen(false)}>
-            Owner overview →
+            Owner console →
           </Link>
         </div>
       </aside>
