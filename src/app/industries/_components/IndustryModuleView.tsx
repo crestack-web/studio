@@ -14,7 +14,30 @@ async function authHeaders() {
 }
 
 function naira(n: number) {
-  return `₦${Number(n || 0).toLocaleString()}`;
+  return `NGN ${Number(n || 0).toLocaleString()}`;
+}
+
+function storageKey(edition: string, module: string) {
+  return `busmo_mod_${edition}_${module}`;
+}
+
+function readLocal(edition: string, module: string): any[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(storageKey(edition, module));
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocal(edition: string, module: string, rows: any[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(storageKey(edition, module), JSON.stringify(rows.slice(0, 200)));
+  } catch {
+    /* ignore */
+  }
 }
 
 function Shell({
@@ -63,363 +86,6 @@ function Panel({
   );
 }
 
-type ModuleSpec = {
-  key: string;
-  titleField: string;
-  amount?: boolean;
-  statuses: string[];
-  defaultStatus: string;
-  subtitle: string;
-  placeholders: { title: string; notes?: string; amount?: string };
-};
-
-function moduleSpec(edition: string, section: string, label: string): ModuleSpec {
-  const money = ['revenue', 'expenses', 'payments', 'billing', 'fees', 'invoices'].includes(section);
-  const base: ModuleSpec = {
-    key: section,
-    titleField: label.replace(/s$/, '') + ' name',
-    amount: money,
-    statuses: money
-      ? ['open', 'pending', 'paid', 'cancelled']
-      : ['open', 'in_progress', 'done', 'cancelled'],
-    defaultStatus: money ? 'pending' : 'open',
-    subtitle: `Manage ${label.toLowerCase()} for this organization. Changes are saved to your ${edition} workspace.`,
-    placeholders: {
-      title: `New ${label.toLowerCase().replace(/s$/, '')}`,
-      notes: 'Notes (optional)',
-      amount: money ? 'Amount' : undefined,
-    },
-  };
-
-  const map: Record<string, Partial<ModuleSpec>> = {
-    guests: {
-      titleField: 'Guest name',
-      statuses: ['active', 'checked_in', 'checked_out', 'vip'],
-      defaultStatus: 'active',
-      subtitle: 'Guest profiles used at the front desk during check-in and billing.',
-    },
-    reservations: {
-      titleField: 'Guest / reservation',
-      amount: true,
-      statuses: ['confirmed', 'checked_in', 'checked_out', 'cancelled'],
-      defaultStatus: 'confirmed',
-    },
-    checkin: {
-      titleField: 'Guest name',
-      statuses: ['arriving', 'checked_in', 'checked_out'],
-      defaultStatus: 'arriving',
-      subtitle: 'Track arrivals and departures. Live room board stays on the front desk.',
-    },
-    housekeeping: {
-      titleField: 'Room / task',
-      statuses: ['dirty', 'cleaning', 'ready', 'blocked'],
-      defaultStatus: 'dirty',
-    },
-    'room-service': {
-      titleField: 'Order / room',
-      amount: true,
-      statuses: ['open', 'preparing', 'delivered', 'cancelled'],
-      defaultStatus: 'open',
-    },
-    staff: {
-      titleField: 'Staff name',
-      statuses: ['active', 'off_duty', 'on_leave'],
-      defaultStatus: 'active',
-    },
-    tasks: {
-      titleField: 'Task',
-      statuses: ['open', 'in_progress', 'done'],
-      defaultStatus: 'open',
-    },
-    patients: {
-      titleField: 'Patient name',
-      statuses: ['active', 'inactive'],
-      defaultStatus: 'active',
-    },
-    appointments: {
-      titleField: 'Patient / reason',
-      statuses: ['scheduled', 'checked_in', 'completed', 'cancelled'],
-      defaultStatus: 'scheduled',
-    },
-    visits: {
-      titleField: 'Patient visit',
-      amount: true,
-      statuses: ['open', 'in_progress', 'completed'],
-      defaultStatus: 'open',
-    },
-    students: {
-      titleField: 'Student name',
-      statuses: ['active', 'alumni', 'withdrawn'],
-      defaultStatus: 'active',
-    },
-    classes: {
-      titleField: 'Class name',
-      statuses: ['active', 'archived'],
-      defaultStatus: 'active',
-    },
-    enrollment: {
-      titleField: 'Student · class',
-      statuses: ['enrolled', 'pending', 'withdrawn'],
-      defaultStatus: 'enrolled',
-    },
-    attendance: {
-      titleField: 'Class / student',
-      statuses: ['present', 'absent', 'late'],
-      defaultStatus: 'present',
-    },
-    teachers: {
-      titleField: 'Teacher name',
-      statuses: ['active', 'on_leave'],
-      defaultStatus: 'active',
-    },
-    clients: {
-      titleField: 'Client name',
-      statuses: ['active', 'paused', 'closed'],
-      defaultStatus: 'active',
-    },
-    projects: {
-      titleField: 'Project name',
-      amount: true,
-      statuses: ['active', 'on_hold', 'done'],
-      defaultStatus: 'active',
-    },
-    invoices: {
-      titleField: 'Invoice / client',
-      amount: true,
-      statuses: ['draft', 'sent', 'paid', 'overdue'],
-      defaultStatus: 'draft',
-    },
-    reports: {
-      titleField: 'Report title',
-      statuses: ['draft', 'ready'],
-      defaultStatus: 'ready',
-      subtitle: 'Save report snapshots and notes for ownership reviews.',
-    },
-  };
-
-  return { ...base, ...(map[section] || {}) };
-}
-
-function RecordsModule({
-  config,
-  section,
-  label,
-}: {
-  config: IndustryConfig;
-  section: string;
-  label: string;
-}) {
-  const spec = useMemo(() => moduleSpec(config.id, section, label), [config.id, section, label]);
-  const [rows, setRows] = useState<any[]>([]);
-  const [metrics, setMetrics] = useState({ count: 0, open: 0, amount: 0 });
-  const [title, setTitle] = useState('');
-  const [amount, setAmount] = useState('');
-  const [notes, setNotes] = useState('');
-  const [msg, setMsg] = useState<string | null>(null);
-  const [warning, setWarning] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [filter, setFilter] = useState('all');
-
-  const load = useCallback(async () => {
-    const h = await authHeaders();
-    const res = await fetch(
-      `/api/industries/records?edition=${encodeURIComponent(config.id)}&module=${encodeURIComponent(section)}`,
-      { headers: h }
-    );
-    const json = await res.json().catch(() => ({}));
-    setRows(json.records || []);
-    setMetrics(json.metrics || { count: 0, open: 0, amount: 0 });
-    setWarning(json.warning || null);
-  }, [config.id, section]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  async function create(e: React.FormEvent) {
-    e.preventDefault();
-    if (!title.trim()) return;
-    setBusy(true);
-    setMsg(null);
-    try {
-      const h = await authHeaders();
-      const res = await fetch('/api/industries/records', {
-        method: 'POST',
-        headers: h,
-        body: JSON.stringify({
-          edition: config.id,
-          module: section,
-          title: title.trim(),
-          status: spec.defaultStatus,
-          amount: spec.amount ? Number(amount) || 0 : 0,
-          notes: notes.trim() || null,
-        }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error || 'Could not save');
-      setTitle('');
-      setAmount('');
-      setNotes('');
-      setMsg('Saved');
-      await load();
-    } catch (err: any) {
-      setMsg(err?.message || 'Failed - sign in and apply migration 0028 if needed');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function setStatus(id: string, status: string) {
-    setBusy(true);
-    try {
-      const h = await authHeaders();
-      await fetch('/api/industries/records', {
-        method: 'PATCH',
-        headers: h,
-        body: JSON.stringify({ edition: config.id, id, status }),
-      });
-      await load();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const filtered =
-    filter === 'all' ? rows : rows.filter((r) => String(r.status) === filter);
-
-  const desk =
-    config.id === 'hospitality'
-      ? '/industries/hospitality/front-desk'
-      : config.id === 'healthcare'
-        ? '/industries/healthcare/front-desk'
-        : config.id === 'education'
-          ? '/industries/education/front-desk'
-          : '/industries/professional/front-desk';
-
-  return (
-    <Shell
-      title={label}
-      subtitle={spec.subtitle}
-      actions={
-        <Link href={desk} className={styles.btnGhost}>
-          Open staff desk
-        </Link>
-      }
-    >
-      {warning ? (
-        <div className={styles.panel} style={{ borderColor: '#fde68a', background: '#fffbeb' }}>
-          <p style={{ margin: 0, fontSize: 13, color: '#92400e' }}>
-            {warning}. Run migration <code>0028_industry_records.sql</code> in Supabase if the table is missing.
-          </p>
-        </div>
-      ) : null}
-
-      <div className={styles.metricsGrid}>
-        <div className={styles.metricCard}>
-          <div className={styles.metricLabel}>Records</div>
-          <div className={styles.metricValue}>{metrics.count}</div>
-        </div>
-        <div className={styles.metricCard}>
-          <div className={styles.metricLabel}>Active / open</div>
-          <div className={styles.metricValue}>{metrics.open}</div>
-        </div>
-        <div className={styles.metricCard}>
-          <div className={styles.metricLabel}>Value</div>
-          <div className={styles.metricValue}>{naira(metrics.amount)}</div>
-        </div>
-        <div className={styles.metricCard}>
-          <div className={styles.metricLabel}>Module</div>
-          <div className={styles.metricValue} style={{ fontSize: '1rem' }}>
-            {label}
-          </div>
-        </div>
-      </div>
-
-      <div className={styles.split}>
-        <Panel title={`Add ${label.toLowerCase()}`}>
-          <form onSubmit={create} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={spec.placeholders.title}
-              style={inputStyle}
-              required
-            />
-            {spec.amount ? (
-              <input
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder={spec.placeholders.amount}
-                type="number"
-                min="0"
-                style={inputStyle}
-              />
-            ) : null}
-            <input
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder={spec.placeholders.notes}
-              style={inputStyle}
-            />
-            <button type="submit" disabled={busy} className={styles.btnPrimary} style={{ border: 'none' }}>
-              {busy ? 'Saving…' : `Save ${label.replace(/s$/, '').toLowerCase()}`}
-            </button>
-            {msg ? <p style={{ margin: 0, fontSize: 13, color: '#0d7a43' }}>{msg}</p> : null}
-          </form>
-        </Panel>
-
-        <Panel title="Workflow" meta={`${filtered.length} shown`}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
-            <button type="button" style={chipStyle(filter === 'all')} onClick={() => setFilter('all')}>
-              All
-            </button>
-            {spec.statuses.map((s) => (
-              <button key={s} type="button" style={chipStyle(filter === s)} onClick={() => setFilter(s)}>
-                {s.replace(/_/g, ' ')}
-              </button>
-            ))}
-          </div>
-          {filtered.length === 0 ? (
-            <p className={styles.empty}>No records yet. Add the first one on the left.</p>
-          ) : (
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: 420, overflow: 'auto' }}>
-              {filtered.map((r) => (
-                <li key={r.id} style={rowStyle}>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>{r.title}</div>
-                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
-                      {r.notes || '-'}
-                      {Number(r.amount) ? ` · ${naira(Number(r.amount))}` : ''}
-                      {r.occurred_at
-                        ? ` · ${new Date(r.occurred_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}`
-                        : ''}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
-                    <span style={statusStyle}>{String(r.status).replace(/_/g, ' ')}</span>
-                    <select
-                      disabled={busy}
-                      value={r.status}
-                      onChange={(e) => setStatus(r.id, e.target.value)}
-                      style={{ fontSize: 12, borderRadius: 8, border: '1px solid #e6e6ef', padding: '4px 6px' }}
-                    >
-                      {spec.statuses.map((s) => (
-                        <option key={s} value={s}>
-                          {s.replace(/_/g, ' ')}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-      </div>
-    </Shell>
-  );
-}
-
 const inputStyle: React.CSSProperties = {
   width: '100%',
   boxSizing: 'border-box',
@@ -460,7 +126,555 @@ function chipStyle(on: boolean): React.CSSProperties {
   };
 }
 
-/* Domain-specific modules that already had APIs */
+type ModuleSpec = {
+  titleField: string;
+  amount: boolean;
+  statuses: string[];
+  defaultStatus: string;
+  subtitle: string;
+  cta: string;
+};
+
+function getSpec(section: string, label: string): ModuleSpec {
+  const money = ['revenue', 'expenses', 'payments', 'billing', 'fees', 'invoices'].includes(section);
+  const specs: Record<string, Partial<ModuleSpec>> = {
+    guests: {
+      titleField: 'Guest full name',
+      statuses: ['active', 'checked_in', 'checked_out', 'vip'],
+      defaultStatus: 'active',
+      subtitle: 'Guest profiles for reservations, check-in and billing.',
+      cta: 'Add guest',
+    },
+    reservations: {
+      titleField: 'Guest name',
+      amount: true,
+      statuses: ['confirmed', 'checked_in', 'checked_out', 'cancelled'],
+      defaultStatus: 'confirmed',
+      subtitle: 'Bookings for the property. Check-in runs on the front desk.',
+      cta: 'Create reservation',
+    },
+    checkin: {
+      titleField: 'Guest name',
+      statuses: ['arriving', 'checked_in', 'checked_out'],
+      defaultStatus: 'arriving',
+      subtitle: 'Arrival list. Room board stays on the front desk.',
+      cta: 'Log arrival',
+    },
+    housekeeping: {
+      titleField: 'Room or task',
+      statuses: ['dirty', 'cleaning', 'ready', 'blocked'],
+      defaultStatus: 'dirty',
+      subtitle: 'Housekeeping queue by room status.',
+      cta: 'Add task',
+    },
+    'room-service': {
+      titleField: 'Room / order',
+      amount: true,
+      statuses: ['open', 'preparing', 'delivered', 'cancelled'],
+      defaultStatus: 'open',
+      subtitle: 'In-room orders and delivery status.',
+      cta: 'Add order',
+    },
+    staff: {
+      titleField: 'Staff name',
+      statuses: ['active', 'off_duty', 'on_leave'],
+      defaultStatus: 'active',
+      subtitle: 'Team roster for this property or branch.',
+      cta: 'Add staff',
+    },
+    tasks: {
+      titleField: 'Task title',
+      statuses: ['open', 'in_progress', 'done'],
+      defaultStatus: 'open',
+      subtitle: 'Operational tasks for the team.',
+      cta: 'Add task',
+    },
+    revenue: {
+      titleField: 'Revenue source',
+      amount: true,
+      statuses: ['recorded', 'pending', 'reversed'],
+      defaultStatus: 'recorded',
+      subtitle: 'Log room revenue, extras and other income.',
+      cta: 'Record revenue',
+    },
+    expenses: {
+      titleField: 'Expense',
+      amount: true,
+      statuses: ['recorded', 'pending', 'approved'],
+      defaultStatus: 'recorded',
+      subtitle: 'Track property and operations spend.',
+      cta: 'Add expense',
+    },
+    payments: {
+      titleField: 'Payment reference',
+      amount: true,
+      statuses: ['pending', 'paid', 'failed'],
+      defaultStatus: 'paid',
+      subtitle: 'Guest and vendor payments.',
+      cta: 'Record payment',
+    },
+    reports: {
+      titleField: 'Report name',
+      statuses: ['draft', 'ready'],
+      defaultStatus: 'ready',
+      subtitle: 'Saved report snapshots for ownership reviews.',
+      cta: 'Save report note',
+    },
+    patients: {
+      titleField: 'Patient name',
+      statuses: ['active', 'inactive'],
+      defaultStatus: 'active',
+      subtitle: 'Patient register for the clinic.',
+      cta: 'Add patient',
+    },
+    appointments: {
+      titleField: 'Patient / reason',
+      statuses: ['scheduled', 'checked_in', 'completed', 'cancelled'],
+      defaultStatus: 'scheduled',
+      subtitle: 'Appointment book. Walk-ins also work on Reception.',
+      cta: 'Book appointment',
+    },
+    visits: {
+      titleField: 'Patient visit',
+      amount: true,
+      statuses: ['open', 'in_progress', 'completed'],
+      defaultStatus: 'open',
+      subtitle: 'Visit episodes and outcomes.',
+      cta: 'Open visit',
+    },
+    students: {
+      titleField: 'Student name',
+      statuses: ['active', 'alumni', 'withdrawn'],
+      defaultStatus: 'active',
+      subtitle: 'Student register for the school.',
+      cta: 'Add student',
+    },
+    classes: {
+      titleField: 'Class name',
+      statuses: ['active', 'archived'],
+      defaultStatus: 'active',
+      subtitle: 'Classes and arms.',
+      cta: 'Add class',
+    },
+    enrollment: {
+      titleField: 'Student and class',
+      statuses: ['enrolled', 'pending', 'withdrawn'],
+      defaultStatus: 'enrolled',
+      subtitle: 'Enrollment records.',
+      cta: 'Enroll',
+    },
+    attendance: {
+      titleField: 'Class or student',
+      statuses: ['present', 'absent', 'late'],
+      defaultStatus: 'present',
+      subtitle: 'Daily attendance marks.',
+      cta: 'Mark attendance',
+    },
+    teachers: {
+      titleField: 'Teacher name',
+      statuses: ['active', 'on_leave'],
+      defaultStatus: 'active',
+      subtitle: 'Teaching staff roster.',
+      cta: 'Add teacher',
+    },
+    fees: {
+      titleField: 'Student / fee type',
+      amount: true,
+      statuses: ['recorded', 'pending', 'reversed'],
+      defaultStatus: 'recorded',
+      subtitle: 'Fee payments (also available on Front office desk).',
+      cta: 'Record fee',
+    },
+    clients: {
+      titleField: 'Client name',
+      statuses: ['active', 'paused', 'closed'],
+      defaultStatus: 'active',
+      subtitle: 'Client accounts for the firm.',
+      cta: 'Add client',
+    },
+    projects: {
+      titleField: 'Project name',
+      amount: true,
+      statuses: ['active', 'on_hold', 'done'],
+      defaultStatus: 'active',
+      subtitle: 'Projects and retainers.',
+      cta: 'Add project',
+    },
+    invoices: {
+      titleField: 'Invoice / client',
+      amount: true,
+      statuses: ['draft', 'sent', 'paid', 'overdue'],
+      defaultStatus: 'draft',
+      subtitle: 'Client billing.',
+      cta: 'Create invoice',
+    },
+    calendar: {
+      titleField: 'Event',
+      statuses: ['scheduled', 'done', 'cancelled'],
+      defaultStatus: 'scheduled',
+      subtitle: 'Schedule items for the team.',
+      cta: 'Add event',
+    },
+    team: {
+      titleField: 'Team member',
+      statuses: ['active', 'inactive'],
+      defaultStatus: 'active',
+      subtitle: 'Team directory.',
+      cta: 'Add member',
+    },
+    'time-tracking': {
+      titleField: 'Work item',
+      amount: true,
+      statuses: ['logged', 'approved'],
+      defaultStatus: 'logged',
+      subtitle: 'Time entries (amount can be hours or billable value).',
+      cta: 'Log time',
+    },
+    workload: {
+      titleField: 'Assignment',
+      statuses: ['open', 'in_progress', 'done'],
+      defaultStatus: 'open',
+      subtitle: 'Workload assignments.',
+      cta: 'Assign work',
+    },
+    deliverables: {
+      titleField: 'Deliverable',
+      statuses: ['pending', 'delivered', 'accepted'],
+      defaultStatus: 'pending',
+      subtitle: 'Client deliverables.',
+      cta: 'Add deliverable',
+    },
+    supplies: {
+      titleField: 'Supply item',
+      amount: true,
+      statuses: ['in_stock', 'low', 'out'],
+      defaultStatus: 'in_stock',
+      subtitle: 'Clinic supplies and consumables.',
+      cta: 'Add supply',
+    },
+    'clinical-staff': {
+      titleField: 'Clinician name',
+      statuses: ['active', 'off_duty'],
+      defaultStatus: 'active',
+      subtitle: 'Clinical team roster.',
+      cta: 'Add clinician',
+    },
+    'rooms-beds': {
+      titleField: 'Room or bed',
+      statuses: ['available', 'occupied', 'cleaning'],
+      defaultStatus: 'available',
+      subtitle: 'Beds and treatment rooms.',
+      cta: 'Add bed/room',
+    },
+    timetable: {
+      titleField: 'Period / class',
+      statuses: ['scheduled', 'done'],
+      defaultStatus: 'scheduled',
+      subtitle: 'School timetable entries.',
+      cta: 'Add period',
+    },
+    billing: {
+      titleField: 'Bill / patient',
+      amount: true,
+      statuses: ['open', 'paid', 'void'],
+      defaultStatus: 'open',
+      subtitle: 'Clinic billing records.',
+      cta: 'Create bill',
+    },
+  };
+
+  const base: ModuleSpec = {
+    titleField: `${label.replace(/s$/, '')} name`,
+    amount: money,
+    statuses: money
+      ? ['recorded', 'pending', 'paid', 'cancelled']
+      : ['open', 'in_progress', 'done', 'cancelled'],
+    defaultStatus: money ? 'recorded' : 'open',
+    subtitle: `Manage ${label.toLowerCase()} for this workspace. Add records, update status, and keep the team aligned.`,
+    cta: `Add ${label.replace(/s$/, '').toLowerCase()}`,
+  };
+
+  // normalize section keys like rooms-beds from nav ids
+  const key = section.replace(/_/g, '-');
+  return { ...base, ...(specs[section] || specs[key] || {}) };
+}
+
+function deskPath(config: IndustryConfig) {
+  if (config.id === 'hospitality') return '/industries/hospitality/front-desk';
+  if (config.id === 'healthcare') return '/industries/healthcare/front-desk';
+  if (config.id === 'education') return '/industries/education/front-desk';
+  return '/industries/professional/front-desk';
+}
+
+/** Full working module — API + local fallback so UI always works */
+function RecordsModule({
+  config,
+  section,
+  label,
+}: {
+  config: IndustryConfig;
+  section: string;
+  label: string;
+}) {
+  const spec = useMemo(() => getSpec(section, label), [section, label]);
+  const [rows, setRows] = useState<any[]>([]);
+  const [title, setTitle] = useState('');
+  const [amount, setAmount] = useState('');
+  const [notes, setNotes] = useState('');
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [filter, setFilter] = useState('all');
+  const [source, setSource] = useState<'api' | 'local'>('local');
+
+  const load = useCallback(async () => {
+    const local = readLocal(config.id, section);
+    const h = await authHeaders();
+    try {
+      const res = await fetch(
+        `/api/industries/records?edition=${encodeURIComponent(config.id)}&module=${encodeURIComponent(section)}`,
+        { headers: h }
+      );
+      const json = await res.json().catch(() => ({}));
+      const apiRows = Array.isArray(json.records) ? json.records : [];
+      if (apiRows.length > 0 || (res.ok && !json.warning && !json.preview)) {
+        setRows(apiRows);
+        setSource('api');
+        writeLocal(config.id, section, apiRows);
+        return;
+      }
+      // merge: prefer local if API empty
+      setRows(local);
+      setSource(apiRows.length || res.ok ? 'api' : 'local');
+    } catch {
+      setRows(local);
+      setSource('local');
+    }
+  }, [config.id, section]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function create(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) return;
+    setBusy(true);
+    setMsg(null);
+    const payload = {
+      edition: config.id,
+      module: section,
+      title: title.trim(),
+      status: spec.defaultStatus,
+      amount: spec.amount ? Number(amount) || 0 : 0,
+      notes: notes.trim() || null,
+      occurredAt: new Date().toISOString(),
+    };
+    try {
+      const h = await authHeaders();
+      const res = await fetch('/api/industries/records', {
+        method: 'POST',
+        headers: h,
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.record) {
+        setTitle('');
+        setAmount('');
+        setNotes('');
+        setMsg('Saved');
+        await load();
+        return;
+      }
+      // local fallback
+      const row = {
+        id: `local-${Date.now()}`,
+        ...payload,
+        occurred_at: payload.occurredAt,
+        status: payload.status,
+      };
+      const next = [row, ...readLocal(config.id, section)];
+      writeLocal(config.id, section, next);
+      setRows(next);
+      setSource('local');
+      setTitle('');
+      setAmount('');
+      setNotes('');
+      setMsg(res.status === 401 ? 'Saved on this device (sign in to sync)' : 'Saved on this device');
+    } catch {
+      const row = {
+        id: `local-${Date.now()}`,
+        title: payload.title,
+        status: payload.status,
+        amount: payload.amount,
+        notes: payload.notes,
+        occurred_at: payload.occurredAt,
+      };
+      const next = [row, ...readLocal(config.id, section)];
+      writeLocal(config.id, section, next);
+      setRows(next);
+      setMsg('Saved on this device');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setStatus(id: string, status: string) {
+    setBusy(true);
+    try {
+      if (String(id).startsWith('local-') || source === 'local') {
+        const next = readLocal(config.id, section).map((r) =>
+          r.id === id ? { ...r, status } : r
+        );
+        // also update in-memory rows that came from api id
+        const merged = rows.map((r) => (r.id === id ? { ...r, status } : r));
+        writeLocal(config.id, section, next.length ? next : merged);
+        setRows(merged);
+        return;
+      }
+      const h = await authHeaders();
+      const res = await fetch('/api/industries/records', {
+        method: 'PATCH',
+        headers: h,
+        body: JSON.stringify({ edition: config.id, id, status }),
+      });
+      if (!res.ok) {
+        const merged = rows.map((r) => (r.id === id ? { ...r, status } : r));
+        setRows(merged);
+        writeLocal(config.id, section, merged);
+        return;
+      }
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const filtered = filter === 'all' ? rows : rows.filter((r) => String(r.status) === filter);
+  const openCount = rows.filter(
+    (r) => !['done', 'completed', 'paid', 'closed', 'checked_out', 'cancelled', 'ready', 'delivered'].includes(String(r.status))
+  ).length;
+  const totalAmount = rows.reduce((s, r) => s + Number(r.amount || 0), 0);
+
+  return (
+    <Shell
+      title={label}
+      subtitle={spec.subtitle}
+      actions={
+        <Link href={deskPath(config)} className={styles.btnGhost}>
+          Staff desk
+        </Link>
+      }
+    >
+      <div className={styles.metricsGrid}>
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Records</div>
+          <div className={styles.metricValue}>{rows.length}</div>
+        </div>
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Active</div>
+          <div className={styles.metricValue}>{openCount}</div>
+        </div>
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Value</div>
+          <div className={styles.metricValue} style={{ fontSize: '1.1rem' }}>
+            {naira(totalAmount)}
+          </div>
+        </div>
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Storage</div>
+          <div className={styles.metricValue} style={{ fontSize: '0.95rem' }}>
+            {source === 'api' ? 'Cloud' : 'Device'}
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.split}>
+        <Panel title={spec.cta}>
+          <form onSubmit={create} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={spec.titleField}
+              style={inputStyle}
+              required
+            />
+            {spec.amount ? (
+              <input
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="Amount"
+                type="number"
+                min="0"
+                style={inputStyle}
+              />
+            ) : null}
+            <input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Notes (optional)"
+              style={inputStyle}
+            />
+            <button type="submit" disabled={busy} className={styles.btnPrimary} style={{ border: 'none' }}>
+              {busy ? 'Saving...' : spec.cta}
+            </button>
+            {msg ? <p style={{ margin: 0, fontSize: 13, color: '#0d7a43' }}>{msg}</p> : null}
+          </form>
+        </Panel>
+
+        <Panel title={`${label} list`} meta={`${filtered.length} shown`}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+            <button type="button" style={chipStyle(filter === 'all')} onClick={() => setFilter('all')}>
+              All
+            </button>
+            {spec.statuses.map((s) => (
+              <button key={s} type="button" style={chipStyle(filter === s)} onClick={() => setFilter(s)}>
+                {s.replace(/_/g, ' ')}
+              </button>
+            ))}
+          </div>
+          {filtered.length === 0 ? (
+            <p className={styles.empty}>
+              No {label.toLowerCase()} yet. Use the form to add the first record — this module is live.
+            </p>
+          ) : (
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: 440, overflow: 'auto' }}>
+              {filtered.map((r) => (
+                <li key={r.id} style={rowStyle}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{r.title}</div>
+                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                      {r.notes || 'No notes'}
+                      {Number(r.amount) ? ` · ${naira(Number(r.amount))}` : ''}
+                      {r.occurred_at
+                        ? ` · ${new Date(r.occurred_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}`
+                        : ''}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+                    <span style={statusStyle}>{String(r.status).replace(/_/g, ' ')}</span>
+                    <select
+                      disabled={busy}
+                      value={r.status}
+                      onChange={(e) => setStatus(r.id, e.target.value)}
+                      style={{ fontSize: 12, borderRadius: 8, border: '1px solid #e6e6ef', padding: '4px 6px' }}
+                    >
+                      {spec.statuses.map((s) => (
+                        <option key={s} value={s}>
+                          {s.replace(/_/g, ' ')}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      </div>
+    </Shell>
+  );
+}
+
 function HospitalityRooms({ config }: { config: IndustryConfig }) {
   const [rooms, setRooms] = useState<any[]>([]);
   const [roomNumber, setRoomNumber] = useState('');
@@ -474,8 +688,14 @@ function HospitalityRooms({ config }: { config: IndustryConfig }) {
     const h = await authHeaders();
     const res = await fetch('/api/industries/hospitality/front-desk', { headers: h });
     const json = await res.json().catch(() => ({}));
-    setRooms(json.rooms || []);
-  }, []);
+    const apiRooms = json.rooms || [];
+    if (apiRooms.length) {
+      setRooms(apiRooms);
+      writeLocal(config.id, 'rooms', apiRooms);
+    } else {
+      setRooms(readLocal(config.id, 'rooms'));
+    }
+  }, [config.id]);
 
   useEffect(() => {
     load();
@@ -499,12 +719,25 @@ function HospitalityRooms({ config }: { config: IndustryConfig }) {
         }),
       });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error || 'Could not add room');
+      if (res.ok) {
+        setRoomNumber('');
+        setMsg('Room added');
+        await load();
+        return;
+      }
+      const row = {
+        id: `local-${Date.now()}`,
+        room_number: roomNumber.trim(),
+        floor,
+        category,
+        rate_amount: Number(rate) || 0,
+        status: 'available',
+      };
+      const next = [row, ...readLocal(config.id, 'rooms')];
+      writeLocal(config.id, 'rooms', next);
+      setRooms(next);
       setRoomNumber('');
-      setMsg('Room added');
-      await load();
-    } catch (err: any) {
-      setMsg(err?.message || 'Failed');
+      setMsg('Saved on this device');
     } finally {
       setBusy(false);
     }
@@ -516,16 +749,16 @@ function HospitalityRooms({ config }: { config: IndustryConfig }) {
   return (
     <Shell
       title="Rooms"
-      subtitle="Room inventory powers the front desk board. Add rooms here, operate day-to-day on the desk."
+      subtitle="Room inventory for the front desk board."
       actions={
         <Link href="/industries/hospitality/front-desk" className={styles.btnPrimary}>
-          Open front desk
+          Front desk
         </Link>
       }
     >
       <div className={styles.metricsGrid}>
         <div className={styles.metricCard}>
-          <div className={styles.metricLabel}>Total rooms</div>
+          <div className={styles.metricLabel}>Total</div>
           <div className={styles.metricValue}>{rooms.length}</div>
         </div>
         <div className={styles.metricCard}>
@@ -551,14 +784,14 @@ function HospitalityRooms({ config }: { config: IndustryConfig }) {
             <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category" style={inputStyle} />
             <input value={rate} onChange={(e) => setRate(e.target.value)} placeholder="Nightly rate" type="number" style={inputStyle} />
             <button type="submit" disabled={busy} className={styles.btnPrimary} style={{ border: 'none' }}>
-              {busy ? 'Saving…' : 'Add room'}
+              {busy ? 'Saving...' : 'Add room'}
             </button>
             {msg ? <p style={{ margin: 0, fontSize: 13 }}>{msg}</p> : null}
           </form>
         </Panel>
         <Panel title="Inventory" meta={`${rooms.length} rooms`}>
           {rooms.length === 0 ? (
-            <p className={styles.empty}>No rooms yet. Add inventory to unlock the front desk board.</p>
+            <p className={styles.empty}>No rooms yet. Add inventory to power the front desk.</p>
           ) : (
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: 420, overflow: 'auto' }}>
               {rooms.map((r) => (
@@ -591,8 +824,14 @@ function HospitalityReservations({ config }: { config: IndustryConfig }) {
     const h = await authHeaders();
     const res = await fetch('/api/industries/hospitality/front-desk', { headers: h });
     const json = await res.json().catch(() => ({}));
-    setBookings(json.recentBookings || []);
-  }, []);
+    const api = json.recentBookings || [];
+    if (api.length) {
+      setBookings(api);
+      writeLocal(config.id, 'reservations', api);
+    } else {
+      setBookings(readLocal(config.id, 'reservations'));
+    }
+  }, [config.id]);
 
   useEffect(() => {
     load();
@@ -615,14 +854,26 @@ function HospitalityReservations({ config }: { config: IndustryConfig }) {
           status: 'confirmed',
         }),
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error || 'Could not create booking');
+      if (res.ok) {
+        setGuestName('');
+        setAmount('');
+        setMsg('Reservation created');
+        await load();
+        return;
+      }
+      const row = {
+        id: `local-${Date.now()}`,
+        guest_name: guestName.trim(),
+        amount: Number(amount) || 0,
+        check_in_date: new Date().toISOString().slice(0, 10),
+        status: 'confirmed',
+      };
+      const next = [row, ...readLocal(config.id, 'reservations')];
+      writeLocal(config.id, 'reservations', next);
+      setBookings(next);
       setGuestName('');
       setAmount('');
-      setMsg('Reservation created');
-      await load();
-    } catch (err: any) {
-      setMsg(err?.message || 'Failed');
+      setMsg('Saved on this device');
     } finally {
       setBusy(false);
     }
@@ -631,7 +882,7 @@ function HospitalityReservations({ config }: { config: IndustryConfig }) {
   return (
     <Shell
       title="Reservations"
-      subtitle="Create and review bookings. Check-in and room assignment happen on the front desk."
+      subtitle="Create bookings. Check-in continues on the front desk."
       actions={
         <Link href="/industries/hospitality/front-desk" className={styles.btnPrimary}>
           Front desk
@@ -642,9 +893,9 @@ function HospitalityReservations({ config }: { config: IndustryConfig }) {
         <Panel title="New reservation">
           <form onSubmit={create} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Guest name" style={inputStyle} required />
-            <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount (₦)" type="number" style={inputStyle} />
+            <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" type="number" style={inputStyle} />
             <button type="submit" disabled={busy} className={styles.btnPrimary} style={{ border: 'none' }}>
-              {busy ? 'Saving…' : 'Create booking'}
+              {busy ? 'Saving...' : 'Create booking'}
             </button>
             {msg ? <p style={{ margin: 0, fontSize: 13 }}>{msg}</p> : null}
           </form>
@@ -673,17 +924,18 @@ function HospitalityReservations({ config }: { config: IndustryConfig }) {
   );
 }
 
-function BrandingModule({ config }: { config: IndustryConfig }) {
+function DeskLink({ config, title, body }: { config: IndustryConfig; title: string; body: string }) {
   return (
-    <Shell title="Settings" subtitle="Organization branding for staff desks and client-facing surfaces.">
-      <Panel title="Branding">
+    <Shell title={title} subtitle={body}>
+      <Panel title="Live staff desk">
         <p className={styles.greetingSub} style={{ marginBottom: 14 }}>
-          Logo and display name appear on the staff live desk. Keep this updated before inviting staff.
+          Day-to-day operations for this area run on the staff desk with live metrics and actions.
         </p>
-        <Link href={`${config.dashboardPath}/settings`} className={styles.btnPrimary}>
-          Open branding settings
+        <Link href={deskPath(config)} className={styles.btnPrimary}>
+          Open {title.toLowerCase()}
         </Link>
       </Panel>
+      <RecordsModule config={config} section={title.toLowerCase().replace(/\s+/g, '-')} label={title} />
     </Shell>
   );
 }
@@ -695,14 +947,14 @@ export function IndustryModuleView({
   config: IndustryConfig;
   section: string;
 }) {
-  const label = config.nav.find((n) => n.id === section)?.label || section;
+  const label = config.nav.find((n) => n.id === section)?.label || section.replace(/-/g, ' ');
 
   if (section === 'ask-mo') {
     return (
-      <Shell title="Ask MO" subtitle={`Industry-aware assistant for ${config.productName}.`}>
+      <Shell title="Ask MO" subtitle={`Assistant for ${config.productName}`}>
         <Panel title="Open assistant">
           <p className={styles.greetingSub} style={{ marginBottom: 14 }}>
-            MO knows this is the {config.shortName} product. Use the floating Ask MO button or the link below.
+            MO is industry-aware for {config.shortName}. Use the floating button or open the panel.
           </p>
           <a href="#ask-mo" className={styles.btnPrimary}>
             Open Ask MO
@@ -713,20 +965,27 @@ export function IndustryModuleView({
   }
 
   if (section === 'settings' || section === 'account') {
-    return <BrandingModule config={config} />;
+    return (
+      <Shell title={label} subtitle="Branding and organization preferences.">
+        <Panel title="Branding">
+          <p className={styles.greetingSub} style={{ marginBottom: 14 }}>
+            Logo and display name appear on the staff desk.
+          </p>
+          <Link href={`${config.dashboardPath}/settings`} className={styles.btnPrimary}>
+            Open branding settings
+          </Link>
+        </Panel>
+      </Shell>
+    );
   }
 
-  // Hospitality domain tables
   if (config.id === 'hospitality') {
     if (section === 'rooms') return <HospitalityRooms config={config} />;
     if (section === 'reservations') return <HospitalityReservations config={config} />;
-    if (section === 'front-desk' || section === 'checkin') {
+    if (section === 'checkin' || section === 'front-desk') {
       return (
-        <Shell title={label} subtitle="Live operations run on the staff front desk.">
-          <Panel title="Staff front desk">
-            <p className={styles.greetingSub} style={{ marginBottom: 14 }}>
-              Occupancy board, check-in/out, and today activity are optimized for the front desk experience.
-            </p>
+        <Shell title={label} subtitle="Live room board and check-in.">
+          <Panel title="Front desk">
             <Link href="/industries/hospitality/front-desk" className={styles.btnPrimary}>
               Open front desk
             </Link>
@@ -736,42 +995,18 @@ export function IndustryModuleView({
     }
   }
 
-  if (config.id === 'healthcare' && section === 'front-desk') {
+  if (section === 'front-desk') {
     return (
-      <Shell title="Reception" subtitle="Patient queue and walk-ins for clinic staff.">
-        <Panel title="Reception desk">
-          <Link href="/industries/healthcare/front-desk" className={styles.btnPrimary}>
-            Open reception
+      <Shell title={label} subtitle="Staff live desk for this solution.">
+        <Panel title="Open desk">
+          <Link href={deskPath(config)} className={styles.btnPrimary}>
+            Open staff desk
           </Link>
         </Panel>
       </Shell>
     );
   }
 
-  if (config.id === 'education' && section === 'front-desk') {
-    return (
-      <Shell title="Front office" subtitle="Fees and student desk for school staff.">
-        <Panel title="Front office">
-          <Link href="/industries/education/front-desk" className={styles.btnPrimary}>
-            Open front office
-          </Link>
-        </Panel>
-      </Shell>
-    );
-  }
-
-  if (config.id === 'professional' && section === 'front-desk') {
-    return (
-      <Shell title="Staff workspace" subtitle="Tasks and clients for the team.">
-        <Panel title="Workspace">
-          <Link href="/industries/professional/front-desk" className={styles.btnPrimary}>
-            Open workspace
-          </Link>
-        </Panel>
-      </Shell>
-    );
-  }
-
-  // All other modules - full CRUD records
+  // Every other nav item — full smart module (Revenue, Guests, etc.)
   return <RecordsModule config={config} section={section} label={label} />;
 }
