@@ -107,7 +107,6 @@ export const PROFESSIONAL: IndustryConfig = {
   nav: [
     { id: 'overview', label: 'Overview', href: '/industries/professional/dashboard', section: 'main' },
     { id: 'ask-mo', label: 'Ask MO', href: '/industries/professional/dashboard#ask-mo', section: 'main' },
-    { id: 'front-desk', label: 'Staff Workspace', href: '/industries/professional/front-desk', section: 'main' },
     { id: 'projects', label: 'Projects', href: '/industries/professional/dashboard/projects', section: 'main' },
     { id: 'clients', label: 'Clients', href: '/industries/professional/dashboard/clients', section: 'main' },
     { id: 'tasks', label: 'Tasks', href: '/industries/professional/dashboard/tasks', section: 'main' },
@@ -171,7 +170,6 @@ export const HEALTHCARE: IndustryConfig = {
   nav: [
     { id: 'overview', label: 'Overview', href: '/industries/healthcare/dashboard', section: 'main' },
     { id: 'ask-mo', label: 'Ask MO', href: '/industries/healthcare/dashboard#ask-mo', section: 'main' },
-    { id: 'front-desk', label: 'Reception', href: '/industries/healthcare/front-desk', section: 'main' },
     { id: 'patients', label: 'Patients', href: '/industries/healthcare/dashboard/patients', section: 'main' },
     { id: 'appointments', label: 'Appointments', href: '/industries/healthcare/dashboard/appointments', section: 'main' },
     { id: 'visits', label: 'Visits', href: '/industries/healthcare/dashboard/visits', section: 'main' },
@@ -229,7 +227,6 @@ export const EDUCATION: IndustryConfig = {
   nav: [
     { id: 'overview', label: 'Overview', href: '/industries/education/dashboard', section: 'main' },
     { id: 'ask-mo', label: 'Ask MO', href: '/industries/education/dashboard#ask-mo', section: 'main' },
-    { id: 'front-desk', label: 'Front Office', href: '/industries/education/front-desk', section: 'main' },
     { id: 'students', label: 'Students', href: '/industries/education/dashboard/students', section: 'main' },
     { id: 'classes', label: 'Classes', href: '/industries/education/dashboard/classes', section: 'main' },
     { id: 'enrollment', label: 'Enrollment', href: '/industries/education/dashboard/enrollment', section: 'main' },
