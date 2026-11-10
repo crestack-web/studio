@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import type { IndustryConfig } from '@/lib/industries/types';
 import styles from './FrontDesk.module.css';
+import { IndustryMO } from './IndustryMO';
 
 const BUSMO_LOGO = '/sidebar-logo.png';
 
@@ -116,6 +117,7 @@ export function StaffDeskShell({
         </div>
         {children}
       </div>
+      <IndustryMO config={config} businessName={brandName} />
     </div>
   );
 }
