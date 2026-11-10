@@ -15,12 +15,11 @@ export function HealthcareDesk({ config }: { config: IndustryConfig }) {
   const [busy, setBusy] = useState(false);
 
   const headers = useCallback(async () => {
+    // TEMP: auth optional for QA
     const { data: s } = await getSupabase().auth.getSession();
-    if (!s.session) {
-      router.replace(config.loginPath);
-      throw new Error('auth');
-    }
-    return { Authorization: `Bearer ${s.session.access_token}`, 'Content-Type': 'application/json' };
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (s.session?.access_token) headers.Authorization = `Bearer ${s.session.access_token}`;
+    return headers;
   }, [config.loginPath, router]);
 
   const load = useCallback(async () => {
