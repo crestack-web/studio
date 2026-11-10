@@ -149,8 +149,8 @@ export function IndustryDashboardClient({
 
   const filteredNav = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return config.nav;
-    return config.nav.filter((n) => n.label.toLowerCase().includes(q));
+    if (!q) return config.nav.filter((n) => n.id !== 'front-desk' && n.id !== 'checkin');
+    return config.nav.filter((n) => n.id !== 'front-desk' && n.id !== 'checkin' && n.label.toLowerCase().includes(q));
   }, [config.nav, search]);
 
   if (!authChecked) {
@@ -207,17 +207,13 @@ export function IndustryDashboardClient({
         </div>
 
         <nav className={styles.navScroll} aria-label={`${config.shortName} navigation`}>
-          <Link
-            href={deskHref}
-            className={styles.deskLaunch}
-            onClick={() => setSidebarOpen(false)}
-          >
+          <div className={styles.deskLaunch}>
             <span className={styles.deskLaunchIcon}>▦</span>
             <span>
-              <strong>{deskLabel(config)}</strong>
-              <small>Staff operations</small>
+              <strong>Owner console</strong>
+              <small>{config.shortName} · setup & reports</small>
             </span>
-          </Link>
+          </div>
 
           {SECTION_ORDER.map((sec) => {
             const items = filteredNav.filter((n) => (n.section || 'main') === sec);
@@ -276,9 +272,9 @@ export function IndustryDashboardClient({
             </div>
           </div>
           <div className={styles.topbarRight}>
-            <Link href={deskHref} className={styles.topGhost}>
-              {deskLabel(config)}
-            </Link>
+            <a href={deskHref} className={styles.topGhost} target="_self" rel="noopener">
+              Staff portal
+            </a>
             <button
               type="button"
               className={styles.signOut}
@@ -305,9 +301,9 @@ export function IndustryDashboardClient({
                     model as Zoho, purpose-built for African businesses.
                   </p>
                 </div>
-                <Link href={deskHref} className={styles.btnPrimary}>
-                  Open {deskLabel(config)} →
-                </Link>
+                <a href={deskHref} className={styles.btnPrimary}>
+                  Open staff portal →
+                </a>
               </div>
 
               <div className={styles.metricsGrid}>
@@ -362,8 +358,8 @@ export function IndustryDashboardClient({
                     ))}
                   </div>
                   <div className={styles.panelHint}>
-                    Staff should work primarily in <strong>{deskLabel(config)}</strong>. Use this
-                    console for setup, reports, and organization-wide control.
+                    Staff use the separate <strong>staff portal</strong> ({deskLabel(config)}). This
+                    console is for owners: setup, modules, reports, and control.
                   </div>
                 </section>
               </div>
