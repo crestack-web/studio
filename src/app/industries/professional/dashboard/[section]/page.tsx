@@ -2,14 +2,9 @@ import { getIndustryConfig } from '@/lib/industries/config';
 import { IndustryDashboardClient } from '../../../_components/IndustryDashboardClient';
 
 export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
 
 const config = getIndustryConfig('professional')!;
-
-export function generateStaticParams() {
-  return config.nav
-    .filter((n) => n.id !== 'overview')
-    .map((n) => ({ section: n.id }));
-}
 
 export default async function Page({
   params,
