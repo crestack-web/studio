@@ -6,7 +6,7 @@ import type { IndustryConfig } from '@/lib/industries/types';
 import styles from './FrontDesk.module.css';
 import { IndustryMO } from './IndustryMO';
 
-const BUSMO_LOGO = '/sidebar-logo.png';
+const BUSMO_LOGO = '/email-logo.png';
 
 export function StaffDeskShell({
   config,
