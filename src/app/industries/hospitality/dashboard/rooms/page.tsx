@@ -17,16 +17,16 @@ export default function RoomsPage() {
   const [rate, setRate] = useState('25000');
   const [msg, setMsg] = useState<string | null>(null);
 
-  async function headers() {
+  async function authHeaders() {
     // TEMP: auth optional for QA
     const { data } = await getSupabase().auth.getSession();
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
-    return headers;
+    const h: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (data.session?.access_token) h.Authorization = `Bearer ${data.session.access_token}`;
+    return h;
   }
 
   async function load() {
-    const h = await headers();
+    const h = await authHeaders();
     const res = await fetch('/api/industries/hospitality/front-desk', { headers: h });
     const json = await res.json();
     setRooms(json.rooms || []);
@@ -40,7 +40,7 @@ export default function RoomsPage() {
     e.preventDefault();
     setMsg(null);
     try {
-      const h = await headers();
+      const h = await authHeaders();
       const res = await fetch('/api/industries/hospitality/rooms', {
         method: 'POST',
         headers: h,
