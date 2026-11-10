@@ -230,3 +230,26 @@
     bottom: 16px;
   }
 }
+
+.context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.moRow {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.moAvatar {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #f3f0ff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.moAvatar svg { display: block; }
