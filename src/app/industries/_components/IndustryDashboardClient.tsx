@@ -313,7 +313,8 @@ export function IndustryDashboardClient({
               <div className={styles.metricsGrid}>
                 {config.metrics.map((m, i) => {
                   const keys = Object.keys(liveMetrics);
-                  const live = keys[i] != null ? liveMetrics[keys[i]] : undefined;
+                  const key = keys[i];
+                  const live = key !== undefined ? liveMetrics[key] : undefined;
                   return (
                     <div key={m.id} className={styles.metricCard}>
                       <div className={styles.metricLabel}>{m.label}</div>
