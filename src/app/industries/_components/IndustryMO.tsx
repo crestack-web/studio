@@ -2,7 +2,7 @@ use client';
 
 import React, { useEffect, useRef, useState } from 'react';
 import type { IndustryConfig } from '@/lib/industries/types';
-import { MoIcon } from '@/app/owner/dashboard/NavIcons';
+import { MoIcon } from './MoIcon';
 import styles from './IndustryMO.module.css';
 
 type Msg = { id: string; role: 'user' | 'mo'; text: string };
