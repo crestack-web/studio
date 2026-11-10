@@ -90,7 +90,7 @@ export function EducationDesk({ config }: { config: IndustryConfig }) {
         { label: 'Pending', value: m.pending ?? 0, hint: 'awaiting confirmation' },
       ]}
       error={error}
-      warning={data?.warnings?.length ? 'Apply migration 0027 if tables are missing. Set school logo under Branding.' : null}
+      warning={null}
       actions={
         <form onSubmit={recordFee} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <input
