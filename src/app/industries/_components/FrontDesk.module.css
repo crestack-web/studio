@@ -1,0 +1,328 @@
+.page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  background: #f6f7fb;
+  color: #0f172a;
+  font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+}
+@media (max-width: 900px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    display: none;
+  }
+}
+.sidebar {
+  background: #fff;
+  border-right: 1px solid #e8e8f0;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.brand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #f3f0ff;
+}
+.brandName {
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+.brandSub {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.nav a,
+.navActive {
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: #374151;
+}
+.navActive {
+  background: #f3f0ff;
+  color: #6b3fe7;
+}
+.nav a:hover {
+  background: #f8fafc;
+}
+.sidebarFoot {
+  margin-top: auto;
+}
+.linkQuiet {
+  font-size: 0.82rem;
+  color: #6b3fe7;
+  font-weight: 600;
+  text-decoration: none;
+}
+.main {
+  padding: 20px 24px 40px;
+  min-width: 0;
+}
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.topbar h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+.topHint {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+.primaryBtn {
+  display: inline-flex;
+  align-items: center;
+  background: #0f172a;
+  color: #fff;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  text-decoration: none;
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+@media (max-width: 900px) {
+  .metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.metric {
+  background: #fff;
+  border: 1px solid #e8e8f0;
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+.metricLabel {
+  font-size: 0.78rem;
+  color: #6b7280;
+  font-weight: 600;
+}
+.metricValue {
+  font-size: 1.6rem;
+  font-weight: 800;
+  margin-top: 6px;
+}
+.metricHint {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 4px;
+}
+.grid2 {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 1000px) {
+  .grid2 {
+    grid-template-columns: 1fr;
+  }
+}
+.panel {
+  background: #fff;
+  border: 1px solid #e8e8f0;
+  border-radius: 16px;
+  padding: 16px;
+}
+.panelHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.panelHead h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+.badges {
+  display: flex;
+  gap: 6px;
+}
+.badgeAvail,
+.badgeOcc {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+.badgeAvail {
+  background: #ecfdf5;
+  color: #047857;
+}
+.badgeOcc {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+.floorTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.tab,
+.tabOn {
+  border: 1px solid #e8e8f0;
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #64748b;
+}
+.tabOn {
+  background: #0f172a;
+  color: #fff;
+  border-color: #0f172a;
+}
+.roomGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+.roomCardAvail,
+.roomCardOcc {
+  text-align: left;
+  border-radius: 12px;
+  padding: 12px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.roomCardAvail {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+.roomCardOcc {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+.roomNum {
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+.roomRate {
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-top: 4px;
+}
+.roomRate span {
+  font-weight: 500;
+  color: #64748b;
+  font-size: 0.72rem;
+}
+.roomCat {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+.roomStatus {
+  font-size: 0.72rem;
+  font-weight: 600;
+  margin-top: 8px;
+}
+.bookingList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 480px;
+  overflow: auto;
+}
+.bookingRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.guestName {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.bookingMeta {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+.bookingActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+.statusPill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: capitalize;
+  color: #6b3fe7;
+  background: #f3f0ff;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+.bookingActions button {
+  border: none;
+  background: #0f172a;
+  color: #fff;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.empty {
+  color: #94a3b8;
+  font-size: 0.88rem;
+}
+.loading {
+  padding: 48px;
+  text-align: center;
+  color: #64748b;
+}
+.error {
+  background: #fef2f2;
+  color: #991b1b;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  font-size: 0.88rem;
+}
+.warn {
+  background: #fffbeb;
+  color: #92400e;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  font-size: 0.82rem;
+}
