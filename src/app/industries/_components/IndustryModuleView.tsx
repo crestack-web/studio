@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { getSupabase } from '@/lib/supabase';
 import type { IndustryConfig } from '@/lib/industries/types';
@@ -11,6 +11,10 @@ async function authHeaders() {
   const h: Record<string, string> = { 'Content-Type': 'application/json' };
   if (data.session?.access_token) h.Authorization = `Bearer ${data.session.access_token}`;
   return h;
+}
+
+function naira(n: number) {
+  return `₦${Number(n || 0).toLocaleString()}`;
 }
 
 function Shell({
@@ -39,18 +43,424 @@ function Shell({
   );
 }
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+function Panel({
+  title,
+  children,
+  meta,
+}: {
+  title: string;
+  children: React.ReactNode;
+  meta?: string;
+}) {
   return (
     <section className={styles.panel}>
       <div className={styles.panelHead}>
         <h3 className={styles.panelTitle}>{title}</h3>
+        {meta ? <span className={styles.panelMeta}>{meta}</span> : null}
       </div>
       {children}
     </section>
   );
 }
 
-/* ─── Hospitality ─── */
+type ModuleSpec = {
+  key: string;
+  titleField: string;
+  amount?: boolean;
+  statuses: string[];
+  defaultStatus: string;
+  subtitle: string;
+  placeholders: { title: string; notes?: string; amount?: string };
+};
+
+function moduleSpec(edition: string, section: string, label: string): ModuleSpec {
+  const money = ['revenue', 'expenses', 'payments', 'billing', 'fees', 'invoices'].includes(section);
+  const base: ModuleSpec = {
+    key: section,
+    titleField: label.replace(/s$/, '') + ' name',
+    amount: money,
+    statuses: money
+      ? ['open', 'pending', 'paid', 'cancelled']
+      : ['open', 'in_progress', 'done', 'cancelled'],
+    defaultStatus: money ? 'pending' : 'open',
+    subtitle: `Manage ${label.toLowerCase()} for this organization. Changes are saved to your ${edition} workspace.`,
+    placeholders: {
+      title: `New ${label.toLowerCase().replace(/s$/, '')}`,
+      notes: 'Notes (optional)',
+      amount: money ? 'Amount' : undefined,
+    },
+  };
+
+  const map: Record<string, Partial<ModuleSpec>> = {
+    guests: {
+      titleField: 'Guest name',
+      statuses: ['active', 'checked_in', 'checked_out', 'vip'],
+      defaultStatus: 'active',
+      subtitle: 'Guest profiles used at the front desk during check-in and billing.',
+    },
+    reservations: {
+      titleField: 'Guest / reservation',
+      amount: true,
+      statuses: ['confirmed', 'checked_in', 'checked_out', 'cancelled'],
+      defaultStatus: 'confirmed',
+    },
+    checkin: {
+      titleField: 'Guest name',
+      statuses: ['arriving', 'checked_in', 'checked_out'],
+      defaultStatus: 'arriving',
+      subtitle: 'Track arrivals and departures. Live room board stays on the front desk.',
+    },
+    housekeeping: {
+      titleField: 'Room / task',
+      statuses: ['dirty', 'cleaning', 'ready', 'blocked'],
+      defaultStatus: 'dirty',
+    },
+    'room-service': {
+      titleField: 'Order / room',
+      amount: true,
+      statuses: ['open', 'preparing', 'delivered', 'cancelled'],
+      defaultStatus: 'open',
+    },
+    staff: {
+      titleField: 'Staff name',
+      statuses: ['active', 'off_duty', 'on_leave'],
+      defaultStatus: 'active',
+    },
+    tasks: {
+      titleField: 'Task',
+      statuses: ['open', 'in_progress', 'done'],
+      defaultStatus: 'open',
+    },
+    patients: {
+      titleField: 'Patient name',
+      statuses: ['active', 'inactive'],
+      defaultStatus: 'active',
+    },
+    appointments: {
+      titleField: 'Patient / reason',
+      statuses: ['scheduled', 'checked_in', 'completed', 'cancelled'],
+      defaultStatus: 'scheduled',
+    },
+    visits: {
+      titleField: 'Patient visit',
+      amount: true,
+      statuses: ['open', 'in_progress', 'completed'],
+      defaultStatus: 'open',
+    },
+    students: {
+      titleField: 'Student name',
+      statuses: ['active', 'alumni', 'withdrawn'],
+      defaultStatus: 'active',
+    },
+    classes: {
+      titleField: 'Class name',
+      statuses: ['active', 'archived'],
+      defaultStatus: 'active',
+    },
+    enrollment: {
+      titleField: 'Student · class',
+      statuses: ['enrolled', 'pending', 'withdrawn'],
+      defaultStatus: 'enrolled',
+    },
+    attendance: {
+      titleField: 'Class / student',
+      statuses: ['present', 'absent', 'late'],
+      defaultStatus: 'present',
+    },
+    teachers: {
+      titleField: 'Teacher name',
+      statuses: ['active', 'on_leave'],
+      defaultStatus: 'active',
+    },
+    clients: {
+      titleField: 'Client name',
+      statuses: ['active', 'paused', 'closed'],
+      defaultStatus: 'active',
+    },
+    projects: {
+      titleField: 'Project name',
+      amount: true,
+      statuses: ['active', 'on_hold', 'done'],
+      defaultStatus: 'active',
+    },
+    invoices: {
+      titleField: 'Invoice / client',
+      amount: true,
+      statuses: ['draft', 'sent', 'paid', 'overdue'],
+      defaultStatus: 'draft',
+    },
+    reports: {
+      titleField: 'Report title',
+      statuses: ['draft', 'ready'],
+      defaultStatus: 'ready',
+      subtitle: 'Save report snapshots and notes for ownership reviews.',
+    },
+  };
+
+  return { ...base, ...(map[section] || {}) };
+}
+
+function RecordsModule({
+  config,
+  section,
+  label,
+}: {
+  config: IndustryConfig;
+  section: string;
+  label: string;
+}) {
+  const spec = useMemo(() => moduleSpec(config.id, section, label), [config.id, section, label]);
+  const [rows, setRows] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState({ count: 0, open: 0, amount: 0 });
+  const [title, setTitle] = useState('');
+  const [amount, setAmount] = useState('');
+  const [notes, setNotes] = useState('');
+  const [msg, setMsg] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [filter, setFilter] = useState('all');
+
+  const load = useCallback(async () => {
+    const h = await authHeaders();
+    const res = await fetch(
+      `/api/industries/records?edition=${encodeURIComponent(config.id)}&module=${encodeURIComponent(section)}`,
+      { headers: h }
+    );
+    const json = await res.json().catch(() => ({}));
+    setRows(json.records || []);
+    setMetrics(json.metrics || { count: 0, open: 0, amount: 0 });
+    setWarning(json.warning || null);
+  }, [config.id, section]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function create(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const h = await authHeaders();
+      const res = await fetch('/api/industries/records', {
+        method: 'POST',
+        headers: h,
+        body: JSON.stringify({
+          edition: config.id,
+          module: section,
+          title: title.trim(),
+          status: spec.defaultStatus,
+          amount: spec.amount ? Number(amount) || 0 : 0,
+          notes: notes.trim() || null,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Could not save');
+      setTitle('');
+      setAmount('');
+      setNotes('');
+      setMsg('Saved');
+      await load();
+    } catch (err: any) {
+      setMsg(err?.message || 'Failed — sign in and apply migration 0028 if needed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setStatus(id: string, status: string) {
+    setBusy(true);
+    try {
+      const h = await authHeaders();
+      await fetch('/api/industries/records', {
+        method: 'PATCH',
+        headers: h,
+        body: JSON.stringify({ edition: config.id, id, status }),
+      });
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const filtered =
+    filter === 'all' ? rows : rows.filter((r) => String(r.status) === filter);
+
+  const desk =
+    config.id === 'hospitality'
+      ? '/industries/hospitality/front-desk'
+      : config.id === 'healthcare'
+        ? '/industries/healthcare/front-desk'
+        : config.id === 'education'
+          ? '/industries/education/front-desk'
+          : '/industries/professional/front-desk';
+
+  return (
+    <Shell
+      title={label}
+      subtitle={spec.subtitle}
+      actions={
+        <Link href={desk} className={styles.btnGhost}>
+          Open staff desk
+        </Link>
+      }
+    >
+      {warning ? (
+        <div className={styles.panel} style={{ borderColor: '#fde68a', background: '#fffbeb' }}>
+          <p style={{ margin: 0, fontSize: 13, color: '#92400e' }}>
+            {warning}. Run migration <code>0028_industry_records.sql</code> in Supabase if the table is missing.
+          </p>
+        </div>
+      ) : null}
+
+      <div className={styles.metricsGrid}>
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Records</div>
+          <div className={styles.metricValue}>{metrics.count}</div>
+        </div>
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Active / open</div>
+          <div className={styles.metricValue}>{metrics.open}</div>
+        </div>
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Value</div>
+          <div className={styles.metricValue}>{naira(metrics.amount)}</div>
+        </div>
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Module</div>
+          <div className={styles.metricValue} style={{ fontSize: '1rem' }}>
+            {label}
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.split}>
+        <Panel title={`Add ${label.toLowerCase()}`}>
+          <form onSubmit={create} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={spec.placeholders.title}
+              style={inputStyle}
+              required
+            />
+            {spec.amount ? (
+              <input
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder={spec.placeholders.amount}
+                type="number"
+                min="0"
+                style={inputStyle}
+              />
+            ) : null}
+            <input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder={spec.placeholders.notes}
+              style={inputStyle}
+            />
+            <button type="submit" disabled={busy} className={styles.btnPrimary} style={{ border: 'none' }}>
+              {busy ? 'Saving…' : `Save ${label.replace(/s$/, '').toLowerCase()}`}
+            </button>
+            {msg ? <p style={{ margin: 0, fontSize: 13, color: '#0d7a43' }}>{msg}</p> : null}
+          </form>
+        </Panel>
+
+        <Panel title="Workflow" meta={`${filtered.length} shown`}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+            <button type="button" style={chipStyle(filter === 'all')} onClick={() => setFilter('all')}>
+              All
+            </button>
+            {spec.statuses.map((s) => (
+              <button key={s} type="button" style={chipStyle(filter === s)} onClick={() => setFilter(s)}>
+                {s.replace(/_/g, ' ')}
+              </button>
+            ))}
+          </div>
+          {filtered.length === 0 ? (
+            <p className={styles.empty}>No records yet. Add the first one on the left.</p>
+          ) : (
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: 420, overflow: 'auto' }}>
+              {filtered.map((r) => (
+                <li key={r.id} style={rowStyle}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{r.title}</div>
+                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                      {r.notes || '—'}
+                      {Number(r.amount) ? ` · ${naira(Number(r.amount))}` : ''}
+                      {r.occurred_at
+                        ? ` · ${new Date(r.occurred_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}`
+                        : ''}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
+                    <span style={statusStyle}>{String(r.status).replace(/_/g, ' ')}</span>
+                    <select
+                      disabled={busy}
+                      value={r.status}
+                      onChange={(e) => setStatus(r.id, e.target.value)}
+                      style={{ fontSize: 12, borderRadius: 8, border: '1px solid #e6e6ef', padding: '4px 6px' }}
+                    >
+                      {spec.statuses.map((s) => (
+                        <option key={s} value={s}>
+                          {s.replace(/_/g, ' ')}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      </div>
+    </Shell>
+  );
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  boxSizing: 'border-box',
+  padding: '11px 12px',
+  borderRadius: 10,
+  border: '1.5px solid #e6e6ef',
+  fontSize: 14,
+};
+
+const rowStyle: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 12,
+  padding: '12px 0',
+  borderBottom: '1px solid #f1f5f9',
+};
+
+const statusStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  textTransform: 'capitalize',
+  color: '#5b21b6',
+  background: '#f3f0ff',
+  padding: '3px 8px',
+  borderRadius: 999,
+};
+
+function chipStyle(on: boolean): React.CSSProperties {
+  return {
+    border: on ? '1px solid #6b3fe7' : '1px solid #e6e6ef',
+    background: on ? '#f3f0ff' : '#fff',
+    color: on ? '#5b21b6' : '#4b5563',
+    borderRadius: 999,
+    padding: '5px 10px',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+  };
+}
+
+/* Domain-specific modules that already had APIs */
 function HospitalityRooms({ config }: { config: IndustryConfig }) {
   const [rooms, setRooms] = useState<any[]>([]);
   const [roomNumber, setRoomNumber] = useState('');
@@ -100,103 +510,95 @@ function HospitalityRooms({ config }: { config: IndustryConfig }) {
     }
   }
 
+  const available = rooms.filter((r) => r.status === 'available').length;
+  const occupied = rooms.filter((r) => r.status === 'occupied').length;
+
   return (
     <Shell
       title="Rooms"
-      subtitle="Define room inventory for the front desk. Status updates when guests check in or out."
+      subtitle="Room inventory powers the front desk board. Add rooms here, operate day-to-day on the desk."
       actions={
         <Link href="/industries/hospitality/front-desk" className={styles.btnPrimary}>
-          Open Front desk
+          Open front desk
         </Link>
       }
     >
-      <Panel title="Add room">
-        <form
-          onSubmit={addRoom}
-          style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))' }}
-        >
-          <input
-            placeholder="Room number"
-            value={roomNumber}
-            onChange={(e) => setRoomNumber(e.target.value)}
-            style={inputStyle}
-            required
-          />
-          <input placeholder="Floor" value={floor} onChange={(e) => setFloor(e.target.value)} style={inputStyle} />
-          <input
-            placeholder="Category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            style={inputStyle}
-          />
-          <input
-            placeholder="Rate / night"
-            value={rate}
-            onChange={(e) => setRate(e.target.value)}
-            type="number"
-            style={inputStyle}
-          />
-          <button type="submit" disabled={busy} className={styles.btnPrimary} style={{ border: 'none' }}>
-            {busy ? 'Saving…' : 'Add room'}
-          </button>
-        </form>
-        {msg ? <p style={{ marginTop: 10, fontSize: 13, color: '#0d7a43' }}>{msg}</p> : null}
-      </Panel>
-      <Panel title={`Room list (${rooms.length})`}>
-        {rooms.length === 0 ? (
-          <p className={styles.empty}>No rooms yet. Add your first room above, then use Front desk for live status.</p>
-        ) : (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-            {rooms.map((r) => (
-              <li
-                key={r.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  padding: '12px 0',
-                  borderBottom: '1px solid #f1f5f9',
-                  fontSize: 14,
-                }}
-              >
-                <span>
-                  <strong>{r.room_number}</strong> · {r.category || 'Standard'}
-                  {r.floor ? ` · Floor ${r.floor}` : ''} · ₦{Number(r.rate_amount || 0).toLocaleString()}/night
-                </span>
-                <span style={{ fontWeight: 700, color: r.status === 'available' ? '#047857' : '#b91c1c' }}>
-                  {r.status}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Panel>
+      <div className={styles.metricsGrid}>
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Total rooms</div>
+          <div className={styles.metricValue}>{rooms.length}</div>
+        </div>
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Available</div>
+          <div className={styles.metricValue}>{available}</div>
+        </div>
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Occupied</div>
+          <div className={styles.metricValue}>{occupied}</div>
+        </div>
+        <div className={styles.metricCard}>
+          <div className={styles.metricLabel}>Occupancy</div>
+          <div className={styles.metricValue}>
+            {rooms.length ? Math.round((occupied / rooms.length) * 100) : 0}%
+          </div>
+        </div>
+      </div>
+      <div className={styles.split}>
+        <Panel title="Add room">
+          <form onSubmit={addRoom} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <input value={roomNumber} onChange={(e) => setRoomNumber(e.target.value)} placeholder="Room number" style={inputStyle} required />
+            <input value={floor} onChange={(e) => setFloor(e.target.value)} placeholder="Floor" style={inputStyle} />
+            <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Category" style={inputStyle} />
+            <input value={rate} onChange={(e) => setRate(e.target.value)} placeholder="Nightly rate" type="number" style={inputStyle} />
+            <button type="submit" disabled={busy} className={styles.btnPrimary} style={{ border: 'none' }}>
+              {busy ? 'Saving…' : 'Add room'}
+            </button>
+            {msg ? <p style={{ margin: 0, fontSize: 13 }}>{msg}</p> : null}
+          </form>
+        </Panel>
+        <Panel title="Inventory" meta={`${rooms.length} rooms`}>
+          {rooms.length === 0 ? (
+            <p className={styles.empty}>No rooms yet. Add inventory to unlock the front desk board.</p>
+          ) : (
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: 420, overflow: 'auto' }}>
+              {rooms.map((r) => (
+                <li key={r.id} style={rowStyle}>
+                  <div>
+                    <div style={{ fontWeight: 800 }}>Room {r.room_number}</div>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>
+                      Floor {r.floor || '—'} · {r.category || 'Standard'} · {naira(Number(r.rate_amount || 0))}/night
+                    </div>
+                  </div>
+                  <span style={statusStyle}>{r.status}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+      </div>
     </Shell>
   );
 }
 
 function HospitalityReservations({ config }: { config: IndustryConfig }) {
   const [bookings, setBookings] = useState<any[]>([]);
-  const [rooms, setRooms] = useState<any[]>([]);
   const [guestName, setGuestName] = useState('');
-  const [roomId, setRoomId] = useState('');
-  const [checkIn, setCheckIn] = useState(() => new Date().toISOString().slice(0, 10));
-  const [busy, setBusy] = useState(false);
+  const [amount, setAmount] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     const h = await authHeaders();
     const res = await fetch('/api/industries/hospitality/front-desk', { headers: h });
     const json = await res.json().catch(() => ({}));
-    setBookings(json.recentBookings || json.bookings || []);
-    setRooms(json.rooms || []);
+    setBookings(json.recentBookings || []);
   }, []);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  async function createBooking(e: React.FormEvent) {
+  async function create(e: React.FormEvent) {
     e.preventDefault();
     if (!guestName.trim()) return;
     setBusy(true);
@@ -208,14 +610,15 @@ function HospitalityReservations({ config }: { config: IndustryConfig }) {
         headers: h,
         body: JSON.stringify({
           guestName: guestName.trim(),
-          roomId: roomId || null,
-          checkInDate: checkIn,
+          amount: Number(amount) || 0,
+          checkInDate: new Date().toISOString().slice(0, 10),
           status: 'confirmed',
         }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || 'Could not create booking');
       setGuestName('');
+      setAmount('');
       setMsg('Reservation created');
       await load();
     } catch (err: any) {
@@ -228,640 +631,59 @@ function HospitalityReservations({ config }: { config: IndustryConfig }) {
   return (
     <Shell
       title="Reservations"
-      subtitle="Create and track bookings. Check-in happens on the front desk."
+      subtitle="Create and review bookings. Check-in and room assignment happen on the front desk."
       actions={
         <Link href="/industries/hospitality/front-desk" className={styles.btnPrimary}>
           Front desk
         </Link>
       }
     >
-      <Panel title="New reservation">
-        <form
-          onSubmit={createBooking}
-          style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))' }}
-        >
-          <input
-            placeholder="Guest name"
-            value={guestName}
-            onChange={(e) => setGuestName(e.target.value)}
-            style={inputStyle}
-            required
-          />
-          <input type="date" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} style={inputStyle} />
-          <select value={roomId} onChange={(e) => setRoomId(e.target.value)} style={inputStyle}>
-            <option value="">Room (optional)</option>
-            {rooms.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.room_number} · {r.status}
-              </option>
-            ))}
-          </select>
-          <button type="submit" disabled={busy} className={styles.btnPrimary} style={{ border: 'none' }}>
-            {busy ? 'Saving…' : 'Create booking'}
-          </button>
-        </form>
-        {msg ? <p style={{ marginTop: 10, fontSize: 13 }}>{msg}</p> : null}
-      </Panel>
-      <Panel title="Recent bookings">
-        {bookings.length === 0 ? (
-          <p className={styles.empty}>No bookings yet.</p>
-        ) : (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-            {bookings.map((b) => (
-              <li
-                key={b.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: 10,
-                  padding: '12px 0',
-                  borderBottom: '1px solid #f1f5f9',
-                  fontSize: 14,
-                }}
-              >
-                <span>
-                  <strong>{b.guest_name}</strong>
-                  {b.check_in_date ? ` · ${b.check_in_date}` : ''}
-                </span>
-                <span style={{ fontWeight: 700, color: '#5b21b6' }}>{b.status}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Panel>
-    </Shell>
-  );
-}
-
-function HospitalityOpsLink({
-  title,
-  body,
-  href,
-  cta,
-}: {
-  title: string;
-  body: string;
-  href: string;
-  cta: string;
-}) {
-  return (
-    <Shell title={title} subtitle={body}>
-      <Panel title="Go live">
-        <p className={styles.greetingSub} style={{ marginBottom: 16 }}>
-          Day-to-day room status, check-in and occupancy live on the staff front desk. Owner modules here are for
-          setup and oversight.
-        </p>
-        <Link href={href} className={styles.btnPrimary}>
-          {cta}
-        </Link>
-      </Panel>
-    </Shell>
-  );
-}
-
-/* ─── Healthcare ─── */
-function HealthcarePatients() {
-  const [patients, setPatients] = useState<any[]>([]);
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const load = useCallback(async () => {
-    const h = await authHeaders();
-    const res = await fetch('/api/industries/healthcare/desk', { headers: h });
-    const json = await res.json().catch(() => ({}));
-    setPatients(json.patients || []);
-  }, []);
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  async function add(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) return;
-    setBusy(true);
-    try {
-      const h = await authHeaders();
-      await fetch('/api/industries/healthcare/desk', {
-        method: 'POST',
-        headers: h,
-        body: JSON.stringify({ action: 'patient', fullName: name.trim(), phone }),
-      });
-      setName('');
-      setPhone('');
-      await load();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Shell
-      title="Patients"
-      subtitle="Patient register for the clinic. Reception uses this list for walk-ins and appointments."
-      actions={
-        <Link href="/industries/healthcare/front-desk" className={styles.btnPrimary}>
-          Open Reception
-        </Link>
-      }
-    >
-      <Panel title="Add patient">
-        <form onSubmit={add} style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          <input placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} required />
-          <input placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} style={inputStyle} />
-          <button type="submit" disabled={busy} className={styles.btnPrimary} style={{ border: 'none' }}>
-            Save patient
-          </button>
-        </form>
-      </Panel>
-      <Panel title={`On file (${patients.length})`}>
-        {patients.length === 0 ? (
-          <p className={styles.empty}>No patients yet.</p>
-        ) : (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-            {patients.map((p) => (
-              <li key={p.id} style={{ padding: '10px 0', borderBottom: '1px solid #f1f5f9', fontSize: 14 }}>
-                <strong>{p.full_name}</strong>
-                {p.phone ? ` · ${p.phone}` : ''}
-              </li>
-            ))}
-          </ul>
-        )}
-      </Panel>
-    </Shell>
-  );
-}
-
-function HealthcareAppointments() {
-  const [appts, setAppts] = useState<any[]>([]);
-  const [patientName, setPatientName] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const load = useCallback(async () => {
-    const h = await authHeaders();
-    const res = await fetch('/api/industries/healthcare/desk', { headers: h });
-    const json = await res.json().catch(() => ({}));
-    setAppts(json.appointmentsToday || []);
-  }, []);
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  async function add(e: React.FormEvent) {
-    e.preventDefault();
-    if (!patientName.trim()) return;
-    setBusy(true);
-    try {
-      const h = await authHeaders();
-      await fetch('/api/industries/healthcare/desk', {
-        method: 'POST',
-        headers: h,
-        body: JSON.stringify({
-          action: 'appointment',
-          patientName: patientName.trim(),
-          scheduledAt: new Date().toISOString(),
-          status: 'scheduled',
-        }),
-      });
-      setPatientName('');
-      await load();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Shell
-      title="Appointments"
-      subtitle="Today’s schedule. Reception can check patients in from the live desk."
-      actions={
-        <Link href="/industries/healthcare/front-desk" className={styles.btnPrimary}>
-          Reception
-        </Link>
-      }
-    >
-      <Panel title="Schedule / walk-in">
-        <form onSubmit={add} style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          <input
-            placeholder="Patient name"
-            value={patientName}
-            onChange={(e) => setPatientName(e.target.value)}
-            style={inputStyle}
-            required
-          />
-          <button type="submit" disabled={busy} className={styles.btnPrimary} style={{ border: 'none' }}>
-            Add to today
-          </button>
-        </form>
-      </Panel>
-      <Panel title="Today">
-        {appts.length === 0 ? (
-          <p className={styles.empty}>No appointments today.</p>
-        ) : (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-            {appts.map((a) => (
-              <li
-                key={a.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  padding: '10px 0',
-                  borderBottom: '1px solid #f1f5f9',
-                  fontSize: 14,
-                }}
-              >
-                <span>
-                  <strong>{a.patient_name}</strong>
-                  {a.scheduled_at
-                    ? ` · ${new Date(a.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                    : ''}
-                </span>
-                <span style={{ fontWeight: 700, color: '#5b21b6' }}>{a.status}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Panel>
-    </Shell>
-  );
-}
-
-/* ─── Education ─── */
-function EducationStudents() {
-  const [students, setStudents] = useState<any[]>([]);
-  const [name, setName] = useState('');
-  const [klass, setKlass] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const load = useCallback(async () => {
-    const h = await authHeaders();
-    const res = await fetch('/api/industries/education/desk', { headers: h });
-    const json = await res.json().catch(() => ({}));
-    setStudents(json.students || []);
-  }, []);
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  async function add(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) return;
-    setBusy(true);
-    try {
-      const h = await authHeaders();
-      await fetch('/api/industries/education/desk', {
-        method: 'POST',
-        headers: h,
-        body: JSON.stringify({ action: 'student', fullName: name.trim(), className: klass }),
-      });
-      setName('');
-      setKlass('');
-      await load();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Shell
-      title="Students"
-      subtitle="Student register for the school. Front office uses this for fee collection."
-      actions={
-        <Link href="/industries/education/front-desk" className={styles.btnPrimary}>
-          Front office
-        </Link>
-      }
-    >
-      <Panel title="Add student">
-        <form onSubmit={add} style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          <input placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} required />
-          <input placeholder="Class" value={klass} onChange={(e) => setKlass(e.target.value)} style={inputStyle} />
-          <button type="submit" disabled={busy} className={styles.btnPrimary} style={{ border: 'none' }}>
-            Save student
-          </button>
-        </form>
-      </Panel>
-      <Panel title={`Students (${students.length})`}>
-        {students.length === 0 ? (
-          <p className={styles.empty}>No students yet.</p>
-        ) : (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-            {students.map((s) => (
-              <li key={s.id} style={{ padding: '10px 0', borderBottom: '1px solid #f1f5f9', fontSize: 14 }}>
-                <strong>{s.full_name}</strong>
-                {s.class_name ? ` · ${s.class_name}` : ''}
-              </li>
-            ))}
-          </ul>
-        )}
-      </Panel>
-    </Shell>
-  );
-}
-
-function EducationFees() {
-  const [fees, setFees] = useState<any[]>([]);
-  const [studentName, setStudentName] = useState('');
-  const [amount, setAmount] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const load = useCallback(async () => {
-    const h = await authHeaders();
-    const res = await fetch('/api/industries/education/desk', { headers: h });
-    const json = await res.json().catch(() => ({}));
-    setFees(json.recentFees || []);
-  }, []);
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  async function add(e: React.FormEvent) {
-    e.preventDefault();
-    if (!studentName.trim() || !amount) return;
-    setBusy(true);
-    try {
-      const h = await authHeaders();
-      await fetch('/api/industries/education/desk', {
-        method: 'POST',
-        headers: h,
-        body: JSON.stringify({
-          action: 'fee',
-          studentName: studentName.trim(),
-          amount: Number(amount),
-          method: 'cash',
-        }),
-      });
-      setStudentName('');
-      setAmount('');
-      await load();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Shell
-      title="Fees"
-      subtitle="Record fee payments. Staff can also collect from the front office desk."
-      actions={
-        <Link href="/industries/education/front-desk" className={styles.btnPrimary}>
-          Front office
-        </Link>
-      }
-    >
-      <Panel title="Record payment">
-        <form onSubmit={add} style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          <input
-            placeholder="Student name"
-            value={studentName}
-            onChange={(e) => setStudentName(e.target.value)}
-            style={inputStyle}
-            required
-          />
-          <input
-            placeholder="Amount"
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            style={inputStyle}
-            required
-          />
-          <button type="submit" disabled={busy} className={styles.btnPrimary} style={{ border: 'none' }}>
-            Record fee
-          </button>
-        </form>
-      </Panel>
-      <Panel title="Recent receipts">
-        {fees.length === 0 ? (
-          <p className={styles.empty}>No fee receipts yet.</p>
-        ) : (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-            {fees.map((f) => (
-              <li
-                key={f.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  padding: '10px 0',
-                  borderBottom: '1px solid #f1f5f9',
-                  fontSize: 14,
-                }}
-              >
-                <span>
-                  <strong>{f.student_name}</strong>
-                </span>
-                <span style={{ fontWeight: 700 }}>₦{Number(f.amount || 0).toLocaleString()}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Panel>
-    </Shell>
-  );
-}
-
-/* ─── Professional ─── */
-function ProfessionalClients() {
-  const [clients, setClients] = useState<any[]>([]);
-  const [name, setName] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const load = useCallback(async () => {
-    const h = await authHeaders();
-    const res = await fetch('/api/industries/professional/desk', { headers: h });
-    const json = await res.json().catch(() => ({}));
-    setClients(json.clients || []);
-  }, []);
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  async function add(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) return;
-    setBusy(true);
-    try {
-      const h = await authHeaders();
-      await fetch('/api/industries/professional/desk', {
-        method: 'POST',
-        headers: h,
-        body: JSON.stringify({ action: 'client', name: name.trim() }),
-      });
-      setName('');
-      await load();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Shell
-      title="Clients"
-      subtitle="Client accounts for the firm. Staff see them on the workspace."
-      actions={
-        <Link href="/industries/professional/front-desk" className={styles.btnPrimary}>
-          Staff workspace
-        </Link>
-      }
-    >
-      <Panel title="Add client">
-        <form onSubmit={add} style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          <input placeholder="Client name" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} required />
-          <button type="submit" disabled={busy} className={styles.btnPrimary} style={{ border: 'none' }}>
-            Save client
-          </button>
-        </form>
-      </Panel>
-      <Panel title={`Clients (${clients.length})`}>
-        {clients.length === 0 ? (
-          <p className={styles.empty}>No clients yet.</p>
-        ) : (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-            {clients.map((c) => (
-              <li key={c.id} style={{ padding: '10px 0', borderBottom: '1px solid #f1f5f9', fontSize: 14 }}>
-                <strong>{c.name}</strong>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Panel>
-    </Shell>
-  );
-}
-
-function ProfessionalTasks() {
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [title, setTitle] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  const load = useCallback(async () => {
-    const h = await authHeaders();
-    const res = await fetch('/api/industries/professional/desk', { headers: h });
-    const json = await res.json().catch(() => ({}));
-    setTasks(json.tasks || []);
-  }, []);
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  async function add(e: React.FormEvent) {
-    e.preventDefault();
-    if (!title.trim()) return;
-    setBusy(true);
-    try {
-      const h = await authHeaders();
-      await fetch('/api/industries/professional/desk', {
-        method: 'POST',
-        headers: h,
-        body: JSON.stringify({ action: 'task', title: title.trim() }),
-      });
-      setTitle('');
-      await load();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Shell
-      title="Tasks"
-      subtitle="Work items for the team. Staff update status from the workspace."
-      actions={
-        <Link href="/industries/professional/front-desk" className={styles.btnPrimary}>
-          Staff workspace
-        </Link>
-      }
-    >
-      <Panel title="New task">
-        <form onSubmit={add} style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          <input placeholder="Task title" value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle} required />
-          <button type="submit" disabled={busy} className={styles.btnPrimary} style={{ border: 'none' }}>
-            Add task
-          </button>
-        </form>
-      </Panel>
-      <Panel title="Open work">
-        {tasks.length === 0 ? (
-          <p className={styles.empty}>No open tasks.</p>
-        ) : (
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-            {tasks.map((t) => (
-              <li
-                key={t.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  padding: '10px 0',
-                  borderBottom: '1px solid #f1f5f9',
-                  fontSize: 14,
-                }}
-              >
-                <span>
-                  <strong>{t.title}</strong>
-                  {t.client_name ? ` · ${t.client_name}` : ''}
-                </span>
-                <span style={{ fontWeight: 700, color: '#5b21b6' }}>{t.status}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Panel>
-    </Shell>
-  );
-}
-
-const inputStyle: React.CSSProperties = {
-  padding: '10px 12px',
-  borderRadius: 10,
-  border: '1.5px solid #e6e6ef',
-  fontSize: 14,
-  minWidth: 0,
-};
-
-function GenericModule({
-  config,
-  section,
-  label,
-}: {
-  config: IndustryConfig;
-  section: string;
-  label: string;
-}) {
-  const desk =
-    config.id === 'hospitality'
-      ? '/industries/hospitality/front-desk'
-      : config.id === 'healthcare'
-        ? '/industries/healthcare/front-desk'
-        : config.id === 'education'
-          ? '/industries/education/front-desk'
-          : '/industries/professional/front-desk';
-  return (
-    <Shell
-      title={label}
-      subtitle={`${label} is part of ${config.productName}. Use the tools below to work in this area.`}
-    >
       <div className={styles.split}>
-        <Panel title="Owner tools">
-          <div className={styles.actionsStack}>
-            <Link href={`${config.dashboardPath}/settings`} className={styles.actionRow}>
-              <span>Branding & settings</span>
-              <span>→</span>
-            </Link>
-            <Link href={config.dashboardPath} className={styles.actionRow}>
-              <span>Overview</span>
-              <span>→</span>
-            </Link>
-          </div>
+        <Panel title="New reservation">
+          <form onSubmit={create} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <input value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="Guest name" style={inputStyle} required />
+            <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount (₦)" type="number" style={inputStyle} />
+            <button type="submit" disabled={busy} className={styles.btnPrimary} style={{ border: 'none' }}>
+              {busy ? 'Saving…' : 'Create booking'}
+            </button>
+            {msg ? <p style={{ margin: 0, fontSize: 13 }}>{msg}</p> : null}
+          </form>
         </Panel>
-        <Panel title="Staff operations">
-          <p className={styles.greetingSub} style={{ marginBottom: 12 }}>
-            Live day-to-day work for this solution runs on the staff desk.
-          </p>
-          <Link href={desk} className={styles.btnPrimary}>
-            Open staff desk
-          </Link>
+        <Panel title="Recent bookings" meta={`${bookings.length}`}>
+          {bookings.length === 0 ? (
+            <p className={styles.empty}>No bookings yet.</p>
+          ) : (
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+              {bookings.map((b) => (
+                <li key={b.id} style={rowStyle}>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{b.guest_name}</div>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>
+                      {b.check_in_date || '—'} · {naira(Number(b.amount || 0))}
+                    </div>
+                  </div>
+                  <span style={statusStyle}>{b.status}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </Panel>
       </div>
+    </Shell>
+  );
+}
+
+function BrandingModule({ config }: { config: IndustryConfig }) {
+  return (
+    <Shell title="Settings" subtitle="Organization branding for staff desks and client-facing surfaces.">
+      <Panel title="Branding">
+        <p className={styles.greetingSub} style={{ marginBottom: 14 }}>
+          Logo and display name appear on the staff live desk. Keep this updated before inviting staff.
+        </p>
+        <Link href={`${config.dashboardPath}/settings`} className={styles.btnPrimary}>
+          Open branding settings
+        </Link>
+      </Panel>
     </Shell>
   );
 }
@@ -875,50 +697,81 @@ export function IndustryModuleView({
 }) {
   const label = config.nav.find((n) => n.id === section)?.label || section;
 
+  if (section === 'ask-mo') {
+    return (
+      <Shell title="Ask MO" subtitle={`Industry-aware assistant for ${config.productName}.`}>
+        <Panel title="Open assistant">
+          <p className={styles.greetingSub} style={{ marginBottom: 14 }}>
+            MO knows this is the {config.shortName} product. Use the floating Ask MO button or the link below.
+          </p>
+          <a href="#ask-mo" className={styles.btnPrimary}>
+            Open Ask MO
+          </a>
+        </Panel>
+      </Shell>
+    );
+  }
+
+  if (section === 'settings' || section === 'account') {
+    return <BrandingModule config={config} />;
+  }
+
+  // Hospitality domain tables
   if (config.id === 'hospitality') {
     if (section === 'rooms') return <HospitalityRooms config={config} />;
     if (section === 'reservations') return <HospitalityReservations config={config} />;
-    if (section === 'checkin' || section === 'guests' || section === 'housekeeping' || section === 'room-service') {
+    if (section === 'front-desk' || section === 'checkin') {
       return (
-        <HospitalityOpsLink
-          title={label}
-          body={`${label} is handled live on the front desk — occupancy, guests and room status in one place.`}
-          href="/industries/hospitality/front-desk"
-          cta="Open Front desk"
-        />
+        <Shell title={label} subtitle="Live operations run on the staff front desk.">
+          <Panel title="Staff front desk">
+            <p className={styles.greetingSub} style={{ marginBottom: 14 }}>
+              Occupancy board, check-in/out, and today’s activity are optimized for the front desk experience.
+            </p>
+            <Link href="/industries/hospitality/front-desk" className={styles.btnPrimary}>
+              Open front desk
+            </Link>
+          </Panel>
+        </Shell>
       );
     }
   }
 
-  if (config.id === 'healthcare') {
-    if (section === 'patients') return <HealthcarePatients />;
-    if (section === 'appointments' || section === 'visits') return <HealthcareAppointments />;
-  }
-
-  if (config.id === 'education') {
-    if (section === 'students' || section === 'enrollment') return <EducationStudents />;
-    if (section === 'fees') return <EducationFees />;
-  }
-
-  if (config.id === 'professional') {
-    if (section === 'clients') return <ProfessionalClients />;
-    if (section === 'tasks' || section === 'projects') return <ProfessionalTasks />;
-  }
-
-  if (section === 'settings' || section === 'account') {
+  if (config.id === 'healthcare' && section === 'front-desk') {
     return (
-      <Shell title={label} subtitle="Organization branding and preferences.">
-        <Panel title="Branding">
-          <p className={styles.greetingSub} style={{ marginBottom: 12 }}>
-            Set logo and display name for the staff desk.
-          </p>
-          <Link href={`${config.dashboardPath}/settings`} className={styles.btnPrimary}>
-            Open branding settings
+      <Shell title="Reception" subtitle="Patient queue and walk-ins for clinic staff.">
+        <Panel title="Reception desk">
+          <Link href="/industries/healthcare/front-desk" className={styles.btnPrimary}>
+            Open reception
           </Link>
         </Panel>
       </Shell>
     );
   }
 
-  return <GenericModule config={config} section={section} label={label} />;
+  if (config.id === 'education' && section === 'front-desk') {
+    return (
+      <Shell title="Front office" subtitle="Fees and student desk for school staff.">
+        <Panel title="Front office">
+          <Link href="/industries/education/front-desk" className={styles.btnPrimary}>
+            Open front office
+          </Link>
+        </Panel>
+      </Shell>
+    );
+  }
+
+  if (config.id === 'professional' && section === 'front-desk') {
+    return (
+      <Shell title="Staff workspace" subtitle="Tasks and clients for the team.">
+        <Panel title="Workspace">
+          <Link href="/industries/professional/front-desk" className={styles.btnPrimary}>
+            Open workspace
+          </Link>
+        </Panel>
+      </Shell>
+    );
+  }
+
+  // All other modules — full CRUD records
+  return <RecordsModule config={config} section={section} label={label} />;
 }
