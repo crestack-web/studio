@@ -1,4 +1,4 @@
-use client';
+'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
 import type { IndustryConfig } from '@/lib/industries/types';
@@ -44,13 +44,12 @@ export function IndustryMO({
     {
       id: 'welcome',
       role: 'mo',
-      text: `Hi — I'm MO for ${config.productName}. I know this is the ${config.shortName} product, not Busmo Business retail. Ask about operations, the staff desk, branding, or modules.`,
+      text: `Hi - I am MO for ${config.productName}. I know this is the ${config.shortName} product. Ask about operations, the staff desk, branding, or modules.`,
     },
   ]);
   const endRef = useRef<HTMLDivElement>(null);
   const prompts = PROMPTS[config.id] || PROMPTS.professional;
 
-  // Deep-link: #ask-mo opens panel (sidebar "Ask MO")
   useEffect(() => {
     const apply = () => {
       if (typeof window === 'undefined') return;
@@ -138,7 +137,7 @@ export function IndustryMO({
               </div>
             </div>
             <button type="button" className={styles.close} onClick={close} aria-label="Close">
-              ×
+              x
             </button>
           </header>
 
@@ -168,7 +167,7 @@ export function IndustryMO({
                 )}
               </div>
             ))}
-            {busy ? <div className={styles.typing}>MO is thinking…</div> : null}
+            {busy ? <div className={styles.typing}>MO is thinking...</div> : null}
             <div ref={endRef} />
           </div>
 
@@ -190,7 +189,7 @@ export function IndustryMO({
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={`Message MO about ${config.shortName.toLowerCase()}…`}
+              placeholder={`Message MO about ${config.shortName.toLowerCase()}...`}
               disabled={busy}
             />
             <button type="submit" disabled={busy || !input.trim()}>
