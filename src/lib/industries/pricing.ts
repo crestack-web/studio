@@ -26,7 +26,7 @@ const SHARED_TRIAL = '14-day free trial';
 const BASE_AMOUNTS = {
   starter: { monthly: 7_500, yearly: 75_000 },
   standard: { monthly: 20_000, yearly: 200_000 },
-  pro: { monthly: 45_000, yearly: 450_000 },
+  pro: { monthly: 40_000, yearly: 400_000 },
 } as const;
 
 type SolutionPricingPack = {
