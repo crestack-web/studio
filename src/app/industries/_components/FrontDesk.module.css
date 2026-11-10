@@ -326,3 +326,64 @@
   margin-bottom: 12px;
   font-size: 0.82rem;
 }
+
+/* Zoho-class staff desk refinements */
+.page {
+  background: #f4f5f7;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, sans-serif;
+}
+.sidebar {
+  background: #fff;
+  border-right: 1px solid #e6e6ef;
+}
+.brandName {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.nav a:hover {
+  background: #f7f7fb;
+  color: #5b21b6;
+}
+.navActive {
+  background: #f3f0ff;
+  color: #5b21b6;
+}
+.main {
+  padding: 18px 22px 36px;
+}
+.topbar h1 {
+  letter-spacing: -0.02em;
+}
+.primaryBtn {
+  background: #6b3fe7;
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(91, 33, 182, 0.2);
+}
+.primaryBtn:hover {
+  background: #5b2fd1;
+}
+.metric {
+  border: 1px solid #e6e6ef;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+.metricValue {
+  letter-spacing: -0.02em;
+}
+.panel {
+  border: 1px solid #e6e6ef;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+.roomCardAvail {
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.roomCardAvail:hover,
+.roomCardOcc:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+}
+.bookingActions button {
+  background: #6b3fe7;
+}
+.bookingActions button:hover {
+  background: #5b2fd1;
+}
