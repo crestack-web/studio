@@ -1,9 +1,9 @@
-'use client';
+use client';
 
 import React, { useEffect, useRef, useState } from 'react';
 import type { IndustryConfig } from '@/lib/industries/types';
-import styles from './IndustryMO.module.css';
 import { MoIcon } from '@/app/owner/dashboard/NavIcons';
+import styles from './IndustryMO.module.css';
 
 type Msg = { id: string; role: 'user' | 'mo'; text: string };
 
@@ -44,11 +44,22 @@ export function IndustryMO({
     {
       id: 'welcome',
       role: 'mo',
-      text: `Hi — I'm MO for **${config.productName}**. Ask about ${config.shortName.toLowerCase()} operations, the staff desk, branding, or how modules fit together.`,
+      text: `Hi — I'm MO for ${config.productName}. I know this is the ${config.shortName} product, not Busmo Business retail. Ask about operations, the staff desk, branding, or modules.`,
     },
   ]);
   const endRef = useRef<HTMLDivElement>(null);
   const prompts = PROMPTS[config.id] || PROMPTS.professional;
+
+  // Deep-link: #ask-mo opens panel (sidebar "Ask MO")
+  useEffect(() => {
+    const apply = () => {
+      if (typeof window === 'undefined') return;
+      if (window.location.hash === '#ask-mo') setOpen(true);
+    };
+    apply();
+    window.addEventListener('hashchange', apply);
+    return () => window.removeEventListener('hashchange', apply);
+  }, []);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -58,8 +69,7 @@ export function IndustryMO({
     const trimmed = text.trim();
     if (!trimmed || busy) return;
     setInput('');
-    const userMsg: Msg = { id: `u-${Date.now()}`, role: 'user', text: trimmed };
-    setMessages((m) => [...m, userMsg]);
+    setMessages((m) => [...m, { id: `u-${Date.now()}`, role: 'user', text: trimmed }]);
     setBusy(true);
     try {
       const res = await fetch('/api/industries/mo', {
@@ -75,7 +85,7 @@ export function IndustryMO({
       const reply =
         json.reply ||
         json.error ||
-        `I can help with ${config.productName}. Try asking about the staff desk or branding.`;
+        `I can help with ${config.productName}. Try the staff desk, branding, or pricing.`;
       setMessages((m) => [...m, { id: `m-${Date.now()}`, role: 'mo', text: reply }]);
     } catch {
       setMessages((m) => [
@@ -91,18 +101,25 @@ export function IndustryMO({
     }
   }
 
+  function close() {
+    setOpen(false);
+    if (typeof window !== 'undefined' && window.location.hash === '#ask-mo') {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  }
+
   return (
     <>
       <button
         type="button"
         className={styles.fab}
-        aria-label="Open MO"
+        aria-label="Ask MO"
         onClick={() => setOpen(true)}
       >
         <span className={styles.fabIcon}>
           <MoIcon size={14} />
         </span>
-        <span>MO</span>
+        <span>Ask MO</span>
       </button>
 
       {open ? (
@@ -113,31 +130,42 @@ export function IndustryMO({
                 <MoIcon size={16} />
               </span>
               <div>
-                <strong>MO</strong>
+                <strong>Ask MO</strong>
                 <small>
                   {config.productName}
                   {businessName ? ` · ${businessName}` : ''}
                 </small>
               </div>
             </div>
-            <button type="button" className={styles.close} onClick={() => setOpen(false)} aria-label="Close">
+            <button type="button" className={styles.close} onClick={close} aria-label="Close">
               ×
             </button>
           </header>
 
           <div className={styles.context}>
-            Industry: <strong>{config.shortName}</strong> · Staff desk + owner modules
+            <MoIcon size={8} />
+            <span>
+              Industry context: <strong>{config.shortName}</strong> · Owner + staff ops
+            </span>
           </div>
 
           <div className={styles.messages}>
             {messages.map((m) => (
-              <div
-                key={m.id}
-                className={m.role === 'user' ? styles.bubbleUser : styles.bubbleMo}
-              >
-                {m.text.split('\n').map((line, i) => (
-                  <p key={i}>{line}</p>
-                ))}
+              <div key={m.id} className={m.role === 'user' ? styles.bubbleUser : styles.bubbleMo}>
+                {m.role === 'mo' ? (
+                  <div className={styles.moRow}>
+                    <span className={styles.moAvatar}>
+                      <MoIcon size={10} />
+                    </span>
+                    <div>
+                      {m.text.split('\n').map((line, i) => (
+                        <p key={i}>{line}</p>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  m.text.split('\n').map((line, i) => <p key={i}>{line}</p>)
+                )}
               </div>
             ))}
             {busy ? <div className={styles.typing}>MO is thinking…</div> : null}
@@ -162,7 +190,7 @@ export function IndustryMO({
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={`Ask MO about ${config.shortName.toLowerCase()}…`}
+              placeholder={`Message MO about ${config.shortName.toLowerCase()}…`}
               disabled={busy}
             />
             <button type="submit" disabled={busy || !input.trim()}>
