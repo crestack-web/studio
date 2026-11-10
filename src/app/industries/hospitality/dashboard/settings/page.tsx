@@ -22,12 +22,9 @@ export default function HotelSettingsPage() {
       try {
         const supabase = getSupabase();
         const { data } = await supabase.auth.getSession();
-        if (!data.session) {
-          router.replace(config.loginPath);
-          return;
-        }
+        /* TEMP: continue without session */
         const res = await fetch('/api/industries/hospitality/front-desk', {
-          headers: { Authorization: `Bearer ${data.session.access_token}` },
+          headers: data.session?.access_token ? { Authorization: `Bearer ${data.session.access_token}` } : {},
         });
         const json = await res.json().catch(() => ({}));
         if (json.settings) {
