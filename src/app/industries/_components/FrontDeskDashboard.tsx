@@ -97,7 +97,7 @@ export function FrontDeskDashboard({
       const headers = await authHeaders();
       const res = await fetch('/api/industries/hospitality/front-desk', { headers });
       const json = await res.json().catch(() => ({}));
-      // TEMP: ignore 401 during QA — show empty desk
+      // TEMP: ignore 401 during QA - show empty desk
       if (res.status === 401) {
         setData({
           settings: { property_name: config.productName, logo_url: null, currency: 'NGN' },
@@ -238,7 +238,7 @@ export function FrontDeskDashboard({
                 <span>BUSMO</span>
               </div>
               <h1>Dashboard</h1>
-              <p className={styles.topHint}>Live room status and today’s front-desk activity</p>
+              <p className={styles.topHint}>Live room status and today's front-desk activity</p>
             </div>
           </div>
           <div className={styles.topbarActions}>
