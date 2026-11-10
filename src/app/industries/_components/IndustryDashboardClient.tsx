@@ -59,6 +59,8 @@ export function IndustryDashboardClient({
   const [session, setSession] = useState<SessionState | null>(null);
   const [gateError, setGateError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [liveMetrics, setLiveMetrics] = useState<Record<string, string | number>>({});
+
 
   // TEMP: auth disabled for dashboard QA — restore session gate before production
   useEffect(() => {
@@ -73,6 +75,65 @@ export function IndustryDashboardClient({
     setUserEmail('preview@busmo.io');
     setAuthChecked(true);
   }, [config.id, config.productName]);
+
+  useEffect(() => {
+    if (!authChecked) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await getSupabase().auth.getSession();
+        const headers: Record<string, string> = {};
+        if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
+        const desk =
+          config.id === 'hospitality'
+            ? '/api/industries/hospitality/front-desk'
+            : config.id === 'healthcare'
+              ? '/api/industries/healthcare/desk'
+              : config.id === 'education'
+                ? '/api/industries/education/desk'
+                : '/api/industries/professional/desk';
+        const res = await fetch(desk, { headers });
+        const json = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        const m = json.metrics || {};
+        if (config.id === 'hospitality') {
+          setLiveMetrics({
+            occupancy: m.occupancyRate != null ? `${m.occupancyRate}%` : '0%',
+            available: m.availableRooms ?? 0,
+            checkins: m.checkInsToday ?? 0,
+            rooms: m.totalRooms ?? 0,
+          });
+        } else if (config.id === 'healthcare') {
+          setLiveMetrics({
+            patients_today: m.appointmentsToday ?? 0,
+            appointments: m.waiting ?? 0,
+            open_visits: m.completed ?? 0,
+            revenue: m.patients ?? 0,
+          });
+        } else if (config.id === 'education') {
+          setLiveMetrics({
+            students: m.students ?? 0,
+            fees: m.feesToday ?? 0,
+            collected: m.collectedToday != null ? `₦${Number(m.collectedToday).toLocaleString()}` : '₦0',
+            pending: m.pending ?? 0,
+          });
+        } else {
+          setLiveMetrics({
+            clients: m.clients ?? 0,
+            tasks: m.openTasks ?? 0,
+            progress: m.inProgress ?? 0,
+            due: m.dueSoon ?? 0,
+          });
+        }
+      } catch {
+        /* keep empty metric defaults */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authChecked, config.id]);
+
 
   const activeId = useMemo(() => (!section || section === 'overview' ? 'overview' : section), [section]);
   const dateLabel = useMemo(
@@ -250,13 +311,17 @@ export function IndustryDashboardClient({
               </div>
 
               <div className={styles.metricsGrid}>
-                {config.metrics.map((m) => (
-                  <div key={m.id} className={styles.metricCard}>
-                    <div className={styles.metricLabel}>{m.label}</div>
-                    <div className={styles.metricValue}>{m.emptyValue}</div>
-                    {m.hint ? <div className={styles.metricHint}>{m.hint}</div> : null}
-                  </div>
-                ))}
+                {config.metrics.map((m, i) => {
+                  const keys = Object.keys(liveMetrics);
+                  const live = keys[i] != null ? liveMetrics[keys[i]] : undefined;
+                  return (
+                    <div key={m.id} className={styles.metricCard}>
+                      <div className={styles.metricLabel}>{m.label}</div>
+                      <div className={styles.metricValue}>{live != null ? live : m.emptyValue}</div>
+                      {m.hint ? <div className={styles.metricHint}>{m.hint}</div> : null}
+                    </div>
+                  );
+                })}
               </div>
 
               <div className={styles.split}>
