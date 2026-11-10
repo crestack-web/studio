@@ -9,9 +9,7 @@ export const dynamic = 'force-dynamic';
 async function requireHospitalityBusiness(req: NextRequest) {
   const user = await getAuthUser(req);
   if (!user) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
-  const session = await loadIndustrySession(user.id, {
-    product_edition: 'hospitality',
-  });
+  const session = await loadIndustrySession(user.id, user.user_metadata as Record<string, unknown>);
   if (!session.businessId) {
     return { error: NextResponse.json({ error: 'No organization', needsOnboarding: true }, { status: 403 }) };
   }
