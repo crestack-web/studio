@@ -9,10 +9,11 @@ export const dynamic = 'force-dynamic';
 async function resolve(req: NextRequest, editionHint?: string) {
   const user = await getAuthUser(req);
   if (!user) return null;
-  const session = await loadIndustrySession(user.id, {
-    ...(user.user_metadata as Record<string, unknown> | null),
-    product_edition: editionHint || (user.user_metadata as any)?.product_edition,
-  });
+  const meta = {
+    ...((user.user_metadata || {}) as Record<string, unknown>),
+  };
+  if (editionHint) meta.product_edition = editionHint;
+  const session = await loadIndustrySession(user.id, meta);
   if (!session.businessId) return null;
   return {
     user,
