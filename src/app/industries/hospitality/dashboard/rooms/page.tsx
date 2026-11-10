@@ -18,12 +18,11 @@ export default function RoomsPage() {
   const [msg, setMsg] = useState<string | null>(null);
 
   async function headers() {
+    // TEMP: auth optional for QA
     const { data } = await getSupabase().auth.getSession();
-    if (!data.session) {
-      router.replace(config.loginPath);
-      throw new Error('auth');
-    }
-    return { Authorization: `Bearer ${data.session.access_token}`, 'Content-Type': 'application/json' };
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
+    return headers;
   }
 
   async function load() {
