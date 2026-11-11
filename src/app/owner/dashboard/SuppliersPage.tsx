@@ -397,13 +397,30 @@ export default function SuppliersPage() {
         return;
       }
 
-      const receiptsData = await fetchDocs<Record<string, unknown>>(
-        `businesses/${bid}/stockReceipts`,
-        {
-          filters: [{ field: 'supplierId', op: '=', value: supplier.id }],
-          orderBy: { field: 'created_at', ascending: false },
+      let receiptsData: Record<string, unknown>[] = [];
+      try {
+        receiptsData = await fetchDocs<Record<string, unknown>>(
+          `businesses/${bid}/stockReceipts`,
+          {
+            filters: [{ field: 'supplierId', op: '=', value: supplier.id }],
+            orderBy: { field: 'created_at', ascending: false },
+          }
+        );
+      } catch (receiptErr) {
+        console.warn('[suppliers] stockReceipts load failed, trying supplier_id filter', receiptErr);
+        try {
+          receiptsData = await fetchDocs<Record<string, unknown>>(
+            `businesses/${bid}/stockReceipts`,
+            {
+              filters: [{ field: 'supplier_id', op: '=', value: supplier.id }],
+              orderBy: { field: 'created_at', ascending: false },
+            }
+          );
+        } catch (receiptErr2) {
+          console.warn('[suppliers] stockReceipts unavailable', receiptErr2);
+          receiptsData = [];
         }
-      );
+      }
       const receiptsList: StockReceipt[] = [];
 
       receiptsData.forEach((data: Record<string, unknown>) => {
@@ -548,7 +565,10 @@ export default function SuppliersPage() {
       setSupplierProducts(productsList);
     } catch (error) {
       console.error('Error loading supplier details:', error);
-      showToast(t('toast.supplierDetailsFailed') || 'Failed to load details');
+      // Keep the supplier panel open with contact info even if history fails
+      setSupplierReceipts((prev) => prev || []);
+      setSupplierProducts((prev) => prev || []);
+      showToast(t('toast.supplierDetailsFailed') || 'Failed to load supplier details');
     } finally {
       setIsLoadingDetails(false);
     }

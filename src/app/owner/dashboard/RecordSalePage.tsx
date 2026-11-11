@@ -23,7 +23,8 @@ import styles from './RecordSalePage.module.css';
 // ═══════════════════════════════════════════
 
 export function RecordSalePage() {
-  const { navigateTo, showToast } = useApp();
+  const { navigateTo, showToast, user } = useApp();
+  const contextBusinessId = user?.businessId;
   const { t } = useTranslation();
   const { formatMoney, currencyCode } = useCurrency();
   const { branches, isProUser } = useBranch();
@@ -113,39 +114,51 @@ export function RecordSalePage() {
   const finalTotal = subtotal - discount;
   const profit = cart.reduce((s, i) => s + (i.price - i.costPrice) * i.qty, 0) - discount;
 
-  // Fetch real products from Firestore
+  // Fetch products for record sale
   useEffect(() => {
     async function fetchProducts() {
       try {
         setLoading(true);
 
-        // First, get the user's business ID
-        const user = getAuthCurrentUser();
-        
-        if (!user) {
-          console.warn('User not authenticated');
+        const authUser = getAuthCurrentUser();
+        const uid = authUser?.uid || user?.id || '';
+        if (!uid) {
+          // Session may still be hydrating
           setLoading(false);
           return;
         }
 
-        let bId = '';
-        try {
-          const { data: userDoc } = await getSupabase().from('users').select('*').eq('id', user.uid).maybeSingle();
-          bId = (userDoc as any)?.businessId || (userDoc as any)?.business_id || '';
-        } catch (e) {
-          console.warn('User document lookup failed', e);
+        let bId =
+          (contextBusinessId as string) ||
+          (user as any)?.businessId ||
+          (user as any)?.business_id ||
+          businessId ||
+          '';
+
+        if (!bId || bId === uid) {
+          try {
+            const { data: userDoc } = await getSupabase()
+              .from('users')
+              .select('*')
+              .eq('id', uid)
+              .maybeSingle();
+            bId =
+              (userDoc as any)?.businessId ||
+              (userDoc as any)?.business_id ||
+              bId ||
+              '';
+          } catch (_) {}
         }
-        if (!bId || bId === user?.uid) {
+        if (!bId || bId === uid) {
           const { resolveOwnerScopeBusinessId } = await import('@/lib/resolve-business-scope');
-          bId = (await resolveOwnerScopeBusinessId(user?.uid, bId || undefined)) || '';
+          bId = (await resolveOwnerScopeBusinessId(uid, bId || undefined)) || bId;
         }
         if (!bId) {
-          // Last resort: business owned by this user
           try {
             const { data: owned } = await getSupabase()
               .from('businesses')
               .select('id')
-              .eq('owner_id', user.uid)
+              .eq('owner_id', uid)
               .limit(1)
               .maybeSingle();
             bId = owned?.id || '';
@@ -162,15 +175,19 @@ export function RecordSalePage() {
 
         // Fetch business category and receipt theme
         try {
-          const { data: businessDoc } = await getSupabase().from('businesses').select('*').eq('id', bId).single();
+          const { data: businessDoc } = await getSupabase()
+            .from('businesses')
+            .select('*')
+            .eq('id', bId)
+            .single();
           if (businessDoc) {
             const category = businessDoc.category || '';
             setBusinessCategory(category.toLowerCase());
-            
-            // Load inventory deduction mode
-            setInventoryDeductionMode(businessDoc.inventoryDeductionMode || businessDoc.inventory_deduction_mode || 'immediate');
-            
-            // Load receipt theme (column or metadata — settings save path)
+            setInventoryDeductionMode(
+              businessDoc.inventoryDeductionMode ||
+                businessDoc.inventory_deduction_mode ||
+                'immediate'
+            );
             const meta = businessDoc.metadata || {};
             const theme =
               businessDoc.receiptTheme ||
@@ -179,13 +196,9 @@ export function RecordSalePage() {
               meta.receipt_theme ||
               null;
             if (theme) setReceiptTheme(theme);
-            
-            // Load business logo
             if (businessDoc.logoUrl || businessDoc.logo_url) {
               setBusinessLogo(businessDoc.logoUrl || businessDoc.logo_url);
             }
-            
-            // Load receipt type setting
             if (businessDoc.receiptType || businessDoc.receipt_type) {
               setReceiptType(businessDoc.receiptType || businessDoc.receipt_type);
             }
@@ -194,7 +207,7 @@ export function RecordSalePage() {
           console.error('Error loading business category:', error);
         }
 
-        // Load bank accounts — prefer POS default, then default/primary, then first active
+        // Bank accounts
         try {
           const bankAccounts = await fetchDocs(`businesses/${bId}/bankAccounts`);
           const active = (bankAccounts || []).filter(
@@ -204,21 +217,17 @@ export function RecordSalePage() {
             active.find((a: any) => a.isPosDefault || a.is_pos_default) ||
             active.find((a: any) => a.isDefault || a.isPrimary || a.is_default) ||
             active[0];
-          setBankAccountId(posDefault?.id || null);
-        } catch (error) {
-          console.error('Error loading bank accounts:', error);
-        }
+          setBankAccountId(posDefault?.id || '');
+        } catch (_) {}
 
-        // Fetch products from the business-specific collection
-        // Pass bId directly to avoid timing issue with state update
         await refreshProducts(bId);
-        
-        // Load stock locations
+
+        // Stock locations
         try {
-          const locations = await fetchDocs(`businesses/${bId}/stockLocations`, { filters: [{ field: 'is_active', op: '=', value: true }] });
+          const locations = await fetchDocs(`businesses/${bId}/stockLocations`, {
+            filters: [{ field: 'is_active', op: '=', value: true }],
+          });
           const loadedLocations: Array<{ id: string; name: string; type: string }> = [];
-          
-          // Only use actual locations created by the owner - no defaults
           for (const loc of locations) {
             loadedLocations.push({
               id: (loc as any).id,
@@ -226,71 +235,32 @@ export function RecordSalePage() {
               type: (loc as any).type,
             });
           }
-          
           setStockLocations(loadedLocations);
-          
-           // Show stock source selector only if there's an actual warehouse location created
-           const hasWarehouse = loadedLocations.some(loc => loc.type === 'warehouse');
-           setShowStockSource(hasWarehouse);
+          setShowStockSource(loadedLocations.some((loc) => loc.type === 'warehouse'));
         } catch (error) {
           console.error('Error loading stock locations:', error);
-          // Set empty locations on error
-          setStockLocations([]);
-          setShowStockSource(false);
         }
 
-        // Load credit customers
+        // Credit customers (best-effort)
         try {
-          const creditCustomersData = await fetchDocs(`businesses/${bId}/credit_customers`, { orderBy: { field: 'created_at', ascending: false } });
-          const loadedCreditCustomers: CreditCustomer[] = [];
-          for (const data of creditCustomersData) {
-            loadedCreditCustomers.push({
-              id: (data as any).id,
-              name: (data as any).name || '',
-              phone: (data as any).phone || '',
-              email: (data as any).email || '',
-              address: (data as any).address || '',
-              businessType: (data as any).businessType || (data as any).business_type || 'individual',
-              notes: (data as any).notes || '',
-              createdAt: (data as any).createdAt ? new Date((data as any).createdAt) : (data as any).created_at ? new Date((data as any).created_at) : new Date(),
-              totalCreditLimit: (data as any).totalCreditLimit || (data as any).credit_limit,
-              currentBalance: (data as any).currentBalance || (data as any).current_balance || 0,
-              isRegularCustomer: (data as any).isRegularCustomer || (data as any).is_regular_customer || false,
-            });
-          }
-          setCreditCustomers(loadedCreditCustomers);
-
-          // Also merge general customers list (optional attach)
-          try {
-            const regularCustomers = await fetchDocs(`businesses/${bId}/customers`, {
-              orderBy: { field: 'created_at', ascending: false },
-            });
-            const merged = [...loadedCreditCustomers];
-            const seen = new Set(merged.map((c) => c.id));
-            for (const data of regularCustomers || []) {
-              const id = String((data as any).id || '');
-              if (!id || seen.has(id)) continue;
-              seen.add(id);
-              merged.push({
-                id,
-                name: (data as any).name || 'Customer',
-                phone: (data as any).phone || '',
-                email: (data as any).email || '',
-                address: (data as any).address || '',
-                currentBalance: Number((data as any).balance || (data as any).currentBalance || 0),
-                totalCreditLimit: Number((data as any).creditLimit || 0) || null,
-                isRegularCustomer: true,
-                createdAt: (data as any).created_at || new Date().toISOString(),
-              } as CreditCustomer);
-            }
-            setCreditCustomers(merged);
-          } catch (_) {
-            /* optional collection */
-          }
-
-        } catch (error) {
-          console.error('Error loading credit customers:', error);
-        }
+          const creditCustomersData = await fetchDocs(`businesses/${bId}/credit_customers`, {
+            orderBy: { field: 'created_at', ascending: false },
+          });
+          // map minimal
+          setCreditCustomers(
+            (creditCustomersData || []).map((data: any) => ({
+              id: String(data.id || ''),
+              name: data.name || 'Customer',
+              phone: data.phone || '',
+              email: data.email || '',
+              address: data.address || '',
+              currentBalance: Number(data.balance || data.currentBalance || 0),
+              totalCreditLimit: Number(data.creditLimit || 0) || null,
+              isRegularCustomer: true,
+              createdAt: data.created_at || new Date().toISOString(),
+            })) as any
+          );
+        } catch (_) {}
       } catch (error) {
         console.error('Error fetching products:', error);
         showToast('Failed to load products');
@@ -300,7 +270,8 @@ export function RecordSalePage() {
     }
 
     fetchProducts();
-  }, [showToast, branches, isProUser]);
+  }, [showToast, branches, isProUser, user?.id, user?.businessId]);
+
 
   // Helper function to refresh products from Firestore
   async function refreshProducts(bizId?: string) {
@@ -367,6 +338,56 @@ export function RecordSalePage() {
         });
       }
       
+      // If client RLS returns nothing, try authenticated products API (owner path)
+      if (fetchedProducts.length === 0) {
+        try {
+          const { data: sess } = await getSupabase().auth.getSession();
+          const token = sess.session?.access_token;
+          if (token) {
+            const res = await fetch(
+              `/api/products?businessId=${encodeURIComponent(targetBusinessId)}`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            const json = await res.json().catch(() => ({}));
+            const apiRows = Array.isArray(json.products)
+              ? json.products
+              : Array.isArray(json.data)
+                ? json.data
+                : [];
+            for (const data of apiRows) {
+              const status = String((data as any).status || '').toLowerCase();
+              if (['inactive', 'archived', 'deleted', 'draft'].includes(status)) continue;
+              if ((data as any).active === false) continue;
+              if (isIngredientProduct(data as any)) continue;
+              const productType =
+                (data as any).productType ||
+                (data as any).product_type ||
+                (data as any).type ||
+                'product';
+              fetchedProducts.push({
+                id: (data as any).id,
+                name: (data as any).name || 'Unnamed Product',
+                price: Number((data as any).price || 0),
+                costPrice: Number((data as any).costPrice || (data as any).cost || 0),
+                stock: Number((data as any).stock || (data as any).stock_level || (data as any).quantity || 0),
+                stockByLocation: (data as any).stockByLocation || {
+                  main_store: Number((data as any).stock || 0),
+                  back_store: 0,
+                  warehouse: 0,
+                },
+                emoji: (data as any).emoji || '📦',
+                lowStockThreshold: (data as any).lowStockThreshold || 10,
+                imageUrl: (data as any).imageUrl || (data as any).image_url || '',
+                type: productType,
+              });
+            }
+            console.log('refreshProducts: API fallback returned', fetchedProducts.length, 'products');
+          }
+        } catch (apiErr) {
+          console.warn('refreshProducts API fallback failed', apiErr);
+        }
+      }
+
       console.log('refreshProducts: Fetched', fetchedProducts.length, 'active products');
       setProducts(fetchedProducts);
         if (businessId || targetBusinessId) void offlineManager.cacheProducts((businessId || targetBusinessId) as string, fetchedProducts as any);

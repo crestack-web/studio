@@ -241,6 +241,38 @@ function buildProductRow(
   return row;
 }
 
+
+export async function GET(req: NextRequest) {
+  try {
+    const user = await getAuthUser(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const businessId = String(req.nextUrl.searchParams.get('businessId') || '').trim();
+    if (!businessId) {
+      return NextResponse.json({ error: 'businessId required' }, { status: 400 });
+    }
+    const access = await ensureBusinessAccess(user.id, businessId);
+    if (!access.ok) {
+      return NextResponse.json({ error: access.reason }, { status: 403 });
+    }
+    const admin = getSupabaseAdmin();
+    const { data, error } = await admin
+      .from('products')
+      .select('*')
+      .eq('business_id', businessId)
+      .order('created_at', { ascending: false })
+      .limit(500);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ products: data || [] });
+  } catch (e: any) {
+    console.error('[api/products GET]', e);
+    return NextResponse.json({ error: e?.message || 'Failed' }, { status: 500 });
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
