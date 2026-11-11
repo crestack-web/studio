@@ -241,13 +241,19 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
     <div className={styles.authPage}>
     <div className={styles.authCard}>
       <div className={styles.authBrand}>
-        <span className={styles.authLogo} aria-hidden>
-          $
-        </span>
-{config.logoSrc ? (
-          <img src={config.logoSrc} alt={config.productName} style={{ height: 36, width: 'auto', maxWidth: 180, objectFit: 'contain' }} />
+        {config.logoSrc ? (
+          <img
+            src={config.logoSrc}
+            alt={config.productName}
+            style={{ height: 40, width: 'auto', maxWidth: 220, objectFit: 'contain' }}
+          />
         ) : (
-          <span>{config.productName}</span>
+          <>
+            <span className={styles.authLogo} aria-hidden>
+              $
+            </span>
+            <span>{config.productName}</span>
+          </>
         )}
       </div>
 
