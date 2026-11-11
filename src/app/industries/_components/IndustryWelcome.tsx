@@ -30,7 +30,18 @@ export function IndustryWelcome({ config }: { config: IndustryConfig }) {
             />
           </div>
         ) : null}
-        <div className={styles.heroKicker}>{family.productName}</div>
+        <div className={styles.heroKicker}>
+          {family.logoSrc ? (
+            <img
+              src={family.logoSrc}
+              alt={family.productName}
+              width={160}
+              height={48}
+              style={{ height: 48, width: 'auto', maxWidth: '100%', objectFit: 'contain', marginBottom: 8 }}
+            />
+          ) : null}
+          {family.productName}
+        </div>
         <h1>{family.tagline}</h1>
         <p>{family.description}</p>
         <div className={styles.heroCtas}>

@@ -85,7 +85,7 @@ export function HealthcareDesk({ config }: { config: IndustryConfig }) {
       title="Reception"
       subtitle="Today’s appointments and walk-ins"
       brandName={brand.display_name || 'Clinic reception'}
-      logoUrl={brand.logo_url}
+      logoUrl={data?.branding?.logo_url || config.logoSrc || null}
       ownerHref={config.dashboardPath}
       nav={[
         { label: 'Reception', href: '/industries/healthcare/front-desk', active: true },

@@ -36,4 +36,6 @@ export type IndustryConfig = {
   metrics: IndustryMetric[];
   quickActions: IndustryQuickAction[];
   greetingNoun: string;
+  /** Product mark shown in dashboards / welcome (path under public/) */
+  logoSrc?: string;
 };

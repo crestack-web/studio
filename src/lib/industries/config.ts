@@ -143,6 +143,7 @@ export const PROFESSIONAL: IndustryConfig = {
 export const HEALTHCARE: IndustryConfig = {
   id: 'healthcare',
   productName: 'Busmo Healthcare',
+  logoSrc: '/industries/busmo-healthcare-logo.jpg',
   shortName: 'Healthcare',
   tagline: 'Care operations. Clearer every day.',
   description:

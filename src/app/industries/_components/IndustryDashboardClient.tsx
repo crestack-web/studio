@@ -190,7 +190,7 @@ export function IndustryDashboardClient({
       <aside className={[styles.sidebar, sidebarOpen ? styles.sidebarOpen : ''].join(' ')}>
         <div className={styles.sidebarTop}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/email-logo.png" alt="Busmo" className={styles.productLogo} width={34} height={34} />
+          <img src={config.logoSrc || "/email-logo.png"} alt={config.productName} className={styles.productLogo} width={34} height={34} />
           <div className={styles.productMeta}>
             <div className={styles.logoText}>{config.shortName}</div>
             <div className={styles.productEdition}>Busmo suite</div>

@@ -36,8 +36,8 @@ export function StaffDeskShell({
   error?: string | null;
 }) {
   const [open, setOpen] = useState(false);
-  // Property logo if set; otherwise Busmo mark
-  const logo = logoUrl || BUSMO_LOGO;
+  // Property logo if set; otherwise product mark; else Busmo mark
+  const logo = logoUrl || config.logoSrc || BUSMO_LOGO;
 
   return (
     <div className={styles.page}>
