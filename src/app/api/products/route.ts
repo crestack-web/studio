@@ -257,13 +257,43 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: access.reason }, { status: 403 });
     }
     const admin = getSupabaseAdmin();
-    const { data, error } = await admin
+    let { data, error } = await admin
       .from('products')
       .select('*')
       .eq('business_id', businessId)
       .limit(500);
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    // If empty, also try auth uid as business_id (Busmo signup convention)
+    if ((!data || data.length === 0) && businessId !== user.id) {
+      const second = await admin
+        .from('products')
+        .select('*')
+        .eq('business_id', user.id)
+        .limit(500);
+      if (!second.error && second.data?.length) {
+        data = second.data;
+      }
+    }
+    // Also merge products for businesses owned by this user
+    if (!data || data.length === 0) {
+      const { data: owned } = await admin
+        .from('businesses')
+        .select('id')
+        .eq('owner_id', user.id)
+        .limit(10);
+      const ids = (owned || []).map((b: any) => b.id).filter(Boolean);
+      if (ids.length) {
+        const third = await admin
+          .from('products')
+          .select('*')
+          .in('business_id', ids)
+          .limit(500);
+        if (!third.error && third.data?.length) {
+          data = third.data;
+        }
+      }
     }
     return NextResponse.json({ products: data || [] });
   } catch (e: any) {

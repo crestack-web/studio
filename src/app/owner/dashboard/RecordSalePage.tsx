@@ -114,81 +114,204 @@ export function RecordSalePage() {
   const finalTotal = subtotal - discount;
   const profit = cart.reduce((s, i) => s + (i.price - i.costPrice) * i.qty, 0) - discount;
 
-  // Fetch products for record sale
+  // Resolve business id for product loads
+  async function resolveSaleBusinessId(): Promise<string> {
+    const { data: sess } = await getSupabase().auth.getSession();
+    const uid = sess.session?.user?.id || getAuthCurrentUser()?.uid || user?.id || '';
+    if (!uid) return '';
+
+    let bId =
+      (user as any)?.businessId ||
+      (user as any)?.business_id ||
+      businessId ||
+      '';
+
+    if (!bId || bId === uid) {
+      try {
+        const { data: userDoc } = await getSupabase()
+          .from('users')
+          .select('business_id, businessId')
+          .eq('id', uid)
+          .maybeSingle();
+        bId =
+          (userDoc as any)?.business_id ||
+          (userDoc as any)?.businessId ||
+          bId ||
+          '';
+      } catch (_) {}
+    }
+    if (!bId || bId === uid) {
+      try {
+        const { resolveOwnerScopeBusinessId } = await import('@/lib/resolve-business-scope');
+        bId = (await resolveOwnerScopeBusinessId(uid, bId || undefined)) || bId;
+      } catch (_) {}
+    }
+    if (!bId) {
+      try {
+        const { data: owned } = await getSupabase()
+          .from('businesses')
+          .select('id')
+          .eq('owner_id', uid)
+          .limit(1)
+          .maybeSingle();
+        bId = owned?.id || '';
+      } catch (_) {}
+    }
+    // Busmo convention: business id may equal auth uid
+    if (!bId) {
+      try {
+        const { data: selfBiz } = await getSupabase()
+          .from('businesses')
+          .select('id')
+          .eq('id', uid)
+          .maybeSingle();
+        bId = selfBiz?.id || '';
+      } catch (_) {}
+    }
+    return bId || '';
+  }
+
+  function mapProductRow(data: any): Product | null {
+    if (!data || !data.id) return null;
+    const status = String(data.status || '').toLowerCase();
+    if (['inactive', 'archived', 'deleted', 'draft'].includes(status)) return null;
+    if (data.active === false) return null;
+    // Only skip explicit ingredients
+    const pType = String(
+      data.productType || data.product_type || data.type || data.metadata?.productType || ''
+    ).toLowerCase();
+    if (pType === 'ingredient' || pType.includes('ingredient')) return null;
+    if (isIngredientProduct(data)) return null;
+
+    return {
+      id: String(data.id),
+      name: data.name || 'Unnamed Product',
+      price: Number(data.price ?? data.sellingPrice ?? data.sell_price ?? 0),
+      costPrice: Number(data.costPrice ?? data.cost ?? data.cost_price ?? 0),
+      stock: Number(data.stock ?? data.stock_level ?? data.quantity ?? 0),
+      stockByLocation: data.stockByLocation || data.stock_by_location || {
+        main_store: Number(data.stock ?? data.stock_level ?? 0),
+        back_store: 0,
+        warehouse: 0,
+      },
+      emoji: data.emoji || data.attributes?.emoji || '📦',
+      lowStockThreshold: Number(data.lowStockThreshold ?? data.low_stock_threshold ?? 10),
+      imageUrl: data.imageUrl || data.image_url || '',
+      type: pType || 'product',
+    };
+  }
+
+  async function refreshProducts(bizId?: string) {
+    const targetBusinessId = bizId || businessId || (await resolveSaleBusinessId());
+    if (!targetBusinessId) {
+      console.error('refreshProducts: Missing businessId');
+      return;
+    }
+
+    try {
+      console.log('refreshProducts: Starting for', targetBusinessId);
+      setBusinessId(targetBusinessId);
+
+      // Primary: authenticated API (bypasses client RLS false-negatives)
+      let rows: any[] = [];
+      try {
+        const { data: sess } = await getSupabase().auth.getSession();
+        const token = sess.session?.access_token;
+        if (token) {
+          const res = await fetch(
+            `/api/products?businessId=${encodeURIComponent(targetBusinessId)}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          const json = await res.json().catch(() => ({}));
+          if (res.ok) {
+            rows = Array.isArray(json.products)
+              ? json.products
+              : Array.isArray(json.data)
+                ? json.data
+                : [];
+            console.log('refreshProducts: API returned', rows.length);
+          } else {
+            console.warn('refreshProducts: API error', res.status, json);
+          }
+        }
+      } catch (apiErr) {
+        console.warn('refreshProducts: API failed', apiErr);
+      }
+
+      // Secondary: direct client query
+      if (rows.length === 0) {
+        try {
+          const clientRows = await fetchDocs(`businesses/${targetBusinessId}/products`);
+          rows = Array.isArray(clientRows) ? clientRows : [];
+          console.log('refreshProducts: client returned', rows.length);
+        } catch (clientErr) {
+          console.warn('refreshProducts: client query failed', clientErr);
+        }
+      }
+
+      const fetchedProducts: Product[] = [];
+      for (const data of rows) {
+        const mapped = mapProductRow(data);
+        if (mapped) fetchedProducts.push(mapped);
+      }
+
+      console.log('refreshProducts: saleable products', fetchedProducts.length);
+      setProducts(fetchedProducts);
+      void offlineManager.cacheProducts(targetBusinessId, fetchedProducts as any);
+    } catch (error) {
+      console.error('Error refreshing products:', error);
+      showToast('Failed to load products');
+    }
+  }
+
+  // Load products when session / business is ready
   useEffect(() => {
-    async function fetchProducts() {
+    let cancelled = false;
+
+    async function load() {
       try {
         setLoading(true);
 
-        const authUser = getAuthCurrentUser();
-        const uid = authUser?.uid || user?.id || '';
+        // Prefer live session over cached helper
+        let session = (await getSupabase().auth.getSession()).data.session;
+        if (!session) {
+          // brief wait for hydration on mobile Safari
+          await new Promise((r) => setTimeout(r, 400));
+          session = (await getSupabase().auth.getSession()).data.session;
+        }
+
+        const uid = session?.user?.id || getAuthCurrentUser()?.uid || user?.id || '';
         if (!uid) {
-          // Session may still be hydrating
-          setLoading(false);
+          if (!cancelled) setLoading(false);
           return;
         }
 
-        let bId =
-          (contextBusinessId as string) ||
-          (user as any)?.businessId ||
-          (user as any)?.business_id ||
-          businessId ||
-          '';
-
-        if (!bId || bId === uid) {
-          try {
-            const { data: userDoc } = await getSupabase()
-              .from('users')
-              .select('*')
-              .eq('id', uid)
-              .maybeSingle();
-            bId =
-              (userDoc as any)?.businessId ||
-              (userDoc as any)?.business_id ||
-              bId ||
-              '';
-          } catch (_) {}
-        }
-        if (!bId || bId === uid) {
-          const { resolveOwnerScopeBusinessId } = await import('@/lib/resolve-business-scope');
-          bId = (await resolveOwnerScopeBusinessId(uid, bId || undefined)) || bId;
-        }
+        const bId = await resolveSaleBusinessId();
         if (!bId) {
-          try {
-            const { data: owned } = await getSupabase()
-              .from('businesses')
-              .select('id')
-              .eq('owner_id', uid)
-              .limit(1)
-              .maybeSingle();
-            bId = owned?.id || '';
-          } catch (_) {}
-        }
-        if (!bId) {
-          console.warn('Business ID not found for user');
-          showToast('Could not find your business. Refresh or sign in again.');
-          setLoading(false);
+          if (!cancelled) {
+            showToast('Could not find your business. Refresh or sign in again.');
+            setLoading(false);
+          }
           return;
         }
-
+        if (cancelled) return;
         setBusinessId(bId);
 
-        // Fetch business category and receipt theme
+        // Business settings (category, receipt theme)
         try {
           const { data: businessDoc } = await getSupabase()
             .from('businesses')
             .select('*')
             .eq('id', bId)
-            .single();
+            .maybeSingle();
           if (businessDoc) {
-            const category = businessDoc.category || '';
-            setBusinessCategory(category.toLowerCase());
+            setBusinessCategory(String(businessDoc.category || '').toLowerCase());
             setInventoryDeductionMode(
               businessDoc.inventoryDeductionMode ||
                 businessDoc.inventory_deduction_mode ||
                 'immediate'
             );
-            const meta = businessDoc.metadata || {};
+            const meta = (businessDoc as any).metadata || {};
             const theme =
               businessDoc.receiptTheme ||
               businessDoc.receipt_theme ||
@@ -203,11 +326,11 @@ export function RecordSalePage() {
               setReceiptType(businessDoc.receiptType || businessDoc.receipt_type);
             }
           }
-        } catch (error) {
-          console.error('Error loading business category:', error);
+        } catch (e) {
+          console.error('Error loading business', e);
         }
 
-        // Bank accounts
+        // Bank accounts (best effort)
         try {
           const bankAccounts = await fetchDocs(`businesses/${bId}/bankAccounts`);
           const active = (bankAccounts || []).filter(
@@ -217,36 +340,31 @@ export function RecordSalePage() {
             active.find((a: any) => a.isPosDefault || a.is_pos_default) ||
             active.find((a: any) => a.isDefault || a.isPrimary || a.is_default) ||
             active[0];
-          setBankAccountId(posDefault?.id || '');
+          setBankAccountId(posDefault?.id || null);
         } catch (_) {}
 
         await refreshProducts(bId);
+        if (cancelled) return;
 
         // Stock locations
         try {
           const locations = await fetchDocs(`businesses/${bId}/stockLocations`, {
             filters: [{ field: 'is_active', op: '=', value: true }],
           });
-          const loadedLocations: Array<{ id: string; name: string; type: string }> = [];
-          for (const loc of locations) {
-            loadedLocations.push({
-              id: (loc as any).id,
-              name: (loc as any).name,
-              type: (loc as any).type,
-            });
-          }
-          setStockLocations(loadedLocations);
-          setShowStockSource(loadedLocations.some((loc) => loc.type === 'warehouse'));
-        } catch (error) {
-          console.error('Error loading stock locations:', error);
-        }
+          const loaded = (locations || []).map((loc: any) => ({
+            id: loc.id,
+            name: loc.name,
+            type: loc.type,
+          }));
+          setStockLocations(loaded);
+          setShowStockSource(loaded.some((loc) => loc.type === 'warehouse'));
+        } catch (_) {}
 
-        // Credit customers (best-effort)
+        // Credit customers best-effort
         try {
           const creditCustomersData = await fetchDocs(`businesses/${bId}/credit_customers`, {
             orderBy: { field: 'created_at', ascending: false },
           });
-          // map minimal
           setCreditCustomers(
             (creditCustomersData || []).map((data: any) => ({
               id: String(data.id || ''),
@@ -255,147 +373,33 @@ export function RecordSalePage() {
               email: data.email || '',
               address: data.address || '',
               currentBalance: Number(data.balance || data.currentBalance || 0),
-              totalCreditLimit: Number(data.creditLimit || 0) || null,
+              totalCreditLimit: Number(data.creditLimit || 0) || undefined,
               isRegularCustomer: true,
-              createdAt: data.created_at || new Date().toISOString(),
-            })) as any
+              createdAt: data.created_at ? new Date(data.created_at) : new Date(),
+            }))
           );
         } catch (_) {}
       } catch (error) {
         console.error('Error fetching products:', error);
-        showToast('Failed to load products');
+        if (!cancelled) showToast('Failed to load products');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
-    fetchProducts();
-  }, [showToast, branches, isProUser, user?.id, user?.businessId]);
+    load();
 
+    const { data: sub } = getSupabase().auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+        load();
+      }
+    });
 
-  // Helper function to refresh products from Firestore
-  async function refreshProducts(bizId?: string) {
-    const targetBusinessId = bizId || businessId;
-    if (!targetBusinessId) {
-      console.error('refreshProducts: Missing businessId', { businessId: targetBusinessId });
-      return;
-    }
-    
-    try {
-      console.log('refreshProducts: Starting fetch for businessId:', targetBusinessId);
-      
-      // Re-fetch business category for filtering
-      let currentCategory = '';
-      try {
-        const { data: businessDoc } = await getSupabase().from('businesses').select('*').eq('id', targetBusinessId).single();
-        if (businessDoc) {
-          currentCategory = (businessDoc.category || '').toLowerCase();
-          console.log('refreshProducts: Business category:', currentCategory);
-        } else {
-          console.warn('refreshProducts: Business document not found');
-        }
-      } catch {
-        console.warn('refreshProducts: Business document not found');
-      }
-      
-      // Load all products; hide inactive/draft client-side (legacy rows may lack status)
-      const fetchedProductsData = await fetchDocs(`businesses/${targetBusinessId}/products`);
-      
-      console.log('refreshProducts: Query returned', fetchedProductsData.length, 'products');
-      
-      const fetchedProducts: Product[] = [];
-      
-      for (const data of fetchedProductsData) {
-        const status = String((data as any).status || '').toLowerCase();
-        if (['inactive', 'archived', 'deleted', 'draft'].includes(status)) continue;
-        if ((data as any).active === false) continue;
-        // Never show ingredients on record sale (food businesses + explicit productType)
-        if (isIngredientProduct(data as any)) {
-          continue;
-        }
-        
-        const productType =
-          (data as any).productType ||
-          (data as any).product_type ||
-          (data as any).type ||
-          (data as any).metadata?.productType ||
-          'product';
-        fetchedProducts.push({
-          id: (data as any).id,
-          name: (data as any).name || 'Unnamed Product',
-          price: (data as any).price || 0,
-          costPrice: (data as any).costPrice || (data as any).cost || 0,
-          stock: (data as any).stock || (data as any).stock_level || (data as any).quantity || 0,
-          stockByLocation: (data as any).stockByLocation || {
-            main_store: (data as any).stock || (data as any).stock_level || 0,
-            back_store: 0,
-            warehouse: 0,
-          },
-          emoji: (data as any).emoji || '📦',
-          lowStockThreshold: (data as any).lowStockThreshold || 10,
-          imageUrl: (data as any).imageUrl || (data as any).image_url || '',
-          type: productType,
-        });
-      }
-      
-      // If client RLS returns nothing, try authenticated products API (owner path)
-      if (fetchedProducts.length === 0) {
-        try {
-          const { data: sess } = await getSupabase().auth.getSession();
-          const token = sess.session?.access_token;
-          if (token) {
-            const res = await fetch(
-              `/api/products?businessId=${encodeURIComponent(targetBusinessId)}`,
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-            const json = await res.json().catch(() => ({}));
-            const apiRows = Array.isArray(json.products)
-              ? json.products
-              : Array.isArray(json.data)
-                ? json.data
-                : [];
-            for (const data of apiRows) {
-              const status = String((data as any).status || '').toLowerCase();
-              if (['inactive', 'archived', 'deleted', 'draft'].includes(status)) continue;
-              if ((data as any).active === false) continue;
-              if (isIngredientProduct(data as any)) continue;
-              const productType =
-                (data as any).productType ||
-                (data as any).product_type ||
-                (data as any).type ||
-                'product';
-              fetchedProducts.push({
-                id: (data as any).id,
-                name: (data as any).name || 'Unnamed Product',
-                price: Number((data as any).price || 0),
-                costPrice: Number((data as any).costPrice || (data as any).cost || 0),
-                stock: Number((data as any).stock || (data as any).stock_level || (data as any).quantity || 0),
-                stockByLocation: (data as any).stockByLocation || {
-                  main_store: Number((data as any).stock || 0),
-                  back_store: 0,
-                  warehouse: 0,
-                },
-                emoji: (data as any).emoji || '📦',
-                lowStockThreshold: (data as any).lowStockThreshold || 10,
-                imageUrl: (data as any).imageUrl || (data as any).image_url || '',
-                type: productType,
-              });
-            }
-            console.log('refreshProducts: API fallback returned', fetchedProducts.length, 'products');
-          }
-        } catch (apiErr) {
-          console.warn('refreshProducts API fallback failed', apiErr);
-        }
-      }
-
-      console.log('refreshProducts: Fetched', fetchedProducts.length, 'active products');
-      setProducts(fetchedProducts);
-        if (businessId || targetBusinessId) void offlineManager.cacheProducts((businessId || targetBusinessId) as string, fetchedProducts as any);
-    } catch (error) {
-      console.error('Error refreshing products:', error);
-      showToast('Failed to load products');
-    }
-  }
+    return () => {
+      cancelled = true;
+      sub?.subscription?.unsubscribe?.();
+    };
+  }, [showToast, user?.id, user?.businessId]);
 
   const filtered = useMemo(
     () => products.filter(p => p.name.toLowerCase().includes(search.toLowerCase())),

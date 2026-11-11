@@ -48,6 +48,11 @@ export function isIngredientProduct(data: Record<string, any> | null | undefined
     .filter((v) => v != null && v !== '')
     .map((v) => String(v).toLowerCase().trim());
 
+  // Dishes / menu items are always saleable
+  if (candidates.some((c) => c === 'dish' || c === 'menu' || c === 'menu_item' || c.includes('dish'))) {
+    return false;
+  }
+
   if (candidates.some((c) => c === 'ingredient' || c.includes('ingredient'))) {
     return true;
   }
