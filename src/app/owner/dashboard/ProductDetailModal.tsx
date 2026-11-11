@@ -172,9 +172,13 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
     setImageBusy(true);
     setImageError(null);
     try {
-      const user = getAuthCurrentUser();
-      if (!user) {
-        setImageError('Sign in required');
+      // Prefer live Supabase session (getAuthCurrentUser can miss restored sessions)
+      const { data: sess } = await getSupabase().auth.getSession();
+      const sessionUser = sess.session?.user;
+      const cached = getAuthCurrentUser();
+      const uid = sessionUser?.id || cached?.uid || '';
+      if (!uid || !sess.session?.access_token) {
+        setImageError('Sign in required — refresh the page and try again');
         return;
       }
 
@@ -183,13 +187,24 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
         const { data: userDoc } = await getSupabase()
           .from('users')
           .select('business_id, businessId')
-          .eq('id', user.uid)
+          .eq('id', uid)
           .maybeSingle();
         businessId = (userDoc as any)?.business_id || (userDoc as any)?.businessId || '';
       } catch { /* fall through */ }
       if (!businessId) {
         const { resolveOwnerScopeBusinessId } = await import('@/lib/resolve-business-scope');
-        businessId = (await resolveOwnerScopeBusinessId(user.uid, undefined)) || '';
+        businessId = (await resolveOwnerScopeBusinessId(uid, undefined)) || '';
+      }
+      if (!businessId) {
+        try {
+          const { data: owned } = await getSupabase()
+            .from('businesses')
+            .select('id')
+            .eq('owner_id', uid)
+            .limit(1)
+            .maybeSingle();
+          businessId = owned?.id || '';
+        } catch { /* fall through */ }
       }
       if (!businessId) {
         setImageError('Business not found');
