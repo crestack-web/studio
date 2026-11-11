@@ -188,7 +188,7 @@ export function FrontDeskDashboard({
   };
   const currency = settings.currency || 'NGN';
   const propertyName = settings.property_name || 'Front Desk';
-  const logoUrl = settings.logo_url || '/email-logo.png';
+  const logoUrl = settings.logo_url || config.logoSrc || '/email-logo.png';
 
   return (
     <div className={styles.page}>
@@ -198,7 +198,7 @@ export function FrontDeskDashboard({
       <aside className={[styles.sidebar, sidebarOpen ? styles.sidebarOpen : ''].join(' ')}>
         <div className={styles.busmoMark}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/email-logo.png" alt="Busmo" />
+          <img src={config.logoSrc || "/email-logo.png"} alt={config.productName} />
           <span>BUSMO</span>
         </div>
         <div className={styles.brand}>
@@ -234,7 +234,7 @@ export function FrontDeskDashboard({
             <div>
               <div className={styles.busmoMark} style={{ marginBottom: 6 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/email-logo.png" alt="Busmo" />
+                <img src={config.logoSrc || "/email-logo.png"} alt={config.productName} />
                 <span>BUSMO</span>
               </div>
               <h1>Dashboard</h1>
