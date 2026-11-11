@@ -128,20 +128,32 @@ export function RecordSalePage() {
           return;
         }
 
-        const { data: userDoc, error: userError } = await getSupabase().from('users').select('*').eq('id', user.uid).single();
-        if (userError || !userDoc) {
-          console.warn('User document not found');
-          setLoading(false);
-          return;
+        let bId = '';
+        try {
+          const { data: userDoc } = await getSupabase().from('users').select('*').eq('id', user.uid).maybeSingle();
+          bId = (userDoc as any)?.businessId || (userDoc as any)?.business_id || '';
+        } catch (e) {
+          console.warn('User document lookup failed', e);
         }
-
-        let bId = userDoc.businessId || userDoc.business_id || '';
         if (!bId || bId === user?.uid) {
           const { resolveOwnerScopeBusinessId } = await import('@/lib/resolve-business-scope');
           bId = (await resolveOwnerScopeBusinessId(user?.uid, bId || undefined)) || '';
         }
         if (!bId) {
+          // Last resort: business owned by this user
+          try {
+            const { data: owned } = await getSupabase()
+              .from('businesses')
+              .select('id')
+              .eq('owner_id', user.uid)
+              .limit(1)
+              .maybeSingle();
+            bId = owned?.id || '';
+          } catch (_) {}
+        }
+        if (!bId) {
           console.warn('Business ID not found for user');
+          showToast('Could not find your business. Refresh or sign in again.');
           setLoading(false);
           return;
         }

@@ -423,7 +423,7 @@ export function AddProductPage({ onClose, onProductAdded }: AddProductPageProps)
       // Upload image to Supabase Storage if a new image was selected (non-blocking on failure)
       if (imageFile) {
         try {
-          const filePath = `products/${effectiveBusinessId}/${Date.now()}_${imageFile.name}`;
+          const filePath = `${effectiveBusinessId}/${Date.now()}_${imageFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
           const { error: uploadError } = await getSupabase()
             .storage
             .from('products')
