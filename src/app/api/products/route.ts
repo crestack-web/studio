@@ -253,7 +253,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'businessId required' }, { status: 400 });
     }
     const access = await ensureBusinessAccess(user.id, businessId);
-    if (!access.ok) {
+    if (access.ok === false) {
       return NextResponse.json({ error: access.reason }, { status: 403 });
     }
     const admin = getSupabaseAdmin();
@@ -261,7 +261,6 @@ export async function GET(req: NextRequest) {
       .from('products')
       .select('*')
       .eq('business_id', businessId)
-      .order('created_at', { ascending: false })
       .limit(500);
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });

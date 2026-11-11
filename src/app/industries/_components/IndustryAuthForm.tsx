@@ -448,7 +448,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
           )}
           <button type="submit" className={styles.btnPrimary} disabled={loading}>
             {loading
-              ? 'Please wait…'
+              ? 'Please wait...'
               : mode === 'login' && !recovery
                 ? 'Sign in'
                 : showDetails

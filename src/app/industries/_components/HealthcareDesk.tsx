@@ -83,7 +83,7 @@ export function HealthcareDesk({ config }: { config: IndustryConfig }) {
     <StaffDeskShell
       config={config}
       title="Reception"
-      subtitle="Today’s appointments and walk-ins"
+      subtitle="Today's appointments and walk-ins"
       brandName={brand.display_name || 'Clinic reception'}
       logoUrl={data?.branding?.logo_url || config.logoSrc || null}
       ownerHref={config.dashboardPath}
