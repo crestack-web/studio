@@ -7,6 +7,7 @@ import {
 import { useCurrency } from './CurrencyContext';
 import { getAuthCurrentUser, getFirestoreUserId } from '@/lib/supabase-auth';
 import { fetchDoc, updateDoc } from '@/lib/supabase-client-data';
+import { getSupabase } from '@/lib/supabase';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -37,6 +38,11 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
   const [editedPrice, setEditedPrice] = useState('');
   const [editedCost, setEditedCost]   = useState('');
   const [saved, setSaved]             = useState(false);
+  const [imageFile, setImageFile]     = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [removeImage, setRemoveImage] = useState(false);
+  const [imageBusy, setImageBusy]     = useState(false);
+  const [imageError, setImageError]   = useState<string | null>(null);
 
   // Reset state when product changes
   useEffect(() => {
@@ -48,6 +54,10 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
       setEditedPrice(String(product.sellingPrice));
       setEditedCost(String(product.costPrice));
       setSaved(false);
+      setImageFile(null);
+      setImagePreview(product.imageUrl || '');
+      setRemoveImage(false);
+      setImageError(null);
     }
   }, [product]);
 
@@ -133,17 +143,119 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
     }
   };
 
-  const handleSaveDetails = () => {
-    if (!onSave) return;
-    const updated: Product = {
-      ...product,
-      sellingPrice: parseFloat(editedPrice) || product.sellingPrice,
-      costPrice: parseFloat(editedCost) || product.costPrice,
-      reorderThreshold: parseInt(threshold, 10) || product.reorderThreshold,
-    };
-    onSave(updated);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleImagePick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setImageError('Please choose an image file');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setImageError('Image must be under 5MB');
+      return;
+    }
+    setImageError(null);
+    setRemoveImage(false);
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview('');
+    setRemoveImage(true);
+    setImageError(null);
+  };
+
+  const handleSaveDetails = async () => {
+    if (!product) return;
+    setImageBusy(true);
+    setImageError(null);
+    try {
+      const user = getAuthCurrentUser();
+      if (!user) {
+        setImageError('Sign in required');
+        return;
+      }
+
+      let businessId = '';
+      try {
+        const { data: userDoc } = await getSupabase()
+          .from('users')
+          .select('business_id, businessId')
+          .eq('id', user.uid)
+          .maybeSingle();
+        businessId = (userDoc as any)?.business_id || (userDoc as any)?.businessId || '';
+      } catch { /* fall through */ }
+      if (!businessId) {
+        const { resolveOwnerScopeBusinessId } = await import('@/lib/resolve-business-scope');
+        businessId = (await resolveOwnerScopeBusinessId(user.uid, undefined)) || '';
+      }
+      if (!businessId) {
+        setImageError('Business not found');
+        return;
+      }
+
+      let nextImageUrl = product.imageUrl || '';
+
+      if (removeImage) {
+        nextImageUrl = '';
+        // Best-effort delete of previous object if it lives in our products bucket
+        try {
+          const prev = product.imageUrl || '';
+          const marker = '/storage/v1/object/public/products/';
+          const idx = prev.indexOf(marker);
+          if (idx >= 0) {
+            const objectPath = decodeURIComponent(prev.slice(idx + marker.length).split('?')[0]);
+            if (objectPath) {
+              await getSupabase().storage.from('products').remove([objectPath]);
+            }
+          }
+        } catch (e) {
+          console.warn('Could not delete previous image object', e);
+        }
+      } else if (imageFile) {
+        const safeName = imageFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const filePath = `${businessId}/${Date.now()}_${safeName}`;
+        const { error: uploadError } = await getSupabase()
+          .storage
+          .from('products')
+          .upload(filePath, imageFile, { upsert: true, contentType: imageFile.type });
+        if (uploadError) throw uploadError;
+        const { data: urlData } = getSupabase().storage.from('products').getPublicUrl(filePath);
+        nextImageUrl = urlData.publicUrl;
+      }
+
+      const updated: Product = {
+        ...product,
+        sellingPrice: parseFloat(editedPrice) || product.sellingPrice,
+        costPrice: parseFloat(editedCost) || product.costPrice,
+        reorderThreshold: parseInt(threshold, 10) || product.reorderThreshold,
+        imageUrl: nextImageUrl,
+      };
+
+      // Persist image + pricing on the product row (inventory onSave also updates prices)
+      await updateDoc(`businesses/${businessId}/products`, product.id, {
+        imageUrl: nextImageUrl,
+        image_url: nextImageUrl,
+        price: updated.sellingPrice,
+        cost: updated.costPrice,
+        lowStockThreshold: updated.reorderThreshold,
+        updatedAt: new Date().toISOString(),
+      });
+
+      if (onSave) onSave(updated);
+      setImageFile(null);
+      setRemoveImage(false);
+      setImagePreview(nextImageUrl);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err: any) {
+      console.error('Save product details failed', err);
+      setImageError(err?.message || 'Failed to save');
+    } finally {
+      setImageBusy(false);
+    }
   };
 
   return (
@@ -154,8 +266,8 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
         <div className="inv-modal-header">
           <div className="inv-modal-prod">
             <div className="inv-modal-emoji">
-              {product.imageUrl ? (
-                <img src={product.imageUrl} alt={product.name} style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '8px' }} />
+              {imagePreview ? (
+                <img src={imagePreview} alt={product.name} style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '8px' }} />
               ) : (
                 product.emoji
               )}
@@ -383,6 +495,64 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
               {/* Edit pricing & threshold */}
               <div className="inv-modal-section">
                 <div className="inv-modal-section-title">Edit Product Details</div>
+                <div className="inv-adjust-row" style={{ marginBottom: 16 }}>
+                  <label className="inv-adjust-label">Product image</label>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div
+                      style={{
+                        width: 72,
+                        height: 72,
+                        borderRadius: 12,
+                        border: '1px solid #e6e6ef',
+                        background: '#f8fafc',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 28,
+                      }}
+                    >
+                      {imagePreview ? (
+                        <img src={imagePreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        product.emoji || '📦'
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <label
+                        className="btn bsm bgh"
+                        style={{ cursor: imageBusy ? 'not-allowed' : 'pointer', margin: 0 }}
+                      >
+                        {imageFile ? 'Change photo' : 'Upload photo'}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          disabled={imageBusy}
+                          onChange={handleImagePick}
+                        />
+                      </label>
+                      {(imagePreview || product.imageUrl) && !removeImage ? (
+                        <button
+                          type="button"
+                          className="btn bsm"
+                          style={{ color: '#b91c1c' }}
+                          disabled={imageBusy}
+                          onClick={handleRemoveImage}
+                        >
+                          Remove photo
+                        </button>
+                      ) : null}
+                      {removeImage ? (
+                        <span style={{ fontSize: 12, color: '#6b7280' }}>Photo will be removed on save</span>
+                      ) : null}
+                    </div>
+                  </div>
+                  {imageError ? (
+                    <p style={{ margin: '8px 0 0', fontSize: 13, color: '#b91c1c' }}>{imageError}</p>
+                  ) : null}
+                </div>
+
                 <div className="inv-edit-grid">
                   <div className="inv-adjust-row">
                     <label className="inv-adjust-label">Cost Price</label>
@@ -424,9 +594,10 @@ const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClos
                 <button
                   className="btn bsm bpr"
                   style={{ marginTop: 8 }}
-                  onClick={handleSaveDetails}
+                  disabled={imageBusy}
+                  onClick={() => { void handleSaveDetails(); }}
                 >
-                  Save Changes
+                  {imageBusy ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
 

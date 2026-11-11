@@ -214,6 +214,8 @@ const InventoryPage: React.FC = () => {
         price: updated.sellingPrice,
         cost: updated.costPrice,
         lowStockThreshold: updated.reorderThreshold,
+        imageUrl: updated.imageUrl ?? '',
+        image_url: updated.imageUrl ?? '',
         updatedAt: new Date(),
       });
 
