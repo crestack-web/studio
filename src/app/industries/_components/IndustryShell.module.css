@@ -207,7 +207,32 @@
   font-size: 13px;
 }
 
-.authBrand { display:flex; align-items:center; gap:10px; font-weight:700; color:#6b3fe7; font-size:0.95rem; }
+.authBrand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-weight: 700;
+  color: #6b3fe7;
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+}
+.authProductLogoWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #0a0a0f;
+}
+.authProductLogo {
+  height: 52px;
+  width: auto;
+  max-width: min(280px, 100%);
+  object-fit: contain;
+  display: block;
+}
 .authLogo {
   width:28px; height:28px; border-radius:999px; background:#6b3fe7; color:#fff;
   display:inline-flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;
