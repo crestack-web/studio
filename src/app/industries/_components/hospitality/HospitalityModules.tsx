@@ -2205,3 +2205,271 @@ export function HospitalityStaffPage({ config }: { config: IndustryConfig }) {
     </Shell>
   );
 }
+
+
+/* ─────────────── Hotel website builder ─────────────── */
+export function HospitalityWebsitePage({ config }: { config: IndustryConfig }) {
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [publicUrl, setPublicUrl] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    slug: '',
+    published: false,
+    propertyName: '',
+    tagline: '',
+    about: '',
+    addressLine: '',
+    city: '',
+    state: '',
+    country: 'Nigeria',
+    phone: '',
+    whatsapp: '',
+    email: '',
+    checkInTime: '14:00',
+    checkOutTime: '12:00',
+    amenities: '',
+    heroImageUrl: '',
+    gallery: '',
+    bookingEnabled: true,
+    primaryColor: '#5b21b6',
+  });
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const h = await authHeaders();
+      const res = await fetch('/api/industries/hospitality/website', { headers: h });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.website) {
+        const w = json.website;
+        setForm({
+          slug: w.slug || '',
+          published: Boolean(w.published),
+          propertyName: w.property_name || '',
+          tagline: w.tagline || '',
+          about: w.about || '',
+          addressLine: w.address_line || '',
+          city: w.city || '',
+          state: w.state || '',
+          country: w.country || 'Nigeria',
+          phone: w.phone || '',
+          whatsapp: w.whatsapp || '',
+          email: w.email || '',
+          checkInTime: w.check_in_time || '14:00',
+          checkOutTime: w.check_out_time || '12:00',
+          amenities: Array.isArray(w.amenities) ? w.amenities.join(', ') : '',
+          heroImageUrl: w.hero_image_url || '',
+          gallery: Array.isArray(w.gallery) ? w.gallery.join('\n') : '',
+          bookingEnabled: w.booking_enabled !== false,
+          primaryColor: w.primary_color || '#5b21b6',
+        });
+        setPublicUrl(json.publicUrl || null);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setMsg(null);
+    try {
+      const h = await authHeaders();
+      const res = await fetch('/api/industries/hospitality/website', {
+        method: 'PUT',
+        headers: h,
+        body: JSON.stringify({
+          ...form,
+          amenities: form.amenities,
+          gallery: form.gallery
+            .split(/[\n,]+/)
+            .map((s) => s.trim())
+            .filter(Boolean),
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg(json.error || 'Could not save');
+        return;
+      }
+      setPublicUrl(json.publicUrl || null);
+      setForm((f) => ({ ...f, slug: json.website?.slug || f.slug }));
+      setMsg(json.website?.published ? 'Published — guests can book on your link' : 'Saved (not published yet)');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Shell
+      title="Hotel website"
+      subtitle="Public page with photos, contact details, and bookings that land in your Reservations list."
+      actions={
+        publicUrl && form.published ? (
+          <a href={publicUrl} target="_blank" rel="noreferrer" className={styles.btnPrimary}>
+            Open site
+          </a>
+        ) : null
+      }
+    >
+      {loading ? <p className={styles.greetingSub}>Loading…</p> : null}
+      {msg ? <p style={{ color: '#059669', fontSize: 13, marginBottom: 12 }}>{msg}</p> : null}
+      {publicUrl ? (
+        <Panel title="Your public link" meta={form.published ? 'Live' : 'Draft'}>
+          <p style={{ margin: 0, fontSize: 14, wordBreak: 'break-all' }}>
+            <a href={publicUrl} target="_blank" rel="noreferrer">
+              {publicUrl}
+            </a>
+          </p>
+          <p className={styles.greetingSub} style={{ marginTop: 8 }}>
+            Website bookings appear under <strong>Reservations</strong> with source <em>website</em>, so revenue stays in one place.
+          </p>
+        </Panel>
+      ) : null}
+
+      <form onSubmit={save}>
+        <div className={styles.split}>
+          <Panel title="Property & contact">
+            <label style={labelStyle}>Hotel name *</label>
+            <input
+              style={inputStyle}
+              required
+              value={form.propertyName}
+              onChange={(e) => setForm({ ...form, propertyName: e.target.value })}
+              placeholder="e.g. Crestview Lodge"
+            />
+            <label style={labelStyle}>Web address (slug)</label>
+            <input
+              style={inputStyle}
+              value={form.slug}
+              onChange={(e) => setForm({ ...form, slug: e.target.value })}
+              placeholder="crestview-lodge"
+            />
+            <label style={labelStyle}>Tagline</label>
+            <input
+              style={inputStyle}
+              value={form.tagline}
+              onChange={(e) => setForm({ ...form, tagline: e.target.value })}
+              placeholder="Comfort in the heart of the city"
+            />
+            <label style={labelStyle}>About the hotel</label>
+            <textarea
+              style={{ ...inputStyle, minHeight: 100 }}
+              value={form.about}
+              onChange={(e) => setForm({ ...form, about: e.target.value })}
+              placeholder="Short clear description guests should read before booking"
+            />
+            <label style={labelStyle}>Street address</label>
+            <input
+              style={inputStyle}
+              value={form.addressLine}
+              onChange={(e) => setForm({ ...form, addressLine: e.target.value })}
+            />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div>
+                <label style={labelStyle}>City</label>
+                <input style={inputStyle} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+              </div>
+              <div>
+                <label style={labelStyle}>State</label>
+                <input style={inputStyle} value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+              </div>
+            </div>
+            <label style={labelStyle}>Phone</label>
+            <input style={inputStyle} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <label style={labelStyle}>WhatsApp</label>
+            <input
+              style={inputStyle}
+              value={form.whatsapp}
+              onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+              placeholder="23480…"
+            />
+            <label style={labelStyle}>Email</label>
+            <input
+              style={inputStyle}
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </Panel>
+
+          <Panel title="Photos & booking">
+            <label style={labelStyle}>Hero image URL</label>
+            <input
+              style={inputStyle}
+              value={form.heroImageUrl}
+              onChange={(e) => setForm({ ...form, heroImageUrl: e.target.value })}
+              placeholder="https://…"
+            />
+            <label style={labelStyle}>Gallery image URLs (one per line)</label>
+            <textarea
+              style={{ ...inputStyle, minHeight: 88 }}
+              value={form.gallery}
+              onChange={(e) => setForm({ ...form, gallery: e.target.value })}
+            />
+            <label style={labelStyle}>Amenities (comma-separated)</label>
+            <input
+              style={inputStyle}
+              value={form.amenities}
+              onChange={(e) => setForm({ ...form, amenities: e.target.value })}
+              placeholder="WiFi, Parking, Generator, Restaurant"
+            />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div>
+                <label style={labelStyle}>Check-in time</label>
+                <input
+                  style={inputStyle}
+                  value={form.checkInTime}
+                  onChange={(e) => setForm({ ...form, checkInTime: e.target.value })}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Check-out time</label>
+                <input
+                  style={inputStyle}
+                  value={form.checkOutTime}
+                  onChange={(e) => setForm({ ...form, checkOutTime: e.target.value })}
+                />
+              </div>
+            </div>
+            <label style={labelStyle}>Brand colour</label>
+            <input
+              style={inputStyle}
+              type="color"
+              value={form.primaryColor}
+              onChange={(e) => setForm({ ...form, primaryColor: e.target.value })}
+            />
+            <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={form.bookingEnabled}
+                onChange={(e) => setForm({ ...form, bookingEnabled: e.target.checked })}
+              />
+              Allow online booking requests
+            </label>
+            <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={form.published}
+                onChange={(e) => setForm({ ...form, published: e.target.checked })}
+              />
+              Publish website (make link public)
+            </label>
+            <button type="submit" className={styles.btnPrimary} disabled={busy} style={{ width: '100%', marginTop: 8 }}>
+              {busy ? 'Saving…' : 'Save website'}
+            </button>
+            <p className={styles.greetingSub} style={{ marginTop: 12 }}>
+              Tip: Ask MO to draft your About text and amenities from a short description of the property, then paste here.
+            </p>
+          </Panel>
+        </div>
+      </form>
+    </Shell>
+  );
+}

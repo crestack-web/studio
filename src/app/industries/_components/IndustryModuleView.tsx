@@ -16,6 +16,7 @@ import {
   HospitalityExpensesPage,
   HospitalityReportsPage,
   HospitalityStaffPage,
+  HospitalityWebsitePage,
 } from './hospitality/HospitalityModules';
 
 async function authHeaders() {
@@ -989,6 +990,7 @@ export function IndustryModuleView({
     if (section === 'expenses') return <HospitalityExpensesPage config={config} />;
     if (section === 'reports') return <HospitalityReportsPage config={config} />;
     if (section === 'staff') return <HospitalityStaffPage config={config} />;
+    if (section === 'website') return <HospitalityWebsitePage config={config} />;
     if (section === 'front-desk') {
       return (
         <Shell title={label} subtitle="Live room board and check-in.">
