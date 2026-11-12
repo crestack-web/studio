@@ -333,7 +333,7 @@ export function HospitalityRoomsPage({ config }: { config: IndustryConfig }) {
   );
 }
 
-/* ─────────────── Reservations ─────────────── */
+/* ─────────────── Reservations (PMS-style) ─────────────── */
 export function HospitalityReservationsPage({ config }: { config: IndustryConfig }) {
   const [bookings, setBookings] = useState<any[]>([]);
   const [rooms, setRooms] = useState<any[]>([]);
@@ -342,6 +342,7 @@ export function HospitalityReservationsPage({ config }: { config: IndustryConfig
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [selected, setSelected] = useState<any | null>(null);
   const [form, setForm] = useState({
     guestName: '',
     guestPhone: '',
@@ -349,7 +350,12 @@ export function HospitalityReservationsPage({ config }: { config: IndustryConfig
     roomId: '',
     checkInDate: new Date().toISOString().slice(0, 10),
     checkOutDate: '',
+    adults: '1',
+    children: '0',
+    ratePerNight: '',
     amount: '',
+    depositAmount: '0',
+    specialRequests: '',
     notes: '',
   });
 
@@ -381,9 +387,36 @@ export function HospitalityReservationsPage({ config }: { config: IndustryConfig
     load();
   }, [load]);
 
+  // Auto nights + amount from room rate
+  useEffect(() => {
+    const room = rooms.find((r) => r.id === form.roomId);
+    const rate = form.ratePerNight
+      ? Number(form.ratePerNight)
+      : room
+        ? Number(room.rate_amount || 0)
+        : 0;
+    if (form.roomId && room && !form.ratePerNight) {
+      setForm((f) => ({ ...f, ratePerNight: String(room.rate_amount || 0) }));
+    }
+    if (form.checkInDate && form.checkOutDate) {
+      const a = new Date(form.checkInDate + 'T12:00:00');
+      const b = new Date(form.checkOutDate + 'T12:00:00');
+      const nights = Math.max(1, Math.round((b.getTime() - a.getTime()) / 86400000));
+      const amount = rate * nights;
+      if (!Number.isNaN(amount) && amount >= 0) {
+        setForm((f) => ({ ...f, amount: String(amount) }));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.roomId, form.checkInDate, form.checkOutDate, form.ratePerNight, rooms]);
+
   async function createBooking(e: React.FormEvent) {
     e.preventDefault();
     if (!form.guestName.trim()) return;
+    if (!form.checkInDate || !form.checkOutDate) {
+      setMsg('Check-in and check-out dates are required');
+      return;
+    }
     setBusy(true);
     setMsg(null);
     try {
@@ -397,10 +430,16 @@ export function HospitalityReservationsPage({ config }: { config: IndustryConfig
           guestEmail: form.guestEmail || null,
           roomId: form.roomId || null,
           checkInDate: form.checkInDate,
-          checkOutDate: form.checkOutDate || null,
-          amount: Number(form.amount) || 0,
+          checkOutDate: form.checkOutDate,
+          adults: Number(form.adults) || 1,
+          children: Number(form.children) || 0,
+          ratePerNight: form.ratePerNight ? Number(form.ratePerNight) : undefined,
+          amount: form.amount ? Number(form.amount) : undefined,
+          depositAmount: Number(form.depositAmount) || 0,
+          specialRequests: form.specialRequests || null,
           notes: form.notes || null,
           status: 'confirmed',
+          source: 'owner_dashboard',
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -415,7 +454,12 @@ export function HospitalityReservationsPage({ config }: { config: IndustryConfig
         roomId: '',
         checkInDate: new Date().toISOString().slice(0, 10),
         checkOutDate: '',
+        adults: '1',
+        children: '0',
+        ratePerNight: '',
         amount: '',
+        depositAmount: '0',
+        specialRequests: '',
         notes: '',
       });
       setMsg('Reservation created');
@@ -425,19 +469,24 @@ export function HospitalityReservationsPage({ config }: { config: IndustryConfig
     }
   }
 
-  async function patchStatus(id: string, status: string) {
+  async function patchBooking(id: string, body: Record<string, unknown>) {
     const h = await authHeaders();
     const res = await fetch('/api/industries/hospitality/bookings', {
       method: 'PATCH',
       headers: h,
-      body: JSON.stringify({ id, status }),
+      body: JSON.stringify({ id, ...body }),
     });
+    const json = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
       setMsg(json.error || 'Update failed');
-      return;
+      return false;
     }
+    setMsg('Updated');
     await load();
+    if (selected?.id === id) {
+      setSelected(json.booking || { ...selected, ...body });
+    }
+    return true;
   }
 
   const shown = bookings.filter((b) => (filter === 'all' ? true : b.status === filter));
@@ -447,12 +496,16 @@ export function HospitalityReservationsPage({ config }: { config: IndustryConfig
     .filter((b) => b.status !== 'cancelled')
     .reduce((s, b) => s + Number(b.amount || 0), 0);
 
-  const availableRooms = rooms.filter((r) => r.status === 'available');
+  const roomLabel = (id: string | null) => {
+    if (!id) return 'Unassigned';
+    const r = rooms.find((x) => x.id === id);
+    return r ? `${r.room_number} (${r.category})` : 'Room';
+  };
 
   return (
     <Shell
       title="Reservations"
-      subtitle="Create bookings, assign rooms, and manage stay status."
+      subtitle="Create stays with dates, rates, room assignment, deposits, and guest details — the same core flow as a modern PMS."
       actions={
         <Link href="/industries/hospitality/front-desk" className={styles.btnPrimary}>
           Front desk board
@@ -484,48 +537,49 @@ export function HospitalityReservationsPage({ config }: { config: IndustryConfig
           {error ? <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p> : null}
           {msg ? <p style={{ color: '#059669', fontSize: 13 }}>{msg}</p> : null}
           {!loading && shown.length === 0 ? (
-            <p className={styles.greetingSub}>No reservations yet. Create one on the right.</p>
+            <p className={styles.greetingSub}>No reservations yet. Use the form to create one.</p>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
                   <tr style={{ textAlign: 'left', color: '#6b7280', fontSize: 12 }}>
                     <th style={{ padding: '8px 6px' }}>Guest</th>
-                    <th style={{ padding: '8px 6px' }}>Dates</th>
-                    <th style={{ padding: '8px 6px' }}>Amount</th>
+                    <th style={{ padding: '8px 6px' }}>Room</th>
+                    <th style={{ padding: '8px 6px' }}>Stay</th>
+                    <th style={{ padding: '8px 6px' }}>Balance</th>
                     <th style={{ padding: '8px 6px' }}>Status</th>
-                    <th style={{ padding: '8px 6px' }}>Update</th>
                   </tr>
                 </thead>
                 <tbody>
                   {shown.map((b) => (
-                    <tr key={b.id} style={{ borderTop: '1px solid #f3f4f6' }}>
+                    <tr
+                      key={b.id}
+                      style={{
+                        borderTop: '1px solid #f3f4f6',
+                        cursor: 'pointer',
+                        background: selected?.id === b.id ? '#f5f3ff' : undefined,
+                      }}
+                      onClick={() => setSelected(b)}
+                    >
                       <td style={{ padding: '10px 6px' }}>
                         <strong>{b.guest_name}</strong>
                         <div style={{ fontSize: 12, color: '#9ca3af' }}>
                           {b.guest_phone || b.guest_email || '—'}
                         </div>
                       </td>
+                      <td style={{ padding: '10px 6px' }}>{roomLabel(b.room_id)}</td>
                       <td style={{ padding: '10px 6px', fontSize: 13 }}>
                         {b.check_in_date}
                         {b.check_out_date ? ` → ${b.check_out_date}` : ''}
+                        {b.nights ? (
+                          <div style={{ color: '#9ca3af', fontSize: 12 }}>{b.nights} night(s)</div>
+                        ) : null}
                       </td>
-                      <td style={{ padding: '10px 6px' }}>{money(b.amount)}</td>
+                      <td style={{ padding: '10px 6px' }}>
+                        {money(b.balance_amount != null ? b.balance_amount : b.amount)}
+                      </td>
                       <td style={{ padding: '10px 6px' }}>
                         <StatusPill status={b.status} />
-                      </td>
-                      <td style={{ padding: '10px 6px' }}>
-                        <select
-                          value={b.status}
-                          onChange={(e) => patchStatus(b.id, e.target.value)}
-                          style={{ ...inputStyle, marginBottom: 0, width: 'auto' }}
-                        >
-                          {['confirmed', 'checked_in', 'checked_out', 'cancelled', 'no_show'].map((s) => (
-                            <option key={s} value={s}>
-                              {s.replace(/_/g, ' ')}
-                            </option>
-                          ))}
-                        </select>
                       </td>
                     </tr>
                   ))}
@@ -533,71 +587,190 @@ export function HospitalityReservationsPage({ config }: { config: IndustryConfig
               </table>
             </div>
           )}
+
+          {selected ? (
+            <div
+              style={{
+                marginTop: 16,
+                padding: 14,
+                borderRadius: 12,
+                border: '1px solid #e8e8f0',
+                background: '#fafbff',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                <strong>Reservation · {selected.guest_name}</strong>
+                <button type="button" className={styles.topGhost} onClick={() => setSelected(null)}>
+                  Close
+                </button>
+              </div>
+              <label style={labelStyle}>Assign / change room</label>
+              <select
+                style={inputStyle}
+                value={selected.room_id || ''}
+                onChange={async (e) => {
+                  const roomId = e.target.value || null;
+                  await patchBooking(selected.id, { roomId });
+                }}
+              >
+                <option value="">Unassigned</option>
+                {rooms.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.room_number} · {r.category} · {r.status} · {money(r.rate_amount)}
+                  </option>
+                ))}
+              </select>
+              <label style={labelStyle}>Status</label>
+              <select
+                style={inputStyle}
+                value={selected.status}
+                onChange={async (e) => {
+                  const status = e.target.value;
+                  const ok = await patchBooking(selected.id, {
+                    status,
+                    roomId: selected.room_id,
+                  });
+                  if (ok) setSelected({ ...selected, status });
+                }}
+              >
+                {['confirmed', 'checked_in', 'checked_out', 'cancelled', 'no_show'].map((s) => (
+                  <option key={s} value={s}>
+                    {s.replace(/_/g, ' ')}
+                  </option>
+                ))}
+              </select>
+              <p style={{ fontSize: 12, color: '#6b7280', margin: '8px 0 0' }}>
+                Check-in requires a room. Check-out moves the room to cleaning (housekeeping).
+              </p>
+            </div>
+          ) : null}
         </Panel>
 
         <Panel title="New reservation">
           <form onSubmit={createBooking}>
-            <label style={labelStyle}>Guest name *</label>
+            <label style={labelStyle}>Guest full name *</label>
             <input
               style={inputStyle}
               value={form.guestName}
               onChange={(e) => setForm({ ...form, guestName: e.target.value })}
               required
-              placeholder="Full name"
+              placeholder="As on ID"
             />
-            <label style={labelStyle}>Phone</label>
-            <input
-              style={inputStyle}
-              value={form.guestPhone}
-              onChange={(e) => setForm({ ...form, guestPhone: e.target.value })}
-              placeholder="080…"
-            />
-            <label style={labelStyle}>Email</label>
-            <input
-              style={inputStyle}
-              type="email"
-              value={form.guestEmail}
-              onChange={(e) => setForm({ ...form, guestEmail: e.target.value })}
-            />
-            <label style={labelStyle}>Room (optional)</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div>
+                <label style={labelStyle}>Phone</label>
+                <input
+                  style={inputStyle}
+                  value={form.guestPhone}
+                  onChange={(e) => setForm({ ...form, guestPhone: e.target.value })}
+                  placeholder="080…"
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Email</label>
+                <input
+                  style={inputStyle}
+                  type="email"
+                  value={form.guestEmail}
+                  onChange={(e) => setForm({ ...form, guestEmail: e.target.value })}
+                />
+              </div>
+            </div>
+            <label style={labelStyle}>Room assignment</label>
             <select
               style={inputStyle}
               value={form.roomId}
               onChange={(e) => setForm({ ...form, roomId: e.target.value })}
             >
-              <option value="">Assign later</option>
-              {availableRooms.map((r) => (
+              <option value="">Assign later (or at check-in)</option>
+              {rooms.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.room_number} · {r.category} · {money(r.rate_amount)}
+                  {r.room_number} · {r.category} · {r.status} · {money(r.rate_amount)}/night
                 </option>
               ))}
             </select>
-            <label style={labelStyle}>Check-in</label>
-            <input
-              style={inputStyle}
-              type="date"
-              value={form.checkInDate}
-              onChange={(e) => setForm({ ...form, checkInDate: e.target.value })}
-              required
-            />
-            <label style={labelStyle}>Check-out</label>
-            <input
-              style={inputStyle}
-              type="date"
-              value={form.checkOutDate}
-              onChange={(e) => setForm({ ...form, checkOutDate: e.target.value })}
-            />
-            <label style={labelStyle}>Amount (₦)</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div>
+                <label style={labelStyle}>Check-in *</label>
+                <input
+                  style={inputStyle}
+                  type="date"
+                  value={form.checkInDate}
+                  onChange={(e) => setForm({ ...form, checkInDate: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Check-out *</label>
+                <input
+                  style={inputStyle}
+                  type="date"
+                  value={form.checkOutDate}
+                  onChange={(e) => setForm({ ...form, checkOutDate: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div>
+                <label style={labelStyle}>Adults</label>
+                <input
+                  style={inputStyle}
+                  type="number"
+                  min={1}
+                  value={form.adults}
+                  onChange={(e) => setForm({ ...form, adults: e.target.value })}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Children</label>
+                <input
+                  style={inputStyle}
+                  type="number"
+                  min={0}
+                  value={form.children}
+                  onChange={(e) => setForm({ ...form, children: e.target.value })}
+                />
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div>
+                <label style={labelStyle}>Rate / night (₦)</label>
+                <input
+                  style={inputStyle}
+                  type="number"
+                  value={form.ratePerNight}
+                  onChange={(e) => setForm({ ...form, ratePerNight: e.target.value })}
+                  placeholder="From room or custom"
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Stay total (₦)</label>
+                <input
+                  style={inputStyle}
+                  type="number"
+                  value={form.amount}
+                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                />
+              </div>
+            </div>
+            <label style={labelStyle}>Deposit paid (₦)</label>
             <input
               style={inputStyle}
               type="number"
-              value={form.amount}
-              onChange={(e) => setForm({ ...form, amount: e.target.value })}
-              placeholder="0"
+              value={form.depositAmount}
+              onChange={(e) => setForm({ ...form, depositAmount: e.target.value })}
             />
-            <label style={labelStyle}>Notes</label>
+            <label style={labelStyle}>Special requests</label>
+            <input
+              style={inputStyle}
+              value={form.specialRequests}
+              onChange={(e) => setForm({ ...form, specialRequests: e.target.value })}
+              placeholder="Late arrival, extra bed…"
+            />
+            <label style={labelStyle}>Internal notes</label>
             <textarea
-              style={{ ...inputStyle, minHeight: 64 }}
+              style={{ ...inputStyle, minHeight: 56 }}
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
             />

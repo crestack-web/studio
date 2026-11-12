@@ -54,22 +54,78 @@ export async function POST(req: NextRequest) {
   const roomId = body.roomId || body.room_id || null;
   const status = body.status || 'confirmed';
 
+  const checkIn = body.checkInDate || new Date().toISOString().slice(0, 10);
+  const checkOut = body.checkOutDate || null;
+  let nights = body.nights != null ? Number(body.nights) : null;
+  if (nights == null && checkOut && checkIn) {
+    const a = new Date(checkIn + 'T12:00:00');
+    const b = new Date(checkOut + 'T12:00:00');
+    nights = Math.max(1, Math.round((b.getTime() - a.getTime()) / 86400000));
+  }
+  nights = nights || 1;
+
+  let ratePerNight = body.ratePerNight != null ? Number(body.ratePerNight) : null;
+  if (ratePerNight == null && roomId) {
+    const { data: room } = await admin
+      .from('hospitality_rooms')
+      .select('rate_amount')
+      .eq('id', roomId)
+      .eq('business_id', businessId)
+      .maybeSingle();
+    if (room) ratePerNight = Number(room.rate_amount || 0);
+  }
+  ratePerNight = ratePerNight || 0;
+  const amount =
+    body.amount != null && body.amount !== ''
+      ? Number(body.amount)
+      : ratePerNight * nights;
+  const deposit = Number(body.depositAmount ?? body.deposit_amount ?? 0);
+  const balance = Math.max(0, amount - deposit);
+
   const { data, error } = await admin
     .from('hospitality_bookings')
     .insert({
       business_id: businessId,
       room_id: roomId,
       guest_name,
-      guest_phone: body.guestPhone || null,
-      guest_email: body.guestEmail || null,
+      guest_phone: body.guestPhone || body.guest_phone || null,
+      guest_email: body.guestEmail || body.guest_email || null,
       status,
-      check_in_date: body.checkInDate || new Date().toISOString().slice(0, 10),
-      check_out_date: body.checkOutDate || null,
-      amount: Number(body.amount ?? 0),
+      check_in_date: checkIn,
+      check_out_date: checkOut,
+      amount,
       notes: body.notes || null,
+      adults: Number(body.adults ?? 1),
+      children: Number(body.children ?? 0),
+      nights,
+      rate_per_night: ratePerNight,
+      deposit_amount: deposit,
+      balance_amount: balance,
+      source: body.source || 'front_desk',
+      special_requests: body.specialRequests || body.special_requests || null,
     })
     .select('*')
     .single();
+
+  // Seed folio with room charge if amount > 0
+  if (!error && data?.id && amount > 0) {
+    await admin.from('hospitality_folio_lines').insert({
+      business_id: businessId,
+      booking_id: data.id,
+      line_type: 'charge',
+      description: `Room stay (${nights} night${nights > 1 ? 's' : ''})`,
+      amount,
+    });
+    if (deposit > 0) {
+      await admin.from('hospitality_folio_lines').insert({
+        business_id: businessId,
+        booking_id: data.id,
+        line_type: 'payment',
+        description: 'Deposit',
+        amount: deposit,
+      });
+    }
+  }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -128,7 +184,14 @@ export async function PATCH(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   if (roomId) {
-    if (status === 'checked_in') {
+    if (status === 'checked_in' && !roomId) {
+    return NextResponse.json(
+      { error: 'Assign a room before check-in' },
+      { status: 400 }
+    );
+  }
+
+  if (status === 'checked_in') {
       await admin
         .from('hospitality_rooms')
         .update({ status: 'occupied', updated_at: new Date().toISOString() })
