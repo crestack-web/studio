@@ -1,16 +1,6 @@
-import { getIndustryConfig } from '@/lib/industries/config';
-import { IndustryDashboardClient } from '../../../_components/IndustryDashboardClient';
-
-export const dynamic = 'force-dynamic';
 export const dynamicParams = true;
 
-const config = getIndustryConfig('hospitality')!;
-
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ section: string }>;
-}) {
-  const { section } = await params;
-  return <IndustryDashboardClient config={config} section={section} />;
+/** Content is rendered by the dashboard layout shell from the pathname. */
+export default function Page() {
+  return null;
 }

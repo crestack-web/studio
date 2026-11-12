@@ -19,6 +19,12 @@ const SECTION_LABELS: Record<string, string> = {
   settings: 'Settings',
 };
 
+/** Path segment → module id when they differ */
+const PATH_SECTION_ALIASES: Record<string, string> = {
+  settings: 'hotel-settings',
+  time: 'time-tracking',
+};
+
 type SessionState = {
   businessId: string | null;
   businessName: string | null;
@@ -43,14 +49,22 @@ function deskLabel(config: IndustryConfig) {
   return 'Staff desk';
 }
 
+function sectionFromPathname(pathname: string, config: IndustryConfig, sectionProp?: string) {
+  if (sectionProp && sectionProp !== 'overview') return sectionProp;
+  const base = config.dashboardPath.replace(/\/$/, '');
+  const rest = (pathname || '').replace(base, '').replace(/^\//, '').split('/')[0] || '';
+  if (!rest || rest === 'overview') return undefined;
+  return PATH_SECTION_ALIASES[rest] || rest;
+}
+
 export function IndustryDashboardClient({
   config,
-  section,
+  section: sectionProp,
 }: {
   config: IndustryConfig;
   section?: string;
 }) {
-  const pathname = usePathname();
+  const pathname = usePathname() || '';
   const router = useRouter();
   const family = getSuiteFamily(config.id);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -62,6 +76,10 @@ export function IndustryDashboardClient({
   const [search, setSearch] = useState('');
   const [liveMetrics, setLiveMetrics] = useState<Record<string, string | number>>({});
 
+  const section = useMemo(
+    () => sectionFromPathname(pathname, config, sectionProp),
+    [pathname, config, sectionProp]
+  );
 
   // Real session gate — required for live metrics and module data
   useEffect(() => {
@@ -193,8 +211,10 @@ export function IndustryDashboardClient({
     };
   }, [authChecked, config.id]);
 
-
-  const activeId = useMemo(() => (!section || section === 'overview' ? 'overview' : section), [section]);
+  const activeId = useMemo(
+    () => (!section || section === 'overview' ? 'overview' : section),
+    [section]
+  );
   const dateLabel = useMemo(
     () =>
       new Date().toLocaleDateString(undefined, {
@@ -209,7 +229,9 @@ export function IndustryDashboardClient({
   const filteredNav = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return config.nav.filter((n) => n.id !== 'front-desk' && n.id !== 'checkin');
-    return config.nav.filter((n) => n.id !== 'front-desk' && n.id !== 'checkin' && n.label.toLowerCase().includes(q));
+    return config.nav.filter(
+      (n) => n.id !== 'front-desk' && n.id !== 'checkin' && n.label.toLowerCase().includes(q)
+    );
   }, [config.nav, search]);
 
   if (!authChecked) {
@@ -257,7 +279,13 @@ export function IndustryDashboardClient({
             />
           ) : (
             <>
-              <img src="/email-logo.png" alt={config.productName} className={styles.productLogo} width={34} height={34} />
+              <img
+                src="/email-logo.png"
+                alt={config.productName}
+                className={styles.productLogo}
+                width={34}
+                height={34}
+              />
               <div className={styles.productMeta}>
                 <div className={styles.logoText}>{config.shortName}</div>
                 <div className={styles.productEdition}>Busmo suite</div>
@@ -343,9 +371,7 @@ export function IndustryDashboardClient({
               ) : (
                 <div className={styles.topbarTitle}>{config.productName}</div>
               )}
-              <div className={styles.topbarMeta}>
-                Owner console · {dateLabel}
-              </div>
+              <div className={styles.topbarMeta}>Owner console · {dateLabel}</div>
             </div>
           </div>
           <div className={styles.topbarRight}>
@@ -386,7 +412,9 @@ export function IndustryDashboardClient({
                   return (
                     <div key={m.id} className={styles.metricCard}>
                       <div className={styles.metricLabel}>{m.label}</div>
-                      <div className={styles.metricValue}>{live != null && live !== '' ? live : m.emptyValue}</div>
+                      <div className={styles.metricValue}>
+                        {live != null && live !== '' ? live : m.emptyValue}
+                      </div>
                       {m.hint ? <div className={styles.metricHint}>{m.hint}</div> : null}
                     </div>
                   );
@@ -400,12 +428,15 @@ export function IndustryDashboardClient({
                     <span className={styles.panelMeta}>{apps.length || config.nav.length} modules</span>
                   </div>
                   <div className={styles.appGrid}>
-                    {(apps.length ? apps : config.nav.slice(0, 8).map((n) => ({
-                      id: n.id,
-                      name: n.label,
-                      blurb: `Open ${n.label}`,
-                      href: n.href,
-                    }))).map((app: any) => (
+                    {(apps.length
+                      ? apps
+                      : config.nav.slice(0, 8).map((n) => ({
+                          id: n.id,
+                          name: n.label,
+                          blurb: `Open ${n.label}`,
+                          href: n.href,
+                        }))
+                    ).map((app: any) => (
                       <Link key={app.id} href={app.href || deskHref} className={styles.appCard}>
                         <span className={styles.appIcon}>{String(app.name || 'A').slice(0, 1)}</span>
                         <span className={styles.appBody}>

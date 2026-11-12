@@ -1,10 +1,4 @@
-import { getIndustryConfig } from '@/lib/industries/config';
-import { IndustryDashboardClient } from '../../../_components/IndustryDashboardClient';
-
-export const dynamic = 'force-dynamic';
-
-const config = getIndustryConfig('hospitality')!;
-
+/** Content is rendered by the dashboard layout shell from the pathname. */
 export default function Page() {
-  return <IndustryDashboardClient config={config} section="rooms" />;
+  return null;
 }

@@ -36,10 +36,16 @@ function Icon({ name, active }: { name: string; active?: boolean }) {
         </svg>
       );
     case 'rooms':
+    case 'bed':
       return (
         <svg {...common}>
-          <path d="M3 20V9l9-5 9 5v11" />
-          <path d="M9 20v-6h6v6" />
+          <path d="M3 7v11" />
+          <path d="M21 18H3" />
+          <path d="M21 14V9a2 2 0 0 0-2-2H5" />
+          <path d="M3 14h18" />
+          <path d="M7 7V5a1 1 0 0 1 1-1h3v3" />
+          <path d="M21 18v2" />
+          <path d="M3 18v2" />
         </svg>
       );
     case 'check':
@@ -78,7 +84,6 @@ function Icon({ name, active }: { name: string; active?: boolean }) {
 function isActive(pathname: string, item: Item) {
   if (item.match) return pathname === item.match || pathname.startsWith(item.match + '/');
   if (pathname === item.href) return true;
-  // Overview exact
   if (item.href.endsWith('/dashboard') && pathname === item.href) return true;
   return pathname.startsWith(item.href) && !item.href.endsWith('/dashboard');
 }
@@ -89,12 +94,11 @@ export function IndustryOwnerBottomNav({ config }: { config: IndustryConfig }) {
   const items: (Item & { icon: string })[] = [
     { href: base, label: 'Home', icon: 'home', match: base },
     { href: `${base}/reservations`, label: 'Bookings', icon: 'book' },
-    { href: `${base}/rooms`, label: 'Rooms', icon: 'rooms' },
+    { href: `${base}/rooms`, label: 'Rooms', icon: 'bed' },
     { href: `${base}/checkin`, label: 'Check-in', icon: 'check' },
     { href: `${base}/guests`, label: 'Guests', icon: 'guests' },
   ];
 
-  // Only hospitality-style nav for hospitality; generic fallback for others
   if (config.id !== 'hospitality') {
     items.length = 0;
     items.push(
@@ -108,7 +112,6 @@ export function IndustryOwnerBottomNav({ config }: { config: IndustryConfig }) {
   return (
     <nav className={styles.nav} aria-label="Primary">
       {items.map((item) => {
-        // Home: active only on exact dashboard path (no extra section)
         let active = false;
         if (item.match === base) {
           active = pathname === base || pathname === base + '/';
@@ -134,9 +137,14 @@ export function IndustryOwnerBottomNav({ config }: { config: IndustryConfig }) {
 export function HospitalityStaffBottomNav() {
   const pathname = usePathname() || '';
   const items: (Item & { icon: string })[] = [
-    { href: '/industries/hospitality/front-desk', label: 'Home', icon: 'home', match: '/industries/hospitality/front-desk' },
+    {
+      href: '/industries/hospitality/front-desk',
+      label: 'Home',
+      icon: 'home',
+      match: '/industries/hospitality/front-desk',
+    },
     { href: '/industries/hospitality/front-desk/bookings', label: 'Bookings', icon: 'book' },
-    { href: '/industries/hospitality/front-desk/rooms', label: 'Rooms', icon: 'rooms' },
+    { href: '/industries/hospitality/front-desk/rooms', label: 'Rooms', icon: 'bed' },
     { href: '/industries/hospitality/front-desk/guests', label: 'Guests', icon: 'guests' },
     { href: '/industries/hospitality/front-desk/checkin', label: 'Check-in', icon: 'check' },
   ];
