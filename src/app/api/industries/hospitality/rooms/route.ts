@@ -65,3 +65,14 @@ export async function PATCH(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, room: data });
 }
+
+export async function DELETE(req: NextRequest) {
+  const businessId = await biz(req);
+  if (!businessId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const id = req.nextUrl.searchParams.get('id') || '';
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+  const admin = getSupabaseAdmin();
+  const { error } = await admin.from('hospitality_rooms').delete().eq('id', id).eq('business_id', businessId);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
