@@ -56,12 +56,36 @@ function Icon({ name, active }: { name: string; active?: boolean }) {
         </svg>
       );
     case 'guests':
+    case 'people':
       return (
         <svg {...common}>
           <circle cx="9" cy="8" r="3.5" />
           <path d="M3 19c0-3 2.5-5 6-5s6 2 6 5" />
           <circle cx="17" cy="9" r="2.5" />
           <path d="M21 19c0-2.2-1.5-3.8-3.5-4.4" />
+        </svg>
+      );
+    case 'briefcase':
+      return (
+        <svg {...common}>
+          <rect x="3" y="7" width="18" height="13" rx="2" />
+          <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          <path d="M3 12h18" />
+        </svg>
+      );
+    case 'calendar':
+      return (
+        <svg {...common}>
+          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <path d="M3 10h18" />
+          <path d="M8 3v4M16 3v4" />
+        </svg>
+      );
+    case 'tasks':
+      return (
+        <svg {...common}>
+          <path d="M9 11l3 3 7-7" />
+          <path d="M4 6h4M4 12h4M4 18h16" />
         </svg>
       );
     case 'more':
@@ -88,26 +112,56 @@ function isActive(pathname: string, item: Item) {
   return pathname.startsWith(item.href) && !item.href.endsWith('/dashboard');
 }
 
+function bottomItems(config: IndustryConfig): (Item & { icon: string })[] {
+  const base = config.dashboardPath;
+  if (config.id === 'hospitality') {
+    return [
+      { href: base, label: 'Home', icon: 'home', match: base },
+      { href: `${base}/reservations`, label: 'Bookings', icon: 'book' },
+      { href: `${base}/rooms`, label: 'Rooms', icon: 'bed' },
+      { href: `${base}/checkin`, label: 'Check-in', icon: 'check' },
+      { href: `${base}/guests`, label: 'Guests', icon: 'guests' },
+    ];
+  }
+  if (config.id === 'professional') {
+    return [
+      { href: base, label: 'Home', icon: 'home', match: base },
+      { href: `${base}/projects`, label: 'Projects', icon: 'briefcase' },
+      { href: `${base}/clients`, label: 'Clients', icon: 'people' },
+      { href: `${base}/tasks`, label: 'Tasks', icon: 'tasks' },
+      { href: `${base}/settings`, label: 'Settings', icon: 'more' },
+    ];
+  }
+  if (config.id === 'healthcare') {
+    return [
+      { href: base, label: 'Home', icon: 'home', match: base },
+      { href: `${base}/patients`, label: 'Patients', icon: 'people' },
+      { href: `${base}/appointments`, label: 'Appts', icon: 'calendar' },
+      { href: `${base}/visits`, label: 'Visits', icon: 'check' },
+      { href: `${base}/settings`, label: 'Settings', icon: 'more' },
+    ];
+  }
+  if (config.id === 'education') {
+    return [
+      { href: base, label: 'Home', icon: 'home', match: base },
+      { href: `${base}/students`, label: 'Students', icon: 'people' },
+      { href: `${base}/classes`, label: 'Classes', icon: 'book' },
+      { href: `${base}/attendance`, label: 'Attend', icon: 'check' },
+      { href: `${base}/settings`, label: 'Settings', icon: 'more' },
+    ];
+  }
+  return [
+    { href: base, label: 'Home', icon: 'home', match: base },
+    { href: `${base}/staff`, label: 'Staff', icon: 'people' },
+    { href: `${base}/reports`, label: 'Reports', icon: 'book' },
+    { href: `${base}/settings`, label: 'Settings', icon: 'more' },
+  ];
+}
+
 export function IndustryOwnerBottomNav({ config }: { config: IndustryConfig }) {
   const pathname = usePathname() || '';
   const base = config.dashboardPath;
-  const items: (Item & { icon: string })[] = [
-    { href: base, label: 'Home', icon: 'home', match: base },
-    { href: `${base}/reservations`, label: 'Bookings', icon: 'book' },
-    { href: `${base}/rooms`, label: 'Rooms', icon: 'bed' },
-    { href: `${base}/checkin`, label: 'Check-in', icon: 'check' },
-    { href: `${base}/guests`, label: 'Guests', icon: 'guests' },
-  ];
-
-  if (config.id !== 'hospitality') {
-    items.length = 0;
-    items.push(
-      { href: base, label: 'Home', icon: 'home', match: base },
-      { href: `${base}/staff`, label: 'Staff', icon: 'guests' },
-      { href: `${base}/reports`, label: 'Reports', icon: 'book' },
-      { href: `${base}/settings`, label: 'Settings', icon: 'more' }
-    );
-  }
+  const items = bottomItems(config);
 
   return (
     <nav className={styles.nav} aria-label="Primary">

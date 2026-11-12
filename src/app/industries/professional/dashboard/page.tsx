@@ -1,12 +1,8 @@
-import { getIndustryConfig } from '@/lib/industries/config';
-import { IndustryDashboardClient } from '../../_components/IndustryDashboardClient';
-
-const config = getIndustryConfig('professional')!;
-
 export const metadata = {
-  title: `${config.productName} · Dashboard`,
+  title: 'Busmo Professional · Dashboard',
 };
 
+/** Content is rendered by the dashboard layout shell from the pathname. */
 export default function Page() {
-  return <IndustryDashboardClient config={config} />;
+  return null;
 }
