@@ -62,19 +62,65 @@ export function IndustryDashboardClient({
   const [liveMetrics, setLiveMetrics] = useState<Record<string, string | number>>({});
 
 
-  // TEMP: auth disabled for dashboard QA — restore session gate before production
+  // Real session gate — required for live metrics and module data
   useEffect(() => {
-    setSession({
-      businessId: 'preview',
-      businessName: config.productName,
-      productEdition: config.id,
-      needsOnboarding: false,
-      onboarded: true,
-    });
-    setDisplayName(config.productName);
-    setUserEmail('preview@busmo.io');
-    setAuthChecked(true);
-  }, [config.id, config.productName]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await getSupabase().auth.getSession();
+        const session = data.session;
+        if (!session?.access_token) {
+          if (!cancelled) {
+            setGateError('Sign in required');
+            setAuthChecked(true);
+            router.replace(config.loginPath);
+          }
+          return;
+        }
+        setUserEmail(session.user.email || '');
+        const name =
+          (session.user.user_metadata as any)?.full_name ||
+          (session.user.user_metadata as any)?.name ||
+          session.user.email?.split('@')[0] ||
+          config.productName;
+        if (!cancelled) setDisplayName(String(name));
+
+        const res = await fetch('/api/industries/session', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (!cancelled) {
+            setGateError(json.error || 'Could not load your workspace');
+            setAuthChecked(true);
+          }
+          return;
+        }
+        const s = json.session || {};
+        if (!cancelled) {
+          setSession({
+            businessId: s.businessId || s.business_id || null,
+            businessName: s.businessName || s.business_name || config.productName,
+            productEdition: s.productEdition || s.product_edition || config.id,
+            needsOnboarding: Boolean(s.needsOnboarding ?? s.needs_onboarding),
+            onboarded: Boolean(s.onboarded ?? true),
+          });
+          if (s.businessName || s.business_name) {
+            setDisplayName(s.businessName || s.business_name);
+          }
+          setAuthChecked(true);
+        }
+      } catch (e: any) {
+        if (!cancelled) {
+          setGateError(e?.message || 'Session error');
+          setAuthChecked(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [config.id, config.productName, config.loginPath, router]);
 
   useEffect(() => {
     if (!authChecked) return;
@@ -100,8 +146,9 @@ export function IndustryDashboardClient({
           setLiveMetrics({
             occupancy: m.occupancyRate != null ? `${m.occupancyRate}%` : '0%',
             available: m.availableRooms ?? 0,
-            checkins: m.checkInsToday ?? 0,
-            rooms: m.totalRooms ?? 0,
+            reservations_today: m.checkInsToday ?? 0,
+            revenue_today:
+              m.totalRevenue != null ? `₦${Number(m.totalRevenue).toLocaleString()}` : '₦0',
           });
         } else if (config.id === 'healthcare') {
           setLiveMetrics({
@@ -113,16 +160,27 @@ export function IndustryDashboardClient({
         } else if (config.id === 'education') {
           setLiveMetrics({
             students: m.students ?? 0,
-            fees: m.feesToday ?? 0,
-            collected: m.collectedToday != null ? `₦${Number(m.collectedToday).toLocaleString()}` : '₦0',
-            pending: m.pending ?? 0,
+            classes: m.classes ?? m.classCount ?? 0,
+            attendance_today: m.attendanceToday ?? m.attendance_rate ?? '—',
+            fees_outstanding:
+              m.feesOutstanding != null
+                ? `₦${Number(m.feesOutstanding).toLocaleString()}`
+                : m.pending != null
+                  ? `₦${Number(m.pending).toLocaleString()}`
+                  : '₦0',
           });
         } else {
           setLiveMetrics({
-            clients: m.clients ?? 0,
-            tasks: m.openTasks ?? 0,
-            progress: m.inProgress ?? 0,
-            due: m.dueSoon ?? 0,
+            active_projects: m.activeProjects ?? m.projects ?? m.openTasks ?? 0,
+            active_clients: m.clients ?? m.activeClients ?? 0,
+            outstanding:
+              m.outstanding != null
+                ? `₦${Number(m.outstanding).toLocaleString()}`
+                : '₦0',
+            monthly_revenue:
+              m.monthlyRevenue != null
+                ? `₦${Number(m.monthlyRevenue).toLocaleString()}`
+                : '₦0',
           });
         }
       } catch {
@@ -325,14 +383,12 @@ export function IndustryDashboardClient({
               </div>
 
               <div className={styles.metricsGrid}>
-                {config.metrics.map((m, i) => {
-                  const keys = Object.keys(liveMetrics);
-                  const key = keys[i];
-                  const live = key !== undefined ? liveMetrics[key] : undefined;
+                {config.metrics.map((m) => {
+                  const live = liveMetrics[m.id];
                   return (
                     <div key={m.id} className={styles.metricCard}>
                       <div className={styles.metricLabel}>{m.label}</div>
-                      <div className={styles.metricValue}>{live != null ? live : m.emptyValue}</div>
+                      <div className={styles.metricValue}>{live != null && live !== '' ? live : m.emptyValue}</div>
                       {m.hint ? <div className={styles.metricHint}>{m.hint}</div> : null}
                     </div>
                   );

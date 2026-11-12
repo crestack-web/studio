@@ -436,18 +436,20 @@ function RecordsModule({
       );
       const json = await res.json().catch(() => ({}));
       const apiRows = Array.isArray(json.records) ? json.records : [];
-      if (apiRows.length > 0 || (res.ok && !json.warning && !json.preview)) {
+      if (res.ok) {
         setRows(apiRows);
         setSource('api');
         writeLocal(config.id, section, apiRows);
         return;
       }
-      // merge: prefer local if API empty
-      setRows(local);
-      setSource(apiRows.length || res.ok ? 'api' : 'local');
-    } catch {
-      setRows(local);
-      setSource('local');
+      // API failed — show empty with error context rather than stale local as truth
+      setRows([]);
+      setSource('api');
+      console.warn('[RecordsModule] API error', res.status, json);
+    } catch (e) {
+      console.warn('[RecordsModule] load failed', e);
+      setRows([]);
+      setSource('api');
     }
   }, [config.id, section]);
 
@@ -688,13 +690,14 @@ function HospitalityRooms({ config }: { config: IndustryConfig }) {
     const h = await authHeaders();
     const res = await fetch('/api/industries/hospitality/front-desk', { headers: h });
     const json = await res.json().catch(() => ({}));
-    const apiRooms = json.rooms || [];
-    if (apiRooms.length) {
-      setRooms(apiRooms);
-      writeLocal(config.id, 'rooms', apiRooms);
-    } else {
-      setRooms(readLocal(config.id, 'rooms'));
+    if (!res.ok) {
+      setMsg(json.error || 'Could not load rooms — check sign-in and migrations');
+      setRooms([]);
+      return;
     }
+    const apiRooms = json.rooms || [];
+    setRooms(apiRooms);
+    if (apiRooms.length) writeLocal(config.id, 'rooms', apiRooms);
   }, [config.id]);
 
   useEffect(() => {
