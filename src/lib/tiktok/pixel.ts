@@ -150,6 +150,60 @@ export function trackPageView() {
   }
 }
 
+/** TikTok requires non-empty content_id on AddToCart / Purchase for catalog ads. */
+function resolveContentId(...candidates: Array<string | number | null | undefined>): string {
+  for (const c of candidates) {
+    const s = String(c ?? '').trim();
+    if (s) return s;
+  }
+  return 'busmo_subscription';
+}
+
+function commerceParams(opts: {
+  contentId?: string | null;
+  contentName?: string | null;
+  value?: number;
+  currency?: string;
+  quantity?: number;
+}): TikTokEventParams {
+  const content_id = resolveContentId(opts.contentId, opts.contentName, 'busmo_subscription');
+  const content_name = String(opts.contentName || content_id).trim() || content_id;
+  const quantity = opts.quantity ?? 1;
+  const currency = opts.currency || 'NGN';
+  const params: TikTokEventParams = {
+    content_id,
+    content_name,
+    content_type: 'product',
+    content_category: 'subscription',
+    quantity,
+    currency,
+    contents: [
+      {
+        content_id,
+        content_name,
+        content_type: 'product',
+        quantity,
+        ...(opts.value != null && Number.isFinite(opts.value) ? { price: Number(opts.value) } : {}),
+      },
+    ],
+  };
+  if (opts.value != null && Number.isFinite(opts.value)) {
+    params.value = Number(opts.value);
+  }
+  return params;
+}
+
+function stripEmptyParams(params?: TikTokEventParams): Record<string, unknown> | undefined {
+  if (!params) return undefined;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null) continue;
+    if (typeof v === 'string' && !v.trim()) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
 export function trackEvent(
   event: TikTokEventName,
   params?: TikTokEventParams,
@@ -160,11 +214,12 @@ export function trackEvent(
     if (!ttq?.track) return;
     const eventId = options?.eventId;
     if (eventId && alreadyFired(eventId)) return;
+    const clean = stripEmptyParams(params);
     if (eventId) {
-      ttq.track(event, params as Record<string, unknown>, { event_id: eventId });
+      ttq.track(event, clean, { event_id: eventId });
       markFired(eventId);
     } else {
-      ttq.track(event, params as Record<string, unknown>);
+      ttq.track(event, clean);
     }
   } catch {
     /* ignore */
@@ -217,6 +272,7 @@ export async function trackSignupSuccess(opts: {
     trackEvent(
       'CompleteRegistration',
       {
+        content_id: 'busmo_account',
         content_type: 'product',
         content_name: 'Busmo account',
         status: 'completed',
@@ -231,35 +287,23 @@ export async function trackSignupSuccess(opts: {
 }
 
 export function trackViewContent(name: string, contentId?: string) {
-  trackEvent('ViewContent', {
-    content_name: name,
-    content_id: contentId || name,
-    content_type: 'product',
-  });
+  trackEvent('ViewContent', commerceParams({ contentId: contentId || name, contentName: name }));
 }
 
 export function trackClickButton(name: string) {
-  trackEvent('ClickButton', { content_name: name, description: name });
+  trackEvent('ClickButton', {
+    content_name: name,
+    description: name,
+    content_id: resolveContentId(name),
+  });
 }
 
 export function trackAddToCart(planId: string, planName: string, value?: number) {
-  trackEvent('AddToCart', {
-    content_id: planId,
-    content_name: planName,
-    content_type: 'product',
-    value,
-    currency: 'NGN',
-  });
+  trackEvent('AddToCart', commerceParams({ contentId: planId, contentName: planName, value }));
 }
 
 export function trackInitiateCheckout(planId: string, planName: string, value?: number) {
-  trackEvent('InitiateCheckout', {
-    content_id: planId,
-    content_name: planName,
-    content_type: 'product',
-    value,
-    currency: 'NGN',
-  });
+  trackEvent('InitiateCheckout', commerceParams({ contentId: planId, contentName: planName, value }));
 }
 
 /** Commerce funnel alias — TikTok Ads Manager often labels this "Purchase". */
@@ -273,13 +317,12 @@ export function trackPurchase(opts: {
   trackCompletePayment(opts);
   trackEvent(
     'PlaceAnOrder',
-    {
+    commerceParams({
+      contentId: opts.planId || opts.reference,
+      contentName: opts.planName || opts.planId || 'Busmo subscription',
       value: opts.value,
-      currency: opts.currency || 'NGN',
-      content_id: opts.planId,
-      content_name: opts.planName,
-      content_type: 'product',
-    },
+      currency: opts.currency,
+    }),
     { eventId: `order_${opts.reference}` }
   );
 }
@@ -293,21 +336,22 @@ export function trackCompletePayment(opts: {
 }) {
   trackEvent(
     'CompletePayment',
-    {
+    commerceParams({
+      contentId: opts.planId || opts.reference,
+      contentName: opts.planName || opts.planId || 'Busmo subscription',
       value: opts.value,
-      currency: opts.currency || 'NGN',
-      content_id: opts.planId,
-      content_name: opts.planName,
-      content_type: 'product',
-    },
+      currency: opts.currency,
+    }),
     { eventId: `pay_${opts.reference}` }
   );
 }
 
 export function trackPaymentFailed(opts: { reference?: string; planId?: string }) {
   trackEvent('PaymentFailed', {
-    content_id: opts.planId,
-    content_type: 'product',
+    ...commerceParams({
+      contentId: opts.planId || opts.reference,
+      contentName: opts.planId || 'Busmo subscription',
+    }),
     status: 'failed',
     description: opts.reference,
   });
