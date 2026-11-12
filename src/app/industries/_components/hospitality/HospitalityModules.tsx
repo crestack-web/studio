@@ -827,103 +827,211 @@ export function HospitalityReservationsPage({ config }: { config: IndustryConfig
   );
 }
 
-/* ─────────────── Guests (derived from bookings) ─────────────── */
+/* ─────────────── Guests (CRM) ─────────────── */
 export function HospitalityGuestsPage({ config }: { config: IndustryConfig }) {
+  const [guests, setGuests] = useState<any[]>([]);
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState({
+    fullName: '',
+    phone: '',
+    email: '',
+    idNumber: '',
+    notes: '',
+  });
 
-  useEffect(() => {
-    (async () => {
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
       const h = await authHeaders();
-      const res = await fetch('/api/industries/hospitality/bookings', { headers: h });
+      const res = await fetch('/api/industries/hospitality/guests', { headers: h });
       const json = await res.json().catch(() => ({}));
+      setGuests(json.guests || []);
       setBookings(json.bookings || []);
+    } finally {
       setLoading(false);
-    })();
+    }
   }, []);
 
-  const guests = useMemo(() => {
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function addGuest(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.fullName.trim()) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const h = await authHeaders();
+      const res = await fetch('/api/industries/hospitality/guests', {
+        method: 'POST',
+        headers: h,
+        body: JSON.stringify(form),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg(json.error || 'Could not save guest');
+        return;
+      }
+      setForm({ fullName: '', phone: '', email: '', idNumber: '', notes: '' });
+      setMsg('Guest saved');
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Merge profile guests + unique names from bookings
+  const derived = useMemo(() => {
     const map = new Map<string, any>();
+    for (const g of guests) {
+      map.set(g.id, {
+        id: g.id,
+        name: g.full_name,
+        phone: g.phone,
+        email: g.email,
+        idNumber: g.id_number,
+        notes: g.notes,
+        stays: 0,
+        spent: 0,
+        source: 'profile',
+      });
+    }
     for (const b of bookings) {
-      const key = `${(b.guest_name || '').toLowerCase()}|${b.guest_phone || ''}`;
-      const prev = map.get(key);
-      if (!prev) {
-        map.set(key, {
+      const key = b.guest_id || `${(b.guest_name || '').toLowerCase()}|${b.guest_phone || ''}`;
+      const existing = map.get(key);
+      if (existing && existing.source === 'profile') {
+        existing.stays += 1;
+        existing.spent += Number(b.amount || 0);
+      } else if (existing) {
+        existing.stays += 1;
+        existing.spent += Number(b.amount || 0);
+      } else {
+        map.set(String(key), {
+          id: key,
           name: b.guest_name,
           phone: b.guest_phone,
           email: b.guest_email,
           stays: 1,
-          lastStay: b.check_in_date,
           spent: Number(b.amount || 0),
-          statuses: [b.status],
+          source: 'booking',
         });
-      } else {
-        prev.stays += 1;
-        prev.spent += Number(b.amount || 0);
-        if (b.check_in_date > prev.lastStay) prev.lastStay = b.check_in_date;
-        prev.statuses.push(b.status);
+      }
+    }
+    // attach stays to profiles by name match
+    for (const b of bookings) {
+      for (const g of map.values()) {
+        if (g.source === 'profile' && g.name && b.guest_name && g.name.toLowerCase() === String(b.guest_name).toLowerCase()) {
+          if (!g._counted) {
+            /* counted via guest_id path above when possible */
+          }
+        }
       }
     }
     return Array.from(map.values());
-  }, [bookings]);
+  }, [guests, bookings]);
 
-  const filtered = guests.filter((g) => {
+  const filtered = derived.filter((g) => {
     const s = q.trim().toLowerCase();
     if (!s) return true;
-    return [g.name, g.phone, g.email].join(' ').toLowerCase().includes(s);
+    return [g.name, g.phone, g.email, g.idNumber].join(' ').toLowerCase().includes(s);
   });
 
   return (
-    <Shell title="Guests" subtitle="Guest profiles built from reservation history.">
+    <Shell title="Guests" subtitle="Guest profiles and stay history for the property.">
       <div className={styles.metricsGrid} style={{ marginBottom: 16 }}>
-        <Kpi label="Unique guests" value={guests.length} />
-        <Kpi label="Total stays" value={bookings.length} />
+        <Kpi label="Profiles" value={guests.length} />
+        <Kpi label="Directory" value={derived.length} />
+        <Kpi label="Stays logged" value={bookings.length} />
       </div>
-      <Panel title="Guest directory" meta={loading ? 'Loading…' : `${filtered.length} guests`}>
-        <input
-          style={inputStyle}
-          placeholder="Search guest name or phone…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-        {!loading && filtered.length === 0 ? (
-          <p className={styles.greetingSub}>
-            Guests appear here after you create reservations.{' '}
-            <Link href={`${config.dashboardPath}/reservations`}>Add a reservation</Link>
-          </p>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-              <thead>
-                <tr style={{ textAlign: 'left', color: '#6b7280', fontSize: 12 }}>
-                  <th style={{ padding: '8px 6px' }}>Guest</th>
-                  <th style={{ padding: '8px 6px' }}>Contact</th>
-                  <th style={{ padding: '8px 6px' }}>Stays</th>
-                  <th style={{ padding: '8px 6px' }}>Last stay</th>
-                  <th style={{ padding: '8px 6px' }}>Spent</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((g, i) => (
-                  <tr key={i} style={{ borderTop: '1px solid #f3f4f6' }}>
-                    <td style={{ padding: '10px 6px' }}>
-                      <strong>{g.name}</strong>
-                    </td>
-                    <td style={{ padding: '10px 6px', fontSize: 13 }}>
-                      {g.phone || '—'}
-                      <div style={{ color: '#9ca3af' }}>{g.email || ''}</div>
-                    </td>
-                    <td style={{ padding: '10px 6px' }}>{g.stays}</td>
-                    <td style={{ padding: '10px 6px' }}>{g.lastStay || '—'}</td>
-                    <td style={{ padding: '10px 6px' }}>{money(g.spent)}</td>
+      <div className={styles.split}>
+        <Panel title="Guest directory" meta={loading ? 'Loading…' : `${filtered.length} shown`}>
+          <input
+            style={inputStyle}
+            placeholder="Search name, phone, email…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          {msg ? <p style={{ color: '#059669', fontSize: 13 }}>{msg}</p> : null}
+          {filtered.length === 0 && !loading ? (
+            <p className={styles.greetingSub}>No guests yet. Add a profile or create a reservation.</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                <thead>
+                  <tr style={{ textAlign: 'left', color: '#6b7280', fontSize: 12 }}>
+                    <th style={{ padding: '8px 6px' }}>Guest</th>
+                    <th style={{ padding: '8px 6px' }}>Contact</th>
+                    <th style={{ padding: '8px 6px' }}>Stays</th>
+                    <th style={{ padding: '8px 6px' }}>Spent</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Panel>
+                </thead>
+                <tbody>
+                  {filtered.map((g) => (
+                    <tr key={g.id} style={{ borderTop: '1px solid #f3f4f6' }}>
+                      <td style={{ padding: '10px 6px' }}>
+                        <strong>{g.name}</strong>
+                        {g.idNumber ? (
+                          <div style={{ fontSize: 12, color: '#9ca3af' }}>ID {g.idNumber}</div>
+                        ) : null}
+                      </td>
+                      <td style={{ padding: '10px 6px', fontSize: 13 }}>
+                        {g.phone || '—'}
+                        <div style={{ color: '#9ca3af' }}>{g.email || ''}</div>
+                      </td>
+                      <td style={{ padding: '10px 6px' }}>{g.stays || '—'}</td>
+                      <td style={{ padding: '10px 6px' }}>{money(g.spent || 0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+        <Panel title="Add guest profile">
+          <form onSubmit={addGuest}>
+            <label style={labelStyle}>Full name *</label>
+            <input
+              style={inputStyle}
+              value={form.fullName}
+              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+              required
+            />
+            <label style={labelStyle}>Phone</label>
+            <input
+              style={inputStyle}
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+            <label style={labelStyle}>Email</label>
+            <input
+              style={inputStyle}
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+            <label style={labelStyle}>ID / passport</label>
+            <input
+              style={inputStyle}
+              value={form.idNumber}
+              onChange={(e) => setForm({ ...form, idNumber: e.target.value })}
+            />
+            <label style={labelStyle}>Notes</label>
+            <textarea
+              style={{ ...inputStyle, minHeight: 56 }}
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            />
+            <button type="submit" className={styles.btnPrimary} disabled={busy} style={{ width: '100%' }}>
+              {busy ? 'Saving…' : 'Save guest'}
+            </button>
+          </form>
+        </Panel>
+      </div>
     </Shell>
   );
 }
@@ -1033,6 +1141,14 @@ export function HospitalityCheckinPage({ config }: { config: IndustryConfig }) {
   const [rooms, setRooms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
+  const [walkIn, setWalkIn] = useState({
+    guestName: '',
+    guestPhone: '',
+    roomId: '',
+    nights: '1',
+    amount: '',
+  });
+  const [walkBusy, setWalkBusy] = useState(false);
 
   const load = useCallback(async () => {
     const h = await authHeaders();
@@ -1093,6 +1209,49 @@ export function HospitalityCheckinPage({ config }: { config: IndustryConfig }) {
 
   const freeRooms = rooms.filter((r) => r.status === 'available');
 
+  async function submitWalkIn(e: React.FormEvent) {
+    e.preventDefault();
+    if (!walkIn.guestName.trim() || !walkIn.roomId) {
+      setMsg('Walk-in needs guest name and a free room');
+      return;
+    }
+    setWalkBusy(true);
+    setMsg(null);
+    try {
+      const h = await authHeaders();
+      const nights = Math.max(1, Number(walkIn.nights) || 1);
+      const checkInDate = new Date().toISOString().slice(0, 10);
+      const out = new Date();
+      out.setDate(out.getDate() + nights);
+      const checkOutDate = out.toISOString().slice(0, 10);
+      const res = await fetch('/api/industries/hospitality/bookings', {
+        method: 'POST',
+        headers: h,
+        body: JSON.stringify({
+          guestName: walkIn.guestName.trim(),
+          guestPhone: walkIn.guestPhone || null,
+          roomId: walkIn.roomId,
+          checkInDate,
+          checkOutDate,
+          nights,
+          amount: walkIn.amount ? Number(walkIn.amount) : undefined,
+          status: 'checked_in',
+          source: 'walk_in',
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg(json.error || 'Walk-in failed');
+        return;
+      }
+      setWalkIn({ guestName: '', guestPhone: '', roomId: '', nights: '1', amount: '' });
+      setMsg('Walk-in checked in');
+      await load();
+    } finally {
+      setWalkBusy(false);
+    }
+  }
+
   return (
     <Shell
       title="Check-in / Check-out"
@@ -1104,6 +1263,73 @@ export function HospitalityCheckinPage({ config }: { config: IndustryConfig }) {
       }
     >
       {msg ? <p style={{ color: '#059669', fontSize: 13, marginBottom: 12 }}>{msg}</p> : null}
+
+      <Panel title="Walk-in (check in now)" meta="Same-day arrival without prior booking">
+        <form
+          onSubmit={submitWalkIn}
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}
+        >
+          <div>
+            <label style={labelStyle}>Guest name *</label>
+            <input
+              style={inputStyle}
+              value={walkIn.guestName}
+              onChange={(e) => setWalkIn({ ...walkIn, guestName: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Phone</label>
+            <input
+              style={inputStyle}
+              value={walkIn.guestPhone}
+              onChange={(e) => setWalkIn({ ...walkIn, guestPhone: e.target.value })}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Room *</label>
+            <select
+              style={inputStyle}
+              value={walkIn.roomId}
+              onChange={(e) => setWalkIn({ ...walkIn, roomId: e.target.value })}
+              required
+            >
+              <option value="">Select free room</option>
+              {freeRooms.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.room_number} · {money(r.rate_amount)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>Nights</label>
+            <input
+              style={inputStyle}
+              type="number"
+              min={1}
+              value={walkIn.nights}
+              onChange={(e) => setWalkIn({ ...walkIn, nights: e.target.value })}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Amount (₦)</label>
+            <input
+              style={inputStyle}
+              type="number"
+              value={walkIn.amount}
+              onChange={(e) => setWalkIn({ ...walkIn, amount: e.target.value })}
+              placeholder="Auto from rate if empty"
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+            <button type="submit" className={styles.btnPrimary} disabled={walkBusy} style={{ width: '100%' }}>
+              {walkBusy ? 'Checking in…' : 'Check in walk-in'}
+            </button>
+          </div>
+        </form>
+      </Panel>
+
       <div className={styles.split}>
         <Panel title="Arrivals" meta={loading ? '…' : `${arriving.length} waiting`}>
           {arriving.length === 0 ? (
@@ -1258,6 +1484,449 @@ export function HospitalityRevenuePage({ config }: { config: IndustryConfig }) {
           </div>
         )}
       </Panel>
+    </Shell>
+  );
+}
+
+
+/* ─────────────── Room service / folio charges ─────────────── */
+export function HospitalityRoomServicePage({ config }: { config: IndustryConfig }) {
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [bookingId, setBookingId] = useState('');
+  const [lines, setLines] = useState<any[]>([]);
+  const [totals, setTotals] = useState({ charges: 0, payments: 0, balance: 0 });
+  const [desc, setDesc] = useState('');
+  const [amount, setAmount] = useState('');
+  const [lineType, setLineType] = useState('charge');
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const h = await authHeaders();
+      const res = await fetch('/api/industries/hospitality/bookings', { headers: h });
+      const json = await res.json().catch(() => ({}));
+      const inHouse = (json.bookings || []).filter((b: any) =>
+        ['checked_in', 'confirmed'].includes(b.status)
+      );
+      setBookings(inHouse);
+    })();
+  }, []);
+
+  async function loadFolio(id: string) {
+    setBookingId(id);
+    const h = await authHeaders();
+    const res = await fetch(`/api/industries/hospitality/folio?bookingId=${encodeURIComponent(id)}`, {
+      headers: h,
+    });
+    const json = await res.json().catch(() => ({}));
+    setLines(json.lines || []);
+    setTotals(json.totals || { charges: 0, payments: 0, balance: 0 });
+  }
+
+  async function addLine(e: React.FormEvent) {
+    e.preventDefault();
+    if (!bookingId || !desc.trim()) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const h = await authHeaders();
+      const res = await fetch('/api/industries/hospitality/folio', {
+        method: 'POST',
+        headers: h,
+        body: JSON.stringify({
+          bookingId,
+          description: desc.trim(),
+          amount: Number(amount) || 0,
+          lineType,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg(json.error || 'Failed');
+        return;
+      }
+      setDesc('');
+      setAmount('');
+      setMsg('Posted to folio');
+      await loadFolio(bookingId);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Shell
+      title="Room service & folio"
+      subtitle="Post extras (meals, laundry, minibar) and payments to an in-house guest folio."
+    >
+      <div className={styles.metricsGrid} style={{ marginBottom: 16 }}>
+        <Kpi label="Charges" value={money(totals.charges)} />
+        <Kpi label="Payments" value={money(totals.payments)} />
+        <Kpi label="Balance" value={money(totals.balance)} />
+      </div>
+      <div className={styles.split}>
+        <Panel title="Select stay">
+          <label style={labelStyle}>In-house / confirmed reservation</label>
+          <select
+            style={inputStyle}
+            value={bookingId}
+            onChange={(e) => loadFolio(e.target.value)}
+          >
+            <option value="">Choose guest…</option>
+            {bookings.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.guest_name} · {b.status} · {b.check_in_date}
+              </option>
+            ))}
+          </select>
+          {msg ? <p style={{ color: '#059669', fontSize: 13 }}>{msg}</p> : null}
+          {lines.length > 0 ? (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: '#6b7280', fontSize: 12 }}>
+                  <th style={{ padding: 6 }}>Type</th>
+                  <th style={{ padding: 6 }}>Description</th>
+                  <th style={{ padding: 6 }}>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lines.map((l) => (
+                  <tr key={l.id} style={{ borderTop: '1px solid #f3f4f6' }}>
+                    <td style={{ padding: 6 }}>{l.line_type}</td>
+                    <td style={{ padding: 6 }}>{l.description}</td>
+                    <td style={{ padding: 6 }}>{money(l.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : bookingId ? (
+            <p className={styles.greetingSub}>No folio lines yet.</p>
+          ) : null}
+        </Panel>
+        <Panel title="Post line">
+          <form onSubmit={addLine}>
+            <label style={labelStyle}>Type</label>
+            <select style={inputStyle} value={lineType} onChange={(e) => setLineType(e.target.value)}>
+              <option value="charge">Charge (room service, laundry…)</option>
+              <option value="payment">Payment (cash / transfer)</option>
+              <option value="adjustment">Adjustment</option>
+            </select>
+            <label style={labelStyle}>Description</label>
+            <input
+              style={inputStyle}
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              placeholder="e.g. Dinner — Room 101"
+              required
+            />
+            <label style={labelStyle}>Amount (₦)</label>
+            <input
+              style={inputStyle}
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required
+            />
+            <button
+              type="submit"
+              className={styles.btnPrimary}
+              disabled={busy || !bookingId}
+              style={{ width: '100%' }}
+            >
+              {busy ? 'Posting…' : 'Post to folio'}
+            </button>
+          </form>
+        </Panel>
+      </div>
+    </Shell>
+  );
+}
+
+/* ─────────────── Expenses ─────────────── */
+export function HospitalityExpensesPage({ config }: { config: IndustryConfig }) {
+  const [rows, setRows] = useState<any[]>([]);
+  const [title, setTitle] = useState('');
+  const [amount, setAmount] = useState('');
+  const [notes, setNotes] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const h = await authHeaders();
+    const res = await fetch(
+      `/api/industries/records?edition=hospitality&module=expenses`,
+      { headers: h }
+    );
+    const json = await res.json().catch(() => ({}));
+    setRows(json.records || []);
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setMsg(null);
+    try {
+      const h = await authHeaders();
+      const res = await fetch('/api/industries/records', {
+        method: 'POST',
+        headers: h,
+        body: JSON.stringify({
+          module: 'expenses',
+          title: title.trim(),
+          amount: Number(amount) || 0,
+          status: 'recorded',
+          notes,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg(json.error || 'Failed');
+        return;
+      }
+      setTitle('');
+      setAmount('');
+      setNotes('');
+      setMsg('Expense recorded');
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const total = rows.reduce((s, r) => s + Number(r.amount || 0), 0);
+
+  return (
+    <Shell title="Expenses" subtitle="Property operating costs (supplies, utilities, maintenance).">
+      <div className={styles.metricsGrid} style={{ marginBottom: 16 }}>
+        <Kpi label="Recorded total" value={money(total)} />
+        <Kpi label="Entries" value={rows.length} />
+      </div>
+      <div className={styles.split}>
+        <Panel title="Expense log">
+          {msg ? <p style={{ color: '#059669', fontSize: 13 }}>{msg}</p> : null}
+          {rows.length === 0 ? (
+            <p className={styles.greetingSub}>No expenses yet.</p>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: '#6b7280', fontSize: 12 }}>
+                  <th style={{ padding: 6 }}>Title</th>
+                  <th style={{ padding: 6 }}>Amount</th>
+                  <th style={{ padding: 6 }}>When</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id} style={{ borderTop: '1px solid #f3f4f6' }}>
+                    <td style={{ padding: 8 }}>{r.title}</td>
+                    <td style={{ padding: 8 }}>{money(r.amount)}</td>
+                    <td style={{ padding: 8, fontSize: 12 }}>
+                      {r.occurred_at ? String(r.occurred_at).slice(0, 10) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Panel>
+        <Panel title="Add expense">
+          <form onSubmit={add}>
+            <label style={labelStyle}>Description *</label>
+            <input
+              style={inputStyle}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              placeholder="e.g. Generator fuel"
+            />
+            <label style={labelStyle}>Amount (₦)</label>
+            <input
+              style={inputStyle}
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required
+            />
+            <label style={labelStyle}>Notes</label>
+            <textarea
+              style={{ ...inputStyle, minHeight: 56 }}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+            <button type="submit" className={styles.btnPrimary} disabled={busy} style={{ width: '100%' }}>
+              {busy ? 'Saving…' : 'Record expense'}
+            </button>
+          </form>
+        </Panel>
+      </div>
+    </Shell>
+  );
+}
+
+/* ─────────────── Reports ─────────────── */
+export function HospitalityReportsPage({ config }: { config: IndustryConfig }) {
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const h = await authHeaders();
+      const [d, b] = await Promise.all([
+        fetch('/api/industries/hospitality/front-desk', { headers: h }),
+        fetch('/api/industries/hospitality/bookings', { headers: h }),
+      ]);
+      const dj = await d.json().catch(() => ({}));
+      const bj = await b.json().catch(() => ({}));
+      setRooms(dj.rooms || []);
+      setBookings(bj.bookings || []);
+      setLoading(false);
+    })();
+  }, []);
+
+  const totalRooms = rooms.length || 1;
+  const occupied = rooms.filter((r) => r.status === 'occupied').length;
+  const occupancy = Math.round((occupied / totalRooms) * 100);
+  const active = bookings.filter((b) => b.status !== 'cancelled');
+  const roomRevenue = active.reduce((s, b) => s + Number(b.amount || 0), 0);
+  const soldNights = active.reduce((s, b) => s + Number(b.nights || 1), 0);
+  const adr = soldNights ? roomRevenue / soldNights : 0;
+  const revpar = totalRooms ? roomRevenue / totalRooms : 0;
+
+  return (
+    <Shell title="Reports" subtitle="Occupancy and revenue snapshot (PMS-style KPIs for the owner).">
+      {loading ? (
+        <p className={styles.greetingSub}>Loading…</p>
+      ) : (
+        <>
+          <div className={styles.metricsGrid} style={{ marginBottom: 16 }}>
+            <Kpi label="Occupancy (now)" value={`${occupancy}%`} hint={`${occupied} of ${rooms.length} rooms`} />
+            <Kpi label="Room revenue" value={money(roomRevenue)} hint="Non-cancelled bookings" />
+            <Kpi label="ADR" value={money(adr)} hint="Average daily rate" />
+            <Kpi label="RevPAR (simple)" value={money(revpar)} hint="Revenue ÷ rooms" />
+          </div>
+          <Panel title="How to read this">
+            <p className={styles.greetingSub} style={{ margin: 0 }}>
+              <strong>Occupancy</strong> is live room status. <strong>ADR</strong> is revenue ÷ room-nights sold.
+              <strong> RevPAR</strong> here is a simple property snapshot (not a full night-audit). Night audit and
+              date-range reports come next.
+            </p>
+          </Panel>
+        </>
+      )}
+    </Shell>
+  );
+}
+
+/* ─────────────── Staff directory (ops roster) ─────────────── */
+export function HospitalityStaffPage({ config }: { config: IndustryConfig }) {
+  const [rows, setRows] = useState<any[]>([]);
+  const [name, setName] = useState('');
+  const [role, setRole] = useState('front_desk');
+  const [phone, setPhone] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const h = await authHeaders();
+    const res = await fetch(`/api/industries/records?edition=hospitality&module=staff`, { headers: h });
+    const json = await res.json().catch(() => ({}));
+    setRows(json.records || []);
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setMsg(null);
+    try {
+      const h = await authHeaders();
+      const res = await fetch('/api/industries/records', {
+        method: 'POST',
+        headers: h,
+        body: JSON.stringify({
+          module: 'staff',
+          title: name.trim(),
+          status: 'active',
+          notes: phone ? `Phone: ${phone}` : null,
+          meta: { role, phone },
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMsg(json.error || 'Failed');
+        return;
+      }
+      setName('');
+      setPhone('');
+      setMsg('Staff member added');
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Shell
+      title="Staff"
+      subtitle="Property roster for desk and housekeeping. Invite logins can reuse Busmo staff invites later."
+    >
+      <div className={styles.split}>
+        <Panel title="Roster" meta={`${rows.length} people`}>
+          {msg ? <p style={{ color: '#059669', fontSize: 13 }}>{msg}</p> : null}
+          {rows.length === 0 ? (
+            <p className={styles.greetingSub}>No staff listed yet.</p>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: '#6b7280', fontSize: 12 }}>
+                  <th style={{ padding: 6 }}>Name</th>
+                  <th style={{ padding: 6 }}>Role</th>
+                  <th style={{ padding: 6 }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id} style={{ borderTop: '1px solid #f3f4f6' }}>
+                    <td style={{ padding: 8 }}>{r.title}</td>
+                    <td style={{ padding: 8 }}>{(r.meta && r.meta.role) || '—'}</td>
+                    <td style={{ padding: 8 }}>
+                      <StatusPill status={r.status || 'active'} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Panel>
+        <Panel title="Add staff">
+          <form onSubmit={add}>
+            <label style={labelStyle}>Name *</label>
+            <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} required />
+            <label style={labelStyle}>Role</label>
+            <select style={inputStyle} value={role} onChange={(e) => setRole(e.target.value)}>
+              <option value="front_desk">Front desk</option>
+              <option value="housekeeping">Housekeeping</option>
+              <option value="manager">Manager</option>
+              <option value="security">Security</option>
+              <option value="other">Other</option>
+            </select>
+            <label style={labelStyle}>Phone</label>
+            <input style={inputStyle} value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <button type="submit" className={styles.btnPrimary} disabled={busy} style={{ width: '100%' }}>
+              {busy ? 'Saving…' : 'Add to roster'}
+            </button>
+          </form>
+        </Panel>
+      </div>
     </Shell>
   );
 }
