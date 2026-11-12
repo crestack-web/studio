@@ -191,13 +191,36 @@ export function HospitalityRoomsPage({ config }: { config: IndustryConfig }) {
     }
   }
 
-  async function setStatus(id: string, status: string) {
+  async function patchRoom(id: string, body: Record<string, unknown>) {
     const h = await authHeaders();
-    await fetch('/api/industries/hospitality/rooms', {
+    const res = await fetch('/api/industries/hospitality/rooms', {
       method: 'PATCH',
       headers: h,
-      body: JSON.stringify({ id, status }),
+      body: JSON.stringify({ id, ...body }),
     });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) setMsg(json.error || 'Could not update room');
+    else setMsg('Room updated');
+    await load();
+  }
+
+  async function setStatus(id: string, status: string) {
+    await patchRoom(id, { status });
+  }
+
+  async function removeRoom(id: string) {
+    if (!confirm('Remove this room from the property?')) return;
+    const h = await authHeaders();
+    const res = await fetch(`/api/industries/hospitality/rooms?id=${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: h,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setMsg(json.error || 'Could not remove room');
+      return;
+    }
+    setMsg('Room removed');
     await load();
   }
 
@@ -241,46 +264,54 @@ export function HospitalityRoomsPage({ config }: { config: IndustryConfig }) {
           {!loading && filtered.length === 0 ? (
             <p className={styles.greetingSub}>No rooms yet. Add your first room on the right.</p>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-                <thead>
-                  <tr style={{ textAlign: 'left', color: '#6b7280', fontSize: 12 }}>
-                    <th style={{ padding: '8px 6px' }}>Room</th>
-                    <th style={{ padding: '8px 6px' }}>Category</th>
-                    <th style={{ padding: '8px 6px' }}>Rate</th>
-                    <th style={{ padding: '8px 6px' }}>Status</th>
-                    <th style={{ padding: '8px 6px' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((r) => (
-                    <tr key={r.id} style={{ borderTop: '1px solid #f3f4f6' }}>
-                      <td style={{ padding: '10px 6px' }}>
-                        <strong>{r.room_number}</strong>
-                        <div style={{ fontSize: 12, color: '#9ca3af' }}>{r.floor || '—'}</div>
-                      </td>
-                      <td style={{ padding: '10px 6px' }}>{r.category || 'Standard'}</td>
-                      <td style={{ padding: '10px 6px' }}>{money(r.rate_amount)}</td>
-                      <td style={{ padding: '10px 6px' }}>
-                        <StatusPill status={r.status} />
-                      </td>
-                      <td style={{ padding: '10px 6px' }}>
+            <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
+              {filtered.map((r) => {
+                const floor = String(r.floor || '').replace(/^floor\s*/i, '');
+                return (
+                  <article key={r.id} style={{ border: '1px solid #ececf3', borderRadius: 14, padding: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
+                      <div>
+                        <strong>Room {r.room_number}</strong>
+                        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                          {r.category || 'Standard'}
+                          {floor ? ` · Floor ${floor}` : ''}
+                          {r.capacity ? ` · ${r.capacity} guests` : ''}
+                        </div>
+                      </div>
+                      <StatusPill status={r.status} />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
+                      <label style={{ fontSize: 12, color: '#6b7280' }}>
+                        Nightly rate
+                        <input
+                          style={{ ...inputStyle, marginTop: 4 }}
+                          defaultValue={r.rate_amount}
+                          inputMode="decimal"
+                          onBlur={(e) => {
+                            const next = Number(e.target.value);
+                            if (Number.isFinite(next) && next !== Number(r.rate_amount)) patchRoom(r.id, { rateAmount: next });
+                          }}
+                        />
+                      </label>
+                      <label style={{ fontSize: 12, color: '#6b7280' }}>
+                        Status
                         <select
                           value={r.status}
                           onChange={(e) => setStatus(r.id, e.target.value)}
-                          style={{ ...inputStyle, marginBottom: 0, width: 'auto' }}
+                          style={{ ...inputStyle, marginTop: 4 }}
                         >
                           {['available', 'occupied', 'cleaning', 'maintenance', 'blocked'].map((s) => (
-                            <option key={s} value={s}>
-                              {s}
-                            </option>
+                            <option key={s} value={s}>{s}</option>
                           ))}
                         </select>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </label>
+                    </div>
+                    <button type="button" onClick={() => removeRoom(r.id)} style={{ marginTop: 8, background: 'none', border: 'none', color: '#b91c1c', fontWeight: 600, padding: 0, cursor: 'pointer' }}>
+                      Remove room
+                    </button>
+                  </article>
+                );
+              })}
             </div>
           )}
         </Panel>
