@@ -105,13 +105,36 @@ export async function PATCH(req: NextRequest) {
   if (typeof body.propertyName === 'string') payload.property_name = body.propertyName.trim() || null;
   if (typeof body.logoUrl === 'string') payload.logo_url = body.logoUrl.trim() || null;
   if (typeof body.currency === 'string') payload.currency = body.currency.trim() || 'NGN';
+  if (typeof body.timezone === 'string') payload.timezone = body.timezone.trim() || 'Africa/Lagos';
+  if (typeof body.phone === 'string') payload.phone = body.phone.trim() || null;
+  if (typeof body.email === 'string') payload.email = body.email.trim() || null;
+  if (typeof body.address === 'string') payload.address = body.address.trim() || null;
+  if (typeof body.checkInTime === 'string') payload.check_in_time = body.checkInTime.trim() || null;
+  if (typeof body.checkOutTime === 'string') payload.check_out_time = body.checkOutTime.trim() || null;
 
   const admin = getSupabaseAdmin();
-  const { data, error } = await admin
+  let { data, error } = await admin
     .from('hospitality_settings')
     .upsert(payload, { onConflict: 'business_id' })
     .select('*')
     .single();
+
+  if (error && /column|schema cache/i.test(error.message || '')) {
+    const core: Record<string, unknown> = {
+      business_id: businessId,
+      updated_at: payload.updated_at,
+    };
+    for (const key of ['property_name', 'logo_url', 'currency', 'timezone']) {
+      if (payload[key] !== undefined) core[key] = payload[key];
+    }
+    const retry = await admin.from('hospitality_settings').upsert(core, { onConflict: 'business_id' }).select('*').single();
+    if (retry.error) return NextResponse.json({ error: retry.error.message }, { status: 500 });
+    return NextResponse.json({
+      ok: true,
+      settings: retry.data,
+      warning: 'Name and logo saved. Run the hotel settings SQL to store phone, address, and check-in times.',
+    });
+  }
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
