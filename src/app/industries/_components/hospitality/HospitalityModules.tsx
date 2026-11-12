@@ -1768,56 +1768,240 @@ export function HospitalityExpensesPage({ config }: { config: IndustryConfig }) 
   );
 }
 
-/* ─────────────── Reports ─────────────── */
+/* ─────────────── Reports + Night audit + Calendar ─────────────── */
 export function HospitalityReportsPage({ config }: { config: IndustryConfig }) {
-  const [rooms, setRooms] = useState<any[]>([]);
-  const [bookings, setBookings] = useState<any[]>([]);
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [audit, setAudit] = useState<any>(null);
+  const [cal, setCal] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<'audit' | 'calendar'>('audit');
 
-  useEffect(() => {
-    (async () => {
-      const h = await authHeaders();
-      const [d, b] = await Promise.all([
-        fetch('/api/industries/hospitality/front-desk', { headers: h }),
-        fetch('/api/industries/hospitality/bookings', { headers: h }),
-      ]);
-      const dj = await d.json().catch(() => ({}));
-      const bj = await b.json().catch(() => ({}));
-      setRooms(dj.rooms || []);
-      setBookings(bj.bookings || []);
-      setLoading(false);
-    })();
+  const loadAudit = useCallback(async (d: string) => {
+    const h = await authHeaders();
+    const res = await fetch(
+      `/api/industries/hospitality/night-audit?date=${encodeURIComponent(d)}`,
+      { headers: h }
+    );
+    const json = await res.json().catch(() => ({}));
+    if (res.ok) setAudit(json);
   }, []);
 
-  const totalRooms = rooms.length || 1;
-  const occupied = rooms.filter((r) => r.status === 'occupied').length;
-  const occupancy = Math.round((occupied / totalRooms) * 100);
-  const active = bookings.filter((b) => b.status !== 'cancelled');
-  const roomRevenue = active.reduce((s, b) => s + Number(b.amount || 0), 0);
-  const soldNights = active.reduce((s, b) => s + Number(b.nights || 1), 0);
-  const adr = soldNights ? roomRevenue / soldNights : 0;
-  const revpar = totalRooms ? roomRevenue / totalRooms : 0;
+  const loadCal = useCallback(async () => {
+    const h = await authHeaders();
+    const start = new Date().toISOString().slice(0, 10);
+    const res = await fetch(
+      `/api/industries/hospitality/calendar?start=${encodeURIComponent(start)}&days=14`,
+      { headers: h }
+    );
+    const json = await res.json().catch(() => ({}));
+    if (res.ok) setCal(json);
+  }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([loadAudit(date), loadCal()]).finally(() => setLoading(false));
+  }, [date, loadAudit, loadCal]);
+
+  const rev = audit?.revenue || {};
+  const act = audit?.activity || {};
+  const prop = audit?.property || {};
 
   return (
-    <Shell title="Reports" subtitle="Occupancy and revenue snapshot (PMS-style KPIs for the owner).">
-      {loading ? (
-        <p className={styles.greetingSub}>Loading…</p>
-      ) : (
+    <Shell
+      title="Reports"
+      subtitle="Night audit (close of day) and 14-day room calendar — core PMS views for owners."
+    >
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        <button
+          type="button"
+          className={tab === 'audit' ? styles.btnPrimary : styles.topGhost}
+          onClick={() => setTab('audit')}
+        >
+          Night audit
+        </button>
+        <button
+          type="button"
+          className={tab === 'calendar' ? styles.btnPrimary : styles.topGhost}
+          onClick={() => setTab('calendar')}
+        >
+          Room calendar
+        </button>
+      </div>
+
+      {loading ? <p className={styles.greetingSub}>Loading…</p> : null}
+
+      {tab === 'audit' ? (
         <>
-          <div className={styles.metricsGrid} style={{ marginBottom: 16 }}>
-            <Kpi label="Occupancy (now)" value={`${occupancy}%`} hint={`${occupied} of ${rooms.length} rooms`} />
-            <Kpi label="Room revenue" value={money(roomRevenue)} hint="Non-cancelled bookings" />
-            <Kpi label="ADR" value={money(adr)} hint="Average daily rate" />
-            <Kpi label="RevPAR (simple)" value={money(revpar)} hint="Revenue ÷ rooms" />
+          <div style={{ marginBottom: 16, maxWidth: 220 }}>
+            <label style={labelStyle}>Business date</label>
+            <input
+              style={inputStyle}
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
           </div>
-          <Panel title="How to read this">
-            <p className={styles.greetingSub} style={{ margin: 0 }}>
-              <strong>Occupancy</strong> is live room status. <strong>ADR</strong> is revenue ÷ room-nights sold.
-              <strong> RevPAR</strong> here is a simple property snapshot (not a full night-audit). Night audit and
-              date-range reports come next.
-            </p>
+          <div className={styles.metricsGrid} style={{ marginBottom: 16 }}>
+            <Kpi label="Occupancy" value={`${rev.occupancyPct ?? 0}%`} hint="Sold nights ÷ sellable rooms" />
+            <Kpi label="Room revenue" value={money(rev.roomRevenueToday || 0)} hint="Attributed to this date" />
+            <Kpi label="ADR" value={money(rev.adr || 0)} hint="Average daily rate" />
+            <Kpi label="RevPAR" value={money(rev.revpar || 0)} hint="Revenue ÷ sellable rooms" />
+          </div>
+          <div className={styles.metricsGrid} style={{ marginBottom: 16 }}>
+            <Kpi label="Arrivals" value={act.arrivals ?? 0} />
+            <Kpi label="Departures" value={act.departures ?? 0} />
+            <Kpi label="In-house" value={act.inHouse ?? 0} />
+            <Kpi label="Sold nights" value={act.soldNights ?? 0} />
+          </div>
+          <div className={styles.metricsGrid} style={{ marginBottom: 16 }}>
+            <Kpi label="Total rooms" value={prop.totalRooms ?? 0} />
+            <Kpi label="Available" value={prop.availableRooms ?? 0} />
+            <Kpi label="Cleaning" value={prop.cleaningRooms ?? 0} />
+            <Kpi label="Out of order" value={prop.outOfOrder ?? 0} />
+          </div>
+          <div className={styles.split}>
+            <Panel title={`Arrivals · ${date}`} meta={`${(audit?.arrivals || []).length}`}>
+              {(audit?.arrivals || []).length === 0 ? (
+                <p className={styles.greetingSub}>No arrivals this date.</p>
+              ) : (
+                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14 }}>
+                  {(audit?.arrivals || []).map((b: any) => (
+                    <li key={b.id} style={{ marginBottom: 6 }}>
+                      <strong>{b.guest_name}</strong> — {b.status}
+                      {b.amount != null ? ` · ${money(b.amount)}` : ''}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
+            <Panel title={`Departures · ${date}`} meta={`${(audit?.departures || []).length}`}>
+              {(audit?.departures || []).length === 0 ? (
+                <p className={styles.greetingSub}>No departures this date.</p>
+              ) : (
+                <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14 }}>
+                  {(audit?.departures || []).map((b: any) => (
+                    <li key={b.id} style={{ marginBottom: 6 }}>
+                      <strong>{b.guest_name}</strong> — {b.status}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
+          </div>
+          <Panel title="In-house tonight">
+            {(audit?.inHouse || []).length === 0 ? (
+              <p className={styles.greetingSub}>No in-house guests for this date.</p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                  <thead>
+                    <tr style={{ textAlign: 'left', color: '#6b7280', fontSize: 12 }}>
+                      <th style={{ padding: 6 }}>Guest</th>
+                      <th style={{ padding: 6 }}>Stay</th>
+                      <th style={{ padding: 6 }}>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(audit?.inHouse || []).map((b: any) => (
+                      <tr key={b.id} style={{ borderTop: '1px solid #f3f4f6' }}>
+                        <td style={{ padding: 8 }}>{b.guest_name}</td>
+                        <td style={{ padding: 8, fontSize: 13 }}>
+                          {b.check_in_date} → {b.check_out_date || '—'}
+                        </td>
+                        <td style={{ padding: 8 }}>{money(b.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Panel>
         </>
+      ) : (
+        <Panel title="14-day room chart" meta="Reserved / in-house / free / OOO">
+          {!cal?.grid?.length ? (
+            <p className={styles.greetingSub}>
+              Add rooms to see the calendar.{' '}
+              <Link href={`${config.dashboardPath}/rooms`}>Rooms</Link>
+            </p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ borderCollapse: 'collapse', fontSize: 11, minWidth: '100%' }}>
+                <thead>
+                  <tr>
+                    <th
+                      style={{
+                        position: 'sticky',
+                        left: 0,
+                        background: '#fff',
+                        padding: 6,
+                        textAlign: 'left',
+                        zIndex: 1,
+                      }}
+                    >
+                      Room
+                    </th>
+                    {(cal.dates || []).map((d: string) => (
+                      <th key={d} style={{ padding: 4, fontWeight: 600, color: '#6b7280' }}>
+                        {d.slice(5)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {cal.grid.map((row: any) => (
+                    <tr key={row.roomId}>
+                      <td
+                        style={{
+                          position: 'sticky',
+                          left: 0,
+                          background: '#fff',
+                          padding: 6,
+                          fontWeight: 700,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {row.roomNumber}
+                      </td>
+                      {row.cells.map((c: any) => {
+                        const bg =
+                          c.state === 'free'
+                            ? '#ecfdf5'
+                            : c.state === 'reserved'
+                              ? '#ede9fe'
+                              : c.state === 'in_house'
+                                ? '#dbeafe'
+                                : '#fee2e2';
+                        return (
+                          <td
+                            key={c.date}
+                            title={c.guest ? `${c.guest} (${c.state})` : c.state}
+                            style={{
+                              padding: 4,
+                              background: bg,
+                              border: '1px solid #f3f4f6',
+                              minWidth: 36,
+                              textAlign: 'center',
+                            }}
+                          >
+                            {c.state === 'free'
+                              ? '·'
+                              : c.state === 'ooo'
+                                ? 'X'
+                                : (c.guest || '?').slice(0, 1)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p style={{ fontSize: 12, color: '#6b7280', marginTop: 10 }}>
+                Green free · Purple reserved · Blue in-house · Red out of order. Hover a cell for guest name.
+              </p>
+            </div>
+          )}
+        </Panel>
       )}
     </Shell>
   );
