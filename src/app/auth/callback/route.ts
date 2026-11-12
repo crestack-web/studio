@@ -111,14 +111,32 @@ export async function GET(request: Request) {
 
     if (user) {
       const needsOnboarding = await userNeedsOnboarding(supabase, user);
+      const isIndustryPath = next.startsWith('/industries/');
       if (needsOnboarding) {
-        next = ONBOARDING_PATH;
-      } else if (
-        next.includes('/welcome/signup') &&
-        !needsOnboarding
-      ) {
-        // Returning user who started from signup page → dashboard
+        if (isIndustryPath) {
+          // Keep user on the solution signup/onboarding they started from
+          // e.g. /industries/hospitality/signup?google=callback
+          if (!next.includes('/signup')) {
+            const parts = next.split('/').filter(Boolean);
+            // /industries/{id}/... → /industries/{id}/signup?google=callback
+            if (parts[0] === 'industries' && parts[1]) {
+              next = `/industries/${parts[1]}/signup?google=callback`;
+            }
+          } else if (!next.includes('google=')) {
+            next = next.includes('?') ? `${next}&google=callback` : `${next}?google=callback`;
+          }
+        } else {
+          next = ONBOARDING_PATH;
+        }
+      } else if (next.includes('/welcome/signup') && !needsOnboarding) {
+        // Returning user who started from Busmo signup page → dashboard
         next = '/owner';
+      } else if (isIndustryPath && next.includes('/signup') && !needsOnboarding) {
+        // Existing industry user signed in via Google from signup → dashboard
+        const parts = next.split('/').filter(Boolean);
+        if (parts[0] === 'industries' && parts[1]) {
+          next = `/industries/${parts[1]}/dashboard`;
+        }
       }
     }
 
