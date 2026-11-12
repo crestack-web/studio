@@ -1,5 +1,5 @@
 import { getIndustryConfig } from '@/lib/industries/config';
-import { HospitalityStaffSection } from '../../../../_components/hospitality/HospitalityStaffSection';
+import { HospitalityStaffSection } from '../../../_components/hospitality/HospitalityStaffSection';
 
 const config = getIndustryConfig('hospitality')!;
 
