@@ -136,6 +136,14 @@ async function unlockUserSubscription(
   const endIso = end.toISOString();
   const nowIso = new Date().toISOString();
 
+  const metaPatch = {
+    plan: plan.id,
+    subscriptionStatus: 'active',
+    subscriptionEndDate: endIso,
+    subscriptionStartDate: nowIso,
+    trialEndDate: nowIso,
+  };
+
   const patch: Record<string, unknown> = {
     plan: plan.id,
     subscription_status: 'active',
@@ -146,59 +154,102 @@ async function unlockUserSubscription(
   };
 
   let userId = opts.userId || null;
+
+  // Resolve userId from email if needed
+  if ((!userId || !/^[0-9a-f-]{36}$/i.test(String(userId))) && opts.email) {
+    const { data: u } = await sb
+      .from('users')
+      .select('id')
+      .eq('email', opts.email.toLowerCase())
+      .maybeSingle();
+    if (u) userId = (u as any).id;
+  }
+
   if (userId) {
     try {
-      const { data: existing } = await sb.from('users').select('metadata').eq('id', userId).maybeSingle();
+      const { data: existing } = await sb.from('users').select('id, metadata').eq('id', userId).maybeSingle();
       const prev =
         existing?.metadata && typeof existing.metadata === 'object'
           ? { ...(existing.metadata as Record<string, unknown>) }
           : {};
       patch.metadata = {
         ...prev,
-        plan: plan.id,
-        subscriptionStatus: 'active',
-        subscriptionEndDate: endIso,
-        subscriptionStartDate: nowIso,
-        trialEndDate: nowIso,
+        ...metaPatch,
       };
-    } catch {
-      /* ignore */
-    }
-    const { error } = await sb.from('users').update(patch).eq('id', userId);
-    if (error) {
-      console.error('[unlockUserSubscription] by id', error.message);
-    } else {
+
+      if (existing) {
+        const { error } = await sb.from('users').update(patch).eq('id', userId);
+        if (error) {
+          console.error('[unlockUserSubscription] by id update', error.message);
+        }
+      } else {
+        // Row missing (Firestore-only onboarding) — create with active subscription
+        const { error } = await sb.from('users').upsert(
+          {
+            id: userId,
+            email: opts.email || null,
+            role: 'Owner',
+            business_id: userId,
+            ...patch,
+            created_at: nowIso,
+          },
+          { onConflict: 'id' }
+        );
+        if (error) {
+          console.error('[unlockUserSubscription] by id upsert', error.message);
+        }
+      }
+
       try {
         const { data: u } = await sb
           .from('users')
           .select('business_id, businessId')
           .eq('id', userId)
           .maybeSingle();
-        const bid = (u as any)?.business_id || (u as any)?.businessId;
+        const bid = (u as any)?.business_id || (u as any)?.businessId || userId;
         if (bid) {
           await sb
             .from('businesses')
-            .update({
-              plan: plan.id,
-              subscription_status: 'active',
-              updated_at: nowIso,
-            })
-            .eq('id', bid);
+            .upsert(
+              {
+                id: bid,
+                owner_id: userId,
+                plan: plan.id,
+                subscription_status: 'active',
+                updated_at: nowIso,
+              } as any,
+              { onConflict: 'id' }
+            );
         }
       } catch (e: any) {
         console.warn('[unlockUserSubscription] business update skipped', e?.message);
       }
       return;
+    } catch (e: any) {
+      console.error('[unlockUserSubscription] by id', e?.message);
     }
   }
 
   if (opts.email) {
-    const { error } = await sb
-      .from('users')
-      .update(patch)
-      .eq('email', opts.email.toLowerCase());
-    if (error) {
-      console.error('[unlockUserSubscription] by email', error.message);
+    const email = opts.email.toLowerCase();
+    const { data: byEmail } = await sb.from('users').select('id, metadata').eq('email', email).maybeSingle();
+    if (byEmail) {
+      const prev =
+        byEmail.metadata && typeof byEmail.metadata === 'object'
+          ? { ...(byEmail.metadata as Record<string, unknown>) }
+          : {};
+      const { error } = await sb
+        .from('users')
+        .update({
+          ...patch,
+          metadata: { ...prev, ...metaPatch },
+        })
+        .eq('email', email);
+      if (error) {
+        console.error('[unlockUserSubscription] by email', error.message);
+      }
+    } else {
+      console.warn('[unlockUserSubscription] no user found for email', email);
     }
   }
 }

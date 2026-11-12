@@ -75,6 +75,87 @@ async function markExpired(supabase: ReturnType<typeof getSupabase>, userId: str
   }
 }
 
+/**
+ * Ensure a public.users row exists with an active 14-day trial.
+ * Onboarding historically wrote trial only to Firestore; dashboard reads Supabase.
+ * Missing rows previously failed closed ("Trial Ended") for brand-new users.
+ */
+async function ensureTrialUserRow(
+  supabase: ReturnType<typeof getSupabase>,
+  userId: string,
+  sessionEmail?: string | null
+): Promise<{
+  trialEndDate: Date;
+  trialStartDate: Date;
+}> {
+  const now = new Date();
+  const trialStart = now;
+  const trialEnd = new Date(now.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+  const nowIso = now.toISOString();
+  const trialEndIso = trialEnd.toISOString();
+
+  const payload: Record<string, unknown> = {
+    id: userId,
+    email: sessionEmail || null,
+    role: 'Owner',
+    plan: 'standard',
+    subscription_status: 'trial',
+    trial_start_date: nowIso,
+    trial_end_date: trialEndIso,
+    business_id: userId,
+    updated_at: nowIso,
+    metadata: {
+      plan: 'standard',
+      subscriptionStatus: 'trial',
+      trialStartDate: nowIso,
+      trialEndDate: trialEndIso,
+      source: 'trial_guard_bootstrap',
+    },
+  };
+
+  // Prefer upsert so concurrent first visits don't race
+  const { error: upsertErr } = await supabase.from('users').upsert(
+    {
+      ...payload,
+      created_at: nowIso,
+    },
+    { onConflict: 'id' }
+  );
+
+  if (upsertErr) {
+    console.warn('[TrialGuard] upsert bootstrap failed, trying insert/update:', upsertErr.message);
+    const { data: existing } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase
+        .from('users')
+        .update({
+          subscription_status: 'trial',
+          trial_start_date: nowIso,
+          trial_end_date: trialEndIso,
+          plan: 'standard',
+          updated_at: nowIso,
+          metadata: payload.metadata,
+        })
+        .eq('id', userId);
+    } else {
+      const { error: insErr } = await supabase.from('users').insert({
+        ...payload,
+        created_at: nowIso,
+      });
+      if (insErr) {
+        console.error('[TrialGuard] insert bootstrap failed:', insErr.message);
+      }
+    }
+  }
+
+  return { trialEndDate: trialEnd, trialStartDate: trialStart };
+}
+
 export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
@@ -91,7 +172,7 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
         return;
       }
       try {
-        const { data: userData, error } = await supabase
+        let { data: userData, error } = await supabase
           .from('users')
           .select(
             'id, role, subscription_status, trial_start_date, trial_end_date, grace_end_date, subscription_end_date, lifetime_access, metadata'
@@ -99,16 +180,52 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
           .eq('id', userId)
           .maybeSingle();
 
-        if (error) {
-          console.error('[TrialGuard] user load error:', error.message);
-          // Fail closed for owners when we cannot verify entitlement
-          setIsExpired(true);
+        // No row yet (common after Firestore-only onboarding) → bootstrap 14-day trial
+        if (!error && !userData) {
+          console.info('[TrialGuard] no users row — bootstrapping 14-day trial for', userId);
+          const boot = await ensureTrialUserRow(supabase, userId, sessionEmail);
+          const rem = remainingFrom(boot.trialEndDate, new Date());
+          setTrialInfo({
+            ...rem,
+            isExpired: false,
+            isGrace: false,
+            trialEndDate: boot.trialEndDate,
+          });
+          setIsExpired(false);
           setIsLoading(false);
           return;
         }
 
+        if (error) {
+          console.error('[TrialGuard] user load error:', error.message);
+          // Soft-open with client-side trial window so a transient RLS/network blip
+          // does not lock a brand-new owner out of the dashboard.
+          const fallbackEnd = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+          const rem = remainingFrom(fallbackEnd, new Date());
+          setTrialInfo({
+            ...rem,
+            isExpired: false,
+            isGrace: false,
+            trialEndDate: fallbackEnd,
+          });
+          setIsExpired(false);
+          setIsLoading(false);
+          // Best-effort bootstrap in background
+          void ensureTrialUserRow(supabase, userId, sessionEmail);
+          return;
+        }
+
         if (!userData) {
-          setIsExpired(true);
+          // Should not reach here after bootstrap branch, but keep safe
+          const boot = await ensureTrialUserRow(supabase, userId, sessionEmail);
+          const rem = remainingFrom(boot.trialEndDate, new Date());
+          setTrialInfo({
+            ...rem,
+            isExpired: false,
+            isGrace: false,
+            trialEndDate: boot.trialEndDate,
+          });
+          setIsExpired(false);
           setIsLoading(false);
           return;
         }
@@ -228,7 +345,6 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
             const defaultTrialEnd = new Date(
               start.getTime() + TRIAL_DAYS * 24 * 60 * 60 * 1000
             );
-            // If start was long ago, do NOT extend — use computed end
             trialEndDate = defaultTrialEnd;
             await supabase
               .from('users')
@@ -236,6 +352,7 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
                 trial_end_date: trialEndDate.toISOString(),
                 trial_start_date: start.toISOString(),
                 subscription_status: 'trial',
+                plan: 'standard',
               })
               .eq('id', userId);
           }
@@ -290,8 +407,16 @@ export const TrialGuard: React.FC<TrialGuardProps> = ({ children }) => {
         setIsLoading(false);
       } catch (error) {
         console.error('[TrialGuard] failed:', error);
-        // Fail closed — do not leave the dashboard open when entitlement cannot be verified
-        setIsExpired(true);
+        // Soft-open: do not lock new owners out on unexpected errors
+        const fallbackEnd = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+        const rem = remainingFrom(fallbackEnd, new Date());
+        setTrialInfo({
+          ...rem,
+          isExpired: false,
+          isGrace: false,
+          trialEndDate: fallbackEnd,
+        });
+        setIsExpired(false);
         setIsLoading(false);
       }
     };
