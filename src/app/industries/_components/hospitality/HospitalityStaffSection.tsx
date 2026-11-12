@@ -11,6 +11,7 @@ import {
   HospitalityCheckinPage,
 } from './HospitalityModules';
 import { IndustryMO } from '../IndustryMO';
+import { HospitalityStaffBottomNav } from '../IndustryBottomNav';
 
 const NAV = [
   { label: 'Dashboard', href: '/industries/hospitality/front-desk' },
@@ -92,6 +93,7 @@ export function HospitalityStaffSection({
         </div>
         <div className={styles.staffSectionBody}>{body}</div>
       </div>
+      <HospitalityStaffBottomNav />
       <IndustryMO config={config} businessName={config.productName} />
     </div>
   );

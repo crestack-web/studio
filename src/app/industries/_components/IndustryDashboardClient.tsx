@@ -8,6 +8,7 @@ import type { IndustryConfig } from '@/lib/industries/types';
 import { getSuiteFamily } from '@/lib/industries/suite-catalog';
 import styles from './IndustryShell.module.css';
 import { IndustryMO } from './IndustryMO';
+import { IndustryOwnerBottomNav } from './IndustryBottomNav';
 import { IndustryModuleView } from './IndustryModuleView';
 
 const SECTION_ORDER = ['main', 'operations', 'finance', 'settings'] as const;
@@ -457,6 +458,7 @@ export function IndustryDashboardClient({
           )}
         </div>
       </div>
+      <IndustryOwnerBottomNav config={config} />
       <IndustryMO config={config} businessName={displayName} />
     </div>
   );

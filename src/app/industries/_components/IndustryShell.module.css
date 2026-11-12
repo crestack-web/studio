@@ -865,3 +865,14 @@
   height: 1px;
   background: #e8e8f0;
 }
+
+
+/* Mobile bottom nav clearance */
+@media (max-width: 900px) {
+  .main {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+  .page {
+    padding-bottom: 0;
+  }
+}

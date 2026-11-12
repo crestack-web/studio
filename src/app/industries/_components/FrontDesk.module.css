@@ -563,3 +563,14 @@
   .topbarMobile { display: flex; }
 }
 
+
+
+/* Mobile bottom nav clearance */
+@media (max-width: 900px) {
+  .main {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+  .staffSectionBody {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+}
