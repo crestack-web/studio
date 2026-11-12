@@ -22,6 +22,8 @@ export type SuiteFamily = {
   /** Optional full-bleed hero image for the solutions welcome page */
   heroImage?: string;
   heroImageAlt?: string;
+  /** Product logo for auth / welcome branding */
+  logoSrc?: string;
 };
 
 const businessProducts: SuiteProduct[] = [
@@ -63,6 +65,7 @@ export const SUITE_FAMILIES: SuiteFamily[] = [
   },
   {
     id: 'hospitality',
+    logoSrc: '/industries/busmo-hospitality-logo.jpg',
     label: 'Hospitality',
     productName: HOSPITALITY.productName,
     href: HOSPITALITY.welcomePath,
@@ -104,6 +107,7 @@ export const SUITE_FAMILIES: SuiteFamily[] = [
 
   {
     id: 'healthcare',
+    logoSrc: '/industries/busmo-healthcare-logo.jpg',
     label: 'Healthcare',
     productName: HEALTHCARE.productName,
     href: HEALTHCARE.welcomePath,

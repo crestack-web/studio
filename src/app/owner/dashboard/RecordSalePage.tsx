@@ -116,34 +116,31 @@ export function RecordSalePage() {
 
   // Resolve business id for product loads
   async function resolveSaleBusinessId(): Promise<string> {
+    // Match InventoryPage: prefer AppContext businessId, then auth uid (Busmo signup convention)
     const { data: sess } = await getSupabase().auth.getSession();
     const uid = sess.session?.user?.id || getAuthCurrentUser()?.uid || user?.id || '';
     if (!uid) return '';
 
-    let bId =
-      (user as any)?.businessId ||
-      (user as any)?.business_id ||
-      businessId ||
-      '';
+    // Same formula Inventory uses successfully
+    let bId = String((user as any)?.businessId || (user as any)?.business_id || uid || '');
 
-    if (!bId || bId === uid) {
-      try {
-        const { data: userDoc } = await getSupabase()
-          .from('users')
-          .select('business_id, businessId')
-          .eq('id', uid)
-          .maybeSingle();
-        bId =
-          (userDoc as any)?.business_id ||
-          (userDoc as any)?.businessId ||
-          bId ||
-          '';
-      } catch (_) {}
-    }
-    if (!bId || bId === uid) {
+    // If profile has a different business_id, prefer it (inventory also loads from users doc)
+    try {
+      const { data: userDoc } = await getSupabase()
+        .from('users')
+        .select('business_id, businessId')
+        .eq('id', uid)
+        .maybeSingle();
+      const fromProfile =
+        (userDoc as any)?.business_id || (userDoc as any)?.businessId || '';
+      if (fromProfile) bId = String(fromProfile);
+    } catch (_) {}
+
+    // Fallbacks only if still empty
+    if (!bId) {
       try {
         const { resolveOwnerScopeBusinessId } = await import('@/lib/resolve-business-scope');
-        bId = (await resolveOwnerScopeBusinessId(uid, bId || undefined)) || bId;
+        bId = (await resolveOwnerScopeBusinessId(uid, undefined)) || '';
       } catch (_) {}
     }
     if (!bId) {
@@ -157,47 +154,46 @@ export function RecordSalePage() {
         bId = owned?.id || '';
       } catch (_) {}
     }
-    // Busmo convention: business id may equal auth uid
-    if (!bId) {
-      try {
-        const { data: selfBiz } = await getSupabase()
-          .from('businesses')
-          .select('id')
-          .eq('id', uid)
-          .maybeSingle();
-        bId = selfBiz?.id || '';
-      } catch (_) {}
-    }
-    return bId || '';
+    return bId || uid;
   }
 
   function mapProductRow(data: any): Product | null {
     if (!data || !data.id) return null;
-    const status = String(data.status || '').toLowerCase();
+    const status = String(data.status || '').toLowerCase().trim();
+    // Inventory shows products without status; only hide clearly non-saleable
     if (['inactive', 'archived', 'deleted', 'draft'].includes(status)) return null;
-    if (data.active === false) return null;
-    // Only skip explicit ingredients
+    // active: false only when explicitly boolean false (not null/undefined)
+    if (data.active === false || data.active === 'false') return null;
+
     const pType = String(
       data.productType || data.product_type || data.type || data.metadata?.productType || ''
     ).toLowerCase();
-    if (pType === 'ingredient' || pType.includes('ingredient')) return null;
-    if (isIngredientProduct(data)) return null;
+    // Explicit dishes are always included
+    const isDish = pType === 'dish' || pType.includes('dish') || pType === 'menu' || pType === 'menu_item';
+    if (!isDish && (pType === 'ingredient' || pType.includes('ingredient'))) return null;
+    if (!isDish && isIngredientProduct(data)) return null;
+
+    const price = Number(
+      data.price ?? data.sellingPrice ?? data.sell_price ?? data.sellPrice ?? 0
+    );
+    const cost = Number(data.costPrice ?? data.cost ?? data.cost_price ?? 0);
+    const stock = Number(data.stock ?? data.stock_level ?? data.quantity ?? 0);
 
     return {
       id: String(data.id),
-      name: data.name || 'Unnamed Product',
-      price: Number(data.price ?? data.sellingPrice ?? data.sell_price ?? 0),
-      costPrice: Number(data.costPrice ?? data.cost ?? data.cost_price ?? 0),
-      stock: Number(data.stock ?? data.stock_level ?? data.quantity ?? 0),
+      name: String(data.name || 'Unnamed Product'),
+      price,
+      costPrice: cost,
+      stock,
       stockByLocation: data.stockByLocation || data.stock_by_location || {
-        main_store: Number(data.stock ?? data.stock_level ?? 0),
+        main_store: stock,
         back_store: 0,
         warehouse: 0,
       },
-      emoji: data.emoji || data.attributes?.emoji || '📦',
+      emoji: data.emoji || data.attributes?.emoji || (isDish ? '🍽️' : '📦'),
       lowStockThreshold: Number(data.lowStockThreshold ?? data.low_stock_threshold ?? 10),
       imageUrl: data.imageUrl || data.image_url || '',
-      type: pType || 'product',
+      type: pType || (isDish ? 'dish' : 'product'),
     };
   }
 
