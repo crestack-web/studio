@@ -100,6 +100,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
       return;
     }
 
+    // Login stays single-step
     if (mode === 'login' && !recovery) {
       setLoading(true);
       try {
@@ -118,6 +119,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
       return;
     }
 
+    // Signup / recovery — step 1: account fields only
     if (mode === 'signup' && signupStep === 'account' && !recovery) {
       if (!businessName.trim()) {
         setError(`Enter your ${intake.orgLabel.toLowerCase()}.`);
@@ -131,6 +133,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
       return;
     }
 
+    // Step 2: solution details (signup or recovery)
     const detailErr = validateIndustryDetails(config.id, solutionDetails);
     if (detailErr) {
       setError(detailErr);
@@ -168,6 +171,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
         return;
       }
 
+      // Create account then onboard with full solution profile
       const signupRes = await fetch('/api/industries/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -182,6 +186,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
       const signupJson = await signupRes.json().catch(() => ({}));
 
       if (!signupRes.ok) {
+        // Fallback: auth signup + onboard (legacy path)
         if (signupRes.status === 404 || signupJson.error === 'Not found') {
           const { data: signData, error: signErr } = await supabase.auth.signUp({
             email: email.trim(),
@@ -201,6 +206,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
               await trackSignupSuccess({ userId: signData.user.id, email: email.trim() });
             } catch (_) {}
           }
+          // Prefer immediate session; if none, sign in with password (no email verification gate)
           if (!signData.session) {
             const { error: loginErr } = await supabase.auth.signInWithPassword({
               email: email.trim(),
@@ -219,6 +225,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
         throw new Error(signupJson.error || 'Could not create account');
       }
 
+      // Sign in immediately — no email verification required
       if (signupJson.userId || signupJson.ok) {
         if (signupJson.userId) {
           try {
@@ -246,6 +253,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
         return;
       }
 
+      // Legacy path: session present and no confirm gate
       if (signupJson.dashboardPath && signupJson.onboarded) {
         window.location.href = signupJson.dashboardPath;
         return;
@@ -258,6 +266,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
     }
   }
 
+  // After Google OAuth return on signup, open operations step with profile prefilled
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
@@ -307,6 +316,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
         },
       });
       if (oauthError) throw oauthError;
+      // Browser navigates away on success
     } catch (err: any) {
       setError(err?.message || 'Google sign-in failed. Please try again.');
       setGoogleLoading(false);
@@ -318,204 +328,266 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
 
   return (
     <div className={styles.authPage}>
-      <div className={styles.authCard}>
-        <div className={styles.authBrand}>
-          {config.logoSrc ? (
-            <div className={styles.authProductLogoWrap}>
-              <img
-                src={config.logoSrc}
-                alt={config.productName}
-                className={styles.authProductLogo}
-              />
-            </div>
-          ) : (
-            <>
-              <span className={styles.authLogo} aria-hidden>
-                $
-              </span>
-              <span>{config.productName}</span>
-            </>
-          )}
-        </div>
-
-        <h1>
-          {mode === 'login' && !recovery
-            ? 'Sign in'
-            : showDetails
-              ? 'Tell us about your operations'
-              : 'Create your account'}
-        </h1>
-        <p className={styles.authLead}>
-          {mode === 'login' && !recovery
-            ? `Sign in to ${config.productName}`
-            : showDetails
-              ? intake.sub
-              : `Two quick steps — account, then how your ${config.greetingNoun} operates.`}
-        </p>
-
-        {error && <div className={styles.authError}>{error}</div>}
-        {info && <div className={styles.authInfo}>{info}</div>}
-        {recovery && <div className={styles.authInfo}>{recovery}</div>}
-
-        {!showDetails && !recovery && !awaitingConfirm && (
+    <div className={styles.authCard}>
+      <div className={styles.authBrand}>
+        {config.logoSrc ? (
+          <div className={styles.authProductLogoWrap}>
+            <img
+              src={config.logoSrc}
+              alt={config.productName}
+              className={styles.authProductLogo}
+            />
+          </div>
+        ) : (
           <>
-            <button
-              type="button"
-              className={styles.btnGoogle}
-              onClick={handleGoogleAuth}
-              disabled={loading || googleLoading}
+            <span className={styles.authLogo} aria-hidden>
+              $
+            </span>
+            <span>{config.productName}</span>
+          </>
+        )}
+      </div>
+
+      <h1>
+        {mode === 'login' && !recovery
+          ? 'Sign in'
+          : showDetails
+            ? 'Tell us about your operations'
+            : 'Create your account'}
+      </h1>
+      <p className={styles.authLead}>
+        {mode === 'login' && !recovery
+          ? `Sign in to ${config.productName}`
+          : showDetails
+            ? intake.sub
+            : `Two quick steps — account, then how your ${config.greetingNoun} operates.`}
+      </p>
+
+      {mode === 'signup' && !recovery && (
+        <div className={styles.stepRow} aria-label={`Step ${showDetails ? 2 : 1} of 2`}>
+          <span className={!showDetails ? styles.stepActive : styles.stepDone}>1. Account</span>
+          <span className={styles.stepSep} />
+          <span className={showDetails ? styles.stepActive : styles.stepIdle}>2. Operations</span>
+        </div>
+      )}
+
+      {mode === 'signup' && !showDetails && !recovery && (
+        <div className={styles.previewBox}>
+          <div className={styles.previewTitle}>After account, we&apos;ll ask about</div>
+          <div className={styles.outcomeRow}>
+            {intake.outcomes.map((o) => (
+              <span key={o} className={styles.outcomeChip}>{o}</span>
+            ))}
+          </div>
+          <p className={styles.previewSub}>{intake.headline}</p>
+        </div>
+      )}
+
+      {!showDetails && !recovery && !awaitingConfirm && (
+        <>
+          <button
+            type="button"
+            className={styles.btnGoogle}
+            onClick={handleGoogleAuth}
+            disabled={loading || googleLoading}
+          >
+            <span className={styles.googleIcon} aria-hidden>
+              <svg width="18" height="18" viewBox="0 0 48 48">
+                <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z"/>
+                <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 12 24 12c3.1 0 5.8 1.1 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.6 8.3 6.3 14.7z"/>
+                <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.1-11.3-7.5l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+                <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4 5.5l.1.1 6.3 5.3C39.2 37.1 44 31.5 44 24c0-1.3-.1-2.5-.4-3.5z"/>
+              </svg>
+            </span>
+            {googleLoading
+              ? 'Connecting…'
+              : mode === 'login'
+                ? 'Continue with Google'
+                : 'Sign up with Google'}
+          </button>
+          <div className={styles.orDivider}>
+            <span>or use email</span>
+          </div>
+        </>
+      )}
+
+      {error && <div className={styles.authError}>{error}</div>}
+      {info && <div className={styles.authInfo}>{info}</div>}
+      {recovery && <div className={styles.authInfo}>{recovery}</div>}
+      {needsEmailConfirm && (
+        <div className={styles.authInfo}>
+          Confirm your email if prompted, then return here to sign in.
+        </div>
+      )}
+
+      {awaitingConfirm ? (
+        <div className={styles.previewBox}>
+          <div className={styles.previewTitle}>Check your email</div>
+          <p className={styles.previewSub}>
+            We sent a confirmation link to <strong>{email.trim()}</strong>. Confirm your address, then sign in to open {config.productName}.
+            A welcome message is on its way as well.
+          </p>
+          <div className={styles.authActions} style={{ marginTop: 16 }}>
+            <Link
+              href={config.loginPath}
+              className={styles.btnPrimary}
+              style={{ textAlign: 'center', width: '100%', justifyContent: 'center' }}
             >
-              {googleLoading
-                ? 'Connecting…'
-                : mode === 'login'
-                  ? 'Continue with Google'
-                  : 'Sign up with Google'}
-            </button>
-            <div className={styles.orDivider}>
-              <span>or use email</span>
-            </div>
+              Go to sign in
+            </Link>
+          </div>
+        </div>
+      ) : (
+      <form onSubmit={onSubmit} className={styles.authForm}>
+        {(mode === 'login' || (mode === 'signup' && !showDetails) || recovery) && (
+          <>
+            {(mode === 'signup' || recovery) && (
+              <div className={styles.field}>
+                <label htmlFor="biz">{intake.orgLabel}</label>
+                <input
+                  id="biz"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  placeholder={intake.orgPlaceholder}
+                  required={mode === 'signup' || !!recovery}
+                  autoComplete="organization"
+                />
+              </div>
+            )}
+            {!recovery && (
+              <>
+                <div className={styles.field}>
+                  <label htmlFor="email">Email</label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                  />
+                </div>
+                <div className={styles.field}>
+                  <label htmlFor="password">Password</label>
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  />
+                </div>
+              </>
+            )}
           </>
         )}
 
-        <form onSubmit={onSubmit} className={styles.authForm}>
-          {(mode === 'login' || (mode === 'signup' && !showDetails) || recovery) && (
-            <>
-              {(mode === 'signup' || recovery) && (
-                <div className={styles.field}>
-                  <label htmlFor="biz">{intake.orgLabel}</label>
-                  <input
-                    id="biz"
-                    value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                    placeholder={intake.orgPlaceholder}
-                    required={mode === 'signup' || !!recovery}
-                    autoComplete="organization"
-                  />
-                </div>
-              )}
-              {!recovery && (
-                <>
-                  <div className={styles.field}>
-                    <label htmlFor="email">Email</label>
-                    <input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      autoComplete="email"
-                    />
-                  </div>
-                  <div className={styles.field}>
-                    <label htmlFor="password">Password</label>
-                    <input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      minLength={6}
-                      autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                    />
-                  </div>
-                </>
-              )}
-            </>
-          )}
-
-          {showDetails && (
-            <div className={styles.intakeBlock}>
-              <div className={styles.intakeHead}>
-                <strong>{intake.headline}</strong>
+        {showDetails && (
+          <div className={styles.intakeBlock}>
+            <div className={styles.intakeHead}>
+              <strong>{intake.headline}</strong>
+              <div className={styles.outcomeRow}>
+                {intake.outcomes.map((o) => (
+                  <span key={o} className={styles.outcomeChip}>
+                    {o}
+                  </span>
+                ))}
               </div>
-              {intake.fields.map((field) => {
-                const value = solutionDetails[field.id];
-                return (
-                  <div key={field.id} className={styles.field}>
-                    <label>
-                      {field.label}
-                      {field.required ? ' *' : ''}
-                    </label>
-                    {field.type === 'text' || field.type === 'number' ? (
-                      <input
-                        type={field.type === 'number' ? 'number' : 'text'}
-                        value={typeof value === 'string' ? value : ''}
-                        placeholder={field.placeholder || ''}
-                        onChange={(e) => setDetail(field.id, e.target.value)}
-                      />
-                    ) : (
-                      <div className={styles.chipRow}>
-                        {(field.options || []).map((opt) => {
-                          const selected =
-                            field.type === 'multi'
-                              ? Array.isArray(value) && value.includes(opt)
-                              : value === opt;
-                          return (
-                            <button
-                              key={opt}
-                              type="button"
-                              className={selected ? styles.chipOn : styles.chip}
-                              onClick={() => {
-                                if (field.type === 'multi') {
-                                  const cur = Array.isArray(value) ? value : [];
-                                  setDetail(
-                                    field.id,
-                                    cur.includes(opt)
-                                      ? cur.filter((x) => x !== opt)
-                                      : [...cur, opt]
-                                  );
-                                } else {
-                                  setDetail(field.id, opt);
-                                }
-                              }}
-                            >
-                              {opt}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
             </div>
-          )}
-
-          <div className={styles.authActions}>
-            {showDetails && mode === 'signup' && !recovery && (
-              <button
-                type="button"
-                className={styles.btnGhost}
-                onClick={() => setSignupStep('account')}
-                disabled={loading}
-              >
-                Back
-              </button>
-            )}
-            <button type="submit" className={styles.btnPrimary} disabled={loading}>
-              {loading
-                ? 'Please wait…'
-                : mode === 'login' && !recovery
-                  ? 'Sign in'
-                  : showDetails
-                    ? 'Finish setup'
-                    : 'Continue'}
-            </button>
+            {intake.fields.map((field) => {
+              const value = solutionDetails[field.id];
+              return (
+                <div key={field.id} className={styles.field}>
+                  <label>
+                    {field.label}
+                    {field.required ? ' *' : ''}
+                  </label>
+                  {field.type === 'text' || field.type === 'number' ? (
+                    <input
+                      type={field.type === 'number' ? 'number' : 'text'}
+                      value={typeof value === 'string' ? value : ''}
+                      placeholder={field.placeholder || ''}
+                      onChange={(e) => setDetail(field.id, e.target.value)}
+                    />
+                  ) : (
+                    <div className={styles.chipRow}>
+                      {(field.options || []).map((opt) => {
+                        const selected =
+                          field.type === 'multi'
+                            ? Array.isArray(value) && value.includes(opt)
+                            : value === opt;
+                        return (
+                          <button
+                            key={opt}
+                            type="button"
+                            className={selected ? styles.chipOn : styles.chip}
+                            onClick={() => {
+                              if (field.type === 'multi') {
+                                const cur = Array.isArray(value) ? [...value] : [];
+                                setDetail(
+                                  field.id,
+                                  cur.includes(opt) ? cur.filter((x) => x !== opt) : [...cur, opt]
+                                );
+                              } else {
+                                setDetail(field.id, opt);
+                              }
+                            }}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        </form>
+        )}
 
-        <p className={styles.authSwitch}>
-          {mode === 'login' ? (
-            <>
-              New here? <Link href={config.signupPath}>Create an account</Link>
-            </>
-          ) : (
-            <>
-              Already have an account? <Link href={config.loginPath}>Sign in</Link>
-            </>
+        <div className={styles.authActions}>
+          {showDetails && mode === 'signup' && !recovery && (
+            <button
+              type="button"
+              className={styles.btnGhost}
+              onClick={() => setSignupStep('account')}
+              disabled={loading}
+            >
+              Back
+            </button>
           )}
-        </p>
-      </div>
+          <button type="submit" className={styles.btnPrimary} disabled={loading}>
+            {loading
+              ? 'Please wait…'
+              : mode === 'login' && !recovery
+                ? 'Sign in'
+                : showDetails
+                  ? 'Finish setup'
+                  : 'Continue'}
+          </button>
+        </div>
+      </form>
+      )}
+
+      <p className={styles.authSwitch}>
+        {mode === 'login' ? (
+          <>
+            New here? <Link href={config.signupPath}>Create an account</Link>
+          </>
+        ) : (
+          <>
+            Already have an account? <Link href={config.loginPath}>Sign in</Link>
+          </>
+        )}
+      </p>
+      <p className={styles.authSwitch} style={{ marginTop: 8 }}>
+        <Link href="/welcome">Busmo Business</Link>
+        {' · '}
+        <Link href="/welcome/login">Busmo Business login</Link>
+      </p>
+    </div>
     </div>
   );
 }
