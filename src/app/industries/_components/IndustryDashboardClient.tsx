@@ -348,9 +348,6 @@ export function IndustryDashboardClient({
             </div>
           </div>
           <div className={styles.topbarRight}>
-            <a href={deskHref} className={styles.topGhost} target="_self" rel="noopener">
-              Staff portal
-            </a>
             <button
               type="button"
               className={styles.signOut}
@@ -377,8 +374,8 @@ export function IndustryDashboardClient({
                     model as Zoho, purpose-built for African businesses.
                   </p>
                 </div>
-                <a href={deskHref} className={styles.btnPrimary}>
-                  Open staff portal →
+                <a href="#modules" className={styles.btnPrimary}>
+                  View modules below →
                 </a>
               </div>
 

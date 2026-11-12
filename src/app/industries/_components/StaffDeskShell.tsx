@@ -56,7 +56,7 @@ export function StaffDeskShell({
           <img src={logo} alt="" className={styles.logo} />
           <div>
             <div className={styles.brandName}>{brandName}</div>
-            <div className={styles.brandSub}>Staff portal · {config.shortName}</div>
+            <div className={styles.brandSub}> {config.shortName}</div>
           </div>
         </div>
         <nav className={styles.nav}>

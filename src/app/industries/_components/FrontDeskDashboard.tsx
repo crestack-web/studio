@@ -198,22 +198,26 @@ export function FrontDeskDashboard({
       <aside className={[styles.sidebar, sidebarOpen ? styles.sidebarOpen : ''].join(' ')}>
         <div className={styles.busmoMark}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={config.logoSrc || "/email-logo.png"} alt={config.productName} />
-          <span>BUSMO</span>
+          <img
+            src={config.logoSrc || logoUrl || "/email-logo.png"}
+            alt={config.productName}
+            className={styles.topLogo}
+          />
         </div>
         <div className={styles.brand}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={logoUrl || '/email-logo.png'} alt="" className={styles.logo} />
           <div>
             <div className={styles.brandName}>{propertyName}</div>
-            <div className={styles.brandSub}>Staff portal · Front desk</div>
+            <div className={styles.brandSub}>Front desk</div>
           </div>
         </div>
         <nav className={styles.nav}>
           <span className={styles.navActive}>Dashboard</span>
-          <Link href={`${config.dashboardPath}/reservations`} onClick={() => setSidebarOpen(false)}>Bookings</Link>
-          <Link href={`${config.dashboardPath}/rooms`} onClick={() => setSidebarOpen(false)}>Rooms</Link>
-          <Link href={`${config.dashboardPath}/guests`} onClick={() => setSidebarOpen(false)}>Guests</Link>
+          <Link href="/industries/hospitality/front-desk/bookings" onClick={() => setSidebarOpen(false)}>Bookings</Link>
+          <Link href="/industries/hospitality/front-desk/rooms" onClick={() => setSidebarOpen(false)}>Rooms</Link>
+          <Link href="/industries/hospitality/front-desk/guests" onClick={() => setSidebarOpen(false)}>Guests</Link>
+          <Link href="/industries/hospitality/front-desk/checkin" onClick={() => setSidebarOpen(false)}>Check-in</Link>
           {mode === 'owner-preview' ? (
             <Link href={`${config.dashboardPath}/settings`} onClick={() => setSidebarOpen(false)}>Hotel settings</Link>
           ) : null}
@@ -235,7 +239,7 @@ export function FrontDeskDashboard({
               <div className={styles.busmoMark} style={{ marginBottom: 6 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={config.logoSrc || "/email-logo.png"} alt={config.productName} />
-                <span>BUSMO</span>
+                
               </div>
               <h1>Dashboard</h1>
               <p className={styles.topHint}>Live room status and today's front-desk activity</p>

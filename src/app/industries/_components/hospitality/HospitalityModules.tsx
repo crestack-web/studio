@@ -49,7 +49,7 @@ function Panel({
   children,
 }: {
   title: string;
-  meta?: string;
+  meta?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -125,6 +125,7 @@ export function HospitalityRoomsPage({ config }: { config: IndustryConfig }) {
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showAddRoom, setShowAddRoom] = useState(false);
   const [q, setQ] = useState('');
   const [form, setForm] = useState({
     roomNumber: '',
@@ -183,6 +184,7 @@ export function HospitalityRoomsPage({ config }: { config: IndustryConfig }) {
       }
       setForm((f) => ({ ...f, roomNumber: '' }));
       setMsg('Room added');
+      setShowAddRoom(false);
       await load();
     } finally {
       setBusy(false);
@@ -214,9 +216,9 @@ export function HospitalityRoomsPage({ config }: { config: IndustryConfig }) {
       title="Rooms"
       subtitle="Room inventory, rates, and status for the front desk."
       actions={
-        <Link href="/industries/hospitality/front-desk" className={styles.btnPrimary}>
-          Open front desk
-        </Link>
+        <button type="button" className={styles.btnPrimary} onClick={() => setShowAddRoom(true)}>
+          + Add room
+        </button>
       }
     >
       <div className={styles.metricsGrid} style={{ marginBottom: 16 }}>
@@ -255,7 +257,7 @@ export function HospitalityRoomsPage({ config }: { config: IndustryConfig }) {
                     <tr key={r.id} style={{ borderTop: '1px solid #f3f4f6' }}>
                       <td style={{ padding: '10px 6px' }}>
                         <strong>{r.room_number}</strong>
-                        <div style={{ fontSize: 12, color: '#9ca3af' }}>Floor {r.floor || '—'}</div>
+                        <div style={{ fontSize: 12, color: '#9ca3af' }}>{r.floor || '—'}</div>
                       </td>
                       <td style={{ padding: '10px 6px' }}>{r.category || 'Standard'}</td>
                       <td style={{ padding: '10px 6px' }}>{money(r.rate_amount)}</td>
@@ -283,7 +285,15 @@ export function HospitalityRoomsPage({ config }: { config: IndustryConfig }) {
           )}
         </Panel>
 
-        <Panel title="Add room">
+        {showAddRoom ? (
+        <Panel
+          title="Add room"
+          meta={
+            <button type="button" className={styles.topGhost} onClick={() => setShowAddRoom(false)}>
+              Cancel
+            </button>
+          }
+        >
           <form onSubmit={addRoom}>
             <label style={labelStyle}>Room number</label>
             <input
@@ -328,6 +338,7 @@ export function HospitalityRoomsPage({ config }: { config: IndustryConfig }) {
             </button>
           </form>
         </Panel>
+        ) : null}
       </div>
     </Shell>
   );
@@ -343,6 +354,7 @@ export function HospitalityReservationsPage({ config }: { config: IndustryConfig
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState('all');
   const [selected, setSelected] = useState<any | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({
     guestName: '',
     guestPhone: '',
@@ -539,9 +551,9 @@ export function HospitalityReservationsPage({ config }: { config: IndustryConfig
       title="Reservations"
       subtitle="Create stays with dates, rates, room assignment, deposits, and guest details — the same core flow as a modern PMS."
       actions={
-        <Link href="/industries/hospitality/front-desk" className={styles.btnPrimary}>
-          Front desk board
-        </Link>
+        <button type="button" className={styles.btnPrimary} onClick={() => setShowAdd(true)}>
+          + New reservation
+        </button>
       }
     >
       <div className={styles.metricsGrid} style={{ marginBottom: 16 }}>
@@ -678,6 +690,7 @@ export function HospitalityReservationsPage({ config }: { config: IndustryConfig
           ) : null}
         </Panel>
 
+        {showAdd ? (
         <Panel title="New reservation">
           <form onSubmit={createBooking}>
             <label style={labelStyle}>Guest full name *</label>
@@ -820,8 +833,10 @@ export function HospitalityReservationsPage({ config }: { config: IndustryConfig
             <button type="submit" className={styles.btnPrimary} disabled={busy} style={{ width: '100%' }}>
               {busy ? 'Saving…' : 'Create reservation'}
             </button>
+            <button type="button" className={styles.topGhost} style={{ width: '100%', marginTop: 8 }} onClick={() => setShowAdd(false)}>Cancel</button>
           </form>
         </Panel>
+        ) : null}
       </div>
     </Shell>
   );
@@ -835,6 +850,7 @@ export function HospitalityGuestsPage({ config }: { config: IndustryConfig }) {
   const [q, setQ] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({
     fullName: '',
     phone: '',
@@ -879,6 +895,7 @@ export function HospitalityGuestsPage({ config }: { config: IndustryConfig }) {
       }
       setForm({ fullName: '', phone: '', email: '', idNumber: '', notes: '' });
       setMsg('Guest saved');
+      setShowAdd(false);
       await load();
     } finally {
       setBusy(false);
@@ -942,7 +959,15 @@ export function HospitalityGuestsPage({ config }: { config: IndustryConfig }) {
   });
 
   return (
-    <Shell title="Guests" subtitle="Guest profiles and stay history for the property.">
+    <Shell
+      title="Guests"
+      subtitle="Guest profiles and stay history for the property."
+      actions={
+        <button type="button" className={styles.btnPrimary} onClick={() => setShowAdd(true)}>
+          + Add guest
+        </button>
+      }
+    >
       <div className={styles.metricsGrid} style={{ marginBottom: 16 }}>
         <Kpi label="Profiles" value={guests.length} />
         <Kpi label="Directory" value={derived.length} />
@@ -992,6 +1017,7 @@ export function HospitalityGuestsPage({ config }: { config: IndustryConfig }) {
             </div>
           )}
         </Panel>
+        {showAdd ? (
         <Panel title="Add guest profile">
           <form onSubmit={addGuest}>
             <label style={labelStyle}>Full name *</label>
@@ -1029,8 +1055,12 @@ export function HospitalityGuestsPage({ config }: { config: IndustryConfig }) {
             <button type="submit" className={styles.btnPrimary} disabled={busy} style={{ width: '100%' }}>
               {busy ? 'Saving…' : 'Save guest'}
             </button>
+            <button type="button" className={styles.topGhost} style={{ width: '100%', marginTop: 8 }} onClick={() => setShowAdd(false)}>
+              Cancel
+            </button>
           </form>
         </Panel>
+        ) : null}
       </div>
     </Shell>
   );
@@ -1097,7 +1127,7 @@ export function HospitalityHousekeepingPage({ config }: { config: IndustryConfig
               >
                 <div style={{ fontWeight: 700, fontSize: 18 }}>{r.room_number}</div>
                 <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8 }}>
-                  {r.category} · Floor {r.floor || '—'}
+                  {r.category} · {r.floor || '—'}
                 </div>
                 <StatusPill status={r.status} />
                 <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -1651,6 +1681,7 @@ export function HospitalityExpensesPage({ config }: { config: IndustryConfig }) 
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
 
   const load = useCallback(async () => {
     const h = await authHeaders();
@@ -1692,6 +1723,7 @@ export function HospitalityExpensesPage({ config }: { config: IndustryConfig }) 
       setAmount('');
       setNotes('');
       setMsg('Expense recorded');
+      setShowAdd(false);
       await load();
     } finally {
       setBusy(false);
@@ -1701,7 +1733,15 @@ export function HospitalityExpensesPage({ config }: { config: IndustryConfig }) 
   const total = rows.reduce((s, r) => s + Number(r.amount || 0), 0);
 
   return (
-    <Shell title="Expenses" subtitle="Property operating costs (supplies, utilities, maintenance).">
+    <Shell
+      title="Expenses"
+      subtitle="Property operating costs (supplies, utilities, maintenance)."
+      actions={
+        <button type="button" className={styles.btnPrimary} onClick={() => setShowAdd(true)}>
+          + Add expense
+        </button>
+      }
+    >
       <div className={styles.metricsGrid} style={{ marginBottom: 16 }}>
         <Kpi label="Recorded total" value={money(total)} />
         <Kpi label="Entries" value={rows.length} />
@@ -1734,6 +1774,7 @@ export function HospitalityExpensesPage({ config }: { config: IndustryConfig }) 
             </table>
           )}
         </Panel>
+        {showAdd ? (
         <Panel title="Add expense">
           <form onSubmit={add}>
             <label style={labelStyle}>Description *</label>
@@ -1761,8 +1802,12 @@ export function HospitalityExpensesPage({ config }: { config: IndustryConfig }) 
             <button type="submit" className={styles.btnPrimary} disabled={busy} style={{ width: '100%' }}>
               {busy ? 'Saving…' : 'Record expense'}
             </button>
+            <button type="button" className={styles.topGhost} style={{ width: '100%', marginTop: 8 }} onClick={() => setShowAdd(false)}>
+              Cancel
+            </button>
           </form>
         </Panel>
+        ) : null}
       </div>
     </Shell>
   );
@@ -2011,16 +2056,31 @@ export function HospitalityReportsPage({ config }: { config: IndustryConfig }) {
 export function HospitalityStaffPage({ config }: { config: IndustryConfig }) {
   const [rows, setRows] = useState<any[]>([]);
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [role, setRole] = useState('front_desk');
   const [phone, setPhone] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
 
   const load = useCallback(async () => {
     const h = await authHeaders();
-    const res = await fetch(`/api/industries/records?edition=hospitality&module=staff`, { headers: h });
+    const res = await fetch(`/api/industries/hospitality/staff`, { headers: h });
     const json = await res.json().catch(() => ({}));
-    setRows(json.records || []);
+    if (res.ok && Array.isArray(json.staff)) {
+      setRows(
+        json.staff.map((s: any) => ({
+          id: s.id,
+          title: s.full_name || s.title,
+          status: s.status || 'invited',
+          meta: { role: s.role, phone: s.phone, email: s.email },
+        }))
+      );
+      return;
+    }
+    const res2 = await fetch(`/api/industries/records?edition=hospitality&module=staff`, { headers: h });
+    const j2 = await res2.json().catch(() => ({}));
+    setRows(j2.records || []);
   }, []);
 
   useEffect(() => {
@@ -2033,25 +2093,41 @@ export function HospitalityStaffPage({ config }: { config: IndustryConfig }) {
     setMsg(null);
     try {
       const h = await authHeaders();
-      const res = await fetch('/api/industries/records', {
+      const res = await fetch('/api/industries/hospitality/staff', {
         method: 'POST',
         headers: h,
         body: JSON.stringify({
-          module: 'staff',
-          title: name.trim(),
-          status: 'active',
-          notes: phone ? `Phone: ${phone}` : null,
-          meta: { role, phone },
+          fullName: name.trim(),
+          email: email.trim(),
+          role,
+          phone: phone.trim() || null,
         }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setMsg(json.error || 'Failed');
-        return;
+        // Fallback to records if staff API not migrated
+        const res2 = await fetch('/api/industries/records', {
+          method: 'POST',
+          headers: h,
+          body: JSON.stringify({
+            module: 'staff',
+            title: name.trim(),
+            status: 'invited',
+            notes: email ? `Email: ${email}` : null,
+            meta: { role, phone, email },
+          }),
+        });
+        const j2 = await res2.json().catch(() => ({}));
+        if (!res2.ok) {
+          setMsg(json.error || j2.error || 'Failed');
+          return;
+        }
       }
       setName('');
+      setEmail('');
       setPhone('');
-      setMsg('Staff member added');
+      setMsg(json.message || 'Staff invited — they can sign in with Google or email on the staff portal');
+      setShowAdd(false);
       await load();
     } finally {
       setBusy(false);
@@ -2061,7 +2137,12 @@ export function HospitalityStaffPage({ config }: { config: IndustryConfig }) {
   return (
     <Shell
       title="Staff"
-      subtitle="Property roster for desk and housekeeping. Invite logins can reuse Busmo staff invites later."
+      subtitle="Invite staff by email and role. They sign in on the front desk portal with Google or email."
+      actions={
+        <button type="button" className={styles.btnPrimary} onClick={() => setShowAdd(true)}>
+          + Invite staff
+        </button>
+      }
     >
       <div className={styles.split}>
         <Panel title="Roster" meta={`${rows.length} people`}>
@@ -2080,7 +2161,12 @@ export function HospitalityStaffPage({ config }: { config: IndustryConfig }) {
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id} style={{ borderTop: '1px solid #f3f4f6' }}>
-                    <td style={{ padding: 8 }}>{r.title}</td>
+                    <td style={{ padding: 8 }}>
+                      {r.title}
+                      {r.meta?.email ? (
+                        <div style={{ fontSize: 12, color: '#9ca3af' }}>{r.meta.email}</div>
+                      ) : null}
+                    </td>
                     <td style={{ padding: 8 }}>{(r.meta && r.meta.role) || '—'}</td>
                     <td style={{ padding: 8 }}>
                       <StatusPill status={r.status || 'active'} />
@@ -2091,10 +2177,13 @@ export function HospitalityStaffPage({ config }: { config: IndustryConfig }) {
             </table>
           )}
         </Panel>
-        <Panel title="Add staff">
+        {showAdd ? (
+        <Panel title="Invite staff login">
           <form onSubmit={add}>
             <label style={labelStyle}>Name *</label>
             <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} required />
+            <label style={labelStyle}>Work email *</label>
+            <input style={inputStyle} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="staff@hotel.com" />
             <label style={labelStyle}>Role</label>
             <select style={inputStyle} value={role} onChange={(e) => setRole(e.target.value)}>
               <option value="front_desk">Front desk</option>
@@ -2106,10 +2195,12 @@ export function HospitalityStaffPage({ config }: { config: IndustryConfig }) {
             <label style={labelStyle}>Phone</label>
             <input style={inputStyle} value={phone} onChange={(e) => setPhone(e.target.value)} />
             <button type="submit" className={styles.btnPrimary} disabled={busy} style={{ width: '100%' }}>
-              {busy ? 'Saving…' : 'Add to roster'}
+              {busy ? 'Saving…' : 'Create login invite'}
             </button>
+            <button type="button" className={styles.topGhost} style={{ width: '100%', marginTop: 8 }} onClick={() => setShowAdd(false)}>Cancel</button>
           </form>
         </Panel>
+        ) : null}
       </div>
     </Shell>
   );
