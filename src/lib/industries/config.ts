@@ -49,7 +49,7 @@ export const HOSPITALITY: IndustryConfig = {
     { id: 'rooms', label: 'Rooms', href: '/industries/hospitality/dashboard/rooms', section: 'main' },
     { id: 'guests', label: 'Guests', href: '/industries/hospitality/dashboard/guests', section: 'main' },
     { id: 'checkin', label: 'Check-in / Check-out', href: '/industries/hospitality/dashboard/checkin', section: 'main' },
-    { id: 'website', label: 'Hotel website', href: '/industries/hospitality/dashboard/website', section: 'main' },
+    { id: 'website', label: 'Website (Mo-sell)', href: '/industries/hospitality/dashboard/website', section: 'main' },
     { id: 'housekeeping', label: 'Housekeeping', href: '/industries/hospitality/dashboard/housekeeping', section: 'operations' },
     { id: 'room-service', label: 'Room Service', href: '/industries/hospitality/dashboard/room-service', section: 'operations' },
     { id: 'staff', label: 'Staff', href: '/industries/hospitality/dashboard/staff', section: 'operations' },

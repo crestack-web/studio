@@ -2207,11 +2207,21 @@ export function HospitalityStaffPage({ config }: { config: IndustryConfig }) {
 }
 
 
-/* ─────────────── Hotel website builder ─────────────── */
+
+/* ─────────────── Hotel website via Mo-sell ─────────────── */
 export function HospitalityWebsitePage({ config }: { config: IndustryConfig }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [linked, setLinked] = useState(false);
+  const [connectUrl, setConnectUrl] = useState<string | null>(null);
+  const [storeUrl, setStoreUrl] = useState<string | null>(null);
+  const [bioUrl, setBioUrl] = useState<string | null>(null);
+  const [storeName, setStoreName] = useState<string | null>(null);
+  const [metrics, setMetrics] = useState<{ orders30d?: number; gmv30d?: number; productCount?: number } | null>(null);
+  // Optional simple Busmo landing (secondary)
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [publicUrl, setPublicUrl] = useState<string | null>(null);
   const [form, setForm] = useState({
     slug: '',
@@ -2221,61 +2231,83 @@ export function HospitalityWebsitePage({ config }: { config: IndustryConfig }) {
     about: '',
     addressLine: '',
     city: '',
-    state: '',
-    country: 'Nigeria',
     phone: '',
     whatsapp: '',
     email: '',
-    checkInTime: '14:00',
-    checkOutTime: '12:00',
     amenities: '',
     heroImageUrl: '',
     gallery: '',
-    bookingEnabled: true,
-    primaryColor: '#5b21b6',
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const h = await authHeaders();
-      const res = await fetch('/api/industries/hospitality/website', { headers: h });
-      const json = await res.json().catch(() => ({}));
-      if (res.ok && json.website) {
-        const w = json.website;
-        setForm({
-          slug: w.slug || '',
-          published: Boolean(w.published),
-          propertyName: w.property_name || '',
-          tagline: w.tagline || '',
-          about: w.about || '',
-          addressLine: w.address_line || '',
-          city: w.city || '',
-          state: w.state || '',
-          country: w.country || 'Nigeria',
-          phone: w.phone || '',
-          whatsapp: w.whatsapp || '',
-          email: w.email || '',
-          checkInTime: w.check_in_time || '14:00',
-          checkOutTime: w.check_out_time || '12:00',
-          amenities: Array.isArray(w.amenities) ? w.amenities.join(', ') : '',
-          heroImageUrl: w.hero_image_url || '',
-          gallery: Array.isArray(w.gallery) ? w.gallery.join('\n') : '',
-          bookingEnabled: w.booking_enabled !== false,
-          primaryColor: w.primary_color || '#5b21b6',
-        });
-        setPublicUrl(json.publicUrl || null);
-      }
-    } finally {
-      setLoading(false);
+  const loadMoSell = useCallback(async () => {
+    const h = await authHeaders();
+    const res = await fetch('/api/industries/hospitality/mo-sell', { headers: h });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(json.error || 'Could not load Mo-sell status');
+      return;
+    }
+    setLinked(Boolean(json.linked));
+    setConnectUrl(json.connectUrl || null);
+    setStoreUrl(json.moSellStoreUrl || json.store?.publicStoreUrl || null);
+    setBioUrl(json.store?.publicBioUrl || null);
+    setStoreName(json.store?.name || null);
+    setMetrics(json.metrics || null);
+  }, []);
+
+  const loadMiniSite = useCallback(async () => {
+    const h = await authHeaders();
+    const res = await fetch('/api/industries/hospitality/website', { headers: h });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok && json.website) {
+      const w = json.website;
+      setForm({
+        slug: w.slug || '',
+        published: Boolean(w.published),
+        propertyName: w.property_name || '',
+        tagline: w.tagline || '',
+        about: w.about || '',
+        addressLine: w.address_line || '',
+        city: w.city || '',
+        phone: w.phone || '',
+        whatsapp: w.whatsapp || '',
+        email: w.email || '',
+        amenities: Array.isArray(w.amenities) ? w.amenities.join(', ') : '',
+        heroImageUrl: w.hero_image_url || '',
+        gallery: Array.isArray(w.gallery) ? w.gallery.join('\n') : '',
+      });
+      setPublicUrl(json.publicUrl || null);
     }
   }, []);
 
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await Promise.all([loadMoSell(), loadMiniSite()]);
+    } finally {
+      setLoading(false);
+    }
+  }, [loadMoSell, loadMiniSite]);
+
   useEffect(() => {
     load();
-  }, [load]);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void loadMoSell();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [load, loadMoSell]);
 
-  async function save(e: React.FormEvent) {
+  function openMoSell() {
+    const url =
+      connectUrl ||
+      'https://mo-sell.store/dashboard/settings?connectFromBusmo=1';
+    window.open(url, '_blank', 'noopener,noreferrer');
+    setMsg('Finish setup in Mo-sell, then return here — status refreshes automatically.');
+  }
+
+  async function saveMini(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setMsg(null);
@@ -2286,6 +2318,7 @@ export function HospitalityWebsitePage({ config }: { config: IndustryConfig }) {
         headers: h,
         body: JSON.stringify({
           ...form,
+          bookingEnabled: true,
           amenities: form.amenities,
           gallery: form.gallery
             .split(/[\n,]+/)
@@ -2299,8 +2332,7 @@ export function HospitalityWebsitePage({ config }: { config: IndustryConfig }) {
         return;
       }
       setPublicUrl(json.publicUrl || null);
-      setForm((f) => ({ ...f, slug: json.website?.slug || f.slug }));
-      setMsg(json.website?.published ? 'Published — guests can book on your link' : 'Saved (not published yet)');
+      setMsg('Backup landing page saved');
     } finally {
       setBusy(false);
     }
@@ -2309,167 +2341,147 @@ export function HospitalityWebsitePage({ config }: { config: IndustryConfig }) {
   return (
     <Shell
       title="Hotel website"
-      subtitle="Public page with photos, contact details, and bookings that land in your Reservations list."
-      actions={
-        publicUrl && form.published ? (
-          <a href={publicUrl} target="_blank" rel="noreferrer" className={styles.btnPrimary}>
-            Open site
-          </a>
-        ) : null
-      }
+      subtitle="Build and host your hotel site with Mo-sell. Photos, address, phone, and online interest — orders and leads stay linked to this Busmo property."
     >
       {loading ? <p className={styles.greetingSub}>Loading…</p> : null}
+      {error ? <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p> : null}
       {msg ? <p style={{ color: '#059669', fontSize: 13, marginBottom: 12 }}>{msg}</p> : null}
-      {publicUrl ? (
-        <Panel title="Your public link" meta={form.published ? 'Live' : 'Draft'}>
-          <p style={{ margin: 0, fontSize: 14, wordBreak: 'break-all' }}>
-            <a href={publicUrl} target="_blank" rel="noreferrer">
-              {publicUrl}
-            </a>
-          </p>
-          <p className={styles.greetingSub} style={{ marginTop: 8 }}>
-            Website bookings appear under <strong>Reservations</strong> with source <em>website</em>, so revenue stays in one place.
-          </p>
-        </Panel>
-      ) : null}
 
-      <form onSubmit={save}>
-        <div className={styles.split}>
-          <Panel title="Property & contact">
-            <label style={labelStyle}>Hotel name *</label>
+      <div className={styles.metricsGrid} style={{ marginBottom: 16 }}>
+        <Kpi label="Mo-sell" value={linked ? 'Connected' : 'Not linked'} />
+        <Kpi label="Orders (30d)" value={metrics?.orders30d ?? '—'} />
+        <Kpi label="GMV (30d)" value={metrics?.gmv30d != null ? money(metrics.gmv30d) : '—'} />
+        <Kpi label="Catalogue items" value={metrics?.productCount ?? '—'} />
+      </div>
+
+      {!linked ? (
+        <Panel title="Create your hotel website with Mo-sell">
+          <p className={styles.greetingSub} style={{ marginBottom: 14 }}>
+            Mo-sell is Busmo’s storefront and link-in-bio product. Hotel owners use it to publish a public
+            page with images, contact details, and offers. Connect the same business here so activity is
+            tracked against this hospitality account.
+          </p>
+          <ol style={{ margin: '0 0 16px', paddingLeft: 18, fontSize: 14, lineHeight: 1.6, color: '#374151' }}>
+            <li>Click <strong>Connect Mo-sell</strong> (same email as this account works best).</li>
+            <li>In Mo-sell, set your hotel name, photos, address, and phone.</li>
+            <li>Publish the store / bio page and share the link with guests.</li>
+            <li>Return here — status updates when the tab is visible again.</li>
+          </ol>
+          <button type="button" className={styles.btnPrimary} onClick={openMoSell}>
+            Connect Mo-sell
+          </button>
+          <button
+            type="button"
+            className={styles.topGhost}
+            style={{ marginLeft: 8 }}
+            onClick={() => loadMoSell()}
+          >
+            Refresh status
+          </button>
+        </Panel>
+      ) : (
+        <Panel title="Your Mo-sell hotel site" meta={storeName || 'Connected'}>
+          <p className={styles.greetingSub} style={{ marginBottom: 12 }}>
+            Edit images, address, phone numbers, and page layout in Mo-sell. This dashboard stays the system of
+            record for rooms, stays, and revenue.
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+            {storeUrl ? (
+              <a href={storeUrl} target="_blank" rel="noreferrer" className={styles.btnPrimary}>
+                Open public site
+              </a>
+            ) : null}
+            {bioUrl ? (
+              <a href={bioUrl} target="_blank" rel="noreferrer" className={styles.topGhost}>
+                Open bio page
+              </a>
+            ) : null}
+            <a
+              href="https://mo-sell.store/dashboard"
+              target="_blank"
+              rel="noreferrer"
+              className={styles.topGhost}
+            >
+              Edit in Mo-sell
+            </a>
+            <button type="button" className={styles.topGhost} onClick={() => loadMoSell()}>
+              Refresh
+            </button>
+          </div>
+          {storeUrl ? (
+            <p style={{ fontSize: 13, wordBreak: 'break-all', margin: 0 }}>
+              <strong>Link:</strong> {storeUrl}
+            </p>
+          ) : null}
+        </Panel>
+      )}
+
+      <Panel title="How revenue stays in one place">
+        <p className={styles.greetingSub} style={{ margin: 0 }}>
+          Mo-sell is the public website layer. Room inventory, check-in, housekeeping, and night audit stay in
+          Busmo Hospitality. When a guest books or pays through your linked Mo-sell property, treat those leads
+          and orders as belonging to this business — confirm stays under <strong>Reservations</strong> so ADR
+          and occupancy stay accurate.
+        </p>
+      </Panel>
+
+      <button
+        type="button"
+        className={styles.topGhost}
+        style={{ marginBottom: 12 }}
+        onClick={() => setShowAdvanced((v) => !v)}
+      >
+        {showAdvanced ? 'Hide' : 'Show'} optional Busmo backup landing page
+      </button>
+
+      {showAdvanced ? (
+        <form onSubmit={saveMini}>
+          <Panel title="Optional /h/slug landing (Busmo-hosted backup)">
+            <p className={styles.greetingSub}>
+              Only if you need a simple page on busmo.io in addition to Mo-sell. Primary website creation remains Mo-sell.
+            </p>
+            <label style={labelStyle}>Hotel name</label>
             <input
               style={inputStyle}
-              required
               value={form.propertyName}
               onChange={(e) => setForm({ ...form, propertyName: e.target.value })}
-              placeholder="e.g. Crestview Lodge"
             />
-            <label style={labelStyle}>Web address (slug)</label>
+            <label style={labelStyle}>Slug</label>
             <input
               style={inputStyle}
               value={form.slug}
               onChange={(e) => setForm({ ...form, slug: e.target.value })}
-              placeholder="crestview-lodge"
+              placeholder="my-hotel"
             />
-            <label style={labelStyle}>Tagline</label>
-            <input
-              style={inputStyle}
-              value={form.tagline}
-              onChange={(e) => setForm({ ...form, tagline: e.target.value })}
-              placeholder="Comfort in the heart of the city"
-            />
-            <label style={labelStyle}>About the hotel</label>
-            <textarea
-              style={{ ...inputStyle, minHeight: 100 }}
-              value={form.about}
-              onChange={(e) => setForm({ ...form, about: e.target.value })}
-              placeholder="Short clear description guests should read before booking"
-            />
-            <label style={labelStyle}>Street address</label>
-            <input
-              style={inputStyle}
-              value={form.addressLine}
-              onChange={(e) => setForm({ ...form, addressLine: e.target.value })}
-            />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <div>
-                <label style={labelStyle}>City</label>
-                <input style={inputStyle} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-              </div>
-              <div>
-                <label style={labelStyle}>State</label>
-                <input style={inputStyle} value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
-              </div>
-            </div>
             <label style={labelStyle}>Phone</label>
             <input style={inputStyle} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-            <label style={labelStyle}>WhatsApp</label>
-            <input
-              style={inputStyle}
-              value={form.whatsapp}
-              onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
-              placeholder="23480…"
-            />
-            <label style={labelStyle}>Email</label>
-            <input
-              style={inputStyle}
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-          </Panel>
-
-          <Panel title="Photos & booking">
-            <label style={labelStyle}>Hero image URL</label>
-            <input
-              style={inputStyle}
-              value={form.heroImageUrl}
-              onChange={(e) => setForm({ ...form, heroImageUrl: e.target.value })}
-              placeholder="https://…"
-            />
-            <label style={labelStyle}>Gallery image URLs (one per line)</label>
+            <label style={labelStyle}>About</label>
             <textarea
-              style={{ ...inputStyle, minHeight: 88 }}
-              value={form.gallery}
-              onChange={(e) => setForm({ ...form, gallery: e.target.value })}
+              style={{ ...inputStyle, minHeight: 80 }}
+              value={form.about}
+              onChange={(e) => setForm({ ...form, about: e.target.value })}
             />
-            <label style={labelStyle}>Amenities (comma-separated)</label>
-            <input
-              style={inputStyle}
-              value={form.amenities}
-              onChange={(e) => setForm({ ...form, amenities: e.target.value })}
-              placeholder="WiFi, Parking, Generator, Restaurant"
-            />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <div>
-                <label style={labelStyle}>Check-in time</label>
-                <input
-                  style={inputStyle}
-                  value={form.checkInTime}
-                  onChange={(e) => setForm({ ...form, checkInTime: e.target.value })}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>Check-out time</label>
-                <input
-                  style={inputStyle}
-                  value={form.checkOutTime}
-                  onChange={(e) => setForm({ ...form, checkOutTime: e.target.value })}
-                />
-              </div>
-            </div>
-            <label style={labelStyle}>Brand colour</label>
-            <input
-              style={inputStyle}
-              type="color"
-              value={form.primaryColor}
-              onChange={(e) => setForm({ ...form, primaryColor: e.target.value })}
-            />
-            <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input
-                type="checkbox"
-                checked={form.bookingEnabled}
-                onChange={(e) => setForm({ ...form, bookingEnabled: e.target.checked })}
-              />
-              Allow online booking requests
-            </label>
-            <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label style={{ ...labelStyle, display: 'flex', gap: 8, alignItems: 'center' }}>
               <input
                 type="checkbox"
                 checked={form.published}
                 onChange={(e) => setForm({ ...form, published: e.target.checked })}
               />
-              Publish website (make link public)
+              Publish backup page
             </label>
-            <button type="submit" className={styles.btnPrimary} disabled={busy} style={{ width: '100%', marginTop: 8 }}>
-              {busy ? 'Saving…' : 'Save website'}
+            {publicUrl ? (
+              <p style={{ fontSize: 13 }}>
+                <a href={publicUrl} target="_blank" rel="noreferrer">
+                  {publicUrl}
+                </a>
+              </p>
+            ) : null}
+            <button type="submit" className={styles.btnPrimary} disabled={busy}>
+              {busy ? 'Saving…' : 'Save backup page'}
             </button>
-            <p className={styles.greetingSub} style={{ marginTop: 12 }}>
-              Tip: Ask MO to draft your About text and amenities from a short description of the property, then paste here.
-            </p>
           </Panel>
-        </div>
-      </form>
+        </form>
+      ) : null}
     </Shell>
   );
 }
