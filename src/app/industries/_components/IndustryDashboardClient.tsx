@@ -190,11 +190,21 @@ export function IndustryDashboardClient({
       <aside className={[styles.sidebar, sidebarOpen ? styles.sidebarOpen : ''].join(' ')}>
         <div className={styles.sidebarTop}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={config.logoSrc || "/email-logo.png"} alt={config.productName} className={styles.productLogo} width={34} height={34} />
-          <div className={styles.productMeta}>
-            <div className={styles.logoText}>{config.shortName}</div>
-            <div className={styles.productEdition}>Busmo suite</div>
-          </div>
+          {config.logoSrc ? (
+            <img
+              src={config.logoSrc}
+              alt={config.productName}
+              className={styles.sidebarProductLogo}
+            />
+          ) : (
+            <>
+              <img src="/email-logo.png" alt={config.productName} className={styles.productLogo} width={34} height={34} />
+              <div className={styles.productMeta}>
+                <div className={styles.logoText}>{config.shortName}</div>
+                <div className={styles.productEdition}>Busmo suite</div>
+              </div>
+            </>
+          )}
         </div>
 
         <div className={styles.sidebarSearch}>
@@ -265,7 +275,15 @@ export function IndustryDashboardClient({
               ☰
             </button>
             <div className={styles.topbarTitles}>
-              <div className={styles.topbarTitle}>{config.productName}</div>
+              {config.logoSrc ? (
+                <img
+                  src={config.logoSrc}
+                  alt={config.productName}
+                  className={styles.topbarLogo}
+                />
+              ) : (
+                <div className={styles.topbarTitle}>{config.productName}</div>
+              )}
               <div className={styles.topbarMeta}>
                 Owner console · {dateLabel}
               </div>
