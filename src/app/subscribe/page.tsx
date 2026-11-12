@@ -56,6 +56,13 @@ export default function SubscribePage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
 
   useEffect(() => {
+    try {
+      trackViewContent('Subscribe', selectedPlan);
+    } catch (_) {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     const supabase = getSupabase();
     const { firestore } = initializeFirebase();
 
@@ -264,7 +271,14 @@ export default function SubscribePage() {
               <button
                 key={plan.id}
                 type="button"
-                onClick={() => setSelectedPlan(plan.id)}
+                onClick={() => {
+                  setSelectedPlan(plan.id);
+                  try {
+                    const price =
+                      billingCycle === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice;
+                    trackAddToCart(plan.id, plan.name, price);
+                  } catch (_) {}
+                }}
                 style={{
                   position: 'relative',
                   display: 'flex',

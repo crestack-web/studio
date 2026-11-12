@@ -90,18 +90,27 @@ export async function POST(request: NextRequest) {
 
     const paymentAmount = (Number(transaction.amount) || 0) / 100;
     try {
+      const ttProps = {
+        value: paymentAmount,
+        currency: String(transaction.currency || 'NGN'),
+        content_id: plan.id,
+        content_name: plan.name,
+        content_type: 'product' as const,
+      };
       await sendTikTokServerEvent({
         event: 'CompletePayment',
         eventId: `pay_${String(reference)}`,
         email: email,
         externalId: userId,
-        properties: {
-          value: paymentAmount,
-          currency: String(transaction.currency || 'NGN'),
-          content_id: plan.id,
-          content_name: plan.name,
-          content_type: 'product',
-        },
+        properties: ttProps,
+        pageUrl: 'https://www.busmo.io/subscribe/success',
+      });
+      await sendTikTokServerEvent({
+        event: 'PlaceAnOrder',
+        eventId: `order_${String(reference)}`,
+        email: email,
+        externalId: userId,
+        properties: ttProps,
         pageUrl: 'https://www.busmo.io/subscribe/success',
       });
     } catch (ttErr: any) {

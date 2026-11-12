@@ -7,6 +7,7 @@ export type TikTokStandardEvent =
   | 'InitiateCheckout'
   | 'CompleteRegistration'
   | 'CompletePayment'
+  | 'PlaceAnOrder'
   | 'Lead'
   | 'Subscribe'
   | 'Contact';

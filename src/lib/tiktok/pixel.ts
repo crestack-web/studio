@@ -220,6 +220,29 @@ export function trackInitiateCheckout(planId: string, planName: string, value?: 
   });
 }
 
+/** Commerce funnel alias — TikTok Ads Manager often labels this "Purchase". */
+export function trackPurchase(opts: {
+  reference: string;
+  value: number;
+  planId?: string;
+  planName?: string;
+  currency?: string;
+}) {
+  trackCompletePayment(opts);
+  // Secondary standard event some commerce setups expect
+  trackEvent(
+    'PlaceAnOrder',
+    {
+      value: opts.value,
+      currency: opts.currency || 'NGN',
+      content_id: opts.planId,
+      content_name: opts.planName,
+      content_type: 'product',
+    },
+    { eventId: `order_${opts.reference}` }
+  );
+}
+
 export function trackCompletePayment(opts: {
   reference: string;
   value: number;

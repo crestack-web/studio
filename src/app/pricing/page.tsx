@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { trackViewContent } from '@/lib/tiktok/pixel';
+import { trackViewContent, trackAddToCart, trackInitiateCheckout, trackClickButton } from '@/lib/tiktok/pixel';
 import { LangProvider } from '../owner/dashboard/LangContext';
 import { AskMOSupportAgent } from '../welcome/components/AskMOSupportAgent';
 import { Navbar } from '../welcome/components/Navbar';
@@ -87,6 +87,9 @@ export default function PricingPage() {
 
   const handlePlanSelect = (plan: BusmoPlan) => {
     setSelectedPlan(plan);
+    try {
+      trackAddToCart(plan.id, plan.name, plan.monthlyPrice);
+    } catch (_) {}
     setShowPaymentModal(true);
   };
 
@@ -126,7 +129,8 @@ export default function PricingPage() {
 
     setIsPaying(true);
     try {
-      const response = await fetch('/api/payments/initialize-subscription', {
+      const response = await (() => { try { trackInitiateCheckout(selectedPlan?.id || 'plan', selectedPlan?.name || 'Subscription', selectedPlan?.monthlyPrice); } catch (_) {} })();
+    fetch('/api/payments/initialize-subscription, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

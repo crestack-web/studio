@@ -1,6 +1,6 @@
 'use client';
 
-import { trackCompletePayment, trackPaymentFailed } from '@/lib/tiktok/pixel';
+import { trackPurchase, trackPaymentFailed } from '@/lib/tiktok/pixel';
 
 import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -40,7 +40,7 @@ function SubscriptionSuccessContent() {
         }
 
         try {
-          trackCompletePayment({
+          trackPurchase({
             reference: String(reference),
             value: Number(data.amount || data.paymentAmount || 0),
             planId: data.planId || data.plan,
