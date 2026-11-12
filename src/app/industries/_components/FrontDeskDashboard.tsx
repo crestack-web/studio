@@ -71,9 +71,11 @@ function timeAgo(iso: string) {
 export function FrontDeskDashboard({
   config,
   mode = 'staff',
+  embedded = false,
 }: {
   config: IndustryConfig;
   mode?: 'staff' | 'owner-preview';
+  embedded?: boolean;
 }) {
   const router = useRouter();
   const [data, setData] = useState<DeskData | null>(null);
@@ -172,7 +174,7 @@ export function FrontDeskDashboard({
 
   if (loading) {
     return (
-      <div className={styles.page}>
+      <div className={embedded ? styles.embedLoad : styles.page}>
         <div className={styles.loading}>Loading front desk…</div>
       </div>
     );
@@ -191,51 +193,15 @@ export function FrontDeskDashboard({
   const propertyName = settings.property_name || 'Front Desk';
   const logoUrl = settings.logo_url || config.logoSrc || '/email-logo.png';
 
-  return (
-    <div className={styles.page}>
-      {sidebarOpen ? (
-        <div className={styles.overlay} onClick={() => setSidebarOpen(false)} aria-hidden />
-      ) : null}
-      <aside className={[styles.sidebar, sidebarOpen ? styles.sidebarOpen : ''].join(' ')}>
-        <div className={styles.busmoMark}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={config.logoSrc || logoUrl || "/email-logo.png"}
-            alt={config.productName}
-            className={styles.topLogo}
-          />
-        </div>
-        <div className={styles.brand}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logoUrl || '/email-logo.png'} alt="" className={styles.logo} />
-          <div>
-            <div className={styles.brandName}>{propertyName}</div>
-            <div className={styles.brandSub}>Front desk</div>
-          </div>
-        </div>
-        <nav className={styles.nav}>
-          <span className={styles.navActive}>Dashboard</span>
-          <Link href="/industries/hospitality/front-desk/bookings" onClick={() => setSidebarOpen(false)}>Bookings</Link>
-          <Link href="/industries/hospitality/front-desk/rooms" onClick={() => setSidebarOpen(false)}>Rooms</Link>
-          <Link href="/industries/hospitality/front-desk/guests" onClick={() => setSidebarOpen(false)}>Guests</Link>
-          <Link href="/industries/hospitality/front-desk/checkin" onClick={() => setSidebarOpen(false)}>Check-in</Link>
-          {mode === 'owner-preview' ? (
-            <Link href={`${config.dashboardPath}/settings`} onClick={() => setSidebarOpen(false)}>Hotel settings</Link>
-          ) : null}
-        </nav>
-        <div className={styles.sidebarFoot}>
-          <Link href={config.dashboardPath} className={styles.linkQuiet} onClick={() => setSidebarOpen(false)}>
-            Owner console →
-          </Link>
-        </div>
-      </aside>
-
-      <div className={styles.main}>
+  const deskBody = (
+    <>
+<div className={styles.main}>
         <header className={styles.topbar}>
           <div className={styles.topbarTitleRow}>
+            {!embedded ? (
             <button type="button" className={styles.menuBtn} aria-label="Open menu" onClick={() => setSidebarOpen(true)}>
               ☰
-            </button>
+            </button> ) : null}
             <div>
               <div className={styles.busmoMark} style={{ marginBottom: 6 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -388,6 +354,42 @@ export function FrontDeskDashboard({
           </section>
         </div>
       </div>
+      
+    </>
+  );
+
+  if (embedded) {
+    return <div className={styles.embedRoot}>{deskBody}</div>;
+  }
+
+  return (
+    <div className={styles.page}>
+      {sidebarOpen ? (
+        <div className={styles.overlay} onClick={() => setSidebarOpen(false)} aria-hidden />
+      ) : null}
+      <aside className={[styles.sidebar, sidebarOpen ? styles.sidebarOpen : ''].join(' ')}>
+        <div className={styles.brand}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={logoUrl || '/email-logo.png'} alt="" className={styles.logo} />
+          <div>
+            <div className={styles.brandName}>{propertyName}</div>
+            <div className={styles.brandSub}>Front desk</div>
+          </div>
+        </div>
+        <nav className={styles.nav} onClick={() => setSidebarOpen(false)}>
+          <span className={styles.navActive}>Dashboard</span>
+          <Link href="/industries/hospitality/front-desk/bookings">Bookings</Link>
+          <Link href="/industries/hospitality/front-desk/rooms">Rooms</Link>
+          <Link href="/industries/hospitality/front-desk/guests">Guests</Link>
+          <Link href="/industries/hospitality/front-desk/checkin">Check-in</Link>
+        </nav>
+        <div className={styles.sidebarFoot}>
+          <Link href="/industries/hospitality/login" className={styles.signOut}>
+            Sign out
+          </Link>
+        </div>
+      </aside>
+      {deskBody}
       <HospitalityStaffBottomNav />
       <IndustryMO config={config} businessName={propertyName} />
     </div>

@@ -876,3 +876,28 @@
     padding-bottom: 0;
   }
 }
+
+@media (max-width: 900px) {
+  .shell,
+  .page,
+  .main {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+  .main {
+    min-width: 0;
+  }
+  .metricsGrid,
+  .split {
+    max-width: 100%;
+  }
+  .panel {
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: auto;
+  }
+  .topbar,
+  .greetingRow {
+    max-width: 100%;
+  }
+}

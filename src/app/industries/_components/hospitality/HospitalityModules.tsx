@@ -2407,6 +2407,33 @@ export function HospitalityWebsitePage({ config }: { config: IndustryConfig }) {
             <button type="button" className={styles.topGhost} onClick={() => loadMoSell()}>
               Refresh
             </button>
+            <button
+              type="button"
+              className={styles.topGhost}
+              onClick={async () => {
+                setBusy(true);
+                setMsg(null);
+                try {
+                  const h = await authHeaders();
+                  const res = await fetch('/api/industries/hospitality/mo-sell/sync-orders', {
+                    method: 'POST',
+                    headers: h,
+                  });
+                  const json = await res.json().catch(() => ({}));
+                  if (!res.ok || json.ok === false) {
+                    setMsg(json.error || 'Sync failed');
+                    return;
+                  }
+                  setMsg(
+                    `Synced Mo-sell orders: ${json.imported || 0} new reservation(s), ${json.skipped || 0} already imported`
+                  );
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              Import orders → Reservations
+            </button>
           </div>
           {storeUrl ? (
             <p style={{ fontSize: 13, wordBreak: 'break-all', margin: 0 }}>

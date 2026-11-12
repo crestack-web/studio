@@ -8,5 +8,5 @@ export const metadata = {
 };
 
 export default function Page() {
-  return <FrontDeskDashboard config={config} mode="staff" />;
+  return <FrontDeskDashboard config={config} mode="staff" embedded />;
 }
