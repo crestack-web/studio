@@ -44,7 +44,6 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Attach business names
     const bizIds = Array.from(new Set(rows.map((u: any) => u.business_id).filter(Boolean)));
     const bizMap: Record<string, string> = {};
     if (bizIds.length) {
@@ -82,10 +81,118 @@ export async function GET(req: NextRequest) {
   }
 }
 
+/** Soft-null FK columns that block deleting public.users (no ON DELETE CASCADE). */
+const NULL_USER_FK: { table: string; column: string }[] = [
+  { table: 'invitations', column: 'invited_by' },
+  { table: 'expenses', column: 'created_by' },
+  { table: 'transactions', column: 'created_by' },
+  { table: 'inventory_adjustments', column: 'created_by' },
+  { table: 'credit_transactions', column: 'created_by' },
+  { table: 'cash_reconciliations', column: 'reconciled_by' },
+  { table: 'purchases', column: 'created_by' },
+  { table: 'stock_receipts', column: 'created_by' },
+  { table: 'service_requests', column: 'assigned_to' },
+  { table: 'support_tickets', column: 'assigned_to' },
+  { table: 'business_verifications', column: 'reviewed_by' },
+  { table: 'blogs', column: 'author_id' },
+  { table: 'referrals', column: 'referred_id' },
+  { table: 'businesses', column: 'owner_id' },
+  { table: 'staff', column: 'user_id' },
+];
+
+/** Rows to delete by user_id (or leave for cascade after users row is gone). */
+const DELETE_BY_USER: { table: string; column: string }[] = [
+  { table: 'staff_permissions', column: 'user_id' },
+  { table: 'subscriptions', column: 'user_id' },
+  { table: 'subscription_transactions', column: 'user_id' },
+  { table: 'admins', column: 'user_id' },
+  { table: 'notifications', column: 'user_id' },
+  { table: 'conversations', column: 'user_id' },
+  { table: 'ai_conversations', column: 'user_id' },
+  { table: 'ai_questions', column: 'user_id' },
+  { table: 'audit_trail', column: 'user_id' },
+  { table: 'payment_transactions', column: 'user_id' },
+  { table: 'payouts', column: 'user_id' },
+  { table: 'service_requests', column: 'user_id' },
+  { table: 'attendance', column: 'user_id' },
+  { table: 'statements', column: 'user_id' },
+  { table: 'mo_conversations', column: 'user_id' },
+  { table: 'mo_messages', column: 'user_id' },
+  { table: 'reviews', column: 'user_id' },
+  { table: 'referral_earnings', column: 'user_id' },
+  { table: 'referral_payouts', column: 'user_id' },
+  { table: 'referral_codes', column: 'user_id' },
+  { table: 'referrals', column: 'referrer_id' },
+  { table: 'support_tickets', column: 'user_id' },
+  { table: 'support_messages', column: 'user_id' },
+  { table: 'support_agents', column: 'user_id' },
+  { table: 'chat_conversations', column: 'user_id' },
+  { table: 'delivery_agents', column: 'user_id' },
+  { table: 'investments', column: 'user_id' },
+  { table: 'business_verifications', column: 'user_id' },
+  { table: 'page_visits', column: 'user_id' },
+  { table: 'ugc_creators', column: 'user_id' },
+  { table: 'ugc_orders', column: 'user_id' },
+];
+
+const DELETE_BY_BUSINESS = [
+  'staff',
+  'products',
+  'sales',
+  'customers',
+  'industry_records',
+  'hospitality_staff',
+  'hospitality_bookings',
+  'hospitality_rooms',
+  'hospitality_guests',
+  'hospitality_websites',
+  'solution_branding',
+  'mo_credit_wallets',
+  'business_wallets',
+];
+
+async function softNull(
+  sb: ReturnType<typeof getSupabaseAdmin>,
+  table: string,
+  column: string,
+  userId: string,
+  cleaned: string[],
+  warnings: string[]
+) {
+  try {
+    const { error } = await sb.from(table).update({ [column]: null }).eq(column, userId);
+    if (!error) cleaned.push(`null:${table}.${column}`);
+    else if (!/relation|does not exist|schema cache|Could not find/i.test(error.message || '')) {
+      warnings.push(`null ${table}.${column}: ${error.message}`);
+    }
+  } catch (e: any) {
+    warnings.push(`null ${table}.${column}: ${e?.message || 'skip'}`);
+  }
+}
+
+async function hardDelete(
+  sb: ReturnType<typeof getSupabaseAdmin>,
+  table: string,
+  column: string,
+  value: string,
+  cleaned: string[],
+  warnings: string[]
+) {
+  try {
+    const { error } = await sb.from(table).delete().eq(column, value);
+    if (!error) cleaned.push(`del:${table}.${column}`);
+    else if (!/relation|does not exist|schema cache|Could not find/i.test(error.message || '')) {
+      warnings.push(`del ${table}.${column}: ${error.message}`);
+    }
+  } catch (e: any) {
+    warnings.push(`del ${table}.${column}: ${e?.message || 'skip'}`);
+  }
+}
+
 /**
  * Permanently delete a user so the same email can sign up again.
- * Body: { userId: string, confirmEmail?: string }
- * Removes: auth user, users row, owned businesses (best-effort related rows).
+ * Clears FK blockers, removes profile data, then auth.users.
+ * If auth delete still fails, renames the auth email so the original is free.
  */
 export async function DELETE(req: NextRequest) {
   try {
@@ -102,7 +209,6 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
 
-    // Never delete the acting admin's own account via this endpoint
     if (adminUser.id && adminUser.id === userId) {
       return NextResponse.json({ error: 'You cannot delete your own admin account' }, { status: 400 });
     }
@@ -115,7 +221,17 @@ export async function DELETE(req: NextRequest) {
       .eq('id', userId)
       .maybeSingle();
 
-    const profileEmail = String((profile as any)?.email || '').toLowerCase();
+    // Also resolve email from Auth if profile missing
+    let profileEmail = String((profile as any)?.email || '').toLowerCase();
+    if (!profileEmail) {
+      try {
+        const { data: authData } = await sb.auth.admin.getUserById(userId);
+        profileEmail = String(authData?.user?.email || '').toLowerCase();
+      } catch {
+        /* ignore */
+      }
+    }
+
     if (confirmEmail && profileEmail && confirmEmail !== profileEmail) {
       return NextResponse.json(
         { error: 'confirmEmail does not match the user record' },
@@ -123,82 +239,120 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // Block deleting other admins by email whitelist role
     const role = String((profile as any)?.role || '').toLowerCase();
     if (['admin', 'superadmin'].includes(role)) {
       return NextResponse.json({ error: 'Cannot delete admin accounts via this tool' }, { status: 403 });
     }
 
-    const businessId = (profile as any)?.business_id || userId;
+    const businessId = String((profile as any)?.business_id || userId);
     const cleaned: string[] = [];
     const warnings: string[] = [];
 
-    // Best-effort clean of org-owned rows (ignore missing tables)
-    const softTables: { table: string; column: string }[] = [
-      { table: 'staff', column: 'business_id' },
-      { table: 'products', column: 'business_id' },
-      { table: 'sales', column: 'business_id' },
-      { table: 'customers', column: 'business_id' },
-      { table: 'industry_records', column: 'business_id' },
-      { table: 'organizations', column: 'owner_user_id' },
-      { table: 'organizations', column: 'id' },
-    ];
-    for (const { table, column } of softTables) {
-      try {
-        const val = column.includes('user') ? userId : businessId;
-        const { error } = await sb.from(table).delete().eq(column, val);
-        if (!error) cleaned.push(`${table}.${column}`);
-        else if (!/relation|does not exist|schema cache/i.test(error.message || '')) {
-          warnings.push(`${table}: ${error.message}`);
-        }
-      } catch (e: any) {
-        warnings.push(`${table}: ${e?.message || 'skip'}`);
+    // 1) Null non-cascade FKs pointing at this user
+    for (const { table, column } of NULL_USER_FK) {
+      await softNull(sb, table, column, userId, cleaned, warnings);
+    }
+
+    // 2) Delete user-scoped rows
+    for (const { table, column } of DELETE_BY_USER) {
+      await hardDelete(sb, table, column, userId, cleaned, warnings);
+    }
+
+    // 3) Delete business-scoped rows for their org (id often equals user id)
+    for (const table of DELETE_BY_BUSINESS) {
+      await hardDelete(sb, table, 'business_id', businessId, cleaned, warnings);
+      if (businessId !== userId) {
+        await hardDelete(sb, table, 'business_id', userId, cleaned, warnings);
       }
     }
 
     try {
       const { error } = await sb.from('businesses').delete().eq('id', businessId);
-      if (!error) cleaned.push('businesses');
-      else if (!/relation|does not exist/i.test(error.message || '')) {
-        // also try owner_id
+      if (!error) cleaned.push('del:businesses.id');
+      else {
         await sb.from('businesses').delete().eq('owner_id', userId);
-        cleaned.push('businesses(owner)');
+        cleaned.push('del:businesses.owner_id');
       }
     } catch {
       /* optional */
     }
 
+    // 4) public.users row (auth cascade also removes this; delete early to surface FK errors)
     try {
       const { error } = await sb.from('users').delete().eq('id', userId);
       if (error) warnings.push(`users: ${error.message}`);
-      else cleaned.push('users');
+      else cleaned.push('del:users');
     } catch (e: any) {
       warnings.push(`users: ${e?.message || 'failed'}`);
     }
 
-    // Auth user last — this is what frees the email for signup again
+    // 5) Auth user — frees the email for signup
+    let authDeleted = false;
+    let emailFreed = false;
+    const originalEmail = profileEmail || confirmEmail || null;
+
     const { error: authErr } = await sb.auth.admin.deleteUser(userId);
-    if (authErr) {
-      // Profile may already be gone; still report auth failure clearly
+    if (!authErr) {
+      authDeleted = true;
+      emailFreed = true;
+      cleaned.push('auth.users');
+    } else {
       console.error('[admin/users DELETE] auth', authErr.message);
+      warnings.push(`auth.delete: ${authErr.message}`);
+
+      // Fallback: rename auth email so the real address can register again
+      if (originalEmail) {
+        const tombstone = `deleted.${userId.replace(/-/g, '').slice(0, 12)}.${Date.now()}@busmo-deleted.invalid`;
+        const { error: updErr } = await sb.auth.admin.updateUserById(userId, {
+          email: tombstone,
+          email_confirm: true,
+          ban_duration: '876000h',
+          user_metadata: {
+            deleted_at: new Date().toISOString(),
+            deleted_by_admin: adminUser.email,
+            previous_email: originalEmail,
+          },
+        });
+        if (!updErr) {
+          emailFreed = true;
+          cleaned.push('auth.email_tombstoned');
+          // Retry delete after FKs cleared / email moved
+          const { error: retryErr } = await sb.auth.admin.deleteUser(userId);
+          if (!retryErr) {
+            authDeleted = true;
+            cleaned.push('auth.users(retry)');
+          } else {
+            warnings.push(`auth.delete.retry: ${retryErr.message}`);
+          }
+        } else {
+          warnings.push(`auth.tombstone: ${updErr.message}`);
+        }
+      }
+    }
+
+    if (!emailFreed && !authDeleted) {
       return NextResponse.json(
         {
-          error: `Could not delete auth user: ${authErr.message}`,
+          error:
+            'Could not delete or free this auth user. Check foreign keys / Auth logs. Try again or delete from Supabase Auth dashboard.',
           cleaned,
           warnings,
         },
         { status: 500 }
       );
     }
-    cleaned.push('auth.users');
 
     return NextResponse.json({
       ok: true,
       deletedUserId: userId,
-      email: profileEmail || confirmEmail || null,
+      email: originalEmail,
+      authDeleted,
+      emailFreed,
       cleaned,
       warnings,
-      message: 'User permanently deleted. They can sign up again with the same email.',
+      message: authDeleted
+        ? 'User permanently deleted. They can sign up again with the same email.'
+        : 'Auth row kept but email was released. They can sign up again with the same email.',
     });
   } catch (e: any) {
     console.error('[admin/users DELETE]', e?.message || e);
