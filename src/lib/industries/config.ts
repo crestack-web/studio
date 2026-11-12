@@ -16,7 +16,7 @@ export function isIndustryId(
 export const HOSPITALITY: IndustryConfig = {
   id: 'hospitality',
   productName: 'Busmo Hospitality',
-  logoSrc: '/industries/busmo-hospitality-logo.jpg',
+  logoSrc: '/industries/busmo-hospitality-logo.png',
   shortName: 'Hospitality',
   tagline: 'Run your hotel. Stay in control.',
   description:
@@ -144,7 +144,7 @@ export const PROFESSIONAL: IndustryConfig = {
 export const HEALTHCARE: IndustryConfig = {
   id: 'healthcare',
   productName: 'Busmo Healthcare',
-  logoSrc: '/industries/busmo-healthcare-logo.jpg',
+  logoSrc: '/industries/busmo-healthcare-logo.png',
   shortName: 'Healthcare',
   tagline: 'Care operations. Clearer every day.',
   description:

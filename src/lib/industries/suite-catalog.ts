@@ -65,7 +65,7 @@ export const SUITE_FAMILIES: SuiteFamily[] = [
   },
   {
     id: 'hospitality',
-    logoSrc: '/industries/busmo-hospitality-logo.jpg',
+    logoSrc: '/industries/busmo-hospitality-logo.png',
     label: 'Hospitality',
     productName: HOSPITALITY.productName,
     href: HOSPITALITY.welcomePath,
@@ -107,7 +107,7 @@ export const SUITE_FAMILIES: SuiteFamily[] = [
 
   {
     id: 'healthcare',
-    logoSrc: '/industries/busmo-healthcare-logo.jpg',
+    logoSrc: '/industries/busmo-healthcare-logo.png',
     label: 'Healthcare',
     productName: HEALTHCARE.productName,
     href: HEALTHCARE.welcomePath,
