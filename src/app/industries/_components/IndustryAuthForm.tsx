@@ -1,4 +1,5 @@
 'use client';
+import { trackSignupSuccess, trackViewContent, trackClickButton } from '@/lib/tiktok/pixel';
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -189,6 +190,11 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
             },
           });
           if (signErr) throw signErr;
+          if (signData?.user?.id) {
+            try {
+              trackSignupSuccess({ userId: signData.user.id, email: email.trim() });
+            } catch (_) {}
+          }
           // Prefer immediate session; if none, sign in with password (no email verification gate)
           if (!signData.session) {
             const { error: loginErr } = await supabase.auth.signInWithPassword({
@@ -210,6 +216,11 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
 
       // Sign in immediately — no email verification required
       if (signupJson.userId || signupJson.ok) {
+        if (signupJson.userId) {
+          try {
+            trackSignupSuccess({ userId: String(signupJson.userId), email: email.trim() });
+          } catch (_) {}
+        }
         try {
           const { error: loginErr } = await supabase.auth.signInWithPassword({
             email: email.trim(),

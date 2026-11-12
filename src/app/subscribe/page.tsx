@@ -1,4 +1,5 @@
 'use client';
+import { trackInitiateCheckout, trackAddToCart, trackViewContent, trackClickButton } from '@/lib/tiktok/pixel';
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -138,6 +139,13 @@ export default function SubscribePage() {
         typeof window !== 'undefined' ? window.location.origin : 'https://www.busmo.io';
       const callbackUrl = `${origin}/subscribe/success`;
 
+      try {
+        trackInitiateCheckout(
+          String(selectedPlan?.id || planId || 'plan'),
+          String(selectedPlan?.name || planName || 'Subscription'),
+          Number(amount || selectedPlan?.price || 0) || undefined
+        );
+      } catch (_) {}
       const response = await fetch('/api/payments/initialize-subscription', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -1,6 +1,7 @@
-"use client";
+'use client';
 
 import { useState, useEffect } from 'react';
+import { trackViewContent } from '@/lib/tiktok/pixel';
 import { LangProvider } from '../owner/dashboard/LangContext';
 import { AskMOSupportAgent } from '../welcome/components/AskMOSupportAgent';
 import { Navbar } from '../welcome/components/Navbar';
@@ -17,6 +18,10 @@ import {
 import { PRICING_HUB, ENTERPRISE_PRICING } from '@/lib/industries/pricing';
 
 export default function PricingPage() {
+  useEffect(() => {
+    try { trackViewContent('Pricing'); } catch (_) {}
+  }, []);
+
   const [mode, setMode] = useState<'monthly' | 'yearly'>('monthly');
   const [selectedPlan, setSelectedPlan] = useState<BusmoPlan | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);

@@ -6,6 +6,7 @@ import { createPostHogClient } from '@/lib/posthog-server';
 import { recordSubscriptionPayment } from '@/lib/payments/record-subscription-payment';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { planDisplayName, getPlanById } from '@/lib/pricing';
+import { sendTikTokServerEvent } from '@/lib/tiktok/events-api';
 
 const COMMISSION_RATE = 0.2;
 
@@ -88,6 +89,25 @@ export async function POST(request: NextRequest) {
     }
 
     const paymentAmount = (Number(transaction.amount) || 0) / 100;
+    try {
+      await sendTikTokServerEvent({
+        event: 'CompletePayment',
+        eventId: `pay_${String(reference)}`,
+        email: email,
+        externalId: userId,
+        properties: {
+          value: paymentAmount,
+          currency: String(transaction.currency || 'NGN'),
+          content_id: plan.id,
+          content_name: plan.name,
+          content_type: 'product',
+        },
+        pageUrl: 'https://www.busmo.io/subscribe/success',
+      });
+    } catch (ttErr: any) {
+      console.warn('[verify-subscription] tiktok event', ttErr?.message);
+    }
+
     const subscriptionEndDate = new Date();
     if (billing === 'monthly') {
       subscriptionEndDate.setDate(subscriptionEndDate.getDate() + 30);
@@ -197,7 +217,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      reference: String(reference),
+      amount: paymentAmount,
+      currency: String(transaction.currency || 'NGN'),
       plan: plan.id,
+      planId: plan.id,
       planName: plan.name,
       billing,
       subscriptionEndDate: subscriptionEndDate.toISOString(),

@@ -1,3 +1,5 @@
+'use client';
+import { trackSignupSuccess, trackClickButton, trackViewContent } from '@/lib/tiktok/pixel';
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
@@ -220,6 +222,9 @@ export default function BusmoOnboarding() {
         }
 
         if (userId && userCreated) {
+          try {
+            trackSignupSuccess({ userId, email: data.email });
+          } catch (_) {}
           try {
             const userDocRef = doc(firestore, "users", userId);
             const userDoc = await getDoc(userDocRef);

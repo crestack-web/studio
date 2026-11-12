@@ -1,3 +1,5 @@
+'use client';
+import { trackSignupSuccess } from '@/lib/tiktok/pixel';
 "use client";
 
 import { useState } from "react";
@@ -54,6 +56,11 @@ export default function StaffSignupPage() {
         },
       });
 
+      if (!signUpError && signUpData?.user?.id) {
+        try {
+          trackSignupSuccess({ userId: signUpData.user.id, email });
+        } catch (_) {}
+      }
       if (signUpError) throw signUpError;
       const userId = signUpData.user?.id;
       if (!userId) throw new Error('No user ID returned');

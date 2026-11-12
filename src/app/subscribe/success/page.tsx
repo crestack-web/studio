@@ -1,4 +1,5 @@
 'use client';
+import { trackCompletePayment, trackPaymentFailed } from '@/lib/tiktok/pixel';
 
 import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -30,9 +31,22 @@ function SubscriptionSuccessContent() {
 
         const data = await response.json();
 
-        if (!response.ok) {
-          throw new Error(data.error || 'Payment verification failed');
+        if (!response.ok || !data?.success) {
+          try {
+            trackPaymentFailed({ reference: String(reference || '') });
+          } catch (_) {}
+          throw new Error(data?.error || 'Payment verification failed');
         }
+
+        try {
+          trackCompletePayment({
+            reference: String(reference),
+            value: Number(data.amount || data.paymentAmount || 0),
+            planId: data.planId || data.plan,
+            planName: data.planName,
+            currency: data.currency || 'NGN',
+          });
+        } catch (_) {}
 
         // Payment verified successfully - redirect to owner dashboard
         setTimeout(() => {
