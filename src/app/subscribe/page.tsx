@@ -142,9 +142,9 @@ export default function SubscribePage() {
 
       try {
         trackInitiateCheckout(
-          String(selectedPlan?.id || planId || 'plan'),
-          String(selectedPlan?.name || planName || 'Subscription'),
-          Number(amount || selectedPlan?.price || 0) || undefined
+          String(selectedPlan || 'plan'),
+          String(selectedPlanData.name || 'Subscription'),
+          Number(amount) || undefined
         );
       } catch (_) {}
       const response = await fetch('/api/payments/initialize-subscription', {
