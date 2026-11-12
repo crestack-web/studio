@@ -23,12 +23,42 @@ declare global {
       [key: string]: unknown;
     };
     TiktokAnalyticsObject?: string;
+    __busmoTtPixelLoaded?: boolean;
   }
 }
 
 function getTtq() {
   if (typeof window === 'undefined') return null;
   return window.ttq || null;
+}
+
+/** Wait until ttq.track exists (script stub or full SDK). */
+function waitForTtq(timeoutMs = 2500): Promise<NonNullable<ReturnType<typeof getTtq>> | null> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') {
+      resolve(null);
+      return;
+    }
+    const existing = getTtq();
+    if (existing && typeof existing.track === 'function') {
+      resolve(existing);
+      return;
+    }
+    const started = Date.now();
+    const tick = () => {
+      const ttq = getTtq();
+      if (ttq && typeof ttq.track === 'function') {
+        resolve(ttq);
+        return;
+      }
+      if (Date.now() - started >= timeoutMs) {
+        resolve(getTtq());
+        return;
+      }
+      setTimeout(tick, 50);
+    };
+    tick();
+  });
 }
 
 /** SHA-256 hex for advanced matching (Web Crypto). */
@@ -147,7 +177,7 @@ export async function identifyTikTokUser(opts: {
   externalId?: string | null;
 }) {
   try {
-    const ttq = getTtq();
+    const ttq = await waitForTtq(1500);
     if (!ttq?.identify) return;
     const payload: Record<string, string> = {};
     if (opts.email) {
@@ -166,26 +196,38 @@ export async function identifyTikTokUser(opts: {
   }
 }
 
-export function trackSignupSuccess(opts: {
+/**
+ * Fire CompleteRegistration for a new account.
+ * Awaits pixel readiness + identify so redirects do not drop the event.
+ */
+export async function trackSignupSuccess(opts: {
   userId: string;
   email?: string | null;
   phone?: string | null;
-}) {
+}): Promise<void> {
+  if (!opts.userId) return;
   const eventId = `reg_${opts.userId}`;
-  void identifyTikTokUser({
-    email: opts.email,
-    phone: opts.phone,
-    externalId: opts.userId,
-  });
-  trackEvent(
-    'CompleteRegistration',
-    {
-      content_type: 'product',
-      content_name: 'Busmo account',
-      status: 'completed',
-    },
-    { eventId }
-  );
+  try {
+    await identifyTikTokUser({
+      email: opts.email,
+      phone: opts.phone,
+      externalId: opts.userId,
+    });
+    await waitForTtq(2500);
+    trackEvent(
+      'CompleteRegistration',
+      {
+        content_type: 'product',
+        content_name: 'Busmo account',
+        status: 'completed',
+      },
+      { eventId }
+    );
+    // Give the pixel a moment to flush before any hard navigation
+    await new Promise((r) => setTimeout(r, 350));
+  } catch {
+    /* never block signup */
+  }
 }
 
 export function trackViewContent(name: string, contentId?: string) {
@@ -229,7 +271,6 @@ export function trackPurchase(opts: {
   currency?: string;
 }) {
   trackCompletePayment(opts);
-  // Secondary standard event some commerce setups expect
   trackEvent(
     'PlaceAnOrder',
     {
