@@ -9,17 +9,15 @@ import { Footer } from '../welcome/components/Footer';
 import {
   BUSMO_PLANS,
   ENTERPRISE,
-  ONBOARDING,
-  POSITIONING,
   formatNaira,
   type BusmoPlan,
-  type PlanId,
 } from '@/lib/pricing';
-import { PRICING_HUB, ENTERPRISE_PRICING } from '@/lib/industries/pricing';
 
 export default function PricingPage() {
   useEffect(() => {
-    try { trackViewContent('Pricing'); } catch (_) {}
+    try {
+      trackViewContent('Pricing');
+    } catch (_) {}
   }, []);
 
   const [mode, setMode] = useState<'monthly' | 'yearly'>('monthly');
@@ -51,10 +49,6 @@ export default function PricingPage() {
     })();
   }, []);
 
-  useEffect(() => {
-    // Nigeria default; geo can be added later
-  }, []);
-
   const handleNavigate = (page: string) => {
     if (page === 'signup') window.location.href = '/welcome/signup';
     else if (page === 'login' || page === 'login-form') window.location.href = '/login';
@@ -73,16 +67,19 @@ export default function PricingPage() {
   const formatMoney = (amount: number) => formatNaira(amount);
 
   const handleSelectPlan = (plan: BusmoPlan) => {
-    if (plan.id === 'enterprise') {
-      window.location.href = 'mailto:hello@busmo.io?subject=Busmo%20Enterprise';
-      return;
-    }
     try {
       trackAddToCart(plan.id, plan.name, plan.monthlyPrice);
       trackClickButton('select_plan', plan.id);
     } catch (_) {}
     setSelectedPlan(plan);
     setShowPaymentModal(true);
+  };
+
+  const handleEnterprise = () => {
+    try {
+      trackClickButton('enterprise', 'pricing');
+    } catch (_) {}
+    window.location.href = 'mailto:hello@busmo.io?subject=Busmo%20Enterprise';
   };
 
   const handleStartFreeTrial = () => {
@@ -99,16 +96,13 @@ export default function PricingPage() {
       return;
     }
 
-    const price =
-      mode === 'monthly' ? selectedPlan.monthlyPrice : selectedPlan.yearlyPrice;
-
     setIsPaying(true);
     try {
       try {
         trackInitiateCheckout(
-          selectedPlan?.id || 'plan',
-          selectedPlan?.name || 'Subscription',
-          selectedPlan?.monthlyPrice
+          selectedPlan.id || 'plan',
+          selectedPlan.name || 'Subscription',
+          selectedPlan.monthlyPrice
         );
       } catch (_) {}
 
@@ -181,14 +175,16 @@ export default function PricingPage() {
 
           <div className="plan-grid">
             {BUSMO_PLANS.map((plan) => {
-              const price = mode === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice;
-              const isPopular = plan.popular;
+              const price =
+                mode === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice;
               return (
                 <div
                   key={plan.id}
-                  className={`plan-card${isPopular ? ' popular' : ''}`}
+                  className={`plan-card${plan.popular ? ' popular' : ''}`}
                 >
-                  {isPopular && <div className="plan-badge">Most popular</div>}
+                  {plan.popular && (
+                    <div className="plan-badge">Most popular</div>
+                  )}
                   <h3 className="plan-name">{plan.name}</h3>
                   <p className="plan-tagline">{plan.tagline}</p>
                   <div className="plan-price">
@@ -214,13 +210,14 @@ export default function PricingPage() {
 
           <div className="enterprise-block">
             <h3>{ENTERPRISE.name}</h3>
-            <p>{ENTERPRISE.description}</p>
+            <p>{ENTERPRISE.tagline}</p>
+            <p className="plan-price">{ENTERPRISE.priceLabel}</p>
             <button
               type="button"
               className="plan-cta"
-              onClick={() => handleSelectPlan({ ...ENTERPRISE, monthlyPrice: 0, yearlyPrice: 0, features: ENTERPRISE.features, id: 'enterprise' } as BusmoPlan)}
+              onClick={handleEnterprise}
             >
-              Contact sales
+              {ENTERPRISE.cta}
             </button>
           </div>
         </div>
