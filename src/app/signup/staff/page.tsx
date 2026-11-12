@@ -1,6 +1,6 @@
 'use client';
+
 import { trackSignupSuccess } from '@/lib/tiktok/pixel';
-"use client";
 
 import { useState } from "react";
 import { getSupabase, isSupabaseConfigured, getSupabaseConfigErrorMessage } from "@/lib/supabase";

@@ -1,4 +1,5 @@
 'use client';
+
 import { trackCompletePayment, trackPaymentFailed } from '@/lib/tiktok/pixel';
 
 import React, { useEffect, useState, Suspense } from 'react';

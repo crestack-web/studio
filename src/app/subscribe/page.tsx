@@ -1,4 +1,5 @@
 'use client';
+
 import { trackInitiateCheckout, trackAddToCart, trackViewContent, trackClickButton } from '@/lib/tiktok/pixel';
 
 import React, { useState, useEffect } from 'react';

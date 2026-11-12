@@ -1,4 +1,5 @@
 'use client';
+
 import { trackSignupSuccess, trackViewContent, trackClickButton } from '@/lib/tiktok/pixel';
 
 import React, { useEffect, useMemo, useState } from 'react';
