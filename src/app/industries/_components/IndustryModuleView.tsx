@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { getSupabase } from '@/lib/supabase';
 import type { IndustryConfig } from '@/lib/industries/types';
 import styles from './IndustryShell.module.css';
+import { HospitalityAccountSettings, HospitalityHotelSettings } from './hospitality/HospitalitySettingsPages';
 import {
   HospitalityRoomsPage,
   HospitalityReservationsPage,
@@ -964,7 +965,15 @@ export function IndustryModuleView({
     );
   }
 
-  if (section === 'settings' || section === 'account') {
+  if (config.id === 'hospitality' && (section === 'settings' || section === 'hotel-settings')) {
+    return <HospitalityHotelSettings />;
+  }
+
+  if (section === 'account') {
+    return <HospitalityAccountSettings productName={config.productName} />;
+  }
+
+  if (section === 'settings') {
     return (
       <Shell title={label} subtitle="Branding and organization preferences.">
         <Panel title="Branding">
