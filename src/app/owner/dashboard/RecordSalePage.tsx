@@ -629,17 +629,17 @@ export function RecordSalePage() {
         const totalCost = items.reduce((s: number, i: any) => s + (i.costPrice || 0) * i.quantity, 0);
         await offlineManager.queueSale({
           businessId,
-          userId: user.uid,
+          userId: authUser.uid,
           items,
           paymentType: (saleData.paymentMethod || 'cash') as any,
           totalRevenue,
           totalCost,
           totalProfit: totalRevenue - totalCost,
           recordedBy: saleData.recordedBy || {
-            uid: user.uid,
-            email: user.email || '',
-            displayName: user.displayName || 'Owner',
-            role: 'Owner',
+            uid: authUser.uid,
+            email: authUser.email || '',
+            displayName: authUser.displayName || staffName || 'Owner',
+            role: userRole || 'Owner',
           },
         });
         showToast('Sale saved offline. It will sync when you are back online.');
@@ -721,10 +721,10 @@ export function RecordSalePage() {
 
       // Record audit trail for sale creation
       try {
-        const { data: auditUserData } = await getSupabase().from('users').select('*').eq('id', user.uid).single();
+        const { data: auditUserData } = await getSupabase().from('users').select('*').eq('id', authUser.uid).single();
         
         await sbAddDoc(`businesses/${saleBusinessId}/auditTrail`, {
-          userId: user.uid,
+          userId: authUser.uid,
           userName: staffName,
           userEmail: user.email || auditUserData?.email || '',
           action: 'create',
@@ -990,7 +990,7 @@ export function RecordSalePage() {
       // Check for low stock items and send alert
       try {
         // Check if low stock notifications are enabled
-        const { data: ownerDoc } = await getSupabase().from('users').select('*').eq('id', user.uid).single();
+        const { data: ownerDoc } = await getSupabase().from('users').select('*').eq('id', authUser.uid).single();
         const emailPrefs = ownerDoc?.emailPreferences || ownerDoc?.email_preferences;
         const businessName = ownerDoc?.businessName || ownerDoc?.business_name || 'Your Business';
         const ownerEmail = user.email;
@@ -1119,7 +1119,7 @@ export function RecordSalePage() {
               price: item.price,
             })),
             branchId: null,
-            recordedBy: user.uid,
+            recordedBy: authUser.uid,
             recordedByName: staffName,
           });
 
@@ -1179,7 +1179,7 @@ export function RecordSalePage() {
       // Check for low stock items and send alert
       try {
         // Check if low stock notifications are enabled
-        const { data: ownerDoc2 } = await getSupabase().from('users').select('*').eq('id', user.uid).single();
+        const { data: ownerDoc2 } = await getSupabase().from('users').select('*').eq('id', authUser.uid).single();
         const emailPrefs2 = ownerDoc2?.emailPreferences || ownerDoc2?.email_preferences;
         
         if (emailPrefs2?.lowStock !== false) {
@@ -1224,13 +1224,13 @@ export function RecordSalePage() {
       // If recorded by staff, update staff's revenue and transaction counts
       if (userRole === 'Staff' && staffId) {
         try {
-          const staffData = await fetchDoc(`businesses/${businessId}/staff`, user.uid);
+          const staffData = await fetchDoc(`businesses/${businessId}/staff`, authUser.uid);
           
           if (staffData) {
             const currentRevenue = (staffData as any).revenue || 0;
             const currentTransactions = (staffData as any).transactions || 0;
             
-            await sbUpdateDoc(`businesses/${businessId}/staff`, user.uid, {
+            await sbUpdateDoc(`businesses/${businessId}/staff`, authUser.uid, {
               revenue: currentRevenue + subtotal,
               transactions: currentTransactions + 1,
               lastSaleAt: new Date().toISOString(),
