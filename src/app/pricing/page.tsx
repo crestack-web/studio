@@ -54,6 +54,8 @@ export default function PricingPage() {
     else if (page === 'login' || page === 'login-form') window.location.href = '/login';
     else if (page === 'pricing') window.location.href = '/pricing';
     else if (page === 'seller') window.location.href = '/sell-welcome';
+    else if (page === 'download') window.location.href = '/welcome';
+    else if (page === 'help') window.location.href = '/welcome/help';
     else if (
       page === 'invest' ||
       page === 'invest-signup' ||
@@ -223,7 +225,7 @@ export default function PricingPage() {
         </div>
       </main>
 
-      <Footer />
+      <Footer onNavigate={handleNavigate} />
 
       {showPaymentModal && selectedPlan && (
         <div
