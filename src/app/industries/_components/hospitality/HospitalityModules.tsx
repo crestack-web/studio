@@ -387,6 +387,38 @@ export function HospitalityReservationsPage({ config }: { config: IndustryConfig
     load();
   }, [load]);
 
+  const [availableRoomIds, setAvailableRoomIds] = useState<string[] | null>(null);
+
+  // Load rooms free for selected stay dates (double-booking aware)
+  useEffect(() => {
+    if (!form.checkInDate || !form.checkOutDate || form.checkOutDate <= form.checkInDate) {
+      setAvailableRoomIds(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const h = await authHeaders();
+        const res = await fetch(
+          `/api/industries/hospitality/bookings?availableFor=${encodeURIComponent(form.checkInDate)}&availableUntil=${encodeURIComponent(form.checkOutDate)}`,
+          { headers: h }
+        );
+        const json = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (res.ok && Array.isArray(json.rooms)) {
+          setAvailableRoomIds(json.rooms.map((r: any) => r.id));
+        } else {
+          setAvailableRoomIds(null);
+        }
+      } catch {
+        if (!cancelled) setAvailableRoomIds(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [form.checkInDate, form.checkOutDate]);
+
   // Auto nights + amount from room rate
   useEffect(() => {
     const room = rooms.find((r) => r.id === form.roomId);
@@ -683,12 +715,23 @@ export function HospitalityReservationsPage({ config }: { config: IndustryConfig
               onChange={(e) => setForm({ ...form, roomId: e.target.value })}
             >
               <option value="">Assign later (or at check-in)</option>
-              {rooms.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.room_number} · {r.category} · {r.status} · {money(r.rate_amount)}/night
-                </option>
-              ))}
+              {rooms.map((r) => {
+                const blocked =
+                  availableRoomIds != null && !availableRoomIds.includes(r.id);
+                const maint = r.status === 'maintenance' || r.status === 'blocked';
+                return (
+                  <option key={r.id} value={r.id} disabled={blocked || maint}>
+                    {r.room_number} · {r.category} · {money(r.rate_amount)}/night
+                    {maint ? ' · unavailable' : blocked ? ' · booked for these dates' : ' · free'}
+                  </option>
+                );
+              })}
             </select>
+            {form.checkInDate && form.checkOutDate && availableRoomIds != null ? (
+              <p style={{ fontSize: 12, color: '#6b7280', margin: '-4px 0 10px' }}>
+                {availableRoomIds.length} room(s) free for these dates (double-booking blocked).
+              </p>
+            ) : null}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <div>
                 <label style={labelStyle}>Check-in *</label>

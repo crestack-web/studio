@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/app/api/mo-sales/_auth';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { loadIndustrySession } from '@/lib/industries/session';
+import {
+  assertRoomAvailable,
+  listAvailableRooms,
+} from '@/lib/industries/hospitality-availability';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,33 +17,36 @@ async function biz(req: NextRequest) {
   return session.businessId || null;
 }
 
-
 export async function GET(req: NextRequest) {
   const businessId = await biz(req);
   if (!businessId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const admin = getSupabaseAdmin();
   const status = req.nextUrl.searchParams.get('status');
+  const availableFor = req.nextUrl.searchParams.get('availableFor'); // checkIn
+  const availableUntil = req.nextUrl.searchParams.get('availableUntil'); // checkOut
+
+  // Availability query: rooms free for a stay window
+  if (availableFor) {
+    const rooms = await listAvailableRooms(
+      admin,
+      businessId,
+      availableFor,
+      availableUntil || null
+    );
+    return NextResponse.json({ ok: true, rooms });
+  }
+
   let q = admin
     .from('hospitality_bookings')
-    .select('*, hospitality_rooms(room_number, category, status)')
+    .select('*')
     .eq('business_id', businessId)
     .order('check_in_date', { ascending: false })
     .limit(200);
   if (status) q = q.eq('status', status);
 
   const { data, error } = await q;
-  if (error) {
-    // Fallback without join if FK name differs
-    const plain = await admin
-      .from('hospitality_bookings')
-      .select('*')
-      .eq('business_id', businessId)
-      .order('check_in_date', { ascending: false })
-      .limit(200);
-    if (plain.error) return NextResponse.json({ error: plain.error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, bookings: plain.data || [] });
-  }
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, bookings: data || [] });
 }
 
@@ -53,9 +60,29 @@ export async function POST(req: NextRequest) {
   const admin = getSupabaseAdmin();
   const roomId = body.roomId || body.room_id || null;
   const status = body.status || 'confirmed';
-
   const checkIn = body.checkInDate || new Date().toISOString().slice(0, 10);
   const checkOut = body.checkOutDate || null;
+
+  if (!checkOut) {
+    return NextResponse.json({ error: 'checkOutDate required' }, { status: 400 });
+  }
+  if (checkOut <= checkIn) {
+    return NextResponse.json({ error: 'Check-out must be after check-in' }, { status: 400 });
+  }
+
+  // Double-booking guard
+  if (roomId && status !== 'cancelled') {
+    const gate = await assertRoomAvailable(admin, {
+      businessId,
+      roomId,
+      checkIn,
+      checkOut,
+    });
+    if (!gate.ok) {
+      return NextResponse.json({ error: gate.message, conflicts: gate.conflicts }, { status: 409 });
+    }
+  }
+
   let nights = body.nights != null ? Number(body.nights) : null;
   if (nights == null && checkOut && checkIn) {
     const a = new Date(checkIn + 'T12:00:00');
@@ -107,40 +134,35 @@ export async function POST(req: NextRequest) {
     .select('*')
     .single();
 
-  // Seed folio with room charge if amount > 0
-  if (!error && data?.id && amount > 0) {
-    await admin.from('hospitality_folio_lines').insert({
-      business_id: businessId,
-      booking_id: data.id,
-      line_type: 'charge',
-      description: `Room stay (${nights} night${nights > 1 ? 's' : ''})`,
-      amount,
-    });
-    if (deposit > 0) {
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (data?.id && amount > 0) {
+    try {
       await admin.from('hospitality_folio_lines').insert({
         business_id: businessId,
         booking_id: data.id,
-        line_type: 'payment',
-        description: 'Deposit',
-        amount: deposit,
+        line_type: 'charge',
+        description: `Room stay (${nights} night${nights > 1 ? 's' : ''})`,
+        amount,
       });
+      if (deposit > 0) {
+        await admin.from('hospitality_folio_lines').insert({
+          business_id: businessId,
+          booking_id: data.id,
+          line_type: 'payment',
+          description: 'Deposit',
+          amount: deposit,
+        });
+      }
+    } catch {
+      /* folio table may not be migrated yet */
     }
   }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  // Sync room status on check-in
   if (roomId && status === 'checked_in') {
     await admin
       .from('hospitality_rooms')
       .update({ status: 'occupied', updated_at: new Date().toISOString() })
-      .eq('id', roomId)
-      .eq('business_id', businessId);
-  }
-  if (roomId && status === 'checked_out') {
-    await admin
-      .from('hospitality_rooms')
-      .update({ status: 'cleaning', updated_at: new Date().toISOString() })
       .eq('id', roomId)
       .eq('business_id', businessId);
   }
@@ -167,6 +189,32 @@ export async function PATCH(req: NextRequest) {
 
   const status = body.status || existing.status;
   const roomId = body.roomId || body.room_id || existing.room_id || null;
+  const checkIn = body.checkInDate || existing.check_in_date;
+  const checkOut = body.checkOutDate !== undefined ? body.checkOutDate : existing.check_out_date;
+
+  if (status === 'checked_in' && !roomId) {
+    return NextResponse.json({ error: 'Assign a room before check-in' }, { status: 400 });
+  }
+
+  // Guard on assign or check-in
+  if (
+    roomId &&
+    status !== 'cancelled' &&
+    status !== 'checked_out' &&
+    status !== 'no_show'
+  ) {
+    const gate = await assertRoomAvailable(admin, {
+      businessId,
+      roomId,
+      checkIn,
+      checkOut,
+      excludeBookingId: id,
+    });
+    if (!gate.ok) {
+      return NextResponse.json({ error: gate.message, conflicts: gate.conflicts }, { status: 409 });
+    }
+  }
+
   const { data, error } = await admin
     .from('hospitality_bookings')
     .update({
@@ -175,6 +223,8 @@ export async function PATCH(req: NextRequest) {
       updated_at: new Date().toISOString(),
       ...(body.amount != null ? { amount: Number(body.amount) } : {}),
       ...(body.notes != null ? { notes: body.notes } : {}),
+      ...(body.checkInDate ? { check_in_date: body.checkInDate } : {}),
+      ...(body.checkOutDate !== undefined ? { check_out_date: body.checkOutDate } : {}),
     })
     .eq('id', id)
     .eq('business_id', businessId)
@@ -184,14 +234,7 @@ export async function PATCH(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   if (roomId) {
-    if (status === 'checked_in' && !roomId) {
-    return NextResponse.json(
-      { error: 'Assign a room before check-in' },
-      { status: 400 }
-    );
-  }
-
-  if (status === 'checked_in') {
+    if (status === 'checked_in') {
       await admin
         .from('hospitality_rooms')
         .update({ status: 'occupied', updated_at: new Date().toISOString() })
