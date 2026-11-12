@@ -5,6 +5,14 @@ import Link from 'next/link';
 import { getSupabase } from '@/lib/supabase';
 import type { IndustryConfig } from '@/lib/industries/types';
 import styles from './IndustryShell.module.css';
+import {
+  HospitalityRoomsPage,
+  HospitalityReservationsPage,
+  HospitalityGuestsPage,
+  HospitalityHousekeepingPage,
+  HospitalityCheckinPage,
+  HospitalityRevenuePage,
+} from './hospitality/HospitalityModules';
 
 async function authHeaders() {
   const { data } = await getSupabase().auth.getSession();
@@ -967,9 +975,15 @@ export function IndustryModuleView({
   }
 
   if (config.id === 'hospitality') {
-    if (section === 'rooms') return <HospitalityRooms config={config} />;
-    if (section === 'reservations') return <HospitalityReservations config={config} />;
-    if (section === 'checkin' || section === 'front-desk') {
+    if (section === 'rooms') return <HospitalityRoomsPage config={config} />;
+    if (section === 'reservations') return <HospitalityReservationsPage config={config} />;
+    if (section === 'guests') return <HospitalityGuestsPage config={config} />;
+    if (section === 'housekeeping') return <HospitalityHousekeepingPage config={config} />;
+    if (section === 'checkin') return <HospitalityCheckinPage config={config} />;
+    if (section === 'revenue' || section === 'expenses') {
+      if (section === 'revenue') return <HospitalityRevenuePage config={config} />;
+    }
+    if (section === 'front-desk') {
       return (
         <Shell title={label} subtitle="Live room board and check-in.">
           <Panel title="Front desk">

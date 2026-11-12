@@ -13,6 +13,36 @@ async function biz(req: NextRequest) {
   return session.businessId || null;
 }
 
+
+export async function GET(req: NextRequest) {
+  const businessId = await biz(req);
+  if (!businessId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const admin = getSupabaseAdmin();
+  const status = req.nextUrl.searchParams.get('status');
+  let q = admin
+    .from('hospitality_bookings')
+    .select('*, hospitality_rooms(room_number, category, status)')
+    .eq('business_id', businessId)
+    .order('check_in_date', { ascending: false })
+    .limit(200);
+  if (status) q = q.eq('status', status);
+
+  const { data, error } = await q;
+  if (error) {
+    // Fallback without join if FK name differs
+    const plain = await admin
+      .from('hospitality_bookings')
+      .select('*')
+      .eq('business_id', businessId)
+      .order('check_in_date', { ascending: false })
+      .limit(200);
+    if (plain.error) return NextResponse.json({ error: plain.error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, bookings: plain.data || [] });
+  }
+  return NextResponse.json({ ok: true, bookings: data || [] });
+}
+
 export async function POST(req: NextRequest) {
   const businessId = await biz(req);
   if (!businessId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -80,12 +110,15 @@ export async function PATCH(req: NextRequest) {
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const status = body.status || existing.status;
+  const roomId = body.roomId || body.room_id || existing.room_id || null;
   const { data, error } = await admin
     .from('hospitality_bookings')
     .update({
       status,
+      room_id: roomId,
       updated_at: new Date().toISOString(),
       ...(body.amount != null ? { amount: Number(body.amount) } : {}),
+      ...(body.notes != null ? { notes: body.notes } : {}),
     })
     .eq('id', id)
     .eq('business_id', businessId)
@@ -94,19 +127,19 @@ export async function PATCH(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  if (existing.room_id) {
+  if (roomId) {
     if (status === 'checked_in') {
       await admin
         .from('hospitality_rooms')
         .update({ status: 'occupied', updated_at: new Date().toISOString() })
-        .eq('id', existing.room_id)
+        .eq('id', roomId)
         .eq('business_id', businessId);
     }
     if (status === 'checked_out') {
       await admin
         .from('hospitality_rooms')
         .update({ status: 'cleaning', updated_at: new Date().toISOString() })
-        .eq('id', existing.room_id)
+        .eq('id', roomId)
         .eq('business_id', businessId);
     }
   }
