@@ -1,4 +1,5 @@
 "use client";
+import { trackClickButton } from "@/lib/tiktok/pixel";
 
 import React from "react";
 import { Page } from "../types";
@@ -55,7 +56,15 @@ export const Hero: React.FC<HeroProps> = ({ onNavigate, onWatchDemo }) => {
             </p>
 
             <div className="hero-cta">
-              <button className="btn-primary btn-dominant" onClick={() => onNavigate("signup")}>
+              <button
+                className="btn-primary btn-dominant"
+                onClick={() => {
+                  try {
+                    trackClickButton('Start with Busmo');
+                  } catch (_) {}
+                  onNavigate('signup');
+                }}
+              >
                 Start with Busmo
               </button>
               <button className="btn-outline" onClick={onWatchDemo}>

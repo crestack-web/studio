@@ -7,6 +7,7 @@ import {
   TIKTOK_PIXEL_ID,
   captureAttributionFromUrl,
   trackPageView,
+  trackViewContent,
 } from '@/lib/tiktok/pixel';
 
 /**
@@ -35,11 +36,36 @@ export function TikTokPixelProvider() {
     if (!bootstrapped.current) {
       bootstrapped.current = true;
       lastPath.current = key;
+      try {
+        const path = pathname || '';
+        if (path === '/' || path === '/welcome') trackViewContent('Landing', 'landing');
+        else if (path.startsWith('/pricing')) trackViewContent('Pricing', 'pricing');
+        else if (path.startsWith('/subscribe')) trackViewContent('Subscribe', 'subscribe');
+      } catch {
+        /* ignore */
+      }
       return;
     }
     if (lastPath.current === key) return;
     lastPath.current = key;
     trackPageView();
+    // Commerce funnel: ViewContent on key marketing URLs
+    try {
+      const path = pathname || '';
+      if (path === '/' || path === '/welcome') {
+        trackViewContent('Landing', 'landing');
+      } else if (path.startsWith('/pricing')) {
+        trackViewContent('Pricing', 'pricing');
+      } else if (path.startsWith('/subscribe')) {
+        trackViewContent('Subscribe', 'subscribe');
+      } else if (path.startsWith('/welcome/signup') || path.startsWith('/signup')) {
+        trackViewContent('Signup', 'signup');
+      } else if (path.startsWith('/plans')) {
+        trackViewContent('Plans', 'plans');
+      }
+    } catch {
+      /* ignore */
+    }
   }, [pathname, searchParams]);
 
   return (
