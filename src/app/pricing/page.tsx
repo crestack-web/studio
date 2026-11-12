@@ -69,7 +69,7 @@ export default function PricingPage() {
   const handleSelectPlan = (plan: BusmoPlan) => {
     try {
       trackAddToCart(plan.id, plan.name, plan.monthlyPrice);
-      trackClickButton('select_plan', plan.id);
+      trackClickButton(`select_plan_${plan.id}`);
     } catch (_) {}
     setSelectedPlan(plan);
     setShowPaymentModal(true);
@@ -77,14 +77,14 @@ export default function PricingPage() {
 
   const handleEnterprise = () => {
     try {
-      trackClickButton('enterprise', 'pricing');
+      trackClickButton('enterprise');
     } catch (_) {}
     window.location.href = 'mailto:hello@busmo.io?subject=Busmo%20Enterprise';
   };
 
   const handleStartFreeTrial = () => {
     try {
-      trackClickButton('start_trial', selectedPlan?.id || 'pricing');
+      trackClickButton(`start_trial_${selectedPlan?.id || 'pricing'}`);
     } catch (_) {}
     window.location.href = '/welcome/signup';
   };
