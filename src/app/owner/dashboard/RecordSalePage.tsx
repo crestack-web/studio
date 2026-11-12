@@ -497,26 +497,56 @@ export function RecordSalePage() {
     setIsProcessingSale(true);
     
     try {
-      const user = getAuthCurrentUser();
-      
-      if (!user) {
-        showToast('Authentication required');
+      // Prefer live Supabase session (getAuthCurrentUser often null on mobile after hydrate)
+      const { data: sessWrap } = await getSupabase().auth.getSession();
+      const sessionUser = sessWrap.session?.user;
+      const cached = getAuthCurrentUser();
+      const uid =
+        sessionUser?.id ||
+        cached?.uid ||
+        (user as any)?.id ||
+        '';
+      if (!uid) {
+        showToast('Authentication required — refresh the page and try again');
         setIsProcessingSale(false);
         return;
       }
+      const authUser = {
+        uid,
+        email: sessionUser?.email || cached?.email || (user as any)?.email || null,
+        displayName:
+          (sessionUser?.user_metadata as any)?.full_name ||
+          (sessionUser?.user_metadata as any)?.name ||
+          cached?.displayName ||
+          (user as any)?.name ||
+          null,
+      };
 
       // Use the businessId from state (already fetched in useEffect)
-      if (!businessId) {
+      let saleBusinessId = businessId || '';
+      if (!saleBusinessId) {
+        saleBusinessId = await resolveSaleBusinessId();
+        if (saleBusinessId) setBusinessId(saleBusinessId);
+      }
+      if (!saleBusinessId) {
         showToast('Business ID not found. Please ensure you are associated with a business.');
         setIsProcessingSale(false);
         return;
       }
 
       // Get current user's role and staff information
-      const { data: userData } = await getSupabase().from('users').select('*').eq('id', user.uid).single();
+      let userData: any = null;
+      try {
+        const { data } = await getSupabase().from('users').select('*').eq('id', uid).maybeSingle();
+        userData = data;
+      } catch (_) {}
       const userRole = userData?.role || 'Owner';
       const staffId = userData?.staffId || userData?.staff_id || null;
-      const staffName = userData?.displayName || userData?.display_name || user.displayName || 'Unknown';
+      const staffName =
+        userData?.displayName ||
+        userData?.display_name ||
+        authUser.displayName ||
+        'Owner';
 
     // Get source location name
     const selectedLocation = stockLocations.find(loc => loc.id === sourceLocation);
@@ -557,13 +587,13 @@ export function RecordSalePage() {
           expectedCash,
           expectedBank,
           note: note,
-          businessId: businessId,
+          businessId: saleBusinessId,
           sourceLocation: sourceLocation,
           sourceLocationName: sourceLocationName,
           bankAccountId: bankAccountId,
           recordedBy: {
-            uid: user.uid,
-            email: user.email,
+            uid: authUser.uid,
+            email: authUser.email,
             displayName: staffName,
             role: userRole,
             staffId: staffId,
@@ -657,13 +687,13 @@ export function RecordSalePage() {
         }
       } catch (apiErr) {
         console.warn('[RecordSale] API write failed, client fallback', apiErr);
-        saleId = await sbAddDoc(`businesses/${businessId}/sales`, {
+        saleId = await sbAddDoc(`businesses/${saleBusinessId}/sales`, {
           ...saleData,
           id: crypto.randomUUID(),
         });
       }
       if (!saleId) {
-        saleId = await sbAddDoc(`businesses/${businessId}/sales`, {
+        saleId = await sbAddDoc(`businesses/${saleBusinessId}/sales`, {
           ...saleData,
           id: crypto.randomUUID(),
         });
@@ -672,7 +702,7 @@ export function RecordSalePage() {
 
       // Create cash flow entry for the sale
       try {
-        await sbAddDoc(`businesses/${businessId}/cashFlow`, {
+        await sbAddDoc(`businesses/${saleBusinessId}/cashFlow`, {
           date: new Date().toISOString(),
           moneyIn: expectedCash,
           moneyOut: 0,
@@ -693,7 +723,7 @@ export function RecordSalePage() {
       try {
         const { data: auditUserData } = await getSupabase().from('users').select('*').eq('id', user.uid).single();
         
-        await sbAddDoc(`businesses/${businessId}/auditTrail`, {
+        await sbAddDoc(`businesses/${saleBusinessId}/auditTrail`, {
           userId: user.uid,
           userName: staffName,
           userEmail: user.email || auditUserData?.email || '',
@@ -731,7 +761,7 @@ export function RecordSalePage() {
 
       // Credit bank/POS/card and cash into wallet accounts so Cashflow total stays true
       try {
-        const accountsRaw: any[] = await fetchDocs(`businesses/${businessId}/bankAccounts`);
+        const accountsRaw: any[] = await fetchDocs(`businesses/${saleBusinessId}/bankAccounts`);
         const accounts = (accountsRaw || []).filter(
           (a: any) => a.isActive !== false && a.active !== false
         );
@@ -764,7 +794,7 @@ export function RecordSalePage() {
           const existing = findCashAccount();
           if (existing?.id) return existing;
           try {
-            const id = await sbAddDoc(`businesses/${businessId}/bankAccounts`, {
+            const id = await sbAddDoc(`businesses/${saleBusinessId}/bankAccounts`, {
               accountName: 'Cash on hand',
               bankName: 'Cash',
               currentBalance: 0,
@@ -802,7 +832,7 @@ export function RecordSalePage() {
           }
           const bankAccountDoc =
             (targetId && accounts.find((a: any) => a.id === targetId)) ||
-            (targetId ? await fetchDoc(`businesses/${businessId}/bankAccounts`, targetId) : null);
+            (targetId ? await fetchDoc(`businesses/${saleBusinessId}/bankAccounts`, targetId) : null);
           if (bankAccountDoc && targetId) {
             const currentBalance =
               Number(
@@ -811,7 +841,7 @@ export function RecordSalePage() {
                   0
               ) || 0;
             const newBal = currentBalance + expectedBank;
-            await sbUpdateDoc(`businesses/${businessId}/bankAccounts`, targetId, {
+            await sbUpdateDoc(`businesses/${saleBusinessId}/bankAccounts`, targetId, {
               currentBalance: newBal,
             });
             await sbAddDoc(`businesses/${businessId}/bankTransactions`, {
@@ -849,7 +879,7 @@ export function RecordSalePage() {
                   0
               ) || 0;
             const newBal = currentBalance + expectedCash;
-            await sbUpdateDoc(`businesses/${businessId}/bankAccounts`, cashAccount.id, {
+            await sbUpdateDoc(`businesses/${saleBusinessId}/bankAccounts`, cashAccount.id, {
               currentBalance: newBal,
             });
             await sbAddDoc(`businesses/${businessId}/bankTransactions`, {
@@ -896,8 +926,8 @@ export function RecordSalePage() {
           pickupStatus: 'pending',
           pickupWarehouse: sourceLocationName,
           recordedBy: {
-            uid: user.uid,
-            email: user.email,
+            uid: authUser.uid,
+            email: authUser.email,
             displayName: staffName,
             role: userRole,
             staffId: staffId,
@@ -912,7 +942,7 @@ export function RecordSalePage() {
       // Update product stock sequentially (no true atomicity on client, best-effort)
       for (const item of cart) {
         try {
-          const productData = await fetchDoc(`businesses/${businessId}/products`, item.id.toString());
+          const productData = await fetchDoc(`businesses/${saleBusinessId}/products`, item.id.toString());
           
           if (productData) {
             const currentStock = (productData as any).stock || (productData as any).stock_level || (productData as any).quantity || 0;
@@ -940,7 +970,7 @@ export function RecordSalePage() {
               stockByLocation[sourceLocation] = newLocationStock;
             }
             
-            await sbUpdateDoc(`businesses/${businessId}/products`, item.id.toString(), {
+            await sbUpdateDoc(`businesses/${saleBusinessId}/products`, item.id.toString(), {
               stock: newStock,
               stockByLocation: stockByLocation,
               lastSaleLocation: sourceLocation,
@@ -969,7 +999,7 @@ export function RecordSalePage() {
         if (emailPrefs?.lowStock !== false) {
           const lowStockItems: Array<{ name: string; stock: number; threshold: number }> = [];
           for (const item of cart) {
-            const productData = await fetchDoc(`businesses/${businessId}/products`, item.id.toString());
+            const productData = await fetchDoc(`businesses/${saleBusinessId}/products`, item.id.toString());
             
             if (productData) {
               const stock = (productData as any).stock || (productData as any).stock_level || 0;
@@ -1133,7 +1163,7 @@ export function RecordSalePage() {
               stockByLocation[sourceLocation] = newLocationStock;
             }
             
-            await sbUpdateDoc(`businesses/${businessId}/products`, item.id.toString(), {
+            await sbUpdateDoc(`businesses/${saleBusinessId}/products`, item.id.toString(), {
               stock: newStock,
               stockByLocation: stockByLocation,
               lastSaleLocation: sourceLocation,
