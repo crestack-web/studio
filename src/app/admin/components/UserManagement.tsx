@@ -29,6 +29,8 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<AdminUserRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteMsg, setDeleteMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -56,6 +58,39 @@ export default function UserManagement() {
     return () => clearTimeout(t);
   }, [load]);
 
+  async function deleteSelectedUser() {
+    if (!selected) return;
+    const emailLabel = selected.email || selected.id;
+    const ok = window.confirm(
+      `Permanently delete ${emailLabel}?\n\nThis removes their login so they can create a Busmo account again with the same email. This cannot be undone.`
+    );
+    if (!ok) return;
+
+    setDeleting(true);
+    setDeleteMsg(null);
+    setError(null);
+    try {
+      const headers = await adminAuthHeaders();
+      const res = await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: selected.id,
+          confirmEmail: selected.email || undefined,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Delete failed');
+      setDeleteMsg(json.message || 'User deleted. They can sign up again.');
+      setSelected(null);
+      await load();
+    } catch (e: any) {
+      setError(e?.message || 'Delete failed');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="min-w-0 space-y overflow-x-hidden-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -65,7 +100,11 @@ export default function UserManagement() {
             Full directory from Supabase · {total.toLocaleString()} profiles
           </p>
         </div>
-        <button type="button" onClick={load} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold">
+        <button
+          type="button"
+          onClick={load}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold"
+        >
           Refresh
         </button>
       </div>
@@ -77,13 +116,21 @@ export default function UserManagement() {
           placeholder="Search email, name, phone, business…"
           className="min-w-[220px] flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm"
         />
-        <select value={plan} onChange={(e) => setPlan(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+        <select
+          value={plan}
+          onChange={(e) => setPlan(e.target.value)}
+          className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+        >
           <option value="">All plans</option>
           <option value="starter">Starter</option>
           <option value="standard">Standard</option>
           <option value="pro">Pro</option>
         </select>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
+        >
           <option value="">All status</option>
           <option value="active">Active</option>
           <option value="suspended">Suspended</option>
@@ -92,6 +139,7 @@ export default function UserManagement() {
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
+      {deleteMsg && <p className="text-sm text-emerald-700">{deleteMsg}</p>}
 
       <div className="grid gap-4 lg:grid-cols-5">
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:col-span-3">
@@ -116,8 +164,13 @@ export default function UserManagement() {
                   users.map((u) => (
                     <tr
                       key={u.id}
-                      className={`cursor-pointer border-t border-slate-100 hover:bg-violet-50/50 ${selected?.id === u.id ? 'bg-violet-50' : ''}`}
-                      onClick={() => setSelected(u)}
+                      className={`cursor-pointer border-t border-slate-100 hover:bg-violet-50/50 ${
+                        selected?.id === u.id ? 'bg-violet-50' : ''
+                      }`}
+                      onClick={() => {
+                        setSelected(u);
+                        setDeleteMsg(null);
+                      }}
                     >
                       <td className="px-3 py-2">
                         <div className="font-medium">{u.fullName || '—'}</div>
@@ -125,7 +178,9 @@ export default function UserManagement() {
                       </td>
                       <td className="px-3 py-2 capitalize">{u.plan}</td>
                       <td className="px-3 py-2 capitalize">{u.status}</td>
-                      <td className="px-3 py-2 text-xs text-slate-600">{u.businessName || u.businessId || '—'}</td>
+                      <td className="px-3 py-2 text-xs text-slate-600">
+                        {u.businessName || u.businessId || '—'}
+                      </td>
                     </tr>
                   ))
                 )}
@@ -137,55 +192,77 @@ export default function UserManagement() {
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:col-span-2">
           <h3 className="font-semibold text-slate-900">Identity detail</h3>
           {!selected ? (
-            <p className="mt-4 text-sm text-slate-500">Select a user to inspect identity, plan, and activity signals.</p>
+            <p className="mt-4 text-sm text-slate-500">
+              Select a user to inspect identity, plan, and activity signals.
+            </p>
           ) : (
-            <dl className="mt-4 space-y-3 text-sm">
-              <div>
-                <dt className="text-xs uppercase text-slate-500">Name</dt>
-                <dd className="font-medium">{selected.fullName || '—'}</dd>
+            <>
+              <dl className="mt-4 space-y-3 text-sm">
+                <div>
+                  <dt className="text-xs uppercase text-slate-500">Name</dt>
+                  <dd className="font-medium">{selected.fullName || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs uppercase text-slate-500">Email</dt>
+                  <dd className="break-all">{selected.email || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs uppercase text-slate-500">Phone</dt>
+                  <dd>{selected.phone || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs uppercase text-slate-500">User ID</dt>
+                  <dd className="break-all font-mono text-xs">{selected.id}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs uppercase text-slate-500">Role</dt>
+                  <dd className="capitalize">{selected.role || 'user'}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs uppercase text-slate-500">Plan / subscription</dt>
+                  <dd className="capitalize">
+                    {selected.plan}
+                    {selected.subscriptionStatus ? ` · ${selected.subscriptionStatus}` : ''}
+                    {selected.lifetimeAccess ? ' · lifetime' : ''}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs uppercase text-slate-500">Business</dt>
+                  <dd>
+                    {selected.businessName || '—'}
+                    {selected.businessId ? (
+                      <div className="font-mono text-xs text-slate-500">{selected.businessId}</div>
+                    ) : null}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs uppercase text-slate-500">Joined</dt>
+                  <dd>
+                    {selected.createdAt ? new Date(selected.createdAt).toLocaleString() : '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs uppercase text-slate-500">Last activity signal</dt>
+                  <dd>
+                    {selected.lastSeenAt ? new Date(selected.lastSeenAt).toLocaleString() : '—'}
+                  </dd>
+                </div>
+              </dl>
+
+              <div className="mt-6 border-t border-slate-100 pt-4">
+                <p className="mb-2 text-xs text-slate-500">
+                  Permanent delete removes login + profile so this email can sign up again.
+                </p>
+                <button
+                  type="button"
+                  disabled={deleting}
+                  onClick={deleteSelectedUser}
+                  className="w-full rounded-xl bg-red-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                >
+                  {deleting ? 'Deleting…' : 'Delete user permanently'}
+                </button>
               </div>
-              <div>
-                <dt className="text-xs uppercase text-slate-500">Email</dt>
-                <dd className="break-all">{selected.email || '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-xs uppercase text-slate-500">Phone</dt>
-                <dd>{selected.phone || '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-xs uppercase text-slate-500">User ID</dt>
-                <dd className="break-all font-mono text-xs">{selected.id}</dd>
-              </div>
-              <div>
-                <dt className="text-xs uppercase text-slate-500">Role</dt>
-                <dd className="capitalize">{selected.role || 'user'}</dd>
-              </div>
-              <div>
-                <dt className="text-xs uppercase text-slate-500">Plan / subscription</dt>
-                <dd className="capitalize">
-                  {selected.plan}
-                  {selected.subscriptionStatus ? ` · ${selected.subscriptionStatus}` : ''}
-                  {selected.lifetimeAccess ? ' · lifetime' : ''}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs uppercase text-slate-500">Business</dt>
-                <dd>
-                  {selected.businessName || '—'}
-                  {selected.businessId ? (
-                    <div className="font-mono text-xs text-slate-500">{selected.businessId}</div>
-                  ) : null}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs uppercase text-slate-500">Joined</dt>
-                <dd>{selected.createdAt ? new Date(selected.createdAt).toLocaleString() : '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-xs uppercase text-slate-500">Last activity signal</dt>
-                <dd>{selected.lastSeenAt ? new Date(selected.lastSeenAt).toLocaleString() : '—'}</dd>
-              </div>
-            </dl>
+            </>
           )}
         </div>
       </div>

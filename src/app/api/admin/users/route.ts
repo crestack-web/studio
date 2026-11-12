@@ -81,3 +81,127 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to load users' }, { status: 500 });
   }
 }
+
+/**
+ * Permanently delete a user so the same email can sign up again.
+ * Body: { userId: string, confirmEmail?: string }
+ * Removes: auth user, users row, owned businesses (best-effort related rows).
+ */
+export async function DELETE(req: NextRequest) {
+  try {
+    const adminUser = await requireAdminUser(req);
+    if (!adminUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const body = await req.json().catch(() => ({}));
+    const userId = String(body.userId || body.id || '').trim();
+    const confirmEmail = String(body.confirmEmail || body.email || '')
+      .trim()
+      .toLowerCase();
+
+    if (!userId) {
+      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    }
+
+    // Never delete the acting admin's own account via this endpoint
+    if (adminUser.id && adminUser.id === userId) {
+      return NextResponse.json({ error: 'You cannot delete your own admin account' }, { status: 400 });
+    }
+
+    const sb = getSupabaseAdmin();
+
+    const { data: profile } = await sb
+      .from('users')
+      .select('id, email, business_id, role')
+      .eq('id', userId)
+      .maybeSingle();
+
+    const profileEmail = String((profile as any)?.email || '').toLowerCase();
+    if (confirmEmail && profileEmail && confirmEmail !== profileEmail) {
+      return NextResponse.json(
+        { error: 'confirmEmail does not match the user record' },
+        { status: 400 }
+      );
+    }
+
+    // Block deleting other admins by email whitelist role
+    const role = String((profile as any)?.role || '').toLowerCase();
+    if (['admin', 'superadmin'].includes(role)) {
+      return NextResponse.json({ error: 'Cannot delete admin accounts via this tool' }, { status: 403 });
+    }
+
+    const businessId = (profile as any)?.business_id || userId;
+    const cleaned: string[] = [];
+    const warnings: string[] = [];
+
+    // Best-effort clean of org-owned rows (ignore missing tables)
+    const softTables: { table: string; column: string }[] = [
+      { table: 'staff', column: 'business_id' },
+      { table: 'products', column: 'business_id' },
+      { table: 'sales', column: 'business_id' },
+      { table: 'customers', column: 'business_id' },
+      { table: 'industry_records', column: 'business_id' },
+      { table: 'organizations', column: 'owner_user_id' },
+      { table: 'organizations', column: 'id' },
+    ];
+    for (const { table, column } of softTables) {
+      try {
+        const val = column.includes('user') ? userId : businessId;
+        const { error } = await sb.from(table).delete().eq(column, val);
+        if (!error) cleaned.push(`${table}.${column}`);
+        else if (!/relation|does not exist|schema cache/i.test(error.message || '')) {
+          warnings.push(`${table}: ${error.message}`);
+        }
+      } catch (e: any) {
+        warnings.push(`${table}: ${e?.message || 'skip'}`);
+      }
+    }
+
+    try {
+      const { error } = await sb.from('businesses').delete().eq('id', businessId);
+      if (!error) cleaned.push('businesses');
+      else if (!/relation|does not exist/i.test(error.message || '')) {
+        // also try owner_id
+        await sb.from('businesses').delete().eq('owner_id', userId);
+        cleaned.push('businesses(owner)');
+      }
+    } catch {
+      /* optional */
+    }
+
+    try {
+      const { error } = await sb.from('users').delete().eq('id', userId);
+      if (error) warnings.push(`users: ${error.message}`);
+      else cleaned.push('users');
+    } catch (e: any) {
+      warnings.push(`users: ${e?.message || 'failed'}`);
+    }
+
+    // Auth user last — this is what frees the email for signup again
+    const { error: authErr } = await sb.auth.admin.deleteUser(userId);
+    if (authErr) {
+      // Profile may already be gone; still report auth failure clearly
+      console.error('[admin/users DELETE] auth', authErr.message);
+      return NextResponse.json(
+        {
+          error: `Could not delete auth user: ${authErr.message}`,
+          cleaned,
+          warnings,
+        },
+        { status: 500 }
+      );
+    }
+    cleaned.push('auth.users');
+
+    return NextResponse.json({
+      ok: true,
+      deletedUserId: userId,
+      email: profileEmail || confirmEmail || null,
+      cleaned,
+      warnings,
+      message: 'User permanently deleted. They can sign up again with the same email.',
+    });
+  } catch (e: any) {
+    console.error('[admin/users DELETE]', e?.message || e);
+    return NextResponse.json({ error: e?.message || 'Delete failed' }, { status: 500 });
+  }
+}
