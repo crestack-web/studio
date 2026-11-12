@@ -19,10 +19,13 @@ const SECTION_LABELS: Record<string, string> = {
   settings: 'Settings',
 };
 
-/** Path segment → module id when they differ */
+/** Path segment → module id when they differ (shared). */
 const PATH_SECTION_ALIASES: Record<string, string> = {
-  settings: 'hotel-settings',
   time: 'time-tracking',
+};
+
+const HOSPITALITY_PATH_ALIASES: Record<string, string> = {
+  settings: 'hotel-settings',
 };
 
 type SessionState = {
@@ -54,6 +57,9 @@ function sectionFromPathname(pathname: string, config: IndustryConfig, sectionPr
   const base = config.dashboardPath.replace(/\/$/, '');
   const rest = (pathname || '').replace(base, '').replace(/^\//, '').split('/')[0] || '';
   if (!rest || rest === 'overview') return undefined;
+  if (config.id === 'hospitality' && HOSPITALITY_PATH_ALIASES[rest]) {
+    return HOSPITALITY_PATH_ALIASES[rest];
+  }
   return PATH_SECTION_ALIASES[rest] || rest;
 }
 
@@ -81,14 +87,13 @@ export function IndustryDashboardClient({
     [pathname, config, sectionProp]
   );
 
-  // Real session gate — required for live metrics and module data
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const { data } = await getSupabase().auth.getSession();
-        const session = data.session;
-        if (!session?.access_token) {
+        const sess = data.session;
+        if (!sess?.access_token) {
           if (!cancelled) {
             setGateError('Sign in required');
             setAuthChecked(true);
@@ -96,16 +101,16 @@ export function IndustryDashboardClient({
           }
           return;
         }
-        setUserEmail(session.user.email || '');
+        setUserEmail(sess.user.email || '');
         const name =
-          (session.user.user_metadata as any)?.full_name ||
-          (session.user.user_metadata as any)?.name ||
-          session.user.email?.split('@')[0] ||
+          (sess.user.user_metadata as any)?.full_name ||
+          (sess.user.user_metadata as any)?.name ||
+          sess.user.email?.split('@')[0] ||
           config.productName;
         if (!cancelled) setDisplayName(String(name));
 
         const res = await fetch('/api/industries/session', {
-          headers: { Authorization: `Bearer ${session.access_token}` },
+          headers: { Authorization: `Bearer ${sess.access_token}` },
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -174,7 +179,7 @@ export function IndustryDashboardClient({
             patients_today: m.appointmentsToday ?? 0,
             appointments: m.waiting ?? 0,
             open_visits: m.completed ?? 0,
-            revenue: m.patients ?? 0,
+            revenue_today: m.patients ?? 0,
           });
         } else if (config.id === 'education') {
           setLiveMetrics({
@@ -193,13 +198,9 @@ export function IndustryDashboardClient({
             active_projects: m.activeProjects ?? m.projects ?? m.openTasks ?? 0,
             active_clients: m.clients ?? m.activeClients ?? 0,
             outstanding:
-              m.outstanding != null
-                ? `₦${Number(m.outstanding).toLocaleString()}`
-                : '₦0',
+              m.outstanding != null ? `₦${Number(m.outstanding).toLocaleString()}` : '₦0',
             monthly_revenue:
-              m.monthlyRevenue != null
-                ? `₦${Number(m.monthlyRevenue).toLocaleString()}`
-                : '₦0',
+              m.monthlyRevenue != null ? `₦${Number(m.monthlyRevenue).toLocaleString()}` : '₦0',
           });
         }
       } catch {
@@ -270,8 +271,8 @@ export function IndustryDashboardClient({
 
       <aside className={[styles.sidebar, sidebarOpen ? styles.sidebarOpen : ''].join(' ')}>
         <div className={styles.sidebarTop}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           {config.logoSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={config.logoSrc}
               alt={config.productName}
@@ -279,6 +280,7 @@ export function IndustryDashboardClient({
             />
           ) : (
             <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/email-logo.png"
                 alt={config.productName}
@@ -363,11 +365,8 @@ export function IndustryDashboardClient({
             </button>
             <div className={styles.topbarTitles}>
               {config.logoSrc ? (
-                <img
-                  src={config.logoSrc}
-                  alt={config.productName}
-                  className={styles.topbarLogo}
-                />
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={config.logoSrc} alt={config.productName} className={styles.topbarLogo} />
               ) : (
                 <div className={styles.topbarTitle}>{config.productName}</div>
               )}
