@@ -119,6 +119,25 @@ const labelStyle: React.CSSProperties = {
 };
 
 /* ─────────────── Rooms ─────────────── */
+const ROOM_AMENITIES = ['Wi-Fi', 'Air conditioning', 'TV', 'Hot shower', 'Breakfast', 'Balcony', 'Mini fridge', 'Workspace', 'Generator', 'Safe'];
+const BED_TYPES = ['King', 'Queen', 'Double', 'Twin', 'Single', 'Bunk'];
+const ROOM_CATEGORIES = ['Standard', 'Deluxe', 'Suite', 'Executive', 'Family'];
+
+const emptyRoomForm = () => ({
+  roomNumber: '',
+  floor: '1',
+  category: 'Standard',
+  bedType: 'Queen',
+  rate: '25000',
+  capacity: '2',
+  sizeSqm: '',
+  description: '',
+  notes: '',
+  imageUrl: '',
+  amenities: ['Wi-Fi', 'Air conditioning'] as string[],
+  status: 'available',
+});
+
 export function HospitalityRoomsPage({ config }: { config: IndustryConfig }) {
   const [rooms, setRooms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,14 +145,9 @@ export function HospitalityRoomsPage({ config }: { config: IndustryConfig }) {
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showAddRoom, setShowAddRoom] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [q, setQ] = useState('');
-  const [form, setForm] = useState({
-    roomNumber: '',
-    floor: '1',
-    category: 'Standard',
-    rate: '25000',
-    capacity: '2',
-  });
+  const [form, setForm] = useState(emptyRoomForm());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -159,7 +173,72 @@ export function HospitalityRoomsPage({ config }: { config: IndustryConfig }) {
     load();
   }, [load]);
 
-  async function addRoom(e: React.FormEvent) {
+  function roomBody() {
+    return {
+      roomNumber: form.roomNumber.trim(),
+      floor: form.floor,
+      category: form.category,
+      bedType: form.bedType,
+      rateAmount: Number(form.rate) || 0,
+      capacity: Number(form.capacity) || 1,
+      sizeSqm: form.sizeSqm === '' ? null : Number(form.sizeSqm),
+      description: form.description.trim(),
+      notes: form.notes.trim(),
+      imageUrl: form.imageUrl,
+      amenities: form.amenities,
+      status: form.status,
+    };
+  }
+
+  async function uploadPhoto(file: File) {
+    if (!file.type.startsWith('image/')) {
+      setMsg('Choose a photo');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setMsg('Photo must be under 5MB');
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      const { data } = await getSupabase().auth.getSession();
+      const fd = new FormData();
+      fd.append('file', file);
+      const headers: Record<string, string> = {};
+      if (data.session?.access_token) headers.Authorization = `Bearer ${data.session.access_token}`;
+      const res = await fetch('/api/industries/hospitality/rooms/image', { method: 'POST', headers, body: fd });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Could not upload photo');
+      setForm((f) => ({ ...f, imageUrl: json.url }));
+    } catch (e: any) {
+      setMsg(e?.message || 'Could not upload photo');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function startEdit(room: any) {
+    const amenities = Array.isArray(room.amenities) ? room.amenities : [];
+    setEditingId(room.id);
+    setShowAddRoom(true);
+    setForm({
+      roomNumber: room.room_number || '',
+      floor: room.floor || '',
+      category: room.category || 'Standard',
+      bedType: room.bed_type || 'Queen',
+      rate: String(room.rate_amount ?? ''),
+      capacity: String(room.capacity ?? 2),
+      sizeSqm: room.size_sqm != null ? String(room.size_sqm) : '',
+      description: room.description || '',
+      notes: room.notes || '',
+      imageUrl: room.image_url || '',
+      amenities,
+      status: room.status || 'available',
+    });
+  }
+
+  async function saveRoom(e: React.FormEvent) {
     e.preventDefault();
     if (!form.roomNumber.trim()) return;
     setBusy(true);
@@ -167,23 +246,18 @@ export function HospitalityRoomsPage({ config }: { config: IndustryConfig }) {
     try {
       const h = await authHeaders();
       const res = await fetch('/api/industries/hospitality/rooms', {
-        method: 'POST',
+        method: editingId ? 'PATCH' : 'POST',
         headers: h,
-        body: JSON.stringify({
-          roomNumber: form.roomNumber.trim(),
-          floor: form.floor,
-          category: form.category,
-          rateAmount: Number(form.rate) || 0,
-          capacity: Number(form.capacity) || 2,
-        }),
+        body: JSON.stringify(editingId ? { id: editingId, ...roomBody() } : roomBody()),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setMsg(json.error || 'Could not add room');
+        setMsg(json.error || 'Could not save room');
         return;
       }
-      setForm((f) => ({ ...f, roomNumber: '' }));
-      setMsg('Room added');
+      setMsg(json.warning || (editingId ? 'Room updated' : 'Room added'));
+      setForm(emptyRoomForm());
+      setEditingId(null);
       setShowAddRoom(false);
       await load();
     } finally {
@@ -191,21 +265,14 @@ export function HospitalityRoomsPage({ config }: { config: IndustryConfig }) {
     }
   }
 
-  async function patchRoom(id: string, body: Record<string, unknown>) {
+  async function setStatus(id: string, status: string) {
     const h = await authHeaders();
-    const res = await fetch('/api/industries/hospitality/rooms', {
+    await fetch('/api/industries/hospitality/rooms', {
       method: 'PATCH',
       headers: h,
-      body: JSON.stringify({ id, ...body }),
+      body: JSON.stringify({ id, status }),
     });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) setMsg(json.error || 'Could not update room');
-    else setMsg('Room updated');
     await load();
-  }
-
-  async function setStatus(id: string, status: string) {
-    await patchRoom(id, { status });
   }
 
   async function removeRoom(id: string) {
@@ -227,7 +294,7 @@ export function HospitalityRoomsPage({ config }: { config: IndustryConfig }) {
   const filtered = rooms.filter((r) => {
     const s = q.trim().toLowerCase();
     if (!s) return true;
-    return [r.room_number, r.category, r.floor, r.status].join(' ').toLowerCase().includes(s);
+    return [r.room_number, r.category, r.floor, r.status, r.bed_type, r.description].join(' ').toLowerCase().includes(s);
   });
 
   const available = rooms.filter((r) => r.status === 'available').length;
@@ -237,9 +304,17 @@ export function HospitalityRoomsPage({ config }: { config: IndustryConfig }) {
   return (
     <Shell
       title="Rooms"
-      subtitle="Room inventory, rates, and status for the front desk."
+      subtitle={`Photos, rates, beds and amenities for ${config.shortName.toLowerCase()}.`}
       actions={
-        <button type="button" className={styles.btnPrimary} onClick={() => setShowAddRoom(true)}>
+        <button
+          type="button"
+          className={styles.btnPrimary}
+          onClick={() => {
+            setEditingId(null);
+            setForm(emptyRoomForm());
+            setShowAddRoom(true);
+          }}
+        >
           + Add room
         </button>
       }
@@ -262,53 +337,50 @@ export function HospitalityRoomsPage({ config }: { config: IndustryConfig }) {
           {error ? <p style={{ color: '#dc2626', fontSize: 13 }}>{error}</p> : null}
           {msg ? <p style={{ color: '#059669', fontSize: 13 }}>{msg}</p> : null}
           {!loading && filtered.length === 0 ? (
-            <p className={styles.greetingSub}>No rooms yet. Add your first room on the right.</p>
+            <p className={styles.greetingSub}>No rooms yet. Add your first room.</p>
           ) : (
             <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
               {filtered.map((r) => {
                 const floor = String(r.floor || '').replace(/^floor\s*/i, '');
+                const amenities = Array.isArray(r.amenities) ? r.amenities : [];
                 return (
                   <article key={r.id} style={{ border: '1px solid #ececf3', borderRadius: 14, padding: 12 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'flex-start' }}>
-                      <div>
-                        <strong>Room {r.room_number}</strong>
-                        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                    <div style={{ display: 'flex', gap: 12 }}>
+                      {r.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={r.image_url} alt="" style={{ width: 84, height: 84, objectFit: 'cover', borderRadius: 12, flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: 84, height: 84, borderRadius: 12, background: '#f3f0ff', flexShrink: 0 }} />
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                          <strong>Room {r.room_number}</strong>
+                          <StatusPill status={r.status} />
+                        </div>
+                        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
                           {r.category || 'Standard'}
+                          {r.bed_type ? ` · ${r.bed_type}` : ''}
                           {floor ? ` · Floor ${floor}` : ''}
                           {r.capacity ? ` · ${r.capacity} guests` : ''}
                         </div>
+                        <div style={{ fontWeight: 700, marginTop: 6 }}>{money(r.rate_amount)} / night</div>
                       </div>
-                      <StatusPill status={r.status} />
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 10 }}>
-                      <label style={{ fontSize: 12, color: '#6b7280' }}>
-                        Nightly rate
-                        <input
-                          style={{ ...inputStyle, marginTop: 4 }}
-                          defaultValue={r.rate_amount}
-                          inputMode="decimal"
-                          onBlur={(e) => {
-                            const next = Number(e.target.value);
-                            if (Number.isFinite(next) && next !== Number(r.rate_amount)) patchRoom(r.id, { rateAmount: next });
-                          }}
-                        />
-                      </label>
-                      <label style={{ fontSize: 12, color: '#6b7280' }}>
-                        Status
-                        <select
-                          value={r.status}
-                          onChange={(e) => setStatus(r.id, e.target.value)}
-                          style={{ ...inputStyle, marginTop: 4 }}
-                        >
-                          {['available', 'occupied', 'cleaning', 'maintenance', 'blocked'].map((s) => (
-                            <option key={s} value={s}>{s}</option>
-                          ))}
-                        </select>
-                      </label>
+                    {r.description ? <p style={{ fontSize: 13, color: '#374151', margin: '10px 0 0' }}>{r.description}</p> : null}
+                    {amenities.length > 0 ? (
+                      <p style={{ fontSize: 12, color: '#6b7280', margin: '8px 0 0' }}>{amenities.join(' · ')}</p>
+                    ) : null}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                      <select value={r.status} onChange={(e) => setStatus(r.id, e.target.value)} style={{ ...inputStyle, width: 'auto', margin: 0 }}>
+                        {['available', 'occupied', 'cleaning', 'maintenance', 'blocked'].map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                      <button type="button" className={styles.btnGhost} onClick={() => startEdit(r)}>Edit details</button>
+                      <button type="button" onClick={() => removeRoom(r.id)} style={{ background: 'none', border: 'none', color: '#b91c1c', fontWeight: 600, cursor: 'pointer' }}>
+                        Remove
+                      </button>
                     </div>
-                    <button type="button" onClick={() => removeRoom(r.id)} style={{ marginTop: 8, background: 'none', border: 'none', color: '#b91c1c', fontWeight: 600, padding: 0, cursor: 'pointer' }}>
-                      Remove room
-                    </button>
                   </article>
                 );
               })}
@@ -317,64 +389,99 @@ export function HospitalityRoomsPage({ config }: { config: IndustryConfig }) {
         </Panel>
 
         {showAddRoom ? (
-        <Panel
-          title="Add room"
-          meta={
-            <button type="button" className={styles.topGhost} onClick={() => setShowAddRoom(false)}>
-              Cancel
-            </button>
-          }
-        >
-          <form onSubmit={addRoom}>
-            <label style={labelStyle}>Room number</label>
-            <input
-              style={inputStyle}
-              value={form.roomNumber}
-              onChange={(e) => setForm({ ...form, roomNumber: e.target.value })}
-              placeholder="e.g. 101"
-              required
-            />
-            <label style={labelStyle}>Floor</label>
-            <input
-              style={inputStyle}
-              value={form.floor}
-              onChange={(e) => setForm({ ...form, floor: e.target.value })}
-            />
-            <label style={labelStyle}>Category</label>
-            <select
-              style={inputStyle}
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-            >
-              {['Standard', 'Deluxe', 'Suite', 'Executive', 'Family'].map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-            <label style={labelStyle}>Nightly rate (₦)</label>
-            <input
-              style={inputStyle}
-              type="number"
-              value={form.rate}
-              onChange={(e) => setForm({ ...form, rate: e.target.value })}
-            />
-            <label style={labelStyle}>Capacity</label>
-            <input
-              style={inputStyle}
-              type="number"
-              value={form.capacity}
-              onChange={(e) => setForm({ ...form, capacity: e.target.value })}
-            />
-            <button type="submit" className={styles.btnPrimary} disabled={busy} style={{ width: '100%' }}>
-              {busy ? 'Saving…' : 'Add room'}
-            </button>
-          </form>
-        </Panel>
+          <Panel title={editingId ? 'Edit room' : 'Add room'}>
+            <form onSubmit={saveRoom} style={{ display: 'grid', gap: 10 }}>
+              <label style={labelStyle}>
+                Room photo
+                <input style={inputStyle} type="file" accept="image/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) void uploadPhoto(file); }} />
+              </label>
+              {form.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={form.imageUrl} alt="" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 12 }} />
+              ) : null}
+              <label style={labelStyle}>
+                Room number
+                <input style={inputStyle} value={form.roomNumber} onChange={(e) => setForm({ ...form, roomNumber: e.target.value })} placeholder="205" required />
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <label style={labelStyle}>
+                  Floor
+                  <input style={inputStyle} value={form.floor} onChange={(e) => setForm({ ...form, floor: e.target.value })} placeholder="2" />
+                </label>
+                <label style={labelStyle}>
+                  Guests
+                  <input style={inputStyle} type="number" min={1} value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} />
+                </label>
+              </div>
+              <label style={labelStyle}>
+                Category
+                <select style={inputStyle} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+                  {ROOM_CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+                </select>
+              </label>
+              <label style={labelStyle}>
+                Bed
+                <select style={inputStyle} value={form.bedType} onChange={(e) => setForm({ ...form, bedType: e.target.value })}>
+                  {BED_TYPES.map((c) => <option key={c}>{c}</option>)}
+                </select>
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <label style={labelStyle}>
+                  Nightly rate (₦)
+                  <input style={inputStyle} inputMode="decimal" value={form.rate} onChange={(e) => setForm({ ...form, rate: e.target.value })} />
+                </label>
+                <label style={labelStyle}>
+                  Size (m²)
+                  <input style={inputStyle} inputMode="decimal" value={form.sizeSqm} onChange={(e) => setForm({ ...form, sizeSqm: e.target.value })} placeholder="Optional" />
+                </label>
+              </div>
+              <div>
+                <div style={labelStyle}>Amenities</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                  {ROOM_AMENITIES.map((item) => {
+                    const on = form.amenities.includes(item);
+                    return (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => setForm((f) => ({
+                          ...f,
+                          amenities: on ? f.amenities.filter((a) => a !== item) : [...f.amenities, item],
+                        }))}
+                        style={{
+                          border: on ? '1px solid #6b3fe7' : '1px solid #e6e6ef',
+                          background: on ? '#f3f0ff' : '#fff',
+                          color: on ? '#5b21b6' : '#4b5563',
+                          borderRadius: 999,
+                          padding: '6px 10px',
+                          fontSize: 12,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {item}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <label style={labelStyle}>
+                Description
+                <textarea style={{ ...inputStyle, minHeight: 72 }} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="What the guest should know about this room" />
+              </label>
+              <label style={labelStyle}>
+                Staff note
+                <input style={inputStyle} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Optional, not shown to guests" />
+              </label>
+              <button type="submit" className={styles.btnPrimary} disabled={busy} style={{ width: '100%', border: 'none' }}>
+                {busy ? 'Saving…' : editingId ? 'Save room' : 'Add room'}
+              </button>
+            </form>
+          </Panel>
         ) : null}
       </div>
     </Shell>
   );
 }
-
 /* ─────────────── Reservations (PMS-style) ─────────────── */
 export function HospitalityReservationsPage({ config }: { config: IndustryConfig }) {
   const [bookings, setBookings] = useState<any[]>([]);
