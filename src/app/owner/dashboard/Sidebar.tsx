@@ -652,6 +652,10 @@ export function Sidebar() {
               </ul>
             </div>
           ))}
+          <a href="/crew" className={styles.navLink} style={{ margin: '8px 12px 16px', textDecoration: 'none' }} onClick={() => closeSidebar()}>
+            <span className={styles.navIcon}>C</span>
+            <span className={styles.navLabel}>Busmo Crew</span>
+          </a>
         </div>
 
 
