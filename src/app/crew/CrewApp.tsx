@@ -7,6 +7,7 @@ import styles from './Crew.module.css';
 
 type Tab = 'home' | 'chat' | 'tasks' | 'activity';
 type Msg = { from: string; text: string };
+type Session = { id: string; room: string; title: string; active?: boolean };
 
 const GREETING: Record<string, string> = {
   mo: "I'm the Crew Manager. Ask about sales, stock, or who owes you — I'll bring Tally, Bin, or Ledger.",
@@ -20,23 +21,38 @@ function greetingFor(room: string) {
   return `I'm ${a.name}. ${a.blurb}`;
 }
 
+function sessionTitle(room: string, firstUserMsg?: string) {
+  if (firstUserMsg) return firstUserMsg.slice(0, 36) + (firstUserMsg.length > 36 ? '…' : '');
+  if (room === 'mo') return 'Crew chat';
+  return getAgent(room)?.name || 'Chat';
+}
+
 export default function CrewApp() {
   const [tab, setTab] = useState<Tab>('home');
   const [room, setRoom] = useState<string>('mo');
+  const [sessionId, setSessionId] = useState<string>('s-home');
   const [brief, setBrief] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [chat, setChat] = useState<Record<string, Msg[]>>({
-    mo: [{ from: 'mo', text: GREETING.mo }],
+    's-home': [{ from: 'mo', text: GREETING.mo }],
   });
+  const [sessions, setSessions] = useState<Session[]>([
+    { id: 's-home', room: 'mo', title: 'Crew chat', active: true },
+  ]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [tasks, setTasks] = useState<any[]>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [teammatesOpen, setTeammatesOpen] = useState(true);
+  const [sessionsOpen, setSessionsOpen] = useState(true);
+  const [userEmail, setUserEmail] = useState('');
 
   const token = useCallback(async () => {
     const { data } = await getSupabase().auth.getSession();
+    const email = data.session?.user?.email || '';
+    if (email) setUserEmail(email);
     return data.session?.access_token || '';
   }, []);
 
@@ -70,20 +86,42 @@ export default function CrewApp() {
   }, [loadHome]);
 
   function newChat() {
+    const id = `s-${Date.now()}`;
+    setSessionId(id);
     setRoom('mo');
     setTab('chat');
     setChat((c) => ({
       ...c,
-      mo: [{ from: 'mo', text: GREETING.mo }],
+      [id]: [{ from: 'mo', text: GREETING.mo }],
     }));
+    setSessions((prev) => [
+      { id, room: 'mo', title: 'New chat', active: true },
+      ...prev.map((s) => ({ ...s, active: false })),
+    ]);
     setDraft('');
     setSidebarOpen(false);
   }
 
-  async function ask(text: string, which = room) {
+  function openSession(s: Session) {
+    setSessionId(s.id);
+    setRoom(s.room);
+    setTab('chat');
+    setSessions((prev) => prev.map((x) => ({ ...x, active: x.id === s.id })));
+    setSidebarOpen(false);
+  }
+
+  async function ask(text: string, whichRoom = room) {
     const q = text.trim();
     if (!q || busy) return;
-    setChat((c) => ({ ...c, [which]: [...(c[which] || []), { from: 'me', text: q }] }));
+    const sid = sessionId;
+    setChat((c) => ({ ...c, [sid]: [...(c[sid] || []), { from: 'me', text: q }] }));
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === sid
+          ? { ...s, title: s.title === 'New chat' || s.title === 'Crew chat' ? sessionTitle(whichRoom, q) : s.title, room: whichRoom }
+          : s
+      )
+    );
     setDraft('');
     setBusy(true);
     try {
@@ -94,13 +132,13 @@ export default function CrewApp() {
           Authorization: `Bearer ${t}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ action: 'chat', room: which, message: q }),
+        body: JSON.stringify({ action: 'chat', room: whichRoom, message: q }),
       });
       const json = await res.json().catch(() => ({}));
       const replies: Msg[] = (json.replies || [
         { agent: 'mo', text: json.error || 'I could not check the books just now.' },
       ]).map((r: any) => ({ from: r.agent, text: r.text }));
-      setChat((c) => ({ ...c, [which]: [...(c[which] || []), ...replies] }));
+      setChat((c) => ({ ...c, [sid]: [...(c[sid] || []), ...replies] }));
       if (/restock|follow|debt|prepare|draft/i.test(q)) {
         const home = await fetch('/api/crew?view=tasks', {
           headers: { Authorization: `Bearer ${t}` },
@@ -133,11 +171,17 @@ export default function CrewApp() {
   }
 
   function openAgent(id: string) {
+    const sid = `s-${id}-${Date.now()}`;
+    setSessionId(sid);
     setRoom(id);
-    setChat((c) => {
-      if (c[id]?.length) return c;
-      return { ...c, [id]: [{ from: id, text: greetingFor(id) }] };
-    });
+    setChat((c) => ({
+      ...c,
+      [sid]: [{ from: id, text: greetingFor(id) }],
+    }));
+    setSessions((prev) => [
+      { id: sid, room: id, title: getAgent(id)?.name || id, active: true },
+      ...prev.map((s) => ({ ...s, active: false })),
+    ]);
     setTab('chat');
     setSidebarOpen(false);
   }
@@ -154,6 +198,8 @@ export default function CrewApp() {
   const chatTitle = room === 'mo' ? 'Crew' : roomAgent?.name || 'Crew';
   const chatSub =
     room === 'mo' ? 'Manager · routes Tally, Bin, Ledger' : roomAgent?.role || '';
+  const emailShort =
+    userEmail.length > 18 ? userEmail.slice(0, 16) + '…' : userEmail || 'Signed in';
 
   return (
     <div className={styles.shell}>
@@ -164,71 +210,117 @@ export default function CrewApp() {
       />
 
       <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
-        <div className={styles.sideTop}>
-          <div className={styles.brandRow}>
-            <a className={styles.brand} href="/owner">
-              Busmo
-            </a>
-          </div>
-          <button type="button" className={styles.newChat} onClick={newChat}>
-            + New chat
-          </button>
+        <div className={styles.sideHead}>
+          <a className={styles.headIcon} href="/owner" title="Settings">
+            ⚙
+          </a>
+          <a className={styles.headIcon} href="/owner" title="Notifications">
+            🔔
+          </a>
+          <span className={styles.userChip} title={userEmail}>
+            {emailShort}
+          </span>
+          <a className={styles.headIcon} href="/owner" title="Dashboard">
+            →
+          </a>
         </div>
 
-        <div className={styles.sideNav}>
-          {(
-            [
-              ['home', 'Home'],
-              ['chat', 'Chat'],
-              ['tasks', 'Tasks'],
-              ['activity', 'Activity'],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              className={`${styles.sideNavBtn} ${tab === id ? styles.sideNavBtnAct : ''}`}
-              onClick={() => goTab(id)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <div className={styles.sideSection}>Crew</div>
-        <div className={styles.agentList}>
+        <div className={styles.sideScroll}>
           <button
             type="button"
-            className={`${styles.agentRow} ${room === 'mo' && tab === 'chat' ? styles.agentRowAct : ''}`}
-            onClick={() => openAgent('mo')}
+            className={`${styles.navItem} ${tab === 'home' ? styles.navItemAct : ''}`}
+            onClick={() => goTab('home')}
           >
-            <img src="/crew/tally.png" alt="" />
-            <div>
-              <strong>Crew Manager</strong>
-              <span>All agents</span>
-            </div>
+            <span className={styles.navIcon}>⌂</span>
+            Home
           </button>
-          {CREW_AGENTS.map((a) => (
+          <button
+            type="button"
+            className={`${styles.navItem} ${tab === 'tasks' ? styles.navItemAct : ''}`}
+            onClick={() => goTab('tasks')}
+          >
+            <span className={styles.navIcon}>☑</span>
+            Tasks
+          </button>
+          <button
+            type="button"
+            className={`${styles.navItem} ${tab === 'activity' ? styles.navItemAct : ''}`}
+            onClick={() => goTab('activity')}
+          >
+            <span className={styles.navIcon}>◷</span>
+            Activity
+          </button>
+
+          <div className={styles.section}>
             <button
-              key={a.id}
               type="button"
-              className={`${styles.agentRow} ${room === a.id && tab === 'chat' ? styles.agentRowAct : ''}`}
-              onClick={() => openAgent(a.id)}
+              className={styles.sectionHead}
+              onClick={() => setTeammatesOpen((v) => !v)}
             >
-              <img src={a.avatar} alt="" />
-              <div>
-                <strong>{a.name}</strong>
-                <span>{a.role}</span>
-              </div>
-              {a.live && <span className={styles.liveDot} title="Live" />}
+              <span className={styles.sectionTitle}>Teammates</span>
+              <span className={styles.chev}>{teammatesOpen ? '⌃' : '⌄'}</span>
             </button>
-          ))}
+
+            {teammatesOpen && (
+              <>
+                <div className={styles.teammateCard}>
+                  <h4>Your AI crew</h4>
+                  <p>Persistent agents that work from your real books — nothing is invented.</p>
+                  <button type="button" className={styles.teammateBtn} onClick={newChat}>
+                    Start with Crew Manager
+                  </button>
+                </div>
+
+                {CREW_AGENTS.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    className={`${styles.agentRow} ${room === a.id && tab === 'chat' ? styles.agentRowAct : ''}`}
+                    onClick={() => openAgent(a.id)}
+                  >
+                    <img src={a.avatar} alt="" />
+                    <div>
+                      <strong>{a.name}</strong>
+                      <span>{a.role}</span>
+                    </div>
+                    {a.live && <span className={styles.liveDot} title="Live" />}
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+
+          <div className={styles.section}>
+            <button
+              type="button"
+              className={styles.sectionHead}
+              onClick={() => setSessionsOpen((v) => !v)}
+            >
+              <span className={styles.sectionTitle}>Sessions</span>
+              <span className={styles.chev}>{sessionsOpen ? '☰' : '☰'}</span>
+            </button>
+            {sessionsOpen &&
+              sessions.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`${styles.sessionRow} ${s.active && tab === 'chat' ? styles.sessionRowAct : ''}`}
+                  onClick={() => openSession(s)}
+                >
+                  <span className={`${styles.sessionDot} ${s.active ? '' : styles.sessionDotIdle}`} />
+                  {s.title}
+                </button>
+              ))}
+          </div>
         </div>
 
         <div className={styles.sideFoot}>
-          <a className={styles.dashLink} href="/owner">
-            ← Dashboard
-          </a>
+          <button type="button" className={styles.searchBtn} onClick={() => goTab('home')} aria-label="Search">
+            ⌕
+          </button>
+          <button type="button" className={styles.newBtn} onClick={newChat}>
+            + New
+          </button>
         </div>
       </aside>
 
@@ -273,22 +365,14 @@ export default function CrewApp() {
                   className={styles.chip}
                   onClick={() => {
                     openAgent('tally');
-                    setTimeout(() => ask('How much did we make today?', 'tally'), 0);
                   }}
                 >
-                  Today&apos;s sales
+                  Talk to Tally
                 </button>
                 <button type="button" className={styles.chip} onClick={() => openAgent('bin')}>
                   Stock check
                 </button>
-                <button
-                  type="button"
-                  className={styles.chip}
-                  onClick={() => {
-                    openAgent('ledger');
-                    setTimeout(() => ask('Who owes me?', 'ledger'), 0);
-                  }}
-                >
+                <button type="button" className={styles.chip} onClick={() => openAgent('ledger')}>
                   Who owes me?
                 </button>
               </div>
@@ -343,10 +427,7 @@ export default function CrewApp() {
           {tab === 'chat' && (
             <>
               <div className={styles.chatHeader}>
-                <img
-                  src={roomAgent?.avatar || '/crew/tally.png'}
-                  alt=""
-                />
+                <img src={roomAgent?.avatar || '/crew/tally.png'} alt="" />
                 <div>
                   <strong>{chatTitle}</strong>
                   <span>{chatSub}</span>
@@ -354,7 +435,7 @@ export default function CrewApp() {
               </div>
 
               <div className={styles.chatWrap}>
-                {(chat[room] || []).map((m, i) => {
+                {(chat[sessionId] || []).map((m, i) => {
                   const mine = m.from === 'me';
                   const ag = getAgent(m.from);
                   return (
@@ -378,19 +459,6 @@ export default function CrewApp() {
                   );
                 })}
               </div>
-
-              {(room === 'bin' || room === 'mo') &&
-                (brief?.signals || []).some((s: any) => s.agent === 'bin' && s.status === 'alert') && (
-                  <div className={styles.chips}>
-                    <button
-                      type="button"
-                      className={styles.chip}
-                      onClick={() => ask('Prepare a restock list', 'bin')}
-                    >
-                      Ask Bin to draft restock
-                    </button>
-                  </div>
-                )}
             </>
           )}
 
@@ -469,8 +537,12 @@ export default function CrewApp() {
               className={styles.composerInner}
               onSubmit={(e) => {
                 e.preventDefault();
-                if (tab !== 'chat') setTab('chat');
-                ask(draft, tab === 'chat' ? room : 'mo');
+                if (tab !== 'chat') {
+                  newChat();
+                  setTimeout(() => ask(draft, 'mo'), 0);
+                  return;
+                }
+                ask(draft, room);
               }}
             >
               <input
