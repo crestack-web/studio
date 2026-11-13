@@ -33,7 +33,7 @@ import {
   ProfessionalPaymentsPage,
   ProfessionalReportsPage,
 } from './professional/ProfessionalModules';
-import { HealthcarePatientsPage } from './healthcare/HealthcareModules';
+import { HealthcarePatientsPage, HealthcareAppointmentsPage } from './healthcare/HealthcareModules';
 import { SolutionBrandingForm } from './SolutionBrandingForm';
 
 async function authHeaders() {
@@ -282,73 +282,31 @@ function RecordsModule({
       <div className={styles.split}>
         <Panel title={spec.cta}>
           <form onSubmit={create} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={spec.titleField}
-              style={inputStyle}
-              required
-            />
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={spec.titleField} style={inputStyle} required />
             {spec.amount ? (
-              <input
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                type="number"
-                min="0"
-                placeholder="Amount"
-                style={inputStyle}
-              />
+              <input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" min="0" placeholder="Amount" style={inputStyle} />
             ) : null}
-            <input
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Notes"
-              style={inputStyle}
-            />
+            <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" style={inputStyle} />
             <button type="submit" disabled={busy} className={styles.btnPrimary} style={{ border: 'none' }}>
               {busy ? 'Saving…' : spec.cta}
             </button>
           </form>
         </Panel>
         <Panel title={`${label} list`} meta={`${filtered.length}`}>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search…"
-            style={{ ...inputStyle, marginBottom: 10 }}
-          />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search…" style={{ ...inputStyle, marginBottom: 10 }} />
           <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
             {filtered.map((r) => (
-              <li
-                key={r.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: 8,
-                  padding: '10px 0',
-                  borderBottom: '1px solid #f1f5f9',
-                }}
-              >
+              <li key={r.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '10px 0', borderBottom: '1px solid #f1f5f9' }}>
                 <div>
                   <strong>{r.title}</strong>
                   <div style={{ fontSize: 12, color: '#6b7280' }}>{r.status}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  {spec.statuses
-                    .filter((s) => s !== String(r.status))
-                    .slice(0, 2)
-                    .map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        className={styles.btnGhost}
-                        disabled={busy}
-                        onClick={() => setStatus(String(r.id), s)}
-                        style={{ padding: '4px 8px', fontSize: 11 }}
-                      >
-                        {s}
-                      </button>
-                    ))}
+                  {spec.statuses.filter((s) => s !== String(r.status)).slice(0, 2).map((s) => (
+                    <button key={s} type="button" className={styles.btnGhost} disabled={busy} onClick={() => setStatus(String(r.id), s)} style={{ padding: '4px 8px', fontSize: 11 }}>
+                      {s}
+                    </button>
+                  ))}
                 </div>
               </li>
             ))}
@@ -436,6 +394,7 @@ export function IndustryModuleView({
 
   if (config.id === 'healthcare') {
     if (section === 'patients') return <HealthcarePatientsPage config={config} />;
+    if (section === 'appointments') return <HealthcareAppointmentsPage config={config} />;
   }
 
   if (section === 'front-desk') {
