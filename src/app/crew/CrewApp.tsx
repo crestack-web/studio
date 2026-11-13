@@ -5,6 +5,93 @@ import { getSupabase } from '@/lib/supabase';
 import { CREW_AGENTS, getAgent } from '@/lib/crew/agents';
 import styles from './Crew.module.css';
 
+
+function Icon({ name }: { name: string }) {
+  const common = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  switch (name) {
+    case 'settings':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" />
+        </svg>
+      );
+    case 'bell':
+      return (
+        <svg {...common}>
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+        </svg>
+      );
+    case 'arrow':
+      return (
+        <svg {...common}>
+          <path d="M5 12h14M13 5l7 7-7 7" />
+        </svg>
+      );
+    case 'home':
+      return (
+        <svg {...common}>
+          <path d="M3 10.5 12 3l9 7.5" />
+          <path d="M5 10v10h14V10" />
+        </svg>
+      );
+    case 'tasks':
+      return (
+        <svg {...common}>
+          <path d="M9 11l3 3L22 4" />
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+        </svg>
+      );
+    case 'activity':
+      return (
+        <svg {...common}>
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+        </svg>
+      );
+    case 'search':
+      return (
+        <svg {...common}>
+          <circle cx="11" cy="11" r="7" />
+          <path d="M21 21l-4.3-4.3" />
+        </svg>
+      );
+    case 'menu':
+      return (
+        <svg {...common}>
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      );
+    case 'plus':
+      return (
+        <svg {...common}>
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      );
+    case 'chevUp':
+      return (
+        <svg {...common} width={14} height={14}>
+          <path d="M6 14l6-6 6 6" />
+        </svg>
+      );
+    case 'chevDown':
+      return (
+        <svg {...common} width={14} height={14}>
+          <path d="M6 10l6 6 6-6" />
+        </svg>
+      );
+    case 'close':
+      return (
+        <svg {...common}>
+          <path d="M6 6l12 12M18 6L6 18" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
+
 type Tab = 'home' | 'chat' | 'tasks' | 'activity';
 type Msg = { from: string; text: string };
 type Session = { id: string; room: string; title: string; active?: boolean };
@@ -212,17 +299,25 @@ export default function CrewApp() {
       <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
         <div className={styles.sideHead}>
           <a className={styles.headIcon} href="/owner" title="Settings">
-            ⚙
+            <Icon name="settings" />
           </a>
           <a className={styles.headIcon} href="/owner" title="Notifications">
-            🔔
+            <Icon name="bell" />
           </a>
           <span className={styles.userChip} title={userEmail}>
             {emailShort}
           </span>
           <a className={styles.headIcon} href="/owner" title="Dashboard">
-            →
+            <Icon name="arrow" />
           </a>
+          <button
+            type="button"
+            className={`${styles.headIcon} ${styles.closeSide}`}
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close menu"
+          >
+            <Icon name="close" />
+          </button>
         </div>
 
         <div className={styles.sideScroll}>
@@ -231,7 +326,7 @@ export default function CrewApp() {
             className={`${styles.navItem} ${tab === 'home' ? styles.navItemAct : ''}`}
             onClick={() => goTab('home')}
           >
-            <span className={styles.navIcon}>⌂</span>
+            <span className={styles.navIcon}><Icon name="home" /></span>
             Home
           </button>
           <button
@@ -239,7 +334,7 @@ export default function CrewApp() {
             className={`${styles.navItem} ${tab === 'tasks' ? styles.navItemAct : ''}`}
             onClick={() => goTab('tasks')}
           >
-            <span className={styles.navIcon}>☑</span>
+            <span className={styles.navIcon}><Icon name="tasks" /></span>
             Tasks
           </button>
           <button
@@ -247,7 +342,7 @@ export default function CrewApp() {
             className={`${styles.navItem} ${tab === 'activity' ? styles.navItemAct : ''}`}
             onClick={() => goTab('activity')}
           >
-            <span className={styles.navIcon}>◷</span>
+            <span className={styles.navIcon}><Icon name="activity" /></span>
             Activity
           </button>
 
@@ -258,7 +353,7 @@ export default function CrewApp() {
               onClick={() => setTeammatesOpen((v) => !v)}
             >
               <span className={styles.sectionTitle}>Teammates</span>
-              <span className={styles.chev}>{teammatesOpen ? '⌃' : '⌄'}</span>
+              <span className={styles.chev}><Icon name={teammatesOpen ? "chevUp" : "chevDown"} /></span>
             </button>
 
             {teammatesOpen && (
@@ -297,7 +392,7 @@ export default function CrewApp() {
               onClick={() => setSessionsOpen((v) => !v)}
             >
               <span className={styles.sectionTitle}>Sessions</span>
-              <span className={styles.chev}>{sessionsOpen ? '☰' : '☰'}</span>
+              <span className={styles.chev}><Icon name="menu" /></span>
             </button>
             {sessionsOpen &&
               sessions.map((s) => (
@@ -316,10 +411,10 @@ export default function CrewApp() {
 
         <div className={styles.sideFoot}>
           <button type="button" className={styles.searchBtn} onClick={() => goTab('home')} aria-label="Search">
-            ⌕
+            <Icon name="search" />
           </button>
           <button type="button" className={styles.newBtn} onClick={newChat}>
-            + New
+            <Icon name="plus" /> New
           </button>
         </div>
       </aside>
@@ -332,11 +427,11 @@ export default function CrewApp() {
             onClick={() => setSidebarOpen(true)}
             aria-label="Open menu"
           >
-            ☰
+            <Icon name="menu" />
           </button>
           <strong style={{ flex: 1, fontSize: 15 }}>{tab === 'chat' ? chatTitle : 'Busmo Crew'}</strong>
           <button type="button" className={styles.menuBtn} onClick={newChat} aria-label="New chat">
-            +
+            <Icon name="plus" />
           </button>
         </div>
 
@@ -555,7 +650,7 @@ export default function CrewApp() {
                 aria-label="Message"
               />
               <button className={styles.sendBtn} type="submit" disabled={busy || !draft.trim()} aria-label="Send">
-                ↑
+                <Icon name="arrow" />
               </button>
             </form>
           </div>
