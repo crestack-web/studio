@@ -155,33 +155,42 @@ export default function CrewApp() {
         )}
 
         {tab === 'chat' && (
-          <>
-            <div className={styles.head}>
-              <button className={styles.back} onClick={() => { setRoom('mo'); setTab('home'); }}>Back</button>
-              <div>
-                <b>{room === 'mo' ? 'Crew room' : agent(room)?.name}</b>
-                <div className={styles.sub}>{room === 'mo' ? 'MO brings the right person' : agent(room)?.role}</div>
+          <div className={styles.chat}>
+            <div className={styles.bar}>
+              <button className={styles.iconBtn} onClick={() => { setRoom('mo'); setTab('home'); }} aria-label="Back">‹</button>
+              <div className={styles.whoPill}>
+                <span className={styles.dot} style={{ background: room === 'mo' ? '#111' : agent(room)?.color || '#111' }}>
+                  {room === 'mo' ? 'M' : (agent(room)?.name || 'C').slice(0, 1)}
+                </span>
+                {room === 'mo' ? 'Crew' : agent(room)?.name}
               </div>
+              <span style={{ width: 36 }} />
             </div>
-            <div className={styles.quick}>
-              {['How did we do today?', 'What is running low?', 'Who owes us?', 'Why is profit changing?'].map((q) => (
-                <button key={q} onClick={() => ask(q, room === 'mo' ? 'crew' : room)}>{q}</button>
+            <div className={styles.when}>Today {new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
+            <div className={styles.thread}>
+              {(chat[room] || []).map((m, i) => (
+                <React.Fragment key={i}>
+                  {m.from !== 'me' && room === 'mo' ? (
+                    <span className={styles.agentName}>{m.from === 'mo' ? 'MO' : agent(m.from)?.name}</span>
+                  ) : null}
+                  <div className={m.from === 'me' ? styles.mine : styles.theirs}>{m.text}</div>
+                </React.Fragment>
               ))}
-            </div>
-            <div className={styles.msgs}>
-              {(chat[room] || chat.mo || []).map((m, i) => (
-                <div key={i} className={`${styles.bubble} ${m.from === 'me' ? styles.me : styles.them}`}>
-                  {m.from !== 'me' ? <span className={styles.who}>{(m.from === 'mo' ? 'MO' : agent(m.from)?.name || m.from).toUpperCase()}</span> : null}
-                  {m.text}
+              {busy ? <div className={styles.theirs}>Checking the books…</div> : null}
+              {(room === 'bin' || room === 'mo') && (brief?.low?.length || 0) > 0 ? (
+                <div className={styles.action}>
+                  <span className={styles.need}><i /> Action needed</span>
+                  <strong>Restock list</strong>
+                  <p>{brief?.low?.length} item{(brief?.low?.length || 0) === 1 ? '' : 's'} {brief?.low?.length === 1 ? 'is' : 'are'} under the restock line. Nothing is ordered until you approve it.</p>
+                  <button type="button" onClick={prepareRestock}>Continue</button>
                 </div>
-              ))}
-              {busy ? <div className={`${styles.bubble} ${styles.them}`}>Checking the books…</div> : null}
+              ) : null}
             </div>
-            <form className={styles.composer} onSubmit={(e) => { e.preventDefault(); void ask(draft, room === 'mo' ? 'crew' : room); }}>
-              <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Ask the crew" />
-              <button type="submit">↑</button>
+            <form className={styles.ask} onSubmit={(e) => { e.preventDefault(); void ask(draft, room === 'mo' ? 'crew' : room); }}>
+              <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Message" />
+              <button type="submit" aria-label="Send">↑</button>
             </form>
-          </>
+          </div>
         )}
 
         {tab === 'crew' && (
