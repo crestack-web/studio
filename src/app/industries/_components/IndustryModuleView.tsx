@@ -33,7 +33,11 @@ import {
   ProfessionalPaymentsPage,
   ProfessionalReportsPage,
 } from './professional/ProfessionalModules';
-import { HealthcarePatientsPage, HealthcareAppointmentsPage } from './healthcare/HealthcareModules';
+import {
+  HealthcarePatientsPage,
+  HealthcareAppointmentsPage,
+  HealthcareVisitsPage,
+} from './healthcare/HealthcareModules';
 import { SolutionBrandingForm } from './SolutionBrandingForm';
 
 async function authHeaders() {
@@ -395,6 +399,7 @@ export function IndustryModuleView({
   if (config.id === 'healthcare') {
     if (section === 'patients') return <HealthcarePatientsPage config={config} />;
     if (section === 'appointments') return <HealthcareAppointmentsPage config={config} />;
+    if (section === 'visits') return <HealthcareVisitsPage config={config} />;
   }
 
   if (section === 'front-desk') {
