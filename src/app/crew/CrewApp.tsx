@@ -94,6 +94,26 @@ function Icon({ name }: { name: string }) {
           <path d="M6 10l6 6 6-6" />
         </svg>
       );
+    case 'moon':
+      return (
+        <svg {...common}>
+          <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z" />
+        </svg>
+      );
+    case 'sun':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+        </svg>
+      );
+    case 'edit':
+      return (
+        <svg {...common} width={14} height={14}>
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+        </svg>
+      );
     case 'close':
       return (
         <svg {...common}>
@@ -199,6 +219,10 @@ function AuthGate({
 
 export default function CrewApp() {
   const [authPhase, setAuthPhase] = useState<AuthPhase>('checking');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [botNames, setBotNames] = useState<Record<string, string>>({});
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -229,6 +253,45 @@ export default function CrewApp() {
     if (email) setUserEmail(email);
     return data.session?.access_token || '';
   }, []);
+
+  // Theme + custom bot names
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('busmo_crew_theme');
+      if (saved === 'dark' || saved === 'light') setTheme(saved);
+      else if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) setTheme('dark');
+    } catch { /* ignore */ }
+    try {
+      const raw = localStorage.getItem('busmo_crew_names');
+      if (raw) setBotNames(JSON.parse(raw) || {});
+    } catch { /* ignore */ }
+  }, []);
+
+  function toggleTheme() {
+    setTheme((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      try { localStorage.setItem('busmo_crew_theme', next); } catch { /* ignore */ }
+      return next;
+    });
+  }
+
+  function displayName(id: string) {
+    if (id === 'mo') return 'Crew Manager';
+    return botNames[id] || getAgent(id)?.name || id;
+  }
+
+  function saveBotName(id: string, name: string) {
+    const cleaned = name.trim().slice(0, 24);
+    setBotNames((prev) => {
+      const next = { ...prev };
+      if (!cleaned || cleaned === getAgent(id)?.name) delete next[id];
+      else next[id] = cleaned;
+      try { localStorage.setItem('busmo_crew_names', JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+    setRenamingId(null);
+    setRenameDraft('');
+  }
 
   // Own auth gate for Crew
   useEffect(() => {
@@ -430,7 +493,7 @@ export default function CrewApp() {
       [sid]: [{ from: id, text: greetingFor(id) }],
     }));
     setSessions((prev) => [
-      { id: sid, room: id, title: getAgent(id)?.name || id, active: true },
+      { id: sid, room: id, title: displayName(id), active: true },
       ...prev.map((s) => ({ ...s, active: false })),
     ]);
     setTab('chat');
@@ -444,7 +507,7 @@ export default function CrewApp() {
 
   if (authPhase === 'checking') {
     return (
-      <div className={styles.authShell}>
+      <div className={styles.authShell} data-theme={theme} style={{ background: theme === 'dark' ? '#0b0f14' : undefined, color: theme === 'dark' ? '#f1f5f9' : undefined }}>
         <div className={styles.loadingCenter}>
           <div className={styles.authAvatars}>
             {CREW_AGENTS.filter((a) => a.live).map((a, i) => (
@@ -466,12 +529,14 @@ export default function CrewApp() {
 
   if (authPhase === 'gate') {
     return (
+      <div data-theme={theme} style={{ minHeight: '100dvh', background: theme === 'dark' ? '#0b0f14' : '#f7f8fa' }}>
       <AuthGate
         onBusmo={handleBusmo}
         onGoogle={handleGoogle}
         googleLoading={googleLoading}
         error={authError}
       />
+      </div>
     );
   }
 
@@ -479,14 +544,14 @@ export default function CrewApp() {
   const comingAgents = CREW_AGENTS.filter((a) => !a.live);
   const roomAgent = room === 'mo' ? null : getAgent(room);
   const name = brief?.businessName || 'your business';
-  const chatTitle = room === 'mo' ? 'Crew' : roomAgent?.name || 'Crew';
+  const chatTitle = room === 'mo' ? 'Crew' : displayName(room);
   const chatSub =
     room === 'mo' ? 'Manager · routes Tally, Bin, Ledger' : roomAgent?.role || '';
   const emailShort =
     userEmail.length > 18 ? userEmail.slice(0, 16) + '…' : userEmail || 'Signed in';
 
   return (
-    <div className={styles.shell}>
+    <div className={styles.shell} data-theme={theme}>
       <div
         className={`${styles.overlay} ${sidebarOpen ? styles.overlayOpen : ''}`}
         onClick={() => setSidebarOpen(false)}
@@ -501,6 +566,9 @@ export default function CrewApp() {
           <a className={styles.headIcon} href="/owner" title="Notifications">
             <Icon name="bell" />
           </a>
+          <button type="button" className={styles.themeBtn} onClick={toggleTheme} aria-label="Toggle theme" title="Theme">
+            <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
+          </button>
           <span className={styles.userChip} title={userEmail}>
             {emailShort}
           </span>
@@ -568,19 +636,52 @@ export default function CrewApp() {
                 </div>
 
                 {CREW_AGENTS.map((a) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    className={`${styles.agentRow} ${room === a.id && tab === 'chat' ? styles.agentRowAct : ''}`}
-                    onClick={() => openAgent(a.id)}
-                  >
-                    <img src={a.avatar} alt="" />
-                    <div>
-                      <strong>{a.name}</strong>
-                      <span>{a.role}</span>
-                    </div>
-                    {a.live && <span className={styles.liveDot} title="Live" />}
-                  </button>
+                  <div key={a.id}>
+                    <button
+                      type="button"
+                      className={`${styles.agentRow} ${room === a.id && tab === 'chat' ? styles.agentRowAct : ''}`}
+                      onClick={() => openAgent(a.id)}
+                    >
+                      <img src={a.avatar} alt="" />
+                      <div>
+                        <strong>{displayName(a.id)}</strong>
+                        <span>{a.role}</span>
+                      </div>
+                      {a.live && <span className={styles.liveDot} title="Live" />}
+                    </button>
+                    {renamingId === a.id ? (
+                      <div className={styles.renameRow} style={{ padding: '0 10px 8px 48px' }}>
+                        <input
+                          className={styles.renameInput}
+                          value={renameDraft}
+                          onChange={(e) => setRenameDraft(e.target.value)}
+                          placeholder={a.name}
+                          maxLength={24}
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveBotName(a.id, renameDraft);
+                            if (e.key === 'Escape') setRenamingId(null);
+                          }}
+                        />
+                        <button type="button" className={styles.renameBtn} onClick={() => saveBotName(a.id, renameDraft)}>
+                          Save
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ padding: '0 10px 4px 48px' }}>
+                        <button
+                          type="button"
+                          className={styles.renameBtn}
+                          onClick={() => {
+                            setRenamingId(a.id);
+                            setRenameDraft(botNames[a.id] || a.name);
+                          }}
+                        >
+                          Rename
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </>
             )}
@@ -688,8 +789,8 @@ export default function CrewApp() {
               <div className={styles.grid}>
                 {liveAgents.map((a) => (
                   <button key={a.id} type="button" className={styles.agentCard} onClick={() => openAgent(a.id)}>
-                    <img src={a.avatar} alt={a.name} />
-                    <strong>{a.name}</strong>
+                    <img src={a.avatar} alt={displayName(a.id)} />
+                    <strong>{displayName(a.id)}</strong>
                     <span>{a.role}</span>
                     <span className={styles.badge}>Live</span>
                   </button>
@@ -706,7 +807,7 @@ export default function CrewApp() {
                       <div>
                         <strong>{s.title}</strong>
                         <small>
-                          {a?.name} · {s.detail}
+                          {a ? displayName(a.id) : s.agent} · {s.detail}
                         </small>
                       </div>
                     </button>
@@ -721,8 +822,8 @@ export default function CrewApp() {
               <div className={styles.grid}>
                 {comingAgents.map((a) => (
                   <button key={a.id} type="button" className={styles.agentCard} onClick={() => openAgent(a.id)}>
-                    <img src={a.avatar} alt={a.name} />
-                    <strong>{a.name}</strong>
+                    <img src={a.avatar} alt={displayName(a.id)} />
+                    <strong>{displayName(a.id)}</strong>
                     <span>{a.role}</span>
                     <span className={`${styles.badge} ${styles.badgeSoon}`}>Soon</span>
                   </button>
@@ -753,7 +854,7 @@ export default function CrewApp() {
                       <div className={`${styles.msgBubble} ${mine ? styles.msgBubbleMe : ''}`}>
                         {!mine && (
                           <span className={styles.agentTag}>
-                            {m.from === 'mo' ? 'Crew Manager' : ag?.name || m.from}
+                            {m.from === 'mo' ? 'Crew Manager' : displayName(m.from)}
                           </span>
                         )}
                         {m.text}
@@ -864,7 +965,7 @@ export default function CrewApp() {
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 placeholder={
-                  roomAgent ? `Message ${roomAgent.name}…` : 'Ask the crew about sales, stock, credit…'
+                  roomAgent ? `Message ${displayName(room)}…` : 'Ask the crew about sales, stock, credit…'
                 }
                 disabled={busy}
                 aria-label="Message"
