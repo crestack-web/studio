@@ -133,6 +133,14 @@ export async function POST(request: NextRequest) {
     } else {
       subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1);
     }
+    const billingPeriod = billing === 'yearly' || billing === 'annual' ? 'Yearly' : 'Monthly';
+    const nextBillingDate = subscriptionEndDate.toLocaleDateString('en-NG', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    let payerName = String(metadata.customerName || metadata.name || transaction.customer?.first_name || 'there');
+    let businessName = String(metadata.businessName || metadata.business_name || 'your business');
 
     try {
       if (email) {
@@ -145,6 +153,7 @@ export async function POST(request: NextRequest) {
 
         if (userRow) {
           userId = userId || (userRow as any).id;
+          if ((userRow as any).full_name) payerName = String((userRow as any).full_name);
           const meta = ((userRow as any).metadata || {}) as Record<string, unknown>;
           await sb
             .from('users')
@@ -176,18 +185,24 @@ export async function POST(request: NextRequest) {
       if (email) {
         await sendSubscriptionReceiptEmail({
           email,
+          name: payerName,
+          businessName,
           planName: displayPlan,
           amount: paymentAmount,
           currency: String(transaction.currency || 'NGN'),
-          reference: String(reference),
-          billingPeriod: billing === 'yearly' || billing === 'annual' ? 'yearly' : 'monthly',
+          transactionId: String(reference),
+          billingPeriod,
+          nextBillingDate,
         });
         await sendSubscriptionRenewedEmail({
           email,
+          name: payerName,
+          businessName,
           planName: displayPlan,
           amount: paymentAmount,
           currency: String(transaction.currency || 'NGN'),
-          endsAt: subscriptionEndDate.toISOString(),
+          billingPeriod,
+          nextBillingDate,
         });
       }
     } catch (mailErr: any) {
