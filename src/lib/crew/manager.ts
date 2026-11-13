@@ -10,6 +10,7 @@ import {
   listLowStock,
   listCreditBalances,
 } from './tools';
+import { detectTaskFromMessage, runCrewTask } from './tasks';
 
 export type CrewReply = { agent: string; text: string };
 
@@ -165,81 +166,48 @@ export async function remember(
   }
 }
 
-export async function handleChat(input: ManagerChatInput): Promise<{ replies: CrewReply[] }> {
+export async function handleChat(input: ManagerChatInput): Promise<{ replies: CrewReply[]; task?: any }> {
   const { businessId, businessName, room, message, userId } = input;
   const q = message.trim().toLowerCase();
   const brief = await loadCrewBrief(businessId, businessName);
-
   const replies: CrewReply[] = [];
 
-  // Draft restock task from Bin
-  if (
-    (room === 'bin' || /restock|reorder/.test(q)) &&
-    /prepare|draft|make|create|list|yes|do it/.test(q)
-  ) {
-    const low = await listLowStock(businessId);
-    const items = low.ok ? ((low.data as any)?.items as any[]) || [] : [];
-    if (items.length) {
-      const title = `Restock list · ${items.length} product${items.length === 1 ? '' : 's'}`;
-      try {
-        await createTask({
-          businessId,
-          agentId: 'bin',
-          title,
-          payload: { items },
-          createdBy: userId,
-          status: 'awaiting',
-        });
-        replies.push({
-          agent: 'bin',
-          text:
-            `I prepared a restock list (${items.length} items) and sent it to Tasks for your approval.\n` +
-            items
-              .slice(0, 6)
-              .map((i) => `· ${i.name}: ${i.stock} left`)
-              .join('\n'),
-        });
-        return { replies };
-      } catch (e: any) {
-        replies.push({
-          agent: 'bin',
-          text: `I saw ${items.length} low items but could not save the task (${e?.message || 'error'}).`,
-        });
-        return { replies };
-      }
-    }
-  }
+  // Task intents: research with real tools, then Tasks tab for approval when needed
+  const detected = detectTaskFromMessage(room, message);
+  if (detected) {
+    try {
+      const { task, summary } = await runCrewTask({
+        businessId,
+        userId,
+        agentId: detected.agentId,
+        kind: detected.kind,
+      });
+      const findings = (task?.payload as any)?.findings;
+      const detail = findings?.detail ? `
 
-  // Draft debt follow-ups
-  if (
-    (room === 'ledger' || /debt|owe|credit/.test(q)) &&
-    /follow|message|remind|prepare|draft/.test(q)
-  ) {
-    const credit = await listCreditBalances(businessId);
-    const debtors = credit.ok ? ((credit.data as any)?.debtors as any[]) || [] : [];
-    if (debtors.length) {
-      const title = `Debt follow-ups · ${debtors.length} customer${debtors.length === 1 ? '' : 's'}`;
-      try {
-        await createTask({
-          businessId,
-          agentId: 'ledger',
-          title,
-          payload: { debtors: debtors.slice(0, 20) },
-          createdBy: userId,
-          status: 'awaiting',
-        });
-        replies.push({
-          agent: 'ledger',
-          text: `Drafted follow-ups for ${debtors.length} balances. Open Tasks to approve before anything is sent.`,
-        });
-        return { replies };
-      } catch (e: any) {
-        replies.push({
-          agent: 'ledger',
-          text: `Could not save follow-up task: ${e?.message || 'error'}`,
-        });
-        return { replies };
-      }
+${findings.detail}` : '';
+      replies.push({
+        agent: detected.agentId,
+        text:
+          summary +
+          detail +
+          (task?.status === 'awaiting'
+            ? '
+
+Open the Tasks tab to approve or reject before anything is sent or ordered.'
+            : ''),
+      });
+      await logActivity(businessId, detected.agentId, 'chat_task', message.slice(0, 120), {
+        taskId: task?.id,
+        kind: detected.kind,
+      });
+      return { replies, task };
+    } catch (e: any) {
+      replies.push({
+        agent: detected.agentId,
+        text: `I could not finish that task: ${e?.message || 'error'}.`,
+      });
+      return { replies };
     }
   }
 
@@ -272,7 +240,12 @@ export async function handleChat(input: ManagerChatInput): Promise<{ replies: Cr
     room,
     replyAgents: replies.map((r) => r.agent),
   });
-  await remember(businessId, room === 'mo' || room === 'crew' ? 'mo' : room, `User: ${message.slice(0, 200)}`, 'chat');
+  await remember(
+    businessId,
+    room === 'mo' || room === 'crew' ? 'mo' : room,
+    `User: ${message.slice(0, 200)}`,
+    'chat'
+  );
 
   return { replies };
 }

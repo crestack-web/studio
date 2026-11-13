@@ -9,6 +9,7 @@ import {
   updateTaskStatus,
   listActivities,
 } from '@/lib/crew/manager';
+import { runCrewTask, type TaskKind } from '@/lib/crew/tasks';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -102,5 +103,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, task });
   }
 
+  if (action === 'run_task') {
+    const kind = String(body.kind || '') as TaskKind;
+    const agentId = String(body.agentId || 'bin');
+    if (!kind) return NextResponse.json({ error: 'kind required' }, { status: 400 });
+    try {
+      const result = await runCrewTask({
+        businessId: business.id,
+        userId: user.id,
+        agentId,
+        kind,
+        title: body.title ? String(body.title) : undefined,
+      });
+      return NextResponse.json({ ok: true, ...result });
+    } catch (e: any) {
+      return NextResponse.json({ error: e?.message || 'Task failed' }, { status: 500 });
+    }
+  }
+
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
 }
+

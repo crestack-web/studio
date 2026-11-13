@@ -453,14 +453,7 @@ export default function CrewApp() {
         { agent: 'mo', text: json.error || 'I could not check the books just now.' },
       ]).map((r: any) => ({ from: r.agent, text: r.text }));
       setChat((c) => ({ ...c, [sid]: [...(c[sid] || []), ...replies] }));
-      if (/restock|follow|debt|prepare|draft/i.test(q)) {
-        const home = await fetch('/api/crew?view=tasks', {
-          headers: { Authorization: `Bearer ${t}` },
-        })
-          .then((r) => r.json())
-          .catch(() => ({}));
-        if (Array.isArray(home.tasks)) setTasks(home.tasks);
-      }
+      await refreshTasks();
     } finally {
       setBusy(false);
     }
@@ -498,6 +491,87 @@ export default function CrewApp() {
     ]);
     setTab('chat');
     setSidebarOpen(false);
+  }
+
+
+  async function runTask(agentId: string, kind: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      const tkn = await token();
+      const res = await fetch('/api/crew', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${tkn}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ action: 'run_task', agentId, kind }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(json.error || 'Task failed');
+      } else {
+        await refreshTasks();
+        setTab('tasks');
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function refreshTasks() {
+    const tkn = await token();
+    const home = await fetch('/api/crew?view=tasks', {
+      headers: { Authorization: `Bearer ${tkn}` },
+    })
+      .then((r) => r.json())
+      .catch(() => ({}));
+    if (Array.isArray(home.tasks)) setTasks(home.tasks);
+  }
+
+  function renderTaskCard(tk: any) {
+    const a = getAgent(tk.agent_id);
+    const payload = tk.payload && typeof tk.payload === 'object' ? tk.payload : {};
+    const findings = payload.findings || {};
+    const detail = findings.detail || payload.summary || '';
+    const stage =
+      tk.status === 'researching'
+        ? 'Researching'
+        : tk.status === 'awaiting' || tk.status === 'draft'
+          ? 'Needs your approval'
+          : tk.status === 'approved'
+            ? 'Approved'
+            : tk.status === 'rejected'
+              ? 'Rejected'
+              : 'Done';
+    return (
+      <div key={tk.id} className={styles.taskCard}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6 }}>
+          <img src={a?.avatar || '/crew/tally.png'} alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+          <div style={{ flex: 1 }}>
+            <strong>{tk.title}</strong>
+            <div className={styles.meta}>
+              {displayName(tk.agent_id)} · {stage}
+            </div>
+          </div>
+        </div>
+        {detail && (
+          <pre style={{ whiteSpace: 'pre-wrap', fontSize: 13, margin: '8px 0', fontFamily: 'inherit', color: 'var(--crew-text-2, #334155)' }}>
+            {detail}
+          </pre>
+        )}
+        {(tk.status === 'awaiting' || tk.status === 'draft') && (
+          <div className={styles.rowActions}>
+            <button type="button" className={`${styles.btnSm} ${styles.btnPrimary}`} onClick={() => setTaskStatus(tk.id, 'approved')}>
+              Approve
+            </button>
+            <button type="button" className={`${styles.btnSm} ${styles.btnGhost}`} onClick={() => setTaskStatus(tk.id, 'rejected')}>
+              Reject
+            </button>
+          </div>
+        )}
+      </div>
+    );
   }
 
   function goTab(id: Tab) {
@@ -546,8 +620,6 @@ export default function CrewApp() {
   const chatTitle = room === 'mo' ? 'Crew' : displayName(room);
   const chatSub =
     room === 'mo' ? 'Manager · routes Tally, Bin, Ledger' : roomAgent?.role || '';
-  const emailShort =
-    userEmail.length > 18 ? userEmail.slice(0, 16) + '…' : userEmail || 'Signed in';
 
   return (
     <div className={styles.shell} data-theme={theme}>
@@ -562,14 +634,23 @@ export default function CrewApp() {
           <button type="button" className={styles.headIcon} onClick={() => goTab('settings')} title="Settings" aria-label="Settings">
             <Icon name="settings" />
           </button>
-          <a className={styles.headIcon} href="/owner" title="Notifications">
+          <button
+            type="button"
+            className={styles.headIcon}
+            onClick={() => {
+              setTab('activity');
+              setSidebarOpen(false);
+              loadHome();
+            }}
+            title="Notifications"
+            aria-label="Notifications"
+          >
             <Icon name="bell" />
-          </a>
-          <span className={styles.userChip} title={userEmail}>
-            {emailShort}
-          </span>
-          <a className={styles.headIcon} href="/owner" title="Dashboard">
-            <Icon name="arrow" />
+          </button>
+          <a className={styles.headIcon} href="/owner" title="Profile" aria-label="Profile" style={{ marginLeft: 'auto' }}>
+            <span style={{ fontSize: 12, fontWeight: 800 }}>
+              {(userEmail || 'P').slice(0, 1).toUpperCase()}
+            </span>
           </a>
           <button
             type="button"
@@ -887,40 +968,54 @@ export default function CrewApp() {
                 <h1 className={styles.heroTitle} style={{ fontSize: 20 }}>
                   Tasks
                 </h1>
-                <p className={styles.heroSub}>Drafts need your approval before anything changes.</p>
+                <p className={styles.heroSub}>
+                  Research runs on your real books. Anything that sends messages or changes stock waits for your approval.
+                </p>
               </div>
-              {tasks.length === 0 ? (
-                <p className={styles.empty}>No tasks yet. Ask Bin to prepare a restock list.</p>
+
+              <div className={styles.sectionLabel}>Start a task</div>
+              <div className={styles.chips} style={{ justifyContent: 'flex-start', marginBottom: 8 }}>
+                <button type="button" className={styles.chip} disabled={busy} onClick={() => runTask('bin', 'stock_check')}>
+                  Stock check
+                </button>
+                <button type="button" className={styles.chip} disabled={busy} onClick={() => runTask('bin', 'restock_research')}>
+                  Restock research
+                </button>
+                <button type="button" className={styles.chip} disabled={busy} onClick={() => runTask('ledger', 'credit_check')}>
+                  Who owes me
+                </button>
+                <button type="button" className={styles.chip} disabled={busy} onClick={() => runTask('ledger', 'debt_followups')}>
+                  Draft follow-ups
+                </button>
+                <button type="button" className={styles.chip} disabled={busy} onClick={() => runTask('tally', 'sales_review')}>
+                  Sales review
+                </button>
+              </div>
+              {busy && (
+                <div className={styles.loadingCenter} style={{ padding: 16 }}>
+                  <span className={styles.spinner} />
+                  <span>Researching your books…</span>
+                </div>
+              )}
+
+              <div className={styles.sectionLabel}>Open</div>
+              {tasks.filter((x) => x.status === 'researching' || x.status === 'awaiting' || x.status === 'draft').length === 0 && !busy ? (
+                <p className={styles.empty}>
+                  No open tasks. Ask in chat (e.g. “prepare a restock list”) or use a button above.
+                </p>
               ) : (
-                tasks.map((t) => {
-                  const a = getAgent(t.agent_id);
-                  return (
-                    <div key={t.id} className={styles.taskCard}>
-                      <strong>{t.title}</strong>
-                      <div className={styles.meta}>
-                        {a?.name || t.agent_id} · {t.status}
-                      </div>
-                      {(t.status === 'awaiting' || t.status === 'draft') && (
-                        <div className={styles.rowActions}>
-                          <button
-                            type="button"
-                            className={`${styles.btnSm} ${styles.btnPrimary}`}
-                            onClick={() => setTaskStatus(t.id, 'approved')}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            type="button"
-                            className={`${styles.btnSm} ${styles.btnGhost}`}
-                            onClick={() => setTaskStatus(t.id, 'rejected')}
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
+                tasks
+                  .filter((x) => x.status === 'researching' || x.status === 'awaiting' || x.status === 'draft')
+                  .map((tk) => renderTaskCard(tk))
+              )}
+
+              <div className={styles.sectionLabel}>Done</div>
+              {tasks.filter((x) => x.status === 'done' || x.status === 'approved' || x.status === 'rejected').length === 0 ? (
+                <p className={styles.empty}>Nothing completed yet.</p>
+              ) : (
+                tasks
+                  .filter((x) => x.status === 'done' || x.status === 'approved' || x.status === 'rejected')
+                  .map((tk) => renderTaskCard(tk))
               )}
             </>
           )}
