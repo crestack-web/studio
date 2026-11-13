@@ -38,6 +38,7 @@ import {
   HealthcareAppointmentsPage,
   HealthcareVisitsPage,
   HealthcareBillingPage,
+  HealthcareStaffPage,
 } from './healthcare/HealthcareModules';
 import { SolutionBrandingForm } from './SolutionBrandingForm';
 
@@ -402,6 +403,7 @@ export function IndustryModuleView({
     if (section === 'appointments') return <HealthcareAppointmentsPage config={config} />;
     if (section === 'visits') return <HealthcareVisitsPage config={config} />;
     if (section === 'billing' || section === 'payments') return <HealthcareBillingPage config={config} />;
+    if (section === 'staff') return <HealthcareStaffPage config={config} />;
   }
 
   if (section === 'front-desk') {
