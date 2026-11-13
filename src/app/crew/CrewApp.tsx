@@ -6,7 +6,7 @@ import { getOAuthCallbackUrl } from '@/lib/site-url';
 import { CREW_AGENTS, getAgent } from '@/lib/crew/agents';
 import styles from './Crew.module.css';
 
-type Tab = 'home' | 'chat' | 'tasks' | 'activity';
+type Tab = 'home' | 'chat' | 'tasks' | 'activity' | 'settings';
 type Msg = { from: string; text: string };
 type Session = { id: string; room: string; title: string; active?: boolean };
 type AuthPhase = 'checking' | 'gate' | 'ready';
@@ -541,7 +541,6 @@ export default function CrewApp() {
   }
 
   const liveAgents = CREW_AGENTS.filter((a) => a.live);
-  const comingAgents = CREW_AGENTS.filter((a) => !a.live);
   const roomAgent = room === 'mo' ? null : getAgent(room);
   const name = brief?.businessName || 'your business';
   const chatTitle = room === 'mo' ? 'Crew' : displayName(room);
@@ -560,15 +559,12 @@ export default function CrewApp() {
 
       <aside className={`${styles.sidebar} ${sidebarOpen ? styles.sidebarOpen : ''}`}>
         <div className={styles.sideHead}>
-          <a className={styles.headIcon} href="/owner" title="Settings">
+          <button type="button" className={styles.headIcon} onClick={() => goTab('settings')} title="Settings" aria-label="Settings">
             <Icon name="settings" />
-          </a>
+          </button>
           <a className={styles.headIcon} href="/owner" title="Notifications">
             <Icon name="bell" />
           </a>
-          <button type="button" className={styles.themeBtn} onClick={toggleTheme} aria-label="Toggle theme" title="Theme">
-            <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
-          </button>
           <span className={styles.userChip} title={userEmail}>
             {emailShort}
           </span>
@@ -616,6 +612,16 @@ export default function CrewApp() {
             </span>
             Activity
           </button>
+          <button
+            type="button"
+            className={`${styles.navItem} ${tab === 'settings' ? styles.navItemAct : ''}`}
+            onClick={() => goTab('settings')}
+          >
+            <span className={styles.navIcon}>
+              <Icon name="settings" />
+            </span>
+            Settings
+          </button>
 
           <div className={styles.section}>
             <button type="button" className={styles.sectionHead} onClick={() => setTeammatesOpen((v) => !v)}>
@@ -636,52 +642,19 @@ export default function CrewApp() {
                 </div>
 
                 {CREW_AGENTS.map((a) => (
-                  <div key={a.id}>
-                    <button
-                      type="button"
-                      className={`${styles.agentRow} ${room === a.id && tab === 'chat' ? styles.agentRowAct : ''}`}
-                      onClick={() => openAgent(a.id)}
-                    >
-                      <img src={a.avatar} alt="" />
-                      <div>
-                        <strong>{displayName(a.id)}</strong>
-                        <span>{a.role}</span>
-                      </div>
-                      {a.live && <span className={styles.liveDot} title="Live" />}
-                    </button>
-                    {renamingId === a.id ? (
-                      <div className={styles.renameRow} style={{ padding: '0 10px 8px 48px' }}>
-                        <input
-                          className={styles.renameInput}
-                          value={renameDraft}
-                          onChange={(e) => setRenameDraft(e.target.value)}
-                          placeholder={a.name}
-                          maxLength={24}
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') saveBotName(a.id, renameDraft);
-                            if (e.key === 'Escape') setRenamingId(null);
-                          }}
-                        />
-                        <button type="button" className={styles.renameBtn} onClick={() => saveBotName(a.id, renameDraft)}>
-                          Save
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ padding: '0 10px 4px 48px' }}>
-                        <button
-                          type="button"
-                          className={styles.renameBtn}
-                          onClick={() => {
-                            setRenamingId(a.id);
-                            setRenameDraft(botNames[a.id] || a.name);
-                          }}
-                        >
-                          Rename
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <button
+                    key={a.id}
+                    type="button"
+                    className={`${styles.agentRow} ${room === a.id && tab === 'chat' ? styles.agentRowAct : ''}`}
+                    onClick={() => openAgent(a.id)}
+                  >
+                    <img src={a.avatar} alt="" />
+                    <div>
+                      <strong>{displayName(a.id)}</strong>
+                      <span>{a.role}</span>
+                    </div>
+                    {a.live && <span className={styles.liveDot} title="Live" />}
+                  </button>
                 ))}
               </>
             )}
@@ -767,37 +740,10 @@ export default function CrewApp() {
             <>
               <div className={styles.hero}>
                 <img src="/crew/tally.png" alt="" className={styles.heroAvatar} />
-                <h1 className={styles.heroTitle}>Your crew for {name}</h1>
-                <p className={styles.heroSub}>
-                  A team that never clocks out — reading your real books, not the internet.
-                </p>
+                <h1 className={styles.heroTitle}>{name}</h1>
+                <p className={styles.heroSub}>Your crew is on duty.</p>
               </div>
 
-              <div className={styles.chips}>
-                <button type="button" className={styles.chip} onClick={() => openAgent('tally')}>
-                  Talk to Tally
-                </button>
-                <button type="button" className={styles.chip} onClick={() => openAgent('bin')}>
-                  Stock check
-                </button>
-                <button type="button" className={styles.chip} onClick={() => openAgent('ledger')}>
-                  Who owes me?
-                </button>
-              </div>
-
-              <div className={styles.sectionLabel}>On duty</div>
-              <div className={styles.grid}>
-                {liveAgents.map((a) => (
-                  <button key={a.id} type="button" className={styles.agentCard} onClick={() => openAgent(a.id)}>
-                    <img src={a.avatar} alt={displayName(a.id)} />
-                    <strong>{displayName(a.id)}</strong>
-                    <span>{a.role}</span>
-                    <span className={styles.badge}>Live</span>
-                  </button>
-                ))}
-              </div>
-
-              <div className={styles.sectionLabel}>Signals</div>
               <div className={styles.signalList}>
                 {(brief?.signals || []).map((s: any, i: number) => {
                   const a = getAgent(s.agent);
@@ -814,21 +760,78 @@ export default function CrewApp() {
                   );
                 })}
                 {!(brief?.signals || []).length && (
-                  <p className={styles.empty}>No signals yet — record a sale or add stock levels.</p>
+                  <p className={styles.empty}>No signals yet.</p>
                 )}
               </div>
+            </>
+          )}
 
-              <div className={styles.sectionLabel}>Coming online</div>
-              <div className={styles.grid}>
-                {comingAgents.map((a) => (
-                  <button key={a.id} type="button" className={styles.agentCard} onClick={() => openAgent(a.id)}>
-                    <img src={a.avatar} alt={displayName(a.id)} />
-                    <strong>{displayName(a.id)}</strong>
-                    <span>{a.role}</span>
-                    <span className={`${styles.badge} ${styles.badgeSoon}`}>Soon</span>
-                  </button>
-                ))}
+
+          {tab === 'settings' && (
+            <>
+              <div className={styles.hero} style={{ paddingTop: 8 }}>
+                <h1 className={styles.heroTitle} style={{ fontSize: 20 }}>
+                  Settings
+                </h1>
+                <p className={styles.heroSub}>Appearance and teammate names.</p>
               </div>
+
+              <div className={styles.sectionLabel}>Appearance</div>
+              <div className={styles.taskCard} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <strong>Dark mode</strong>
+                  <div className={styles.meta}>{theme === 'dark' ? 'On' : 'Off'}</div>
+                </div>
+                <button type="button" className={styles.themeBtn} onClick={toggleTheme} aria-label="Toggle theme">
+                  <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
+                </button>
+              </div>
+
+              <div className={styles.sectionLabel}>Rename teammates</div>
+              {CREW_AGENTS.map((a) => (
+                <div key={a.id} className={styles.taskCard} style={{ marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <img src={a.avatar} alt="" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+                    <div>
+                      <strong>{displayName(a.id)}</strong>
+                      <div className={styles.meta}>{a.role}{a.live ? '' : ' · Soon'}</div>
+                    </div>
+                  </div>
+                  {renamingId === a.id ? (
+                    <div className={styles.renameRow}>
+                      <input
+                        className={styles.renameInput}
+                        value={renameDraft}
+                        onChange={(e) => setRenameDraft(e.target.value)}
+                        placeholder={a.name}
+                        maxLength={24}
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveBotName(a.id, renameDraft);
+                          if (e.key === 'Escape') setRenamingId(null);
+                        }}
+                      />
+                      <button type="button" className={`${styles.btnSm} ${styles.btnPrimary}`} onClick={() => saveBotName(a.id, renameDraft)}>
+                        Save
+                      </button>
+                      <button type="button" className={`${styles.btnSm} ${styles.btnGhost}`} onClick={() => setRenamingId(null)}>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className={`${styles.btnSm} ${styles.btnGhost}`}
+                      onClick={() => {
+                        setRenamingId(a.id);
+                        setRenameDraft(botNames[a.id] || a.name);
+                      }}
+                    >
+                      Rename
+                    </button>
+                  )}
+                </div>
+              ))}
             </>
           )}
 
