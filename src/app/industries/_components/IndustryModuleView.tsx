@@ -33,6 +33,7 @@ import {
   ProfessionalPaymentsPage,
   ProfessionalReportsPage,
 } from './professional/ProfessionalModules';
+import { HealthcarePatientsPage } from './healthcare/HealthcareModules';
 import { SolutionBrandingForm } from './SolutionBrandingForm';
 
 async function authHeaders() {
@@ -40,10 +41,6 @@ async function authHeaders() {
   const h: Record<string, string> = { 'Content-Type': 'application/json' };
   if (data.session?.access_token) h.Authorization = `Bearer ${data.session.access_token}`;
   return h;
-}
-
-function naira(n: number) {
-  return `₦${Number(n || 0).toLocaleString()}`;
 }
 
 function storageKey(edition: string, module: string) {
@@ -135,7 +132,7 @@ type ModuleSpec = {
 
 function getSpec(section: string, label: string): ModuleSpec {
   const money = ['revenue', 'expenses', 'payments', 'billing', 'fees', 'invoices'].includes(section);
-  const base: ModuleSpec = {
+  return {
     titleField: `${label.replace(/s$/, '')} name`,
     amount: money,
     statuses: money
@@ -145,7 +142,6 @@ function getSpec(section: string, label: string): ModuleSpec {
     subtitle: `Manage ${label.toLowerCase()} for this workspace.`,
     cta: `Add ${label.replace(/s$/, '').toLowerCase()}`,
   };
-  return base;
 }
 
 function deskPath(config: IndustryConfig) {
@@ -171,7 +167,6 @@ function RecordsModule({
   const [notes, setNotes] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [source, setSource] = useState<'api' | 'local'>('api');
 
@@ -273,42 +268,87 @@ function RecordsModule({
 
   const q = search.trim().toLowerCase();
   const filtered = rows.filter((r) => {
-    if (filter !== 'all' && String(r.status) !== filter) return false;
     if (!q) return true;
     return `${r.title || ''} ${r.notes || ''}`.toLowerCase().includes(q);
   });
 
   return (
     <Shell title={label} subtitle={spec.subtitle}>
-      {msg ? <p className={styles.greetingSub} style={{ color: '#5b21b6' }}>{msg}</p> : null}
+      {msg ? (
+        <p className={styles.greetingSub} style={{ color: '#5b21b6' }}>
+          {msg}
+        </p>
+      ) : null}
       <div className={styles.split}>
         <Panel title={spec.cta}>
           <form onSubmit={create} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={spec.titleField} style={inputStyle} required />
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={spec.titleField}
+              style={inputStyle}
+              required
+            />
             {spec.amount ? (
-              <input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" min="0" placeholder="Amount" style={inputStyle} />
+              <input
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                type="number"
+                min="0"
+                placeholder="Amount"
+                style={inputStyle}
+              />
             ) : null}
-            <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" style={inputStyle} />
+            <input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Notes"
+              style={inputStyle}
+            />
             <button type="submit" disabled={busy} className={styles.btnPrimary} style={{ border: 'none' }}>
               {busy ? 'Saving…' : spec.cta}
             </button>
           </form>
         </Panel>
         <Panel title={`${label} list`} meta={`${filtered.length}`}>
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search…" style={{ ...inputStyle, marginBottom: 10 }} />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search…"
+            style={{ ...inputStyle, marginBottom: 10 }}
+          />
           <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
             {filtered.map((r) => (
-              <li key={r.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '10px 0', borderBottom: '1px solid #f1f5f9' }}>
+              <li
+                key={r.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  padding: '10px 0',
+                  borderBottom: '1px solid #f1f5f9',
+                }}
+              >
                 <div>
                   <strong>{r.title}</strong>
                   <div style={{ fontSize: 12, color: '#6b7280' }}>{r.status}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  {spec.statuses.filter((s) => s !== String(r.status)).slice(0, 2).map((s) => (
-                    <button key={s} type="button" className={styles.btnGhost} disabled={busy} onClick={() => setStatus(String(r.id), s)} style={{ padding: '4px 8px', fontSize: 11 }}>
-                      {s}
-                    </button>
-                  ))}
+                  {spec.statuses
+                    .filter((s) => s !== String(r.status))
+                    .slice(0, 2)
+                    .map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        className={styles.btnGhost}
+                        disabled={busy}
+                        onClick={() => setStatus(String(r.id), s)}
+                        style={{ padding: '4px 8px', fontSize: 11 }}
+                      >
+                        {s}
+                      </button>
+                    ))}
                 </div>
               </li>
             ))}
@@ -392,6 +432,10 @@ export function IndustryModuleView({
     if (section === 'payments') return <ProfessionalPaymentsPage config={config} />;
     if (section === 'expenses') return <ProfessionalExpensesPage config={config} />;
     if (section === 'reports') return <ProfessionalReportsPage config={config} />;
+  }
+
+  if (config.id === 'healthcare') {
+    if (section === 'patients') return <HealthcarePatientsPage config={config} />;
   }
 
   if (section === 'front-desk') {
