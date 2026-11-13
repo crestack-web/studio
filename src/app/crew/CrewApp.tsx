@@ -28,7 +28,7 @@ type Brief = {
 
 type Msg = { from: 'me' | string; text: string };
 
-function money(n: number) {
+function money(n?: number | null) {
   return `₦${Math.round(Number(n) || 0).toLocaleString('en-NG')}`;
 }
 
