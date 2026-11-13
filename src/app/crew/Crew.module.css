@@ -715,3 +715,233 @@
   color: #64748b;
   font-weight: 500;
 }
+
+/* ── Character animations ── */
+@keyframes crewFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes crewBob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-4px) rotate(-1.5deg); }
+  75% { transform: translateY(-2px) rotate(1.5deg); }
+}
+@keyframes crewPulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 transparent); }
+  50% { transform: scale(1.04); filter: drop-shadow(0 6px 12px rgba(15, 23, 42, 0.08)); }
+}
+@keyframes crewSpin {
+  to { transform: rotate(360deg); }
+}
+@keyframes crewShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes crewFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animFloat {
+  animation: crewFloat 3.2s ease-in-out infinite;
+}
+.animBob {
+  animation: crewBob 3.6s ease-in-out infinite;
+}
+.animPulse {
+  animation: crewPulse 2.8s ease-in-out infinite;
+}
+.animDelay1 { animation-delay: 0.15s; }
+.animDelay2 { animation-delay: 0.35s; }
+.animDelay3 { animation-delay: 0.55s; }
+.animDelay4 { animation-delay: 0.75s; }
+
+.heroAvatar {
+  animation: crewFloat 3s ease-in-out infinite;
+}
+.agentCard img {
+  animation: crewBob 3.4s ease-in-out infinite;
+}
+.agentCard:nth-child(2) img { animation-delay: 0.2s; }
+.agentCard:nth-child(3) img { animation-delay: 0.4s; }
+.agentCard:nth-child(4) img { animation-delay: 0.6s; }
+.agentRow img {
+  animation: crewPulse 3s ease-in-out infinite;
+}
+
+/* ── Loading ── */
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #0f172a;
+  border-radius: 50%;
+  animation: crewSpin 0.7s linear infinite;
+  display: inline-block;
+}
+.spinnerSm {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+}
+.loadingCenter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 48px 16px;
+  color: #64748b;
+  font-size: 14px;
+  animation: crewFadeIn 0.3s ease;
+}
+.skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: crewShimmer 1.4s ease infinite;
+  border-radius: 12px;
+}
+.skelCard {
+  height: 72px;
+  margin-bottom: 8px;
+}
+.skelLine {
+  height: 14px;
+  margin-bottom: 8px;
+  border-radius: 6px;
+}
+.typing {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 4px 0;
+}
+.typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #94a3b8;
+  animation: crewFloat 1s ease-in-out infinite;
+}
+.typing span:nth-child(2) { animation-delay: 0.15s; }
+.typing span:nth-child(3) { animation-delay: 0.3s; }
+
+/* ── Auth gate ── */
+.authShell {
+  min-height: 100dvh;
+  background: #f7f8fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+.authCard {
+  width: 100%;
+  max-width: 400px;
+  background: #fff;
+  border: 1px solid #eef0f3;
+  border-radius: 24px;
+  padding: 32px 24px 28px;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.06);
+  text-align: center;
+  animation: crewFadeIn 0.35s ease;
+}
+.authAvatars {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 4px;
+  margin-bottom: 20px;
+  min-height: 72px;
+}
+.authAvatars img {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  background: transparent;
+}
+.authTitle {
+  font-family: 'Sora', system-ui, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 0 0 8px;
+  color: #0f172a;
+}
+.authSub {
+  margin: 0 0 24px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #64748b;
+}
+.authBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 12px;
+  padding: 13px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  margin-bottom: 10px;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.authBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.authBtnPrimary {
+  background: #0f172a;
+  color: #fff;
+}
+.authBtnPrimary:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.authBtnGoogle {
+  background: #fff;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+}
+.authBtnGoogle:hover:not(:disabled) {
+  background: #f8fafc;
+}
+.authDivider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 6px 0 14px;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
+}
+.authDivider::before,
+.authDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #eef0f3;
+}
+.authError {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+.authFoot {
+  margin-top: 16px;
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+.authFoot a {
+  color: #0f766e;
+  font-weight: 600;
+  text-decoration: none;
+}

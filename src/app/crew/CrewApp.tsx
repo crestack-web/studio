@@ -1,13 +1,27 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { getSupabase } from '@/lib/supabase';
+import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
+import { getOAuthCallbackUrl } from '@/lib/site-url';
 import { CREW_AGENTS, getAgent } from '@/lib/crew/agents';
 import styles from './Crew.module.css';
 
+type Tab = 'home' | 'chat' | 'tasks' | 'activity';
+type Msg = { from: string; text: string };
+type Session = { id: string; room: string; title: string; active?: boolean };
+type AuthPhase = 'checking' | 'gate' | 'ready';
 
 function Icon({ name }: { name: string }) {
-  const common = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+  const common = {
+    width: 18,
+    height: 18,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.8,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  };
   switch (name) {
     case 'settings':
       return (
@@ -91,10 +105,16 @@ function Icon({ name }: { name: string }) {
   }
 }
 
-
-type Tab = 'home' | 'chat' | 'tasks' | 'activity';
-type Msg = { from: string; text: string };
-type Session = { id: string; room: string; title: string; active?: boolean };
+function GoogleMark() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.2 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z" />
+      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34.2 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.3 26.7 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.6 39.6 16.3 44 24 44z" />
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.1 5.6l.0.0 6.2 5.2C39.2 36.3 44 31 44 24c0-1.3-.1-2.5-.4-3.5z" />
+    </svg>
+  );
+}
 
 const GREETING: Record<string, string> = {
   mo: "I'm the Crew Manager. Ask about sales, stock, or who owes you — I'll bring Tally, Bin, or Ledger.",
@@ -114,7 +134,74 @@ function sessionTitle(room: string, firstUserMsg?: string) {
   return getAgent(room)?.name || 'Chat';
 }
 
+function TypingDots() {
+  return (
+    <span className={styles.typing} aria-label="Thinking">
+      <span />
+      <span />
+      <span />
+    </span>
+  );
+}
+
+function AuthGate({
+  onBusmo,
+  onGoogle,
+  googleLoading,
+  error,
+}: {
+  onBusmo: () => void;
+  onGoogle: () => void;
+  googleLoading: boolean;
+  error: string | null;
+}) {
+  const showcase = CREW_AGENTS.filter((a) => a.live);
+  return (
+    <div className={styles.authShell}>
+      <div className={styles.authCard}>
+        <div className={styles.authAvatars}>
+          {showcase.map((a, i) => (
+            <img
+              key={a.id}
+              src={a.avatar}
+              alt={a.name}
+              className={`${styles.animFloat} ${i === 1 ? styles.animDelay1 : ''} ${i === 2 ? styles.animDelay2 : ''}`}
+              style={{ width: i === 1 ? 64 : 48, height: i === 1 ? 64 : 48 }}
+            />
+          ))}
+        </div>
+        <h1 className={styles.authTitle}>Busmo Crew</h1>
+        <p className={styles.authSub}>
+          Your AI teammates for sales, stock and credit. Sign in to connect them to your real books.
+        </p>
+        {error && <div className={styles.authError}>{error}</div>}
+        <button type="button" className={`${styles.authBtn} ${styles.authBtnPrimary}`} onClick={onBusmo}>
+          Continue with Busmo
+        </button>
+        <div className={styles.authDivider}>or</div>
+        <button
+          type="button"
+          className={`${styles.authBtn} ${styles.authBtnGoogle}`}
+          onClick={onGoogle}
+          disabled={googleLoading}
+        >
+          {googleLoading ? <span className={`${styles.spinner} ${styles.spinnerSm}`} /> : <GoogleMark />}
+          {googleLoading ? 'Connecting…' : 'Continue with Google'}
+        </button>
+        <p className={styles.authFoot}>
+          Already run your business on Busmo?{' '}
+          <a href="/owner">Open dashboard</a>
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function CrewApp() {
+  const [authPhase, setAuthPhase] = useState<AuthPhase>('checking');
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
   const [tab, setTab] = useState<Tab>('home');
   const [room, setRoom] = useState<string>('mo');
   const [sessionId, setSessionId] = useState<string>('s-home');
@@ -143,12 +230,49 @@ export default function CrewApp() {
     return data.session?.access_token || '';
   }, []);
 
+  // Own auth gate for Crew
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!isSupabaseConfigured()) {
+          if (!cancelled) setAuthPhase('gate');
+          return;
+        }
+        const { data } = await getSupabase().auth.getSession();
+        if (cancelled) return;
+        if (data.session?.access_token) {
+          setUserEmail(data.session.user?.email || '');
+          setAuthPhase('ready');
+        } else {
+          setAuthPhase('gate');
+        }
+      } catch {
+        if (!cancelled) setAuthPhase('gate');
+      }
+    })();
+    const { data: sub } = getSupabase().auth.onAuthStateChange((_event, session) => {
+      if (session?.access_token) {
+        setUserEmail(session.user?.email || '');
+        setAuthPhase('ready');
+      } else {
+        setAuthPhase('gate');
+      }
+    });
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
   const loadHome = useCallback(async () => {
+    if (authPhase !== 'ready') return;
     setError(null);
+    setLoading(true);
     try {
       const t = await token();
       if (!t) {
-        setBrief({ error: 'Sign in on Busmo first, then open Crew.' });
+        setAuthPhase('gate');
         setLoading(false);
         return;
       }
@@ -166,11 +290,44 @@ export default function CrewApp() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, authPhase]);
 
   useEffect(() => {
-    loadHome();
-  }, [loadHome]);
+    if (authPhase === 'ready') loadHome();
+  }, [authPhase, loadHome]);
+
+  async function handleGoogle() {
+    setAuthError(null);
+    setGoogleLoading(true);
+    try {
+      if (!isSupabaseConfigured()) throw new Error('Authentication is not configured');
+      const redirectTo = getOAuthCallbackUrl('/crew');
+      if (typeof window !== 'undefined' && /localhost|127\.0\.0\.1/i.test(redirectTo)) {
+        throw new Error(
+          'Google sign-in is misconfigured (redirect points to localhost). Set NEXT_PUBLIC_APP_URL to your live domain.'
+        );
+      }
+      const { error: oauthError } = await getSupabase().auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo,
+          skipBrowserRedirect: false,
+          queryParams: { prompt: 'select_account', access_type: 'online' },
+          scopes: 'openid email profile',
+        },
+      });
+      if (oauthError) throw oauthError;
+    } catch (err: any) {
+      setAuthError(err?.message || 'Google sign-in failed. Please try again.');
+      setGoogleLoading(false);
+    }
+  }
+
+  function handleBusmo() {
+    // Continue with existing Busmo account — go through owner login, then return to crew
+    const next = encodeURIComponent('/crew');
+    window.location.href = `/welcome?next=${next}`;
+  }
 
   function newChat() {
     const id = `s-${Date.now()}`;
@@ -205,7 +362,14 @@ export default function CrewApp() {
     setSessions((prev) =>
       prev.map((s) =>
         s.id === sid
-          ? { ...s, title: s.title === 'New chat' || s.title === 'Crew chat' ? sessionTitle(whichRoom, q) : s.title, room: whichRoom }
+          ? {
+              ...s,
+              title:
+                s.title === 'New chat' || s.title === 'Crew chat'
+                  ? sessionTitle(whichRoom, q)
+                  : s.title,
+              room: whichRoom,
+            }
           : s
       )
     );
@@ -278,6 +442,39 @@ export default function CrewApp() {
     setSidebarOpen(false);
   }
 
+  if (authPhase === 'checking') {
+    return (
+      <div className={styles.authShell}>
+        <div className={styles.loadingCenter}>
+          <div className={styles.authAvatars}>
+            {CREW_AGENTS.filter((a) => a.live).map((a, i) => (
+              <img
+                key={a.id}
+                src={a.avatar}
+                alt=""
+                className={styles.animBob}
+                style={{ animationDelay: `${i * 0.15}s`, width: 48, height: 48 }}
+              />
+            ))}
+          </div>
+          <span className={styles.spinner} />
+          <span>Waking the crew…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (authPhase === 'gate') {
+    return (
+      <AuthGate
+        onBusmo={handleBusmo}
+        onGoogle={handleGoogle}
+        googleLoading={googleLoading}
+        error={authError}
+      />
+    );
+  }
+
   const liveAgents = CREW_AGENTS.filter((a) => a.live);
   const comingAgents = CREW_AGENTS.filter((a) => !a.live);
   const roomAgent = room === 'mo' ? null : getAgent(room);
@@ -326,7 +523,9 @@ export default function CrewApp() {
             className={`${styles.navItem} ${tab === 'home' ? styles.navItemAct : ''}`}
             onClick={() => goTab('home')}
           >
-            <span className={styles.navIcon}><Icon name="home" /></span>
+            <span className={styles.navIcon}>
+              <Icon name="home" />
+            </span>
             Home
           </button>
           <button
@@ -334,7 +533,9 @@ export default function CrewApp() {
             className={`${styles.navItem} ${tab === 'tasks' ? styles.navItemAct : ''}`}
             onClick={() => goTab('tasks')}
           >
-            <span className={styles.navIcon}><Icon name="tasks" /></span>
+            <span className={styles.navIcon}>
+              <Icon name="tasks" />
+            </span>
             Tasks
           </button>
           <button
@@ -342,18 +543,18 @@ export default function CrewApp() {
             className={`${styles.navItem} ${tab === 'activity' ? styles.navItemAct : ''}`}
             onClick={() => goTab('activity')}
           >
-            <span className={styles.navIcon}><Icon name="activity" /></span>
+            <span className={styles.navIcon}>
+              <Icon name="activity" />
+            </span>
             Activity
           </button>
 
           <div className={styles.section}>
-            <button
-              type="button"
-              className={styles.sectionHead}
-              onClick={() => setTeammatesOpen((v) => !v)}
-            >
+            <button type="button" className={styles.sectionHead} onClick={() => setTeammatesOpen((v) => !v)}>
               <span className={styles.sectionTitle}>Teammates</span>
-              <span className={styles.chev}><Icon name={teammatesOpen ? "chevUp" : "chevDown"} /></span>
+              <span className={styles.chev}>
+                <Icon name={teammatesOpen ? 'chevUp' : 'chevDown'} />
+              </span>
             </button>
 
             {teammatesOpen && (
@@ -386,13 +587,11 @@ export default function CrewApp() {
           </div>
 
           <div className={styles.section}>
-            <button
-              type="button"
-              className={styles.sectionHead}
-              onClick={() => setSessionsOpen((v) => !v)}
-            >
+            <button type="button" className={styles.sectionHead} onClick={() => setSessionsOpen((v) => !v)}>
               <span className={styles.sectionTitle}>Sessions</span>
-              <span className={styles.chev}><Icon name="menu" /></span>
+              <span className={styles.chev}>
+                <Icon name="menu" />
+              </span>
             </button>
             {sessionsOpen &&
               sessions.map((s) => (
@@ -439,7 +638,26 @@ export default function CrewApp() {
           {error && <div className={styles.error}>{error}</div>}
 
           {loading ? (
-            <p className={styles.empty}>Loading your crew…</p>
+            <div className={styles.loadingCenter}>
+              <div className={styles.authAvatars}>
+                {liveAgents.map((a, i) => (
+                  <img
+                    key={a.id}
+                    src={a.avatar}
+                    alt=""
+                    className={styles.animFloat}
+                    style={{ animationDelay: `${i * 0.12}s`, width: 44, height: 44 }}
+                  />
+                ))}
+              </div>
+              <span className={styles.spinner} />
+              <span>Loading your books…</span>
+              <div style={{ width: '100%', maxWidth: 360, marginTop: 8 }}>
+                <div className={`${styles.skeleton} ${styles.skelCard}`} />
+                <div className={`${styles.skeleton} ${styles.skelLine}`} style={{ width: '80%' }} />
+                <div className={`${styles.skeleton} ${styles.skelLine}`} style={{ width: '60%' }} />
+              </div>
+            </div>
           ) : brief?.error ? (
             <div className={styles.error}>{brief.error}</div>
           ) : null}
@@ -455,13 +673,7 @@ export default function CrewApp() {
               </div>
 
               <div className={styles.chips}>
-                <button
-                  type="button"
-                  className={styles.chip}
-                  onClick={() => {
-                    openAgent('tally');
-                  }}
-                >
+                <button type="button" className={styles.chip} onClick={() => openAgent('tally')}>
                   Talk to Tally
                 </button>
                 <button type="button" className={styles.chip} onClick={() => openAgent('bin')}>
@@ -522,7 +734,7 @@ export default function CrewApp() {
           {tab === 'chat' && (
             <>
               <div className={styles.chatHeader}>
-                <img src={roomAgent?.avatar || '/crew/tally.png'} alt="" />
+                <img src={roomAgent?.avatar || '/crew/tally.png'} alt="" className={styles.animPulse} />
                 <div>
                   <strong>{chatTitle}</strong>
                   <span>{chatSub}</span>
@@ -536,11 +748,7 @@ export default function CrewApp() {
                   return (
                     <div key={i} className={`${styles.msgRow} ${mine ? styles.msgRowMe : ''}`}>
                       {!mine && (
-                        <img
-                          className={styles.msgAvatar}
-                          src={ag?.avatar || '/crew/tally.png'}
-                          alt=""
-                        />
+                        <img className={styles.msgAvatar} src={ag?.avatar || '/crew/tally.png'} alt="" />
                       )}
                       <div className={`${styles.msgBubble} ${mine ? styles.msgBubbleMe : ''}`}>
                         {!mine && (
@@ -553,6 +761,18 @@ export default function CrewApp() {
                     </div>
                   );
                 })}
+                {busy && (
+                  <div className={styles.msgRow}>
+                    <img
+                      className={`${styles.msgAvatar} ${styles.animBob}`}
+                      src={roomAgent?.avatar || '/crew/tally.png'}
+                      alt=""
+                    />
+                    <div className={styles.msgBubble}>
+                      <TypingDots />
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -649,8 +869,13 @@ export default function CrewApp() {
                 disabled={busy}
                 aria-label="Message"
               />
-              <button className={styles.sendBtn} type="submit" disabled={busy || !draft.trim()} aria-label="Send">
-                <Icon name="arrow" />
+              <button
+                className={styles.sendBtn}
+                type="submit"
+                disabled={busy || !draft.trim()}
+                aria-label="Send"
+              >
+                {busy ? <span className={`${styles.spinner} ${styles.spinnerSm}`} style={{ borderTopColor: '#fff', borderColor: 'rgba(255,255,255,0.3)' }} /> : <Icon name="arrow" />}
               </button>
             </form>
           </div>
