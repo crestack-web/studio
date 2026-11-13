@@ -37,6 +37,7 @@ export function HealthcareVisitsPage({ config }: { config: IndustryConfig }) {
   const [visits, setVisits] = useState<any[]>([]);
   const [metrics, setMetrics] = useState({ total: 0, open: 0, completed: 0 });
   const [patients, setPatients] = useState<any[]>([]);
+  const [staff, setStaff] = useState<any[]>([]);
   const [todayAppts, setTodayAppts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -49,6 +50,7 @@ export function HealthcareVisitsPage({ config }: { config: IndustryConfig }) {
   const [patientQuery, setPatientQuery] = useState('');
   const [patientName, setPatientName] = useState('');
   const [appointmentId, setAppointmentId] = useState('');
+  const [clinicianStaffId, setClinicianStaffId] = useState('');
   const [complaint, setComplaint] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -60,10 +62,11 @@ export function HealthcareVisitsPage({ config }: { config: IndustryConfig }) {
       if (filter !== 'all') params.set('status', filter);
       if (q.trim()) params.set('q', q.trim());
       const date = new Date().toISOString().slice(0, 10);
-      const [vRes, pRes, aRes] = await Promise.all([
+      const [vRes, pRes, aRes, sRes] = await Promise.all([
         fetch(`/api/industries/healthcare/visits?${params}`, { headers: h }),
         fetch('/api/industries/healthcare/patients?status=active&limit=100', { headers: h }),
         fetch(`/api/industries/healthcare/appointments?date=${date}`, { headers: h }),
+        fetch('/api/industries/healthcare/staff?status=active&limit=100', { headers: h }),
       ]);
       const vj = await vRes.json().catch(() => ({}));
       if (!vRes.ok) throw new Error(vj.error || 'Failed to load visits');
@@ -77,6 +80,8 @@ export function HealthcareVisitsPage({ config }: { config: IndustryConfig }) {
           ['scheduled', 'checked_in', 'in_progress'].includes(String(a.status))
         )
       );
+      const sj = await sRes.json().catch(() => ({}));
+      setStaff(sj.staff || []);
       setErr(null);
     } catch (e: any) {
       setErr(e?.message || 'Failed');
@@ -90,6 +95,11 @@ export function HealthcareVisitsPage({ config }: { config: IndustryConfig }) {
     return () => clearTimeout(t);
   }, [load]);
 
+  const activeStaff = useMemo(
+    () => staff.filter((s) => String(s.status || 'active') === 'active'),
+    [staff]
+  );
+
   const suggestions = useMemo(() => {
     const query = patientQuery.trim().toLowerCase();
     if (!query || patientId) return [];
@@ -102,11 +112,17 @@ export function HealthcareVisitsPage({ config }: { config: IndustryConfig }) {
       .slice(0, 6);
   }, [patients, patientQuery, patientId]);
 
+  function applyClinicianFromPatient(p: any) {
+    const sid = p?.assigned_staff_id || p?.primary_clinician_id || '';
+    if (sid) setClinicianStaffId(String(sid));
+  }
+
   function pickPatient(p: any) {
     setPatientId(p.id);
     const name = String(p.full_name || p.name || '');
     setPatientName(name);
     setPatientQuery(name);
+    applyClinicianFromPatient(p);
   }
 
   function pickFromAppt(a: any) {
@@ -115,6 +131,10 @@ export function HealthcareVisitsPage({ config }: { config: IndustryConfig }) {
     setPatientName(a.patient_name || '');
     setPatientQuery(a.patient_name || '');
     setComplaint(a.reason || '');
+    // Prefer clinician already on patient registry
+    const linked = patients.find((p) => p.id === a.patient_id);
+    if (linked) applyClinicianFromPatient(linked);
+    else if (a.clinician_staff_id) setClinicianStaffId(String(a.clinician_staff_id));
   }
 
   async function create(e: React.FormEvent) {
@@ -134,6 +154,7 @@ export function HealthcareVisitsPage({ config }: { config: IndustryConfig }) {
           patientId: patientId || null,
           patientName: name,
           appointmentId: appointmentId || null,
+          clinicianStaffId: clinicianStaffId || null,
           chiefComplaint: complaint.trim() || null,
           notes: notes.trim() || null,
           status: 'open',
@@ -141,13 +162,15 @@ export function HealthcareVisitsPage({ config }: { config: IndustryConfig }) {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || 'Could not start visit');
+      const cname = json.visit?.clinician_name;
       setPatientId('');
       setPatientQuery('');
       setPatientName('');
       setAppointmentId('');
+      setClinicianStaffId('');
       setComplaint('');
       setNotes('');
-      setMsg('Visit started');
+      setMsg(cname ? `Visit started · ${cname}` : 'Visit started');
       await load();
     } catch (e: any) {
       setErr(e?.message || 'Failed');
@@ -182,12 +205,15 @@ export function HealthcareVisitsPage({ config }: { config: IndustryConfig }) {
           <p className={styles.eyebrow}>Busmo Healthcare</p>
           <h1 className={styles.title}>Visits</h1>
           <p className={styles.sub}>
-            Clinical encounters — start from a patient or today&apos;s appointment queue.
+            Clinical encounters — clinician defaults from the patient&apos;s primary provider.
           </p>
         </div>
         <div className={styles.row}>
-          <Link href={`${config.dashboardPath}/appointments`} className={styles.btnGhost}>
-            Appointments
+          <Link href={`${config.dashboardPath}/patients`} className={styles.btnGhost}>
+            Patients
+          </Link>
+          <Link href={`${config.dashboardPath}/staff`} className={styles.btnGhost}>
+            Staff
           </Link>
           <Link href={`${config.dashboardPath}/billing`} className={styles.btnGhost}>
             Billing
@@ -220,26 +246,41 @@ export function HealthcareVisitsPage({ config }: { config: IndustryConfig }) {
             <span className={styles.panelMeta}>{todayAppts.length} waiting / scheduled</span>
           </div>
           <ul className={styles.list}>
-            {todayAppts.slice(0, 8).map((a) => (
-              <li key={a.id} className={styles.item}>
-                <div>
-                  <div className={styles.itemTitle}>{a.patient_name}</div>
-                  <div className={styles.itemMeta}>
-                    {a.scheduled_at
-                      ? new Date(a.scheduled_at).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })
-                      : ''}
-                    {a.reason ? ` · ${a.reason}` : ''}
-                    {` · ${String(a.status || '').replace(/_/g, ' ')}`}
+            {todayAppts.slice(0, 8).map((a) => {
+              const linked = patients.find((p) => p.id === a.patient_id);
+              const clin =
+                linked?.assigned_clinician_name ||
+                (linked?.assigned_staff_id
+                  ? activeStaff.find((s) => s.id === linked.assigned_staff_id)
+                  : null);
+              const clinLabel =
+                typeof clin === 'string'
+                  ? clin
+                  : clin
+                    ? clin.full_name || clin.name || clin.title
+                    : null;
+              return (
+                <li key={a.id} className={styles.item}>
+                  <div>
+                    <div className={styles.itemTitle}>{a.patient_name}</div>
+                    <div className={styles.itemMeta}>
+                      {a.scheduled_at
+                        ? new Date(a.scheduled_at).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : ''}
+                      {a.reason ? ` · ${a.reason}` : ''}
+                      {clinLabel ? ` · ${clinLabel}` : ''}
+                      {` · ${String(a.status || '').replace(/_/g, ' ')}`}
+                    </div>
                   </div>
-                </div>
-                <button type="button" className={styles.btnGhost} onClick={() => pickFromAppt(a)}>
-                  Start visit
-                </button>
-              </li>
-            ))}
+                  <button type="button" className={styles.btnGhost} onClick={() => pickFromAppt(a)}>
+                    Start visit
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       ) : null}
@@ -295,7 +336,12 @@ export function HealthcareVisitsPage({ config }: { config: IndustryConfig }) {
                         }}
                       >
                         <strong>{p.full_name || p.name}</strong>
-                        <div className={styles.itemMeta}>{p.phone || 'No phone'}</div>
+                        <div className={styles.itemMeta}>
+                          {p.phone || 'No phone'}
+                          {p.assigned_clinician_name
+                            ? ` · ${p.assigned_clinician_name}`
+                            : ''}
+                        </div>
                       </button>
                     </li>
                   ))}
@@ -306,6 +352,25 @@ export function HealthcareVisitsPage({ config }: { config: IndustryConfig }) {
                   Linked to appointment · will mark it completed when visit starts
                 </p>
               ) : null}
+            </div>
+            <div>
+              <label className={styles.label}>Clinician</label>
+              <select
+                className={styles.select}
+                value={clinicianStaffId}
+                onChange={(e) => setClinicianStaffId(e.target.value)}
+              >
+                <option value="">Unassigned</option>
+                {activeStaff.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.full_name || s.name || s.title}
+                    {s.role ? ` · ${s.role}` : ''}
+                  </option>
+                ))}
+              </select>
+              <p className={styles.itemMeta} style={{ marginTop: 6 }}>
+                Auto-filled from the patient&apos;s primary clinician when available. You can override.
+              </p>
             </div>
             <div>
               <label className={styles.label}>Chief complaint</label>
@@ -342,7 +407,7 @@ export function HealthcareVisitsPage({ config }: { config: IndustryConfig }) {
               style={{ flex: '1 1 140px', minWidth: 120 }}
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search…"
+              placeholder="Search patient or clinician…"
             />
             {['all', ...STATUSES].map((f) => (
               <button
@@ -366,6 +431,7 @@ export function HealthcareVisitsPage({ config }: { config: IndustryConfig }) {
                   <div>
                     <div className={styles.itemTitle}>{v.patient_name}</div>
                     <div className={styles.itemMeta}>
+                      {v.clinician_name ? `${v.clinician_name} · ` : ''}
                       {v.chief_complaint || v.notes || 'No complaint noted'}
                       {v.created_at
                         ? ` · ${new Date(v.created_at).toLocaleString([], {
