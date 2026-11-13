@@ -1,78 +1,65 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { getSupabase } from '@/lib/supabase';
+import { CREW_AGENTS, getAgent } from '@/lib/crew/agents';
 import styles from './Crew.module.css';
 
-type AgentId = 'tally' | 'bin' | 'ledger' | 'shift' | 'pulse' | 'brief' | 'host' | 'nib';
-
-const CREW: { id: AgentId; name: string; role: string; color: string; live: boolean; blurb: string }[] = [
-  { id: 'tally', name: 'Tally', role: 'Finance', color: '#5615ED', live: true, blurb: 'Reads your sales, profit and expenses. Does not invent the numbers.' },
-  { id: 'bin', name: 'Bin', role: 'Inventory', color: '#1E9E5A', live: true, blurb: 'Watches stock and prepares a restock list. Nothing is ordered until you approve it.' },
-  { id: 'ledger', name: 'Ledger', role: 'Credit', color: '#E0328C', live: true, blurb: 'Shows who still owes you, from your credit records.' },
-  { id: 'shift', name: 'Shift', role: 'Workforce', color: '#FFB800', live: false, blurb: 'Staff activity comes in the next crew release.' },
-  { id: 'pulse', name: 'Pulse', role: 'Health', color: '#E5484D', live: false, blurb: 'A daily business check, after the first three are trusted.' },
-  { id: 'brief', name: 'Brief', role: 'Assistant', color: '#2F4BFF', live: false, blurb: 'Documents and reports, later.' },
-  { id: 'host', name: 'Host', role: 'Customers', color: '#8A5BFF', live: false, blurb: 'Guest and customer replies, later.' },
-  { id: 'nib', name: 'Nib', role: 'Growth', color: '#17112E', live: false, blurb: 'Coaching, after the crew is doing real work.' },
-];
-
-type Brief = {
-  businessName?: string;
-  tally?: any;
-  low?: { name: string; stock: number; reorder: number }[];
-  ledger?: { count: number; total: number; people: { name: string; balance: number }[] };
-  signals?: { agent: string; title: string; detail: string; status: string }[];
-  error?: string;
-};
-
-type Msg = { from: 'me' | string; text: string };
-
-function money(n?: number | null) {
-  return `₦${Math.round(Number(n) || 0).toLocaleString('en-NG')}`;
-}
-
-function agent(id: string) {
-  return CREW.find((c) => c.id === id);
-}
+type Tab = 'home' | 'chat' | 'tasks' | 'activity';
+type Msg = { from: string; text: string };
 
 export default function CrewApp() {
-  const [tab, setTab] = useState<'home' | 'chat' | 'crew' | 'tasks'>('home');
+  const [tab, setTab] = useState<Tab>('home');
   const [room, setRoom] = useState<string>('mo');
-  const [brief, setBrief] = useState<Brief | null>(null);
+  const [brief, setBrief] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [chat, setChat] = useState<Record<string, Msg[]>>({
-    mo: [{ from: 'mo', text: "I'm MO. Ask about sales, stock, or who owes you. I'll bring Tally, Bin, or Ledger." }],
+    mo: [
+      {
+        from: 'mo',
+        text: "I'm the Crew Manager. Ask about sales, stock, or who owes you — I'll bring Tally, Bin, or Ledger.",
+      },
+    ],
   });
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
-  const [tasks, setTasks] = useState<{ id: string; agent: string; title: string; status: string }[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const token = useCallback(async () => {
+    const { data } = await getSupabase().auth.getSession();
+    return data.session?.access_token || '';
+  }, []);
+
+  const loadHome = useCallback(async () => {
+    setError(null);
     try {
-      const raw = localStorage.getItem('busmo_crew_tasks');
-      if (raw) setTasks(JSON.parse(raw));
-    } catch { /* ignore */ }
-    (async () => {
-      const { data } = await getSupabase().auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) {
+      const t = await token();
+      if (!t) {
         setBrief({ error: 'Sign in on Busmo first, then open Crew.' });
         setLoading(false);
         return;
       }
-      const res = await fetch('/api/crew', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch('/api/crew', { headers: { Authorization: `Bearer ${t}` } });
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) setBrief({ error: json.error || 'Could not load your business' });
-      else setBrief(json);
+      if (!res.ok) {
+        setBrief({ error: json.error || 'Could not load your business' });
+      } else {
+        setBrief(json);
+        setTasks(Array.isArray(json.tasks) ? json.tasks : []);
+        setActivities(Array.isArray(json.activities) ? json.activities : []);
+      }
+    } catch (e: any) {
+      setBrief({ error: e?.message || 'Network error' });
+    } finally {
       setLoading(false);
-    })();
-  }, []);
+    }
+  }, [token]);
 
-  function saveTasks(next: typeof tasks) {
-    setTasks(next);
-    try { localStorage.setItem('busmo_crew_tasks', JSON.stringify(next)); } catch { /* ignore */ }
-  }
+  useEffect(() => {
+    loadHome();
+  }, [loadHome]);
 
   async function ask(text: string, which = room) {
     const q = text.trim();
@@ -81,181 +68,359 @@ export default function CrewApp() {
     setDraft('');
     setBusy(true);
     try {
-      const { data } = await getSupabase().auth.getSession();
+      const t = await token();
       const res = await fetch('/api/crew', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${data.session?.access_token || ''}`,
+          Authorization: `Bearer ${t}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ room: which, message: q }),
+        body: JSON.stringify({ action: 'chat', room: which, message: q }),
       });
       const json = await res.json().catch(() => ({}));
-      const replies: Msg[] = (json.replies || [{ agent: 'mo', text: json.error || 'I could not check the books just now.' }]).map((r: any) => ({
-        from: r.agent,
-        text: r.text,
-      }));
+      const replies: Msg[] = (json.replies || [
+        { agent: 'mo', text: json.error || 'I could not check the books just now.' },
+      ]).map((r: any) => ({ from: r.agent, text: r.text }));
       setChat((c) => ({ ...c, [which]: [...(c[which] || []), ...replies] }));
+      // refresh tasks if a draft may have been created
+      if (/restock|follow|debt|prepare|draft/i.test(q)) {
+        const home = await fetch('/api/crew?view=tasks', {
+          headers: { Authorization: `Bearer ${t}` },
+        }).then((r) => r.json()).catch(() => ({}));
+        if (Array.isArray(home.tasks)) setTasks(home.tasks);
+      }
     } finally {
       setBusy(false);
     }
   }
 
-  function prepareRestock() {
-    const id = `task-${Date.now()}`;
-    const title = brief?.low?.length
-      ? `Restock list: ${brief.low.slice(0, 4).map((p) => p.name).join(', ')}`
-      : 'Restock list: nothing is low right now';
-    saveTasks([{ id, agent: 'bin', title, status: 'awaiting' }, ...tasks]);
-    setTab('tasks');
+  async function setTaskStatus(taskId: string, status: string) {
+    const t = await token();
+    const res = await fetch('/api/crew', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${t}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ action: 'update_task', taskId, status }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.ok && json.task) {
+      setTasks((prev) => prev.map((x) => (x.id === taskId ? json.task : x)));
+    } else {
+      setError(json.error || 'Could not update task');
+    }
   }
 
-  const hello = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 17 ? 'Good afternoon' : 'Good evening';
-  const t = brief?.tally;
+  function openAgent(id: string) {
+    if (!getAgent(id)?.live && id !== 'mo') {
+      setRoom(id);
+      setChat((c) => ({
+        ...c,
+        [id]: c[id] || [
+          {
+            from: id,
+            text: `${getAgent(id)?.name || 'This agent'} joins in a later phase. Tally, Bin and Ledger are on duty now.`,
+          },
+        ],
+      }));
+    } else {
+      setRoom(id);
+      if (!chat[id]?.length) {
+        setChat((c) => ({
+          ...c,
+          [id]: [
+            {
+              from: id,
+              text:
+                id === 'mo'
+                  ? "Ask me anything about the business. I'll pull in the right teammate."
+                  : `I'm ${getAgent(id)?.name}. ${getAgent(id)?.blurb}`,
+            },
+          ],
+        }));
+      }
+    }
+    setTab('chat');
+  }
+
+  const liveAgents = CREW_AGENTS.filter((a) => a.live);
+  const comingAgents = CREW_AGENTS.filter((a) => !a.live);
+  const roomAgent = room === 'mo' ? null : getAgent(room);
+  const name = brief?.businessName || 'your business';
 
   return (
-    <div className={styles.page}>
-      <div className={styles.phone}>
-        {tab === 'home' && (
+    <div className={styles.shell}>
+      <header className={styles.topbar}>
+        <a className={styles.brand} href="/owner">
+          Busmo
+        </a>
+        <nav className={styles.nav} aria-label="Crew">
+          {(
+            [
+              ['home', 'Home'],
+              ['chat', 'Chat'],
+              ['tasks', 'Tasks'],
+              ['activity', 'Activity'],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className={`${styles.navBtn} ${tab === id ? styles.navBtnAct : ''}`}
+              onClick={() => setTab(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+        <a className={styles.iconBtn} href="/owner" title="Back to dashboard" aria-label="Dashboard">
+          ←
+        </a>
+      </header>
+
+      <main className={styles.main}>
+        {error && <div className={styles.error}>{error}</div>}
+
+        {loading ? (
+          <p className={styles.empty}>Loading your crew…</p>
+        ) : brief?.error ? (
+          <div className={styles.error}>{brief.error}</div>
+        ) : null}
+
+        {tab === 'home' && !loading && !brief?.error && (
           <>
-            <div className={styles.top}>
-              <div className={styles.hello}>{hello}</div>
-              <div className={styles.title}>{brief?.businessName || 'Your crew'}</div>
-              <p className={styles.sub}>An AI workforce that reads this business. Not a chatbot guessing.</p>
+            <div className={styles.hero}>
+              <img src="/crew/tally.jpg" alt="" className={styles.heroAvatar} />
+              <h1 className={styles.heroTitle}>Your crew for {name}</h1>
+              <p className={styles.heroSub}>
+                Hire a team that never clocks out. They read your real books — not the internet.
+              </p>
             </div>
-            <div className={styles.scroll}>
-              {brief?.error ? <p className={styles.empty}>{brief.error}</p> : null}
-              <div className={styles.stats}>
-                <div className={styles.stat}><span>Sales today</span><b>{loading ? '…' : money(t?.todaySales)}</b></div>
-                <div className={styles.stat}><span>Profit today</span><b>{loading ? '…' : money(t?.todayProfit)}</b></div>
-                <div className={styles.stat}><span>Low stock</span><b>{loading ? '…' : brief?.low?.length || 0}</b></div>
-                <div className={styles.stat}><span>Customers owe</span><b>{loading ? '…' : money(brief?.ledger?.total)}</b></div>
-              </div>
-              <div className={styles.crewrow}>
-                {CREW.filter((c) => c.live).map((c) => (
-                  <button key={c.id} className={styles.chip} onClick={() => { setRoom(c.id); setTab('chat'); }}>
-                    <div className={styles.av} style={{ background: c.color }}>{c.name.slice(0, 1)}</div>
-                    <span>{c.name}</span>
-                  </button>
-                ))}
-              </div>
-              <div className={styles.sec}><h3>Working now</h3></div>
-              {(brief?.signals || []).map((s) => (
-                <div key={s.title} className={`${styles.card} ${styles.item}`}>
-                  <div className={styles.av} style={{ background: agent(s.agent)?.color || '#5615ED', width: 42, height: 42, flex: 'none' }}>{(agent(s.agent)?.name || 'M').slice(0, 1)}</div>
-                  <div>
-                    <p>{s.title}</p>
-                    <small>{agent(s.agent)?.name} · {s.detail}</small>
-                  </div>
-                </div>
+
+            <div className={styles.chips}>
+              <button type="button" className={styles.chip} onClick={() => ask('How much did we make today?', 'tally')}>
+                Today&apos;s sales
+              </button>
+              <button type="button" className={styles.chip} onClick={() => openAgent('bin')}>
+                Stock check
+              </button>
+              <button type="button" className={styles.chip} onClick={() => ask('Who owes me?', 'ledger')}>
+                Who owes me?
+              </button>
+            </div>
+
+            <div className={styles.sectionLabel}>On duty</div>
+            <div className={styles.grid}>
+              {liveAgents.map((a) => (
+                <button key={a.id} type="button" className={styles.agentCard} onClick={() => openAgent(a.id)}>
+                  <img src={a.avatar} alt={a.name} />
+                  <strong>{a.name}</strong>
+                  <span>{a.role}</span>
+                  <span className={styles.badge}>Live</span>
+                </button>
               ))}
-              {!loading && !brief?.signals?.length ? <p className={styles.empty}>No signals yet.</p> : null}
+            </div>
+
+            <div className={styles.sectionLabel}>Signals</div>
+            <div className={styles.signalList}>
+              {(brief?.signals || []).map((s: any, i: number) => {
+                const a = getAgent(s.agent);
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    className={styles.signal}
+                    onClick={() => openAgent(s.agent)}
+                  >
+                    <img src={a?.avatar || '/crew/tally.jpg'} alt="" />
+                    <div>
+                      <strong>{s.title}</strong>
+                      <small>
+                        {a?.name} · {s.detail}
+                      </small>
+                    </div>
+                  </button>
+                );
+              })}
+              {!(brief?.signals || []).length && (
+                <p className={styles.empty}>No signals yet — record a sale or add stock levels.</p>
+              )}
+            </div>
+
+            <div className={styles.sectionLabel}>Coming online</div>
+            <div className={styles.grid}>
+              {comingAgents.map((a) => (
+                <button key={a.id} type="button" className={styles.agentCard} onClick={() => openAgent(a.id)}>
+                  <img src={a.avatar} alt={a.name} />
+                  <strong>{a.name}</strong>
+                  <span>{a.role}</span>
+                  <span className={`${styles.badge} ${styles.badgeSoon}`}>Soon</span>
+                </button>
+              ))}
             </div>
           </>
         )}
 
         {tab === 'chat' && (
-          <div className={styles.chat}>
-            <div className={styles.bar}>
-              <button className={styles.iconBtn} onClick={() => { setRoom('mo'); setTab('home'); }} aria-label="Back">‹</button>
-              <div className={styles.whoPill}>
-                <span className={styles.dot} style={{ background: room === 'mo' ? '#111' : agent(room)?.color || '#111' }}>
-                  {room === 'mo' ? 'M' : (agent(room)?.name || 'C').slice(0, 1)}
-                </span>
-                {room === 'mo' ? 'Crew' : agent(room)?.name}
-              </div>
-              <span style={{ width: 36 }} />
-            </div>
-            <div className={styles.when}>Today {new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
-            <div className={styles.thread}>
-              {(chat[room] || []).map((m, i) => (
-                <React.Fragment key={i}>
-                  {m.from !== 'me' && room === 'mo' ? (
-                    <span className={styles.agentName}>{m.from === 'mo' ? 'MO' : agent(m.from)?.name}</span>
-                  ) : null}
-                  <div className={m.from === 'me' ? styles.mine : styles.theirs}>{m.text}</div>
-                </React.Fragment>
-              ))}
-              {busy ? <div className={styles.theirs}>Checking the books…</div> : null}
-              {(room === 'bin' || room === 'mo') && (brief?.low?.length || 0) > 0 ? (
-                <div className={styles.action}>
-                  <span className={styles.need}><i /> Action needed</span>
-                  <strong>Restock list</strong>
-                  <p>{brief?.low?.length} item{(brief?.low?.length || 0) === 1 ? '' : 's'} {brief?.low?.length === 1 ? 'is' : 'are'} under the restock line. Nothing is ordered until you approve it.</p>
-                  <button type="button" onClick={prepareRestock}>Continue</button>
-                </div>
-              ) : null}
-            </div>
-            <form className={styles.ask} onSubmit={(e) => { e.preventDefault(); void ask(draft, room === 'mo' ? 'crew' : room); }}>
-              <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Message" />
-              <button type="submit" aria-label="Send">↑</button>
-            </form>
-          </div>
-        )}
-
-        {tab === 'crew' && (
-          <div className={styles.scroll}>
-            <div className={styles.top} style={{ paddingLeft: 0, paddingRight: 0 }}>
-              <div className={styles.title}>The crew</div>
-              <p className={styles.sub}>Three are on duty. The rest arrive when their work is real.</p>
-            </div>
-            {CREW.map((c) => (
+          <>
+            <div className={styles.roomBar}>
               <button
-                key={c.id}
-                className={`${styles.card} ${styles.bot} ${c.live ? '' : styles.locked}`}
-                onClick={() => { if (c.live) { setRoom(c.id); setTab('chat'); } }}
+                type="button"
+                className={`${styles.roomPill} ${room === 'mo' ? styles.roomPillAct : ''}`}
+                onClick={() => setRoom('mo')}
               >
-                <div className={styles.av} style={{ background: c.color }}>{c.name.slice(0, 1)}</div>
-                <div>
-                  <b>{c.name}</b>
-                  <small>{c.role.toUpperCase()}</small>
-                  <div className={styles.sub}>{c.live ? 'On duty' : 'Coming soon'} · {c.blurb}</div>
-                </div>
+                Crew
               </button>
-            ))}
-          </div>
+              {CREW_AGENTS.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  className={`${styles.roomPill} ${room === a.id ? styles.roomPillAct : ''}`}
+                  onClick={() => openAgent(a.id)}
+                >
+                  <img src={a.avatar} alt="" />
+                  {a.name}
+                </button>
+              ))}
+            </div>
+
+            <div className={styles.chatWrap}>
+              {(chat[room] || []).map((m, i) => {
+                const mine = m.from === 'me';
+                const ag = getAgent(m.from);
+                return (
+                  <div key={i} className={`${styles.msgRow} ${mine ? styles.msgRowMe : ''}`}>
+                    {!mine && (
+                      <img
+                        className={styles.msgAvatar}
+                        src={ag?.avatar || '/crew/tally.jpg'}
+                        alt=""
+                      />
+                    )}
+                    <div className={`${styles.msgBubble} ${mine ? styles.msgBubbleMe : ''}`}>
+                      {!mine && (
+                        <span className={styles.agentTag}>
+                          {m.from === 'mo' ? 'Crew Manager' : ag?.name || m.from}
+                        </span>
+                      )}
+                      {m.text}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {(room === 'bin' || room === 'mo') && (brief?.signals || []).some((s: any) => s.agent === 'bin' && s.status === 'alert') && (
+              <div className={styles.chips}>
+                <button
+                  type="button"
+                  className={styles.chip}
+                  onClick={() => ask('Prepare a restock list', 'bin')}
+                >
+                  Ask Bin to draft restock
+                </button>
+              </div>
+            )}
+          </>
         )}
 
         {tab === 'tasks' && (
-          <div className={styles.scroll}>
-            <div className={styles.top} style={{ paddingLeft: 0, paddingRight: 0 }}>
-              <div className={styles.title}>Activity</div>
-              <p className={styles.sub}>You approve anything that would change the business. Crew does not spend money or message customers.</p>
+          <>
+            <div className={styles.hero} style={{ paddingTop: 8 }}>
+              <h1 className={styles.heroTitle} style={{ fontSize: 20 }}>
+                Tasks
+              </h1>
+              <p className={styles.heroSub}>Drafts need your approval before anything changes in the business.</p>
             </div>
-            <button className={styles.primary} onClick={prepareRestock}>Ask Bin for a restock list</button>
-            <div style={{ height: 12 }} />
-            {tasks.map((task) => (
-              <div key={task.id} className={`${styles.card} ${styles.item}`}>
-                <div>
-                  <p>{task.title}</p>
-                  <small>{agent(task.agent)?.name} · {task.status === 'approved' ? 'Approved. Place it from Inventory or Suppliers. Nothing was ordered automatically.' : 'Awaiting your approval'}</small>
-                  {task.status !== 'approved' ? (
-                    <button className={styles.primary} style={{ marginTop: 8 }} onClick={() => saveTasks(tasks.map((t) => t.id === task.id ? { ...t, status: 'approved' } : t))}>
-                      Approve list
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            ))}
-            {(brief?.signals || []).map((s) => (
-              <div key={s.title} className={`${styles.card} ${styles.item}`}>
-                <div>
-                  <p>{s.title}</p>
-                  <small>{agent(s.agent)?.name} · {s.status === 'needs_you' ? 'Needs you' : 'Done'} · {s.detail}</small>
-                </div>
-              </div>
-            ))}
-          </div>
+            {tasks.length === 0 ? (
+              <p className={styles.empty}>No tasks yet. Ask Bin to prepare a restock list.</p>
+            ) : (
+              tasks.map((t) => {
+                const a = getAgent(t.agent_id);
+                return (
+                  <div key={t.id} className={styles.taskCard}>
+                    <strong>{t.title}</strong>
+                    <div className={styles.meta}>
+                      {a?.name || t.agent_id} · {t.status}
+                    </div>
+                    {(t.status === 'awaiting' || t.status === 'draft') && (
+                      <div className={styles.rowActions}>
+                        <button
+                          type="button"
+                          className={`${styles.btnSm} ${styles.btnPrimary}`}
+                          onClick={() => setTaskStatus(t.id, 'approved')}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.btnSm} ${styles.btnGhost}`}
+                          onClick={() => setTaskStatus(t.id, 'rejected')}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </>
         )}
 
-        {tab !== 'chat' && (
-          <nav className={styles.tabbar}>
-            {([['home', 'Home'], ['chat', 'Crew room'], ['crew', 'Crew'], ['tasks', 'Activity']] as const).map(([id, label]) => (
-              <button key={id} className={`${styles.tab} ${tab === id ? styles.on : ''}`} onClick={() => { if (id === 'chat') setRoom('mo'); setTab(id); }}>{label}</button>
-            ))}
-          </nav>
+        {tab === 'activity' && (
+          <>
+            <div className={styles.hero} style={{ paddingTop: 8 }}>
+              <h1 className={styles.heroTitle} style={{ fontSize: 20 }}>
+                Activity
+              </h1>
+              <p className={styles.heroSub}>What the crew has been doing — nothing silent.</p>
+            </div>
+            {activities.length === 0 ? (
+              <p className={styles.empty}>No activity logged yet.</p>
+            ) : (
+              activities.map((a) => (
+                <div key={a.id} className={styles.actCard}>
+                  <strong>{a.summary}</strong>
+                  <div className={styles.meta}>
+                    {getAgent(a.agent_id)?.name || a.agent_id || 'Crew'} · {a.type} ·{' '}
+                    {a.created_at ? new Date(a.created_at).toLocaleString() : ''}
+                  </div>
+                </div>
+              ))
+            )}
+          </>
         )}
-      </div>
+      </main>
+
+      {(tab === 'chat' || tab === 'home') && (
+        <div className={styles.composer}>
+          <form
+            className={styles.composerInner}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (tab !== 'chat') setTab('chat');
+              ask(draft, tab === 'chat' ? room : 'mo');
+            }}
+          >
+            <input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder={
+                roomAgent
+                  ? `Message ${roomAgent.name}…`
+                  : 'Ask the crew about sales, stock, credit…'
+              }
+              disabled={busy}
+              aria-label="Message"
+            />
+            <button className={styles.sendBtn} type="submit" disabled={busy || !draft.trim()} aria-label="Send">
+              ↑
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
