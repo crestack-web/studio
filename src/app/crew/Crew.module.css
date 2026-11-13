@@ -48,25 +48,164 @@
   flex: 1; background: none; border: 0; color: #9b96b0; font-weight: 800; font-size: 11px;
 }
 .tab.on { color: #5615ed; }
-.head {
-  display: flex; align-items: center; gap: 10px; padding: 22px 16px 12px;
-  border-bottom: 1px solid #eee8fb; background: #fff;
+.chat {
+  background: #fff;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
 }
-.back { background: none; border: 0; color: #5615ed; font-weight: 800; }
-.msgs { flex: 1; overflow: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-.bubble { max-width: 86%; padding: 12px 14px; border-radius: 18px; font-size: 14.5px; line-height: 1.45; white-space: pre-wrap; }
-.me { align-self: flex-end; background: #2f4bff; color: #fff; }
-.them { align-self: flex-start; background: #fff; box-shadow: 0 6px 24px rgba(86, 21, 237, 0.08); }
-.who { display: block; font-size: 11px; letter-spacing: 1px; color: #5615ed; font-weight: 800; margin-bottom: 3px; }
-.composer { display: flex; gap: 8px; padding: 8px 12px 16px; }
-.composer input {
-  flex: 1; height: 48px; border-radius: 24px; border: 1.5px solid #eee8fb; padding: 0 14px; font: inherit;
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 16px 8px;
 }
-.composer button, .primary {
-  background: #5615ed; color: #fff; border: 0; border-radius: 24px; font-weight: 800;
+.iconBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 0;
+  background: #f3f3f5;
+  color: #111;
+  font-size: 18px;
+  display: grid;
+  place-items: center;
 }
-.composer button { width: 48px; height: 48px; }
-.primary { height: 46px; padding: 0 16px; }
+.whoPill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f6f6f8;
+  border-radius: 999px;
+  padding: 6px 12px 6px 6px;
+  font-weight: 700;
+  font-size: 15px;
+}
+.dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+.when {
+  text-align: center;
+  color: #9a9aa3;
+  font-size: 13px;
+  margin: 8px 0 14px;
+}
+.thread {
+  flex: 1;
+  overflow: auto;
+  padding: 0 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mine, .theirs {
+  max-width: 82%;
+  padding: 12px 16px;
+  border-radius: 22px;
+  font-size: 16px;
+  line-height: 1.35;
+  font-weight: 500;
+  white-space: pre-wrap;
+}
+.mine {
+  align-self: flex-end;
+  background: #111;
+  color: #fff;
+  border-bottom-right-radius: 8px;
+}
+.theirs {
+  align-self: flex-start;
+  background: #f2f2f4;
+  color: #1c1c1e;
+  border-bottom-left-radius: 8px;
+}
+.agentName {
+  align-self: flex-start;
+  font-size: 12px;
+  color: #8e8e96;
+  font-weight: 650;
+  margin: 6px 4px -4px;
+}
+.action {
+  align-self: stretch;
+  background: #f6f6f8;
+  border-radius: 22px;
+  padding: 16px;
+  margin-top: 6px;
+}
+.need {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff6e8;
+  color: #c4841d;
+  font-weight: 700;
+  font-size: 13px;
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+.need i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #e0a100;
+  display: block;
+}
+.action strong { display: block; margin-top: 12px; font-size: 18px; }
+.action p { margin: 4px 0 14px; color: #3a3a3c; font-size: 15px; }
+.action button {
+  width: 100%;
+  height: 48px;
+  border: 0;
+  border-radius: 14px;
+  background: #111;
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+}
+.ask {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px 22px;
+  background: #fff;
+}
+.ask input {
+  flex: 1;
+  height: 48px;
+  border-radius: 24px;
+  border: 0;
+  background: #f3f3f5;
+  padding: 0 16px;
+  font: inherit;
+  font-size: 16px;
+  outline: none;
+}
+.ask button {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 0;
+  background: #111;
+  color: #fff;
+  font-size: 18px;
+}
+
+.primary {
+  background: #111;
+  color: #fff;
+  border: 0;
+  border-radius: 14px;
+  font-weight: 700;
+  height: 46px;
+  padding: 0 16px;
+}
 .bot {
   width: 100%; display: flex; gap: 12px; align-items: center; text-align: left;
   padding: 12px; margin-bottom: 10px; border: 0;
