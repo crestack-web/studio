@@ -17,14 +17,6 @@ function patientName(p: any) {
   return String(p.full_name || p.name || '—');
 }
 
-function ageFromDob(dob?: string | null) {
-  if (!dob) return null;
-  const d = new Date(dob);
-  if (Number.isNaN(d.getTime())) return null;
-  const years = Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000));
-  return years >= 0 && years < 130 ? years : null;
-}
-
 function StatusPill({ status }: { status: string }) {
   const s = String(status || 'active').toLowerCase();
   const active = s === 'active';
@@ -43,14 +35,22 @@ function StatusPill({ status }: { status: string }) {
 
 export function HealthcarePatientsPage({ config }: { config: IndustryConfig }) {
   const [patients, setPatients] = useState<any[]>([]);
-  const [metrics, setMetrics] = useState({ total: 0, active: 0, inactive: 0 });
+  const [staff, setStaff] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState({
+    total: 0,
+    active: 0,
+    inactive: 0,
+    with_clinician: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState('all');
+  const [staffFilter, setStaffFilter] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [dupes, setDupes] = useState<any[] | null>(null);
+  const [dupes, setDupes] = useState<any[]>([]);
+  const [force, setForce] = useState(false);
 
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -58,7 +58,18 @@ export function HealthcarePatientsPage({ config }: { config: IndustryConfig }) {
   const [sex, setSex] = useState('');
   const [dob, setDob] = useState('');
   const [notes, setNotes] = useState('');
-  const [force, setForce] = useState(false);
+  const [assignedStaffId, setAssignedStaffId] = useState('');
+
+  const loadStaff = useCallback(async () => {
+    try {
+      const h = await authHeaders();
+      const res = await fetch('/api/industries/healthcare/staff?status=active&limit=100', { headers: h });
+      const json = await res.json().catch(() => ({}));
+      setStaff(json.staff || []);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -67,25 +78,36 @@ export function HealthcarePatientsPage({ config }: { config: IndustryConfig }) {
       const params = new URLSearchParams();
       if (filter !== 'all') params.set('status', filter);
       if (q.trim()) params.set('q', q.trim());
+      if (staffFilter) params.set('staffId', staffFilter);
       const res = await fetch(`/api/industries/healthcare/patients?${params}`, { headers: h });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || 'Failed to load patients');
       setPatients(json.patients || []);
-      setMetrics(json.metrics || { total: 0, active: 0, inactive: 0 });
+      setMetrics(
+        json.metrics || { total: 0, active: 0, inactive: 0, with_clinician: 0 }
+      );
       setErr(null);
     } catch (e: any) {
       setErr(e?.message || 'Failed to load');
     } finally {
       setLoading(false);
     }
-  }, [filter, q]);
+  }, [filter, q, staffFilter]);
 
   useEffect(() => {
-    const t = setTimeout(() => {
-      load();
-    }, 200);
+    loadStaff();
+  }, [loadStaff]);
+
+  useEffect(() => {
+    const t = setTimeout(() => load(), 200);
     return () => clearTimeout(t);
   }, [load]);
+
+  const activeStaff = useMemo(
+    () =>
+      staff.filter((s) => String(s.status || 'active') === 'active'),
+    [staff]
+  );
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -93,7 +115,7 @@ export function HealthcarePatientsPage({ config }: { config: IndustryConfig }) {
     setBusy(true);
     setMsg(null);
     setErr(null);
-    setDupes(null);
+    setDupes([]);
     try {
       const h = await authHeaders();
       const res = await fetch('/api/industries/healthcare/patients', {
@@ -107,6 +129,7 @@ export function HealthcarePatientsPage({ config }: { config: IndustryConfig }) {
           sex: sex || null,
           dateOfBirth: dob || null,
           notes: notes.trim() || null,
+          assignedStaffId: assignedStaffId || null,
           force,
         }),
       });
@@ -123,8 +146,13 @@ export function HealthcarePatientsPage({ config }: { config: IndustryConfig }) {
       setSex('');
       setDob('');
       setNotes('');
+      setAssignedStaffId('');
       setForce(false);
-      setMsg('Patient registered');
+      setMsg(
+        json.patient?.assigned_clinician_name
+          ? `Patient registered · clinician ${json.patient.assigned_clinician_name}`
+          : 'Patient registered'
+      );
       await load();
     } catch (e: any) {
       setErr(e?.message || 'Failed');
@@ -152,7 +180,31 @@ export function HealthcarePatientsPage({ config }: { config: IndustryConfig }) {
     }
   }
 
-  const rows = useMemo(() => patients, [patients]);
+  async function assignClinician(patientId: string, staffId: string) {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const h = await authHeaders();
+      const res = await fetch('/api/industries/healthcare/patients', {
+        method: 'POST',
+        headers: h,
+        body: JSON.stringify({
+          action: 'patient_update',
+          id: patientId,
+          assignedStaffId: staffId || null,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || 'Could not assign');
+      if (json.warning) setMsg(json.warning);
+      else setMsg(staffId ? 'Clinician assigned' : 'Clinician cleared');
+      await load();
+    } catch (e: any) {
+      setErr(e?.message || 'Assign failed');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className={styles.wrap}>
@@ -161,10 +213,13 @@ export function HealthcarePatientsPage({ config }: { config: IndustryConfig }) {
           <p className={styles.eyebrow}>Busmo Healthcare</p>
           <h1 className={styles.title}>Patients</h1>
           <p className={styles.sub}>
-            Clinic registry — phone-first records linked to appointments, visits and billing.
+            Clinic registry with primary clinician — linked to appointments, visits and billing.
           </p>
         </div>
         <div className={styles.row}>
+          <Link href={`${config.dashboardPath}/staff`} className={styles.btnGhost}>
+            Clinical staff
+          </Link>
           <Link href="/industries/healthcare/front-desk" className={styles.btnGhost}>
             Reception
           </Link>
@@ -184,6 +239,10 @@ export function HealthcarePatientsPage({ config }: { config: IndustryConfig }) {
           <div className={styles.metricValue}>{loading ? '—' : metrics.active}</div>
         </div>
         <div className={styles.metric}>
+          <div className={styles.metricLabel}>With clinician</div>
+          <div className={styles.metricValue}>{loading ? '—' : metrics.with_clinician ?? 0}</div>
+        </div>
+        <div className={styles.metric}>
           <div className={styles.metricLabel}>Inactive</div>
           <div className={styles.metricValue}>{loading ? '—' : metrics.inactive}</div>
         </div>
@@ -191,17 +250,18 @@ export function HealthcarePatientsPage({ config }: { config: IndustryConfig }) {
 
       {msg ? <p className={styles.msg}>{msg}</p> : null}
       {err ? <p className={styles.msgErr}>{err}</p> : null}
-      {dupes?.length ? (
-        <div className={styles.panel}>
-          <p className={styles.panelTitle}>Possible matches</p>
+      {dupes.length ? (
+        <div className={styles.panel} style={{ marginBottom: 12 }}>
+          <p className={styles.itemMeta}>
+            Possible duplicates — review or force save.
+          </p>
           <ul className={styles.list}>
             {dupes.map((d) => (
               <li key={d.id} className={styles.item}>
                 <div>
-                  <div className={styles.itemTitle}>{patientName(d)}</div>
-                  <div className={styles.itemMeta}>{d.phone || 'No phone'}</div>
+                  <strong>{patientName(d)}</strong>
+                  <div className={styles.itemMeta}>{d.phone}</div>
                 </div>
-                <StatusPill status={d.status || 'active'} />
               </li>
             ))}
           </ul>
@@ -210,11 +270,11 @@ export function HealthcarePatientsPage({ config }: { config: IndustryConfig }) {
             className={styles.btnGhost}
             onClick={() => {
               setForce(true);
-              setDupes(null);
-              setErr('Click “Register patient” again to save anyway.');
+              setDupes([]);
+              setErr(null);
             }}
           >
-            Save as new patient anyway
+            Allow save anyway
           </button>
         </div>
       ) : null}
@@ -232,7 +292,7 @@ export function HealthcarePatientsPage({ config }: { config: IndustryConfig }) {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 required
-                placeholder="Ada Okafor"
+                placeholder="Patient full name"
               />
             </div>
             <div>
@@ -245,6 +305,28 @@ export function HealthcarePatientsPage({ config }: { config: IndustryConfig }) {
               />
             </div>
             <div>
+              <label className={styles.label}>Primary clinician</label>
+              <select
+                className={styles.select}
+                value={assignedStaffId}
+                onChange={(e) => setAssignedStaffId(e.target.value)}
+              >
+                <option value="">Unassigned</option>
+                {activeStaff.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.full_name || s.name || s.title}
+                    {s.role ? ` · ${s.role}` : ''}
+                  </option>
+                ))}
+              </select>
+              {!activeStaff.length ? (
+                <p className={styles.itemMeta} style={{ marginTop: 6 }}>
+                  No active staff yet.{' '}
+                  <Link href={`${config.dashboardPath}/staff`}>Add clinical staff</Link>
+                </p>
+              ) : null}
+            </div>
+            <div>
               <label className={styles.label}>Email</label>
               <input
                 className={styles.input}
@@ -254,48 +336,66 @@ export function HealthcarePatientsPage({ config }: { config: IndustryConfig }) {
               />
             </div>
             <div className={styles.row}>
-              <div style={{ flex: 1, minWidth: 120 }}>
+              <div style={{ flex: 1 }}>
                 <label className={styles.label}>Sex</label>
                 <select className={styles.select} value={sex} onChange={(e) => setSex(e.target.value)}>
-                  <option value="">Unspecified</option>
+                  <option value="">—</option>
                   <option value="female">Female</option>
                   <option value="male">Male</option>
                   <option value="other">Other</option>
                 </select>
               </div>
-              <div style={{ flex: 1, minWidth: 120 }}>
+              <div style={{ flex: 1 }}>
                 <label className={styles.label}>Date of birth</label>
-                <input className={styles.input} type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
+                <input
+                  className={styles.input}
+                  type="date"
+                  value={dob}
+                  onChange={(e) => setDob(e.target.value)}
+                />
               </div>
             </div>
             <div>
-              <label className={styles.label}>Admin notes</label>
+              <label className={styles.label}>Notes</label>
               <textarea
                 className={styles.textarea}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Preferences, alerts — not a full clinical chart"
+                placeholder="Allergies, preferred language…"
               />
             </div>
             <button type="submit" className={styles.btnPrimary} disabled={busy}>
-              {busy ? 'Saving…' : force ? 'Register anyway' : 'Register patient'}
+              {busy ? 'Saving…' : force ? 'Save anyway' : 'Register patient'}
             </button>
           </form>
         </div>
 
         <div className={styles.panel}>
           <div className={styles.panelHead}>
-            <h3 className={styles.panelTitle}>Patient list</h3>
-            <span className={styles.panelMeta}>{rows.length} shown</span>
+            <h3 className={styles.panelTitle}>Registry</h3>
+            <span className={styles.panelMeta}>{patients.length} shown</span>
           </div>
           <div className={styles.chips}>
             <input
               className={styles.input}
-              style={{ flex: '1 1 160px', minWidth: 140 }}
+              style={{ flex: '1 1 140px', minWidth: 120 }}
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search name, phone…"
+              placeholder="Search name, phone, clinician…"
             />
+            <select
+              className={styles.select}
+              style={{ flex: '0 1 160px', minWidth: 120 }}
+              value={staffFilter}
+              onChange={(e) => setStaffFilter(e.target.value)}
+            >
+              <option value="">All clinicians</option>
+              {activeStaff.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.full_name || s.name || s.title}
+                </option>
+              ))}
+            </select>
             {['all', 'active', 'inactive'].map((f) => (
               <button
                 key={f}
@@ -309,57 +409,63 @@ export function HealthcarePatientsPage({ config }: { config: IndustryConfig }) {
           </div>
           {loading ? (
             <p className={styles.empty}>Loading patients…</p>
-          ) : !rows.length ? (
-            <p className={styles.empty}>
-              No patients yet. Register one here or check in a walk-in at Reception.
-            </p>
+          ) : !patients.length ? (
+            <p className={styles.empty}>No patients match. Register one or clear filters.</p>
           ) : (
             <ul className={styles.list}>
-              {rows.map((p) => {
-                const age = ageFromDob(p.date_of_birth);
-                const meta = [p.phone, age != null ? `${age}y` : null, p.sex, p.email]
-                  .filter(Boolean)
-                  .join(' · ');
-                return (
-                  <li key={p.id} className={styles.item}>
-                    <div>
-                      <div className={styles.itemTitle}>
-                        {p.patient_code ? <span className={styles.code}>{p.patient_code}</span> : null}
-                        {patientName(p)}
-                      </div>
-                      <div className={styles.itemMeta}>{meta || 'No contact details'}</div>
-                      {p.notes ? (
-                        <div className={styles.itemMeta}>{String(p.notes).slice(0, 80)}</div>
+              {patients.map((p) => (
+                <li key={p.id} className={styles.item}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className={styles.itemTitle}>{patientName(p)}</div>
+                    <div className={styles.itemMeta}>
+                      {[p.phone, p.sex, p.email].filter(Boolean).join(' · ') || 'No contact yet'}
+                    </div>
+                    <div className={styles.itemMeta} style={{ marginTop: 6 }}>
+                      Clinician:{' '}
+                      <select
+                        className={styles.select}
+                        style={{ display: 'inline-block', width: 'auto', minWidth: 140, padding: '4px 8px' }}
+                        value={p.assigned_staff_id || ''}
+                        disabled={busy}
+                        onChange={(e) => assignClinician(p.id, e.target.value)}
+                      >
+                        <option value="">Unassigned</option>
+                        {activeStaff.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.full_name || s.name || s.title}
+                            {s.role ? ` · ${s.role}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      {!p.assigned_staff_id && p.assigned_clinician_name ? (
+                        <span> ({p.assigned_clinician_name})</span>
                       ) : null}
                     </div>
-                    <div className={styles.row}>
-                      <StatusPill status={p.status || 'active'} />
-                      <Link href={`${config.dashboardPath}/appointments`} className={styles.btnGhost}>
-                        Book
-                      </Link>
-                      {String(p.status || 'active') === 'active' ? (
-                        <button
-                          type="button"
-                          className={styles.btnGhost}
-                          disabled={busy}
-                          onClick={() => setStatus(p.id, 'inactive')}
-                        >
-                          Archive
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className={styles.btnGhost}
-                          disabled={busy}
-                          onClick={() => setStatus(p.id, 'active')}
-                        >
-                          Restore
-                        </button>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
+                  </div>
+                  <div className={styles.row}>
+                    <StatusPill status={p.status || 'active'} />
+                    {String(p.status || 'active') === 'active' ? (
+                      <button
+                        type="button"
+                        className={styles.btnGhost}
+                        disabled={busy}
+                        onClick={() => setStatus(p.id, 'inactive')}
+                      >
+                        Archive
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.btnGhost}
+                        disabled={busy}
+                        onClick={() => setStatus(p.id, 'active')}
+                      >
+                        Restore
+                      </button>
+                    )}
+                  </div>
+                </li>
+              ))}
             </ul>
           )}
         </div>
