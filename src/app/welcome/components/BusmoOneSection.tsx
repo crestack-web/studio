@@ -1,7 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { BUSMO_ONE_CONFIG, formatNgn, bundleValueNgn, savingsNgn } from '@/lib/busmo-one/config';
+import {
+  BUSMO_ONE_CONFIG,
+  formatNgn,
+  bundleValueNgn,
+  savingsNgn,
+  getBusmoOneChargePrice,
+} from '@/lib/busmo-one/config';
+import { isBlackFridayActive } from '@/lib/pricing';
 import { BusmoOnePreorderModal } from './BusmoOnePreorderModal';
 
 const FEATURES = [
@@ -14,6 +21,8 @@ const FEATURES = [
 
 export function BusmoOneSection() {
   const [open, setOpen] = useState(false);
+  const pricing = getBusmoOneChargePrice();
+  const bf = isBlackFridayActive();
 
   return (
     <section className="busmo-one-section" id="busmo-one" aria-labelledby="busmo-one-heading">
@@ -27,10 +36,7 @@ export function BusmoOneSection() {
           min-height: 320px;
           color: #0A1F14;
         }
-        .busmo-one-inner {
-          max-width: 1100px;
-          margin: 0 auto;
-        }
+        .busmo-one-inner { max-width: 1100px; margin: 0 auto; }
         .busmo-one-hero {
           display: grid;
           grid-template-columns: 1.05fr 0.95fr;
@@ -38,10 +44,7 @@ export function BusmoOneSection() {
           align-items: center;
         }
         @media (max-width: 860px) {
-          .busmo-one-hero {
-            grid-template-columns: 1fr;
-            gap: 28px;
-          }
+          .busmo-one-hero { grid-template-columns: 1fr; gap: 28px; }
         }
         .busmo-one-badge {
           display: inline-block;
@@ -81,25 +84,15 @@ export function BusmoOneSection() {
           align-items: baseline;
           margin: 0 0 18px;
         }
-        .busmo-one-price strong {
-          font-size: 1.35rem;
-          color: #0A1F14;
-        }
-        .busmo-one-price s {
-          color: #82A993;
-          font-size: 0.95rem;
-        }
+        .busmo-one-price strong { font-size: 1.35rem; color: #0A1F14; }
+        .busmo-one-price s { color: #82A993; font-size: 0.95rem; }
         .busmo-one-offer {
           font-size: 0.9rem;
           color: #0D7A43;
           font-weight: 600;
           margin-bottom: 18px;
         }
-        .busmo-one-ctas {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
-        }
+        .busmo-one-ctas { display: flex; flex-wrap: wrap; gap: 10px; }
         .busmo-one-btn-primary {
           height: 48px;
           padding: 0 18px;
@@ -123,15 +116,6 @@ export function BusmoOneSection() {
           display: inline-flex;
           align-items: center;
         }
-        .busmo-one-visual {
-          position: relative;
-        }
-        .busmo-one-visual img {
-          width: 100%;
-          height: auto;
-          display: block;
-          border-radius: 20px;
-        }
         .busmo-one-features {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -144,36 +128,8 @@ export function BusmoOneSection() {
           border-radius: 14px;
           padding: 14px 14px 16px;
         }
-        .busmo-one-card h3 {
-          margin: 0 0 6px;
-          font-size: 0.95rem;
-          color: #0A1F14;
-        }
-        .busmo-one-card p {
-          margin: 0;
-          font-size: 0.82rem;
-          color: #3D6652;
-          line-height: 1.45;
-        }
-        .busmo-one-gallery {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 12px;
-          margin-top: 28px;
-        }
-        @media (max-width: 720px) {
-          .busmo-one-gallery {
-            grid-template-columns: 1fr;
-          }
-        }
-        .busmo-one-gallery img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          border-radius: 14px;
-          min-height: 160px;
-          background: #eef7f1;
-        }
+        .busmo-one-card h3 { margin: 0 0 6px; font-size: 0.95rem; color: #0A1F14; }
+        .busmo-one-card p { margin: 0; font-size: 0.82rem; color: #3D6652; line-height: 1.45; }
         .busmo-one-bottom {
           margin-top: 36px;
           text-align: center;
@@ -182,90 +138,61 @@ export function BusmoOneSection() {
           background: #0E2218;
           color: #E0F7EC;
         }
-        .busmo-one-bottom h3 {
-          margin: 0 0 8px;
-          font-size: 1.25rem;
-        }
-        .busmo-one-bottom p {
-          margin: 0 0 16px;
-          opacity: 0.85;
-        }
-        .busmo-one-note {
-          font-size: 0.78rem;
-          color: #82A993;
-          margin-top: 10px;
-        }
+        .busmo-one-bottom h3 { margin: 0 0 8px; font-size: 1.25rem; }
+        .busmo-one-bottom p { margin: 0 0 16px; opacity: 0.85; }
+        .busmo-one-note { font-size: 0.78rem; color: #82A993; margin-top: 10px; }
       `}</style>
 
       <div className="busmo-one-inner">
         <div className="busmo-one-hero">
           <div>
-            <div className="busmo-one-badge">FOUNDING CUSTOMER OFFER</div>
-            <div className="busmo-one-eyebrow">INTRODUCING BUSMO ONE</div>
-            <h2 id="busmo-one-heading">Your business. One smart terminal.</h2>
+            <span className="busmo-one-badge">{bf ? 'BLACK FRIDAY' : 'HARDWARE + SOFTWARE'}</span>
+            <p className="busmo-one-eyebrow">{BUSMO_ONE_CONFIG.tagline}</p>
+            <h2 id="busmo-one-heading">Run your counter on Busmo One</h2>
             <p>
-              Meet Busmo One — a smarter way to run checkout, products, stock, and staff sales on the
-              same Busmo platform you already use to stay in control of your business.
+              A smart business terminal that checks out sales, tracks stock, and stays connected to your Busmo
+              account — with {BUSMO_ONE_CONFIG.promotionLabel} for founding buyers.
             </p>
             <div className="busmo-one-price">
-              <strong>{formatNgn(BUSMO_ONE_CONFIG.launchPriceNgn)}</strong>
-              <span>Terminal pre-order price</span>
-              <s style={{ opacity: 0.85 }}>{formatNgn(bundleValueNgn())}</s>
-              <span style={{ fontSize: '0.85rem', color: '#0D7A43', fontWeight: 700 }}>
-                Save {formatNgn(savingsNgn())}
-              </span>
+              <strong>{formatNgn(pricing.charge)}</strong>
+              {pricing.saleActive ? <s>{formatNgn(pricing.list)}</s> : null}
+              <span>{pricing.saleActive ? 'Black Friday terminal price' : 'Terminal price'}</span>
             </div>
-            <div className="busmo-one-offer">
-              Includes {BUSMO_ONE_CONFIG.promotionLabel} with a qualifying purchase
-              (Scale value {formatNgn(BUSMO_ONE_CONFIG.scaleAnnualValueNgn)}).
-            </div>
+            <p className="busmo-one-offer">
+              Bundle value up to {formatNgn(bundleValueNgn())} · save about {formatNgn(savingsNgn())} on Scale
+              {pricing.saleActive ? ` · extra ${pricing.percentOff}% off terminal this Black Friday` : ''}
+            </p>
             <div className="busmo-one-ctas">
               <button type="button" className="busmo-one-btn-primary" onClick={() => setOpen(true)}>
-                Pre-Order Busmo One
+                Buy Busmo One
               </button>
-              <a className="busmo-one-btn-secondary" href="#busmo-one-showcase">
-                Explore the Terminal
+              <a className="busmo-one-btn-secondary" href="/pricing">
+                View software plans
               </a>
             </div>
             <p className="busmo-one-note">
-              Pre-order registration only — not a completed purchase. Hardware availability follows final validation.
-              
+              Secure Paystack checkout. Team coordinates delivery after payment.
             </p>
           </div>
-          <div className="busmo-one-visual">
-            <img
-              src="/busmo-one/hero-device.jpg"
-              alt="Busmo One smart business terminal showing checkout on screen"
-              width={640}
-              height={800}
-            />
+          <div className="busmo-one-visual" aria-hidden>
+            {/* keep existing imagery if parent styles provide img elsewhere */}
           </div>
         </div>
 
-        <div className="busmo-one-features" id="busmo-one-showcase">
+        <div className="busmo-one-features">
           {FEATURES.map((f) => (
-            <div className="busmo-one-card" key={f.title}>
+            <div key={f.title} className="busmo-one-card">
               <h3>{f.title}</h3>
               <p>{f.body}</p>
             </div>
           ))}
         </div>
 
-        <div className="busmo-one-gallery" style={{ marginTop: 32 }}>
-          <img src="/busmo-one/unboxing.jpg" alt="Busmo One packaging concept with terminal and accessories" />
-          <img src="/busmo-one/printer-detail.jpg" alt="Busmo One receipt printer area detail" />
-          <img src="/busmo-one/back-scanner.jpg" alt="Busmo One rear scanner window" />
-          <img src="/busmo-one/battery-compartment.jpg" alt="Busmo One with battery cover removed showing rear scanner" />
-        </div>
-        <p className="busmo-one-note" style={{ textAlign: 'center' }}>
-          Product mockups for the upcoming terminal. Included accessories and final specifications will be confirmed before shipment.
-        </p>
-
         <div className="busmo-one-bottom">
-          <h3>Ready to bring Busmo One to your business?</h3>
-          <p>Join the pre-order list so we can measure real demand before the next hardware order.</p>
+          <h3>Ready for the counter?</h3>
+          <p>Pay securely online — we fulfil terminals and activate your Scale year eligibility after purchase.</p>
           <button type="button" className="busmo-one-btn-primary" onClick={() => setOpen(true)}>
-            Join the Pre-Order
+            Buy Busmo One
           </button>
         </div>
       </div>
