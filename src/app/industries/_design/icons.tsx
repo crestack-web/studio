@@ -1,0 +1,120 @@
+'use client';
+
+import React from 'react';
+import {
+  Activity,
+  AlertTriangle,
+  BadgeCheck,
+  Banknote,
+  BarChart3,
+  BedDouble,
+  BookOpen,
+  GraduationCap,
+  Bell,
+  Box,
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Circle,
+  ClipboardList,
+  Clock,
+  ConciergeBell,
+  CreditCard,
+  FlaskConical,
+  Globe,
+  HeartPulse,
+  HelpCircle,
+  Layers,
+  LayoutDashboard,
+  ListChecks,
+  LogIn,
+  LogOut,
+  Mail,
+  MoreHorizontal,
+  Phone,
+  Pill,
+  Plus,
+  Receipt,
+  RefreshCw,
+  Settings,
+  Sparkles,
+  Stethoscope,
+  Syringe,
+  TrendingUp,
+  User,
+  UserCog,
+  Users,
+  Wallet,
+} from 'lucide-react';
+
+const ICONS = {
+  dashboard: LayoutDashboard,
+  calendar: CalendarDays,
+  bed: BedDouble,
+  users: Users,
+  login: LogIn,
+  logout: LogOut,
+  sparkles: Sparkles,
+  bell: ConciergeBell,
+  badge: BadgeCheck,
+  checklist: ListChecks,
+  trend: TrendingUp,
+  receipt: Receipt,
+  card: CreditCard,
+  chart: BarChart3,
+  globe: Globe,
+  settings: Settings,
+  user: User,
+  layers: Layers,
+  clock: Clock,
+  box: Box,
+  stethoscope: Stethoscope,
+  wallet: Wallet,
+  check: Check,
+  checkCircle: CheckCircle2,
+  dot: Circle,
+  staff: UserCog,
+  bellOutline: Bell,
+  chevronDown: ChevronDown,
+  chevronLeft: ChevronLeft,
+  chevronRight: ChevronRight,
+  more: MoreHorizontal,
+  plus: Plus,
+  phone: Phone,
+  mail: Mail,
+  cash: Banknote,
+  help: HelpCircle,
+  refresh: RefreshCw,
+  heartPulse: HeartPulse,
+  activity: Activity,
+  pill: Pill,
+  flask: FlaskConical,
+  syringe: Syringe,
+  clipboard: ClipboardList,
+  alert: AlertTriangle,
+  graduation: GraduationCap,
+  book: BookOpen,
+} as const;
+
+export function Icon({
+  name,
+  size = 18,
+  className,
+  strokeWidth = 1.9,
+}: {
+  name: string;
+  size?: number;
+  className?: string;
+  strokeWidth?: number;
+}) {
+  const Cmp = (
+    ICONS as Record<
+      string,
+      React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>
+    >
+  )[name] ?? Circle;
+  return <Cmp size={size} className={className} strokeWidth={strokeWidth} aria-hidden />;
+}

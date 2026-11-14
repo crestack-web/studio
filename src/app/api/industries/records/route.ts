@@ -8,12 +8,7 @@ export const dynamic = 'force-dynamic';
 
 async function resolveBusiness(req: NextRequest, editionHint?: string) {
   const user = await getAuthUser(req);
-  if (!user) {
-    // QA mode: allow preview business when no auth (temp)
-    const preview = req.headers.get('x-preview-business');
-    if (preview) return { businessId: preview, edition: editionHint || 'hospitality' };
-    return null;
-  }
+  if (!user) return null;
   const meta = { ...((user.user_metadata || {}) as Record<string, unknown>) };
   if (editionHint) meta.product_edition = editionHint;
   const session = await loadIndustrySession(user.id, meta);

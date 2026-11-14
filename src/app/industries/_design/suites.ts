@@ -1,0 +1,169 @@
+import type { SolutionsNavItem, SolutionsSuite, SolutionsSuiteId } from './types';
+
+const SECTIONS: { main: string; operations: string; finance: string; settings: string } = {
+  main: 'Daily operations',
+  operations: 'Team & service',
+  finance: 'Finance',
+  settings: 'Workspace',
+};
+
+export const SOLUTIONS_SECTION_LABELS: Record<string, string> = SECTIONS;
+
+const hospitalityNav: SolutionsNavItem[] = [
+  { id: 'overview', label: 'Overview', icon: 'dashboard', section: 'main' },
+  { id: 'reservations', label: 'Reservations', icon: 'calendar', section: 'main', count: 14 },
+  { id: 'rooms', label: 'Rooms', icon: 'bed', section: 'main', count: 48 },
+  { id: 'guests', label: 'Guests', icon: 'users', section: 'main' },
+  { id: 'checkin', label: 'Check-in / Check-out', icon: 'login', section: 'main', badge: true },
+  { id: 'housekeeping', label: 'Housekeeping', icon: 'sparkles', section: 'operations', count: 7 },
+  { id: 'room-service', label: 'Room service', icon: 'bell', section: 'operations', count: 3 },
+  { id: 'staff', label: 'Staff', icon: 'badge', section: 'operations' },
+  { id: 'tasks', label: 'Tasks', icon: 'checklist', section: 'operations', count: 5 },
+  { id: 'revenue', label: 'Revenue', icon: 'trend', section: 'finance' },
+  { id: 'expenses', label: 'Expenses', icon: 'receipt', section: 'finance' },
+  { id: 'payments', label: 'Payments', icon: 'card', section: 'finance' },
+  { id: 'reports', label: 'Reports', icon: 'chart', section: 'finance' },
+  { id: 'website', label: 'Website', icon: 'globe', section: 'settings' },
+  { id: 'hotel-settings', label: 'Hotel settings', icon: 'settings', section: 'settings' },
+  { id: 'account', label: 'Account', icon: 'user', section: 'settings' },
+];
+
+export const SOLUTIONS_SUITES: Record<SolutionsSuiteId, SolutionsSuite> = {
+  hospitality: {
+    id: 'hospitality',
+    name: 'Busmo Hospitality',
+    shortName: 'Hospitality',
+    edition: 'Hospitality',
+    tagline: 'Run your hotel. Stay in control.',
+    description:
+      'Reservations, rooms, guests, housekeeping and revenue in one connected workspace.',
+    logo: '/industries/busmo-hospitality-logo.png',
+    greetingNoun: 'hotel',
+    workspace: {
+      name: 'The Ashcombe Hotel',
+      location: 'Lekki, Lagos',
+      plan: 'Suite plan',
+      currency: 'NGN',
+      ownerName: 'Amara Okonkwo',
+      ownerEmail: 'amara@ashcombehotel.com',
+    },
+    nav: hospitalityNav,
+  },
+  healthcare: {
+    id: 'healthcare',
+    name: 'Busmo Healthcare',
+    shortName: 'Healthcare',
+    edition: 'Healthcare',
+    tagline: 'Care operations. Clearer every day.',
+    description: 'Patients, appointments, visits, clinical staff and billing in one workspace.',
+    logo: '/industries/busmo-healthcare-logo.png',
+    greetingNoun: 'clinic',
+    workspace: {
+      name: 'Meridian Health Clinic',
+      location: 'Abuja, FCT',
+      plan: 'Suite plan',
+      currency: 'NGN',
+      ownerName: 'Dr. Ifeoma Nnaji',
+      ownerEmail: 'ifeoma@meridian.health',
+    },
+    nav: [
+      { id: 'overview', label: 'Overview', icon: 'dashboard', section: 'main' },
+      { id: 'patients', label: 'Patients', icon: 'users', section: 'main', count: 20 },
+      { id: 'appointments', label: 'Appointments', icon: 'calendar', section: 'main', count: 14 },
+      { id: 'visits', label: 'Visits', icon: 'stethoscope', section: 'main', count: 8 },
+      { id: 'staff', label: 'Clinical staff', icon: 'badge', section: 'operations' },
+      { id: 'rooms', label: 'Rooms / beds', icon: 'bed', section: 'operations', count: 24 },
+      { id: 'inventory', label: 'Supplies', icon: 'box', section: 'operations', count: 3 },
+      { id: 'billing', label: 'Billing', icon: 'receipt', section: 'finance' },
+      { id: 'payments', label: 'Payments', icon: 'card', section: 'finance' },
+      { id: 'reports', label: 'Reports', icon: 'chart', section: 'finance' },
+      { id: 'settings', label: 'Clinic settings', icon: 'settings', section: 'settings' },
+      { id: 'account', label: 'Account', icon: 'user', section: 'settings' },
+    ],
+  },
+  professional: {
+    id: 'professional',
+    name: 'Busmo Professional',
+    shortName: 'Professional',
+    edition: 'Professional',
+    tagline: 'Manage your work. Grow your business.',
+    description: 'Clients, projects, tasks, time and invoices for agencies and consultancies.',
+    greetingNoun: 'firm',
+    workspace: {
+      name: 'Northwind Studio',
+      location: 'Victoria Island, Lagos',
+      plan: 'Suite plan',
+      currency: 'NGN',
+      ownerName: 'Tobi Adeyemi',
+      ownerEmail: 'tobi@northwind.studio',
+    },
+    nav: [
+      { id: 'overview', label: 'Overview', icon: 'dashboard', section: 'main' },
+      { id: 'projects', label: 'Projects', icon: 'layers', section: 'main' },
+      { id: 'clients', label: 'Clients', icon: 'users', section: 'main' },
+      { id: 'tasks', label: 'Tasks', icon: 'checklist', section: 'main' },
+      { id: 'calendar', label: 'Calendar', icon: 'calendar', section: 'main' },
+      { id: 'team', label: 'Team', icon: 'badge', section: 'operations' },
+      { id: 'time', label: 'Time tracking', icon: 'clock', section: 'operations' },
+      { id: 'invoices', label: 'Invoices', icon: 'receipt', section: 'finance' },
+      { id: 'expenses', label: 'Expenses', icon: 'wallet', section: 'finance' },
+      { id: 'reports', label: 'Reports', icon: 'chart', section: 'finance' },
+      { id: 'settings', label: 'Business settings', icon: 'settings', section: 'settings' },
+      { id: 'account', label: 'Account', icon: 'user', section: 'settings' },
+    ],
+  },
+  education: {
+    id: 'education',
+    name: 'Busmo Education',
+    shortName: 'Education',
+    edition: 'Education',
+    tagline: 'Schools and training, organized.',
+    description: 'Students, classes, attendance, teachers and fees in one workspace.',
+    greetingNoun: 'school',
+    workspace: {
+      name: 'Crescent Academy',
+      location: 'Ikeja, Lagos',
+      plan: 'Suite plan',
+      currency: 'NGN',
+      ownerName: 'Mrs. Bisi Lawal',
+      ownerEmail: 'bisi@crescentacademy.edu.ng',
+    },
+    nav: [
+      { id: 'overview', label: 'Overview', icon: 'dashboard', section: 'main' },
+      { id: 'students', label: 'Students', icon: 'users', section: 'main' },
+      { id: 'classes', label: 'Classes', icon: 'layers', section: 'main' },
+      { id: 'enrollment', label: 'Enrollment', icon: 'sparkles', section: 'main' },
+      { id: 'attendance', label: 'Attendance', icon: 'checklist', section: 'operations' },
+      { id: 'teachers', label: 'Teachers', icon: 'badge', section: 'operations' },
+      { id: 'timetable', label: 'Timetable', icon: 'calendar', section: 'operations' },
+      { id: 'fees', label: 'Fees', icon: 'receipt', section: 'finance' },
+      { id: 'payments', label: 'Payments', icon: 'card', section: 'finance' },
+      { id: 'reports', label: 'Reports', icon: 'chart', section: 'finance' },
+      { id: 'settings', label: 'School settings', icon: 'settings', section: 'settings' },
+      { id: 'account', label: 'Account', icon: 'user', section: 'settings' },
+    ],
+  },
+};
+
+export const SOLUTIONS_SUITE_IDS = Object.keys(SOLUTIONS_SUITES) as SolutionsSuiteId[];
+
+export function isSolutionsSuiteId(value: unknown): value is SolutionsSuiteId {
+  return (
+    value === 'hospitality' ||
+    value === 'healthcare' ||
+    value === 'professional' ||
+    value === 'education'
+  );
+}
+
+export function getSolutionsSuite(id: string): SolutionsSuite {
+  return isSolutionsSuiteId(id) ? SOLUTIONS_SUITES[id] : SOLUTIONS_SUITES.hospitality;
+}
+
+export function sectionLabel(id: string): string {
+  for (const suite of Object.values(SOLUTIONS_SUITES)) {
+    const item = suite.nav.find((n) => n.id === id);
+    if (item) return item.label;
+  }
+  return id.replace(/-/g, ' ');
+}

@@ -1,9 +1,14 @@
-'use client';
-
+import type { Viewport } from 'next';
+import '../../_design/solutions.css';
 import { getIndustryConfig } from '@/lib/industries/config';
 import { IndustryDashboardClient } from '../../_components/IndustryDashboardClient';
 
-const config = getIndustryConfig('hospitality')!;
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: 'cover',
+};
 
 /**
  * Shell stays mounted across /dashboard and /dashboard/* so auth and chrome
@@ -14,8 +19,6 @@ export default function HospitalityDashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // children are unused: routing still defines the URL, but the client shell
-  // reads the pathname and renders the active module itself.
   void children;
-  return <IndustryDashboardClient config={config} />;
+  return <IndustryDashboardClient config={getIndustryConfig('hospitality')!} />;
 }
