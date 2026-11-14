@@ -10,6 +10,9 @@ import {
   BUSMO_PLANS,
   ENTERPRISE,
   formatNaira,
+  BLACK_FRIDAY,
+  isBlackFridayActive,
+  getPlanChargePrice,
   type BusmoPlan,
 } from '@/lib/pricing';
 
@@ -25,6 +28,7 @@ export default function PricingPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [userEmail, setUserEmail] = useState('');
   const [isPaying, setIsPaying] = useState(false);
+  const bfActive = isBlackFridayActive();
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -70,7 +74,8 @@ export default function PricingPage() {
 
   const handleSelectPlan = (plan: BusmoPlan) => {
     try {
-      trackAddToCart(plan.id, plan.name, plan.monthlyPrice);
+      const charge = getPlanChargePrice(plan, mode).charge;
+      trackAddToCart(plan.id, plan.name, charge);
       trackClickButton(`select_plan_${plan.id}`);
     } catch (_) {}
     setSelectedPlan(plan);
@@ -100,11 +105,12 @@ export default function PricingPage() {
 
     setIsPaying(true);
     try {
+      const charge = getPlanChargePrice(selectedPlan, mode).charge;
       try {
         trackInitiateCheckout(
           selectedPlan.id || 'plan',
           selectedPlan.name || 'Subscription',
-          selectedPlan.monthlyPrice
+          charge
         );
       } catch (_) {}
 
@@ -158,6 +164,24 @@ export default function PricingPage() {
             </p>
           </div>
 
+          {bfActive ? (
+            <div
+              style={{
+                margin: '0 auto 24px',
+                maxWidth: 640,
+                textAlign: 'center',
+                padding: '14px 18px',
+                borderRadius: 14,
+                background: 'linear-gradient(90deg,#0A1F14,#14532d)',
+                color: '#ecfdf5',
+              }}
+            >
+              <strong style={{ letterSpacing: '0.04em' }}>{BLACK_FRIDAY.badge}</strong>
+              <div style={{ marginTop: 4, fontSize: 15 }}>{BLACK_FRIDAY.headline}</div>
+              <div style={{ marginTop: 4, fontSize: 13, opacity: 0.9 }}>{BLACK_FRIDAY.subhead}</div>
+            </div>
+          ) : null}
+
           <div className="billing-toggle">
             <button
               type="button"
@@ -177,21 +201,33 @@ export default function PricingPage() {
 
           <div className="plan-grid">
             {BUSMO_PLANS.map((plan) => {
-              const price =
-                mode === 'monthly' ? plan.monthlyPrice : plan.yearlyPrice;
+              const pricing = getPlanChargePrice(plan, mode);
               return (
                 <div
                   key={plan.id}
                   className={`plan-card${plan.popular ? ' popular' : ''}`}
                 >
-                  {plan.popular && (
+                  {plan.popular && !pricing.saleActive && (
                     <div className="plan-badge">Most popular</div>
                   )}
+                  {pricing.saleActive ? (
+                    <div className="plan-badge" style={{ background: '#0A1F14' }}>
+                      {BLACK_FRIDAY.badge}
+                    </div>
+                  ) : null}
                   <h3 className="plan-name">{plan.name}</h3>
                   <p className="plan-tagline">{plan.tagline}</p>
                   <div className="plan-price">
-                    {formatMoney(price)}
+                    {formatMoney(pricing.charge)}
                     <span>/{mode === 'monthly' ? 'mo' : 'yr'}</span>
+                    {pricing.saleActive ? (
+                      <div style={{ fontSize: 14, fontWeight: 500, color: '#64748b', marginTop: 4 }}>
+                        <s>{formatMoney(pricing.list)}</s>
+                        <span style={{ color: '#0D7A43', marginLeft: 8, fontWeight: 700 }}>
+                          {pricing.percentOff}% off
+                        </span>
+                      </div>
+                    ) : null}
                   </div>
                   <ul className="plan-features">
                     {plan.features.map((f) => (
@@ -253,11 +289,12 @@ export default function PricingPage() {
               <div className="pay-plan-chip">
                 <span className="pay-plan-name">{selectedPlan.name}</span>
                 <span className="pay-plan-price">
-                  {formatMoney(
-                    mode === 'monthly'
-                      ? selectedPlan.monthlyPrice
-                      : selectedPlan.yearlyPrice
-                  )}
+                  {formatMoney(getPlanChargePrice(selectedPlan, mode).charge)}
+                  {getPlanChargePrice(selectedPlan, mode).saleActive ? (
+                    <span style={{ marginLeft: 8, fontSize: 14, color: '#64748b' }}>
+                      <s>{formatMoney(getPlanChargePrice(selectedPlan, mode).list)}</s>
+                    </span>
+                  ) : null}
                   <span className="pay-plan-period">
                     /{mode === 'monthly' ? 'mo' : 'yr'}
                   </span>
@@ -278,7 +315,10 @@ export default function PricingPage() {
                 onChange={(e) => setUserEmail(e.target.value)}
                 disabled={isPaying}
               />
-              <p className="pay-hint">Secure checkout with Paystack</p>
+              <p className="pay-hint">
+                Secure checkout with Paystack
+                {bfActive ? ' · Black Friday price applied' : ''}
+              </p>
             </div>
 
             <div className="pay-sheet-actions">
