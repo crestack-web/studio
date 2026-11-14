@@ -41,6 +41,7 @@ const iconProps = { size: 22, strokeWidth: 1.75, 'aria-hidden': true as const };
 /** Welcome homepage (countries/flags section removed). */
 export default function WelcomePage() {
   const [showDemoVideo, setShowDemoVideo] = useState(false);
+  const [onePaidMsg, setOnePaidMsg] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = 'Busmo — Business Control for Growing African Businesses';
@@ -53,6 +54,35 @@ export default function WelcomePage() {
       m.content = content;
       document.head.appendChild(m);
     }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const paid = params.get('busmo_one_paid');
+    const reference = params.get('reference') || params.get('trxref');
+    if (!paid && !reference) return;
+    if (!reference) return;
+    (async () => {
+      try {
+        const res = await fetch('/api/busmo-one/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reference }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (res.ok) {
+          setOnePaidMsg(json.message || 'Payment confirmed. We will contact you about delivery.');
+        }
+      } catch (e) {
+        console.error('Busmo One verify failed', e);
+      }
+      const url = new URL(window.location.href);
+      url.searchParams.delete('reference');
+      url.searchParams.delete('trxref');
+      url.searchParams.delete('busmo_one_paid');
+      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+    })();
   }, []);
 
   const handleNavigate = (page: Page | string) => {
@@ -82,6 +112,22 @@ export default function WelcomePage() {
       <AnnouncementBar />
       <Navbar currentPage="home" onNavigate={(page) => handleNavigate(page)} />
 
+      {onePaidMsg ? (
+        <div
+          role="status"
+          style={{
+            background: '#ecfdf5',
+            color: '#065f46',
+            textAlign: 'center',
+            padding: '12px 16px',
+            fontWeight: 600,
+            fontSize: 14,
+          }}
+        >
+          {onePaidMsg}
+        </div>
+      ) : null}
+
       <Hero onNavigate={handleNavigate} onWatchDemo={() => setShowDemoVideo(true)} />
       <DemoVideoSection isVisible={showDemoVideo} onClose={() => setShowDemoVideo(false)} />
 
@@ -92,7 +138,6 @@ export default function WelcomePage() {
       </ScrollReveal>
 
       <BusmoOneSection />
-
 
       <ScrollReveal direction="up" duration={0.7} delay={0.1}>
         <ProductShowcase />
