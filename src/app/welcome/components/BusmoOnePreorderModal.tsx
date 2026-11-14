@@ -1,7 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
-import { BUSMO_ONE_CONFIG, formatNgn } from '@/lib/busmo-one/config';
+import React, { useMemo, useState } from 'react';
+import {
+  BUSMO_ONE_CONFIG,
+  formatNgn,
+  getBusmoOneChargePrice,
+} from '@/lib/busmo-one/config';
 
 type Props = {
   open: boolean;
@@ -9,6 +13,7 @@ type Props = {
 };
 
 export function BusmoOnePreorderModal({ open, onClose }: Props) {
+  const pricing = useMemo(() => getBusmoOneChargePrice(), []);
   const [fullName, setFullName] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [phone, setPhone] = useState('');
@@ -17,137 +22,164 @@ export function BusmoOnePreorderModal({ open, onClose }: Props) {
   const [cityOrState, setCityOrState] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [message, setMessage] = useState('');
-  const [understands, setUnderstands] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
   if (!open) return null;
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    try {
-      const res = await fetch('/api/busmo-one/preorder', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName,
-          businessName,
-          phone,
-          email,
-          businessType,
-          cityOrState,
-          quantity,
-          message,
-          understandsPreorder: understands,
-          source: 'welcome_page',
-        }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error || 'Submission failed');
-      setDone(true);
-    } catch (err: any) {
-      setError(err?.message || 'Something went wrong');
-    } finally {
-      setLoading(false);
-    }
-  }
+  const total = pricing.charge * quantity;
 
   const field: React.CSSProperties = {
     width: '100%',
     height: 44,
     borderRadius: 10,
-    border: '1px solid #d8e5dc',
+    border: '1.5px solid #d1d5db',
     padding: '0 12px',
     fontSize: 15,
     boxSizing: 'border-box',
   };
 
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/busmo-one/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: fullName.trim(),
+          businessName: businessName.trim(),
+          phone: phone.trim(),
+          email: email.trim(),
+          businessType: businessType.trim() || null,
+          cityOrState: cityOrState.trim() || null,
+          quantity,
+          message: message.trim() || null,
+          source: 'welcome_page',
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not start payment');
+      const url = data.data?.authorization_url;
+      if (!url) throw new Error('No checkout URL returned');
+      window.location.href = url;
+    } catch (err: any) {
+      setError(err?.message || 'Payment failed');
+      setLoading(false);
+    }
+  }
+
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Pre-order Busmo One"
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 200,
+        zIndex: 1000,
         background: 'rgba(10, 31, 20, 0.55)',
         display: 'flex',
-        alignItems: 'flex-end',
+        alignItems: 'center',
         justifyContent: 'center',
+        padding: 16,
       }}
-      onClick={onClose}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !loading) onClose();
+      }}
     >
       <div
         style={{
           width: '100%',
           maxWidth: 480,
           maxHeight: '92vh',
-          overflowY: 'auto',
+          overflow: 'auto',
           background: '#fff',
-          borderTopLeftRadius: 16,
-          borderTopRightRadius: 16,
-          padding: '20px 18px calc(20px + env(safe-area-inset-bottom, 0px))',
+          borderRadius: 16,
+          padding: '22px 22px 20px',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.22)',
         }}
-        onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#0D7A43', letterSpacing: 0.04 }}>
-              BUSMO ONE PRE-ORDER
-            </div>
-            <h2 style={{ margin: '4px 0 0', fontSize: 20 }}>Register your interest</h2>
+            <p style={{ margin: 0, fontSize: 12, fontWeight: 800, color: '#0D7A43', letterSpacing: '0.06em' }}>
+              {pricing.saleActive ? 'BLACK FRIDAY · BUY NOW' : 'BUY BUSMO ONE'}
+            </p>
+            <h3 style={{ margin: '4px 0 0', fontSize: 20, color: '#0A1F14' }}>
+              {BUSMO_ONE_CONFIG.productName}
+            </h3>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" style={{ border: 'none', background: 'transparent', fontSize: 20 }}>
-            ✕
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            aria-label="Close"
+            style={{
+              border: 'none',
+              background: '#f3f4f6',
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              cursor: 'pointer',
+              fontSize: 18,
+            }}
+          >
+            ×
           </button>
         </div>
 
-        {done ? (
-          <div style={{ padding: '12px 0 8px' }}>
-            <p style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>You&apos;re on the list for Busmo One.</p>
-            <p style={{ color: '#3D6652', lineHeight: 1.5 }}>
-              This is a pre-order registration, not a completed purchase. Our team will contact you to confirm
-              details and next steps. The founding offer includes eligibility for {BUSMO_ONE_CONFIG.promotionLabel} after a qualifying purchase — the subscription is not activated by this form.
-            </p>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                marginTop: 16,
-                width: '100%',
-                height: 48,
-                borderRadius: 12,
-                border: 'none',
-                background: '#14A05A',
-                color: '#fff',
-                fontWeight: 700,
-              }}
-            >
-              Done
-            </button>
+        <div style={{ marginBottom: 14, padding: '12px 14px', background: '#f3faf6', borderRadius: 12 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'baseline' }}>
+            <strong style={{ fontSize: 22 }}>{formatNgn(pricing.charge)}</strong>
+            {pricing.saleActive ? (
+              <s style={{ color: '#82A993' }}>{formatNgn(pricing.list)}</s>
+            ) : null}
+            <span style={{ fontSize: 13, color: '#3D6652' }}>per terminal</span>
           </div>
-        ) : (
-          <form onSubmit={submit}>
-            <p style={{ fontSize: 13, color: '#555', marginBottom: 12 }}>
-              Pre-order price {formatNgn(BUSMO_ONE_CONFIG.launchPriceNgn)} — includes eligibility for {BUSMO_ONE_CONFIG.promotionLabel}. No payment is taken on this form.
+          {pricing.saleActive ? (
+            <p style={{ margin: '6px 0 0', fontSize: 13, color: '#0D7A43', fontWeight: 600 }}>
+              {pricing.percentOff}% Black Friday off list price
             </p>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Full name *</label>
-            <input style={field} required value={fullName} onChange={(e) => setFullName(e.target.value)} autoComplete="name" />
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, margin: '10px 0 4px' }}>Business name *</label>
-            <input style={field} required value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
+          ) : null}
+          <p style={{ margin: '6px 0 0', fontSize: 13, color: '#3D6652' }}>
+            Includes eligibility for {BUSMO_ONE_CONFIG.promotionLabel} after payment.
+          </p>
+          <p style={{ margin: '8px 0 0', fontSize: 14, fontWeight: 700 }}>
+            Total now: {formatNgn(total)}
+            {quantity > 1 ? ` (${quantity} × ${formatNgn(pricing.charge)})` : ''}
+          </p>
+        </div>
+
+        {done ? (
+          <p style={{ color: '#0D7A43', fontWeight: 600 }}>Redirecting to secure checkout…</p>
+        ) : (
+          <form onSubmit={onSubmit}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, margin: '0 0 4px' }}>Full name *</label>
+            <input style={field} required value={fullName} onChange={(e) => setFullName(e.target.value)} />
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, margin: '10px 0 4px' }}>Business name</label>
+            <input style={field} value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
             <label style={{ display: 'block', fontSize: 13, fontWeight: 600, margin: '10px 0 4px' }}>Phone *</label>
-            <input style={field} required value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" placeholder="080…" />
+            <input style={field} required value={phone} onChange={(e) => setPhone(e.target.value)} />
             <label style={{ display: 'block', fontSize: 13, fontWeight: 600, margin: '10px 0 4px' }}>Email *</label>
-            <input style={field} required type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+            <input
+              style={field}
+              required
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+            />
             <label style={{ display: 'block', fontSize: 13, fontWeight: 600, margin: '10px 0 4px' }}>Business type</label>
-            <input style={field} value={businessType} onChange={(e) => setBusinessType(e.target.value)} placeholder="Retail, restaurant, wholesale…" />
+            <input
+              style={field}
+              value={businessType}
+              onChange={(e) => setBusinessType(e.target.value)}
+              placeholder="Retail, restaurant, wholesale…"
+            />
             <label style={{ display: 'block', fontSize: 13, fontWeight: 600, margin: '10px 0 4px' }}>City / state</label>
             <input style={field} value={cityOrState} onChange={(e) => setCityOrState(e.target.value)} />
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, margin: '10px 0 4px' }}>Terminals interested in</label>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, margin: '10px 0 4px' }}>Quantity</label>
             <input
               style={field}
               type="number"
@@ -160,15 +192,13 @@ export function BusmoOnePreorderModal({ open, onClose }: Props) {
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              rows={3}
+              rows={2}
               style={{ ...field, height: 'auto', padding: 12, resize: 'vertical' }}
             />
-            <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 12, fontSize: 13 }}>
-              <input type="checkbox" checked={understands} onChange={(e) => setUnderstands(e.target.checked)} style={{ marginTop: 3 }} />
-              <span>
-                I understand this is a pre-order registration for upcoming hardware, not a completed purchase or payment.
-              </span>
-            </label>
+            <p style={{ fontSize: 12, color: '#64748b', marginTop: 12, lineHeight: 1.45 }}>
+              You will pay securely with Paystack (card, bank, USSD). This is a real purchase for the terminal
+              at the price shown. Hardware fulfilment is coordinated by our team after payment.
+            </p>
             {error && <p style={{ color: '#b91c1c', fontSize: 13, marginTop: 10 }}>{error}</p>}
             <button
               type="submit"
@@ -185,7 +215,7 @@ export function BusmoOnePreorderModal({ open, onClose }: Props) {
                 cursor: loading ? 'wait' : 'pointer',
               }}
             >
-              {loading ? 'Submitting…' : 'Join the Pre-Order'}
+              {loading ? 'Opening checkout…' : `Pay ${formatNgn(total)}`}
             </button>
           </form>
         )}

@@ -1,22 +1,41 @@
-'use client';
-
 import React from 'react';
-import { BUSMO_ONE_CONFIG, formatNgn } from '@/lib/busmo-one/config';
+import { BUSMO_ONE_CONFIG, formatNgn, getBusmoOneChargePrice } from '@/lib/busmo-one/config';
+import { BLACK_FRIDAY, isBlackFridayActive } from '@/lib/pricing';
 
-export const AnnouncementBar: React.FC = () => {
+export function AnnouncementBar() {
+  const bf = isBlackFridayActive();
+  const one = getBusmoOneChargePrice();
+
   return (
-    <div className="announcement-bar">
-      <div className="announcement-content">
-        <span className="announcement-icon">📟</span>
+    <div className="announcement-bar" role="region" aria-label="Promotions">
+      <div className="announcement-inner">
         <span className="announcement-text">
-          <strong>Pre-order Busmo One</strong>
-          {' — '}
-          {formatNgn(BUSMO_ONE_CONFIG.launchPriceNgn)} + {BUSMO_ONE_CONFIG.promotionLabel}
+          {bf ? (
+            <>
+              <strong>{BLACK_FRIDAY.headline}</strong>
+              {' · '}
+              {BUSMO_ONE_CONFIG.productName} from {formatNgn(one.charge)}
+              {one.saleActive ? (
+                <>
+                  {' '}
+                  <s style={{ opacity: 0.75 }}>{formatNgn(one.list)}</s>
+                </>
+              ) : null}
+              {' + '}
+              {BUSMO_ONE_CONFIG.promotionLabel}
+            </>
+          ) : (
+            <>
+              <strong>{BUSMO_ONE_CONFIG.productName}</strong>
+              {' — '}
+              {formatNgn(BUSMO_ONE_CONFIG.launchPriceNgn)} + {BUSMO_ONE_CONFIG.promotionLabel}
+            </>
+          )}
         </span>
+        <a href="/welcome#busmo-one" className="announcement-cta">
+          {bf ? 'Buy now' : 'Get Busmo One'}
+        </a>
       </div>
-      <a href="/welcome#busmo-one" className="announcement-cta">
-        Pre-Order
-      </a>
     </div>
   );
-};
+}
