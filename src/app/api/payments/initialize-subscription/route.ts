@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { BUSMO_PLANS, getPlanById, type PlanId } from '@/lib/pricing';
+import {
+  BUSMO_PLANS,
+  getPlanById,
+  getPlanChargePrice,
+  type PlanId,
+} from '@/lib/pricing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -25,7 +30,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
     }
 
-    const amountNaira = billing === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice;
+    const pricing = getPlanChargePrice(plan, billing);
+    const amountNaira = pricing.charge;
     const amountKobo = Math.round(amountNaira * 100);
 
     const secret = process.env.PAYSTACK_SECRET_KEY?.trim();
@@ -53,6 +59,10 @@ export async function POST(req: NextRequest) {
           planId: plan.id,
           billing,
           amountNaira,
+          listAmountNaira: pricing.list,
+          saleActive: pricing.saleActive,
+          percentOff: pricing.percentOff,
+          promoCode: pricing.promoCode,
           userId: userId || null,
           email,
         },
@@ -81,6 +91,10 @@ export async function POST(req: NextRequest) {
         name: plan.name,
         billing,
         amountNaira,
+        listAmountNaira: pricing.list,
+        saleActive: pricing.saleActive,
+        percentOff: pricing.percentOff,
+        promoCode: pricing.promoCode,
       },
     });
   } catch (e: any) {

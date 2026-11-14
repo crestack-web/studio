@@ -1,10 +1,12 @@
 /**
  * Busmo One launch configuration.
  */
+import { applyPercentOff, isBlackFridayActive, BLACK_FRIDAY } from '@/lib/pricing';
+
 export const BUSMO_ONE_CONFIG = {
   productName: 'Busmo One',
   tagline: 'Your business. One smart terminal.',
-  /** Pre-order / launch price (NGN) */
+  /** List / pre-order price (NGN) */
   launchPriceNgn: 299_000,
   /**
    * Reference value of 12 months Busmo Scale (for discount display only).
@@ -16,13 +18,36 @@ export const BUSMO_ONE_CONFIG = {
   promotionLabel: '1 year of Busmo Scale free',
   promotionMonths: 12,
   scalePlanName: 'Busmo Scale',
-  statusOptions: ['submitted', 'contacted', 'confirmed', 'cancelled'] as const,
+  statusOptions: ['submitted', 'pending_payment', 'paid', 'contacted', 'confirmed', 'cancelled'] as const,
+  /** Extra Black Friday off terminal list price when BF is active */
+  blackFridayPercentOff: 15,
 } as const;
 
 export type BusmoOnePreorderStatus = (typeof BUSMO_ONE_CONFIG.statusOptions)[number];
 
 export function formatNgn(amount: number): string {
   return `₦${amount.toLocaleString('en-NG')}`;
+}
+
+/** What the buyer pays for one terminal right now. */
+export function getBusmoOneChargePrice(now: Date = new Date()): {
+  list: number;
+  charge: number;
+  saleActive: boolean;
+  percentOff: number;
+  promoCode: string | null;
+} {
+  const list = BUSMO_ONE_CONFIG.launchPriceNgn;
+  const bf = isBlackFridayActive(now);
+  const percentOff = bf ? BUSMO_ONE_CONFIG.blackFridayPercentOff : 0;
+  const charge = bf ? applyPercentOff(list, percentOff) : list;
+  return {
+    list,
+    charge,
+    saleActive: bf,
+    percentOff,
+    promoCode: bf ? BLACK_FRIDAY.code : null,
+  };
 }
 
 /** Bundle value shown for discount storytelling: terminal + Scale year */
