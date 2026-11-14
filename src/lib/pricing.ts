@@ -13,7 +13,6 @@
 
 export type PlanId = 'starter' | 'standard' | 'pro' | 'free';
 
-
 export interface BusmoPlan {
   id: PlanId;
   /** Public-facing name */
@@ -42,14 +41,63 @@ export const ONBOARDING = {
 } as const;
 
 export const POSITIONING = {
-  headline: 'Control your business, even when you\'re not there.',
+  headline: "Control your business, even when you're not there.",
   subhead: 'Busmo gives business owners control over sales, stock, cash and staff.',
 } as const;
 
 /**
- * Canonical plan definitions.
- * Mapping: starter → Busmo Start, standard → Busmo Control, pro → Busmo Scale
+ * Black Friday / BFCM 2026 — applies to all paid SaaS plans when active.
+ * End date inclusive through end of day WAT approximated as UTC end of day.
  */
+export const BLACK_FRIDAY = {
+  code: 'BLACKFRIDAY2026',
+  label: 'Black Friday',
+  /** Percent off list price (monthly + yearly) */
+  percentOff: 40,
+  /** ISO date strings — active from start through end (inclusive calendar days) */
+  startsAt: '2026-11-14',
+  endsAt: '2026-12-02',
+  headline: 'Black Friday — 40% off every plan',
+  subhead: 'Limited-time sale on Starter, Growth, and Business. Annual still saves ~2 months on top.',
+  badge: '40% OFF',
+} as const;
+
+export function isBlackFridayActive(now: Date = new Date()): boolean {
+  const y = now.getUTCFullYear();
+  const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(now.getUTCDate()).padStart(2, '0');
+  const day = `${y}-${m}-${d}`;
+  return day >= BLACK_FRIDAY.startsAt && day <= BLACK_FRIDAY.endsAt;
+}
+
+/** Sale amount in Naira (integer). */
+export function applyPercentOff(listPrice: number, percentOff: number): number {
+  if (!(listPrice > 0) || !(percentOff > 0)) return listPrice;
+  return Math.max(0, Math.round(listPrice * (1 - percentOff / 100)));
+}
+
+export function getPlanListPrice(plan: BusmoPlan, billing: 'monthly' | 'yearly'): number {
+  return billing === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice;
+}
+
+/** What the customer is charged right now (sale if BF active). */
+export function getPlanChargePrice(
+  plan: BusmoPlan,
+  billing: 'monthly' | 'yearly',
+  now: Date = new Date()
+): { list: number; charge: number; saleActive: boolean; percentOff: number; promoCode: string | null } {
+  const list = getPlanListPrice(plan, billing);
+  const saleActive = isBlackFridayActive(now) && list > 0;
+  const percentOff = saleActive ? BLACK_FRIDAY.percentOff : 0;
+  const charge = saleActive ? applyPercentOff(list, percentOff) : list;
+  return {
+    list,
+    charge,
+    saleActive,
+    percentOff,
+    promoCode: saleActive ? BLACK_FRIDAY.code : null,
+  };
+}
 
 /** Marketing Free tier — entitlements to be enforced when free product ships. */
 export const FREE_PLAN = {
@@ -75,15 +123,12 @@ export const BUSMO_PLANS: BusmoPlan[] = [
     tagline: 'For small businesses getting serious about tracking their business.',
     description: 'Get your business numbers organized.',
     monthlyPrice: 5000,
-    yearlyPrice: 50000, // 10 months equivalent (2 months free)
-    cta: 'Start free trial',
+    yearlyPrice: 50000, // 10 months
+    cta: 'Get Starter',
     features: [
-      'Sales tracking',
-      'Expenses',
-      'Basic inventory',
-      'Customers & suppliers',
-      'Profit dashboard & basic reports',
-      'Ask MO AI assistant',
+      'Sales & inventory tracking',
+      'Basic reporting',
+      'MO assistant',
       'Limited staff access',
       'Mobile access',
       '14-day free trial',
@@ -155,7 +200,8 @@ export function planDisplayName(planIdOrName: string | undefined | null): string
   if (!planIdOrName) return BUSMO_PLANS[0].name;
   const lower = planIdOrName.toLowerCase();
   if (lower.includes('pro') || lower.includes('scale') || lower === 'business') return getPlanById('pro').name;
-  if (lower.includes('standard') || lower.includes('control') || lower.includes('growth')) return getPlanById('standard').name;
+  if (lower.includes('standard') || lower.includes('control') || lower.includes('growth'))
+    return getPlanById('standard').name;
   if (lower.includes('starter') || lower.includes('start')) return getPlanById('starter').name;
   return planIdOrName;
 }
