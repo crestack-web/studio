@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Avatar, Badge, Kbd, Sheet, useToast } from './primitives';
 import { Icon } from './icons';
+import { AIDrawer } from './ai';
 import { SOLUTIONS_SECTION_LABELS, SOLUTIONS_SUITE_IDS, SOLUTIONS_SUITES } from './suites';
 import type { SolutionsSuite, SolutionsSuiteId } from './types';
 
@@ -103,6 +104,7 @@ export function SolutionsShell({
   const [themeReady, setThemeReady] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [menu, setMenu] = useState<MenuKey>(null);
+  const [aiOpen, setAiOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -263,10 +265,10 @@ export function SolutionsShell({
             <button
               type="button"
               className="sol-ask-mo"
-              onClick={() => toast(moSummary)}
+              onClick={() => setAiOpen(true)}
             >
               <span className="sol-ask-mo-mark">
-                <Icon name="sparkles" size={14} />
+                <Icon name="mo" size={14} />
               </span>
               <span className="sol-ask-mo-text">
                 <strong>Ask MO</strong>
@@ -569,11 +571,23 @@ export function SolutionsShell({
         <button
           type="button"
           className="sol-mo"
-          onClick={() => toast(moSummary)}
+          onClick={() => setAiOpen(true)}
         >
-          <span className="sol-mo-mark">MO</span>
+          <span className="sol-mo-mark">
+            <Icon name="mo" size={14} />
+          </span>
           Ask MO
         </button>
+
+        <Sheet
+          open={aiOpen}
+          onClose={() => setAiOpen(false)}
+          title="Ask MO"
+          subtitle="AI chief of staff"
+          width={440}
+        >
+          <AIDrawer open={aiOpen} onClose={() => setAiOpen(false)} suiteId={suite.id} />
+        </Sheet>
 
         {paletteOpen ? (
           <div className="sol-command-wrap" onMouseDown={() => setPaletteOpen(false)}>

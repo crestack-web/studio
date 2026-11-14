@@ -9,6 +9,7 @@ import {
   BarChart3,
   BedDouble,
   BookOpen,
+  Bot,
   GraduationCap,
   Bell,
   Box,
@@ -97,6 +98,7 @@ const ICONS = {
   alert: AlertTriangle,
   graduation: GraduationCap,
   book: BookOpen,
+  mo: Bot,
 } as const;
 
 export function Icon({
