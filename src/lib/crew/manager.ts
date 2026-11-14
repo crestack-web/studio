@@ -183,18 +183,14 @@ export async function handleChat(input: ManagerChatInput): Promise<{ replies: Cr
         kind: detected.kind,
       });
       const findings = (task?.payload as any)?.findings;
-      const detail = findings?.detail ? `
-
-${findings.detail}` : '';
+      const detail = findings?.detail ? `\n\n${findings.detail}` : '';
       replies.push({
         agent: detected.agentId,
         text:
           summary +
           detail +
           (task?.status === 'awaiting'
-            ? '
-
-Open the Tasks tab to approve or reject before anything is sent or ordered.'
+            ? '\n\nOpen the Tasks tab to approve or reject before anything is sent or ordered.'
             : ''),
       });
       await logActivity(businessId, detected.agentId, 'chat_task', message.slice(0, 120), {
