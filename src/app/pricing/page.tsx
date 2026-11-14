@@ -1,7 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { trackViewContent, trackAddToCart, trackInitiateCheckout, trackClickButton } from '@/lib/tiktok/pixel';
+import {
+  trackViewContent,
+  trackAddToCart,
+  trackInitiateCheckout,
+  trackClickButton,
+} from '@/lib/tiktok/pixel';
 import { LangProvider } from '../owner/dashboard/LangContext';
 import { AskMOSupportAgent } from '../welcome/components/AskMOSupportAgent';
 import { Navbar } from '../welcome/components/Navbar';
@@ -15,6 +20,10 @@ import {
   getPlanChargePrice,
   type BusmoPlan,
 } from '@/lib/pricing';
+import styles from './pricing.module.css';
+
+/** Show a tight feature list on cards — full detail lives in product. */
+const FEATURE_LIMIT = 6;
 
 export default function PricingPage() {
   useEffect(() => {
@@ -69,8 +78,6 @@ export default function PricingPage() {
       window.location.href = '/invest';
     else window.location.href = '/';
   };
-
-  const formatMoney = (amount: number) => formatNaira(amount);
 
   const handleSelectPlan = (plan: BusmoPlan) => {
     try {
@@ -144,117 +151,107 @@ export default function PricingPage() {
   };
 
   return (
-    <main className="min-h-screen">
+    <div className={styles.page}>
       <LangProvider>
         <Navbar currentPage="pricing" onNavigate={handleNavigate} />
       </LangProvider>
 
-      <main className="pricing-main">
-        <div className="max-w">
-          <div className="section-head center">
-            <h1 className="section-title">
-              Control over sales, stock,
-              <br />
-              <em>cash and staff</em>
-            </h1>
-            <p className="section-sub">
-              Find the right Busmo for your business — one platform, industry-specific pricing.
-              <br />
-              14-day free trial on paid plans. Annual billing saves ~2 months.
-            </p>
+      <main className={styles.main}>
+        <header className={styles.header}>
+          <h1>
+            Control sales, stock, <em>cash and staff</em>
+          </h1>
+          <p>One platform. Clear pricing. 14-day trial on paid plans.</p>
+        </header>
+
+        {bfActive ? (
+          <div className={styles.bfBanner}>
+            <strong>{BLACK_FRIDAY.badge}</strong>
+            {BLACK_FRIDAY.headline}
           </div>
+        ) : null}
 
-          {bfActive ? (
-            <div
-              style={{
-                margin: '0 auto 24px',
-                maxWidth: 640,
-                textAlign: 'center',
-                padding: '14px 18px',
-                borderRadius: 14,
-                background: 'linear-gradient(90deg,#0A1F14,#14532d)',
-                color: '#ecfdf5',
-              }}
-            >
-              <strong style={{ letterSpacing: '0.04em' }}>{BLACK_FRIDAY.badge}</strong>
-              <div style={{ marginTop: 4, fontSize: 15 }}>{BLACK_FRIDAY.headline}</div>
-              <div style={{ marginTop: 4, fontSize: 13, opacity: 0.9 }}>{BLACK_FRIDAY.subhead}</div>
-            </div>
-          ) : null}
-
-          <div className="billing-toggle">
+        <div className={styles.toggle}>
+          <div className={styles.toggleInner} role="group" aria-label="Billing period">
             <button
               type="button"
-              className={mode === 'monthly' ? 'active' : ''}
+              className={`${styles.toggleBtn}${mode === 'monthly' ? ` ${styles.toggleBtnActive}` : ''}`}
               onClick={() => setMode('monthly')}
             >
               Monthly
             </button>
             <button
               type="button"
-              className={mode === 'yearly' ? 'active' : ''}
+              className={`${styles.toggleBtn}${mode === 'yearly' ? ` ${styles.toggleBtnActive}` : ''}`}
               onClick={() => setMode('yearly')}
             >
               Yearly
             </button>
           </div>
+        </div>
 
-          <div className="plan-grid">
-            {BUSMO_PLANS.map((plan) => {
-              const pricing = getPlanChargePrice(plan, mode);
-              return (
-                <div
-                  key={plan.id}
-                  className={`plan-card${plan.popular ? ' popular' : ''}`}
-                >
-                  {plan.popular && !pricing.saleActive && (
-                    <div className="plan-badge">Most popular</div>
-                  )}
-                  {pricing.saleActive ? (
-                    <div className="plan-badge" style={{ background: '#0A1F14' }}>
-                      {BLACK_FRIDAY.badge}
-                    </div>
-                  ) : null}
-                  <h3 className="plan-name">{plan.name}</h3>
-                  <p className="plan-tagline">{plan.tagline}</p>
-                  <div className="plan-price">
-                    {formatMoney(pricing.charge)}
-                    <span>/{mode === 'monthly' ? 'mo' : 'yr'}</span>
-                    {pricing.saleActive ? (
-                      <div style={{ fontSize: 14, fontWeight: 500, color: '#64748b', marginTop: 4 }}>
-                        <s>{formatMoney(pricing.list)}</s>
-                        <span style={{ color: '#0D7A43', marginLeft: 8, fontWeight: 700 }}>
-                          {pricing.percentOff}% off
-                        </span>
-                      </div>
-                    ) : null}
-                  </div>
-                  <ul className="plan-features">
-                    {plan.features.map((f) => (
-                      <li key={f}>{f}</li>
-                    ))}
-                  </ul>
-                  <button
-                    type="button"
-                    className="plan-cta"
-                    onClick={() => handleSelectPlan(plan)}
-                  >
-                    {plan.cta || 'Get started'}
-                  </button>
+        <div className={styles.grid}>
+          {BUSMO_PLANS.map((plan) => {
+            const pricing = getPlanChargePrice(plan, mode);
+            const features = plan.features.slice(0, FEATURE_LIMIT);
+            const more = plan.features.length - features.length;
+            return (
+              <article
+                key={plan.id}
+                className={`${styles.card}${plan.popular ? ` ${styles.cardPopular}` : ''}`}
+              >
+                {pricing.saleActive ? (
+                  <span className={`${styles.badge} ${styles.badgeDark}`}>{BLACK_FRIDAY.badge}</span>
+                ) : plan.popular ? (
+                  <span className={styles.badge}>Most popular</span>
+                ) : null}
+
+                <h2 className={styles.name}>{plan.name}</h2>
+                <p className={styles.tagline}>{plan.tagline}</p>
+
+                <div className={styles.priceRow}>
+                  <span className={styles.price}>{formatNaira(pricing.charge)}</span>
+                  <span className={styles.period}>/{mode === 'monthly' ? 'mo' : 'yr'}</span>
                 </div>
-              );
-            })}
-          </div>
+                {pricing.saleActive ? (
+                  <div className={styles.listPrice}>
+                    <s>{formatNaira(pricing.list)}</s>
+                    <span className={styles.salePct}>{pricing.percentOff}% off</span>
+                  </div>
+                ) : (
+                  <div className={styles.listPrice} style={{ visibility: 'hidden' }}>
+                    &
+bsp;
+                  </div>
+                )}
 
-          <div className="enterprise-block">
+                <ul className={styles.features}>
+                  {features.map((f) => (
+                    <li key={f}>{f}</li>
+                  ))}
+                  {more > 0 ? <li key="more">+{more} more in product</li> : null}
+                </ul>
+
+                <button
+                  type="button"
+                  className={`${styles.cta}${plan.popular ? ` ${styles.ctaPrimary}` : ''}`}
+                  onClick={() => handleSelectPlan(plan)}
+                >
+                  {plan.cta || 'Get started'}
+                </button>
+              </article>
+            );
+          })}
+        </div>
+
+        <div className={styles.enterprise}>
+          <div>
             <h3>{ENTERPRISE.name}</h3>
             <p>{ENTERPRISE.tagline}</p>
-            <p className="plan-price">{ENTERPRISE.priceLabel}</p>
-            <button
-              type="button"
-              className="plan-cta"
-              onClick={handleEnterprise}
-            >
+          </div>
+          <div className={styles.enterpriseMeta}>
+            <span className={styles.enterprisePrice}>{ENTERPRISE.priceLabel}</span>
+            <button type="button" className={styles.enterpriseBtn} onClick={handleEnterprise}>
               {ENTERPRISE.cta}
             </button>
           </div>
@@ -265,18 +262,18 @@ export default function PricingPage() {
 
       {showPaymentModal && selectedPlan && (
         <div
-          className="pay-overlay"
+          className={styles.overlay}
           role="dialog"
           aria-modal="true"
           aria-labelledby="pay-modal-title"
           onClick={() => !isPaying && setShowPaymentModal(false)}
         >
-          <div className="pay-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="pay-sheet-top">
+          <div className={styles.sheet} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.sheetTop}>
               <h3 id="pay-modal-title">Subscribe</h3>
               <button
                 type="button"
-                className="pay-close"
+                className={styles.close}
                 aria-label="Close"
                 disabled={isPaying}
                 onClick={() => setShowPaymentModal(false)}
@@ -285,46 +282,39 @@ export default function PricingPage() {
               </button>
             </div>
 
-            <div className="pay-sheet-body">
-              <div className="pay-plan-chip">
-                <span className="pay-plan-name">{selectedPlan.name}</span>
-                <span className="pay-plan-price">
-                  {formatMoney(getPlanChargePrice(selectedPlan, mode).charge)}
-                  {getPlanChargePrice(selectedPlan, mode).saleActive ? (
-                    <span style={{ marginLeft: 8, fontSize: 14, color: '#64748b' }}>
-                      <s>{formatMoney(getPlanChargePrice(selectedPlan, mode).list)}</s>
-                    </span>
-                  ) : null}
-                  <span className="pay-plan-period">
-                    /{mode === 'monthly' ? 'mo' : 'yr'}
-                  </span>
+            <div className={styles.chip}>
+              <span className={styles.chipName}>{selectedPlan.name}</span>
+              <span className={styles.chipPrice}>
+                {formatNaira(getPlanChargePrice(selectedPlan, mode).charge)}
+                <span style={{ fontWeight: 500, color: '#6b7f74', fontSize: '0.8rem' }}>
+                  /{mode === 'monthly' ? 'mo' : 'yr'}
                 </span>
-              </div>
-
-              <label className="pay-label" htmlFor="payment-email">
-                Email
-              </label>
-              <input
-                id="payment-email"
-                type="email"
-                className="pay-input"
-                placeholder="you@email.com"
-                autoComplete="email"
-                inputMode="email"
-                value={userEmail}
-                onChange={(e) => setUserEmail(e.target.value)}
-                disabled={isPaying}
-              />
-              <p className="pay-hint">
-                Secure checkout with Paystack
-                {bfActive ? ' · Black Friday price applied' : ''}
-              </p>
+              </span>
             </div>
 
-            <div className="pay-sheet-actions">
+            <label className={styles.label} htmlFor="payment-email">
+              Email
+            </label>
+            <input
+              id="payment-email"
+              type="email"
+              className={styles.input}
+              placeholder="you@email.com"
+              autoComplete="email"
+              inputMode="email"
+              value={userEmail}
+              onChange={(e) => setUserEmail(e.target.value)}
+              disabled={isPaying}
+            />
+            <p className={styles.hint}>
+              Secure checkout with Paystack
+              {bfActive ? ' · Black Friday price applied' : ''}
+            </p>
+
+            <div className={styles.actions}>
               <button
                 type="button"
-                className="pay-btn-primary"
+                className={styles.payPrimary}
                 onClick={handlePayment}
                 disabled={isPaying}
               >
@@ -332,7 +322,7 @@ export default function PricingPage() {
               </button>
               <button
                 type="button"
-                className="pay-btn-ghost"
+                className={styles.payGhost}
                 onClick={handleStartFreeTrial}
                 disabled={isPaying}
               >
@@ -344,6 +334,6 @@ export default function PricingPage() {
       )}
 
       <AskMOSupportAgent />
-    </main>
+    </div>
   );
 }
