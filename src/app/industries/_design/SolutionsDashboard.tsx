@@ -4,6 +4,7 @@ import React from 'react';
 import { SolutionsShell } from './shell';
 import { ToastProvider } from './primitives';
 import { getSolutionsSuite } from './suites';
+import { SolutionsLiveProvider, useSolutionsLive } from './live';
 import { notifications as hospitalityNotifications } from './hospitality/mock';
 import { notifications as healthcareNotifications } from './healthcare/mock';
 import { HospitalityOverview } from './hospitality/overview';
@@ -158,6 +159,34 @@ export function SolutionsDashboard({
   user?: { name: string; email?: string } | null;
   signOut?: () => void;
 }) {
+  const liveEnabled = !basePath.includes('/preview');
+  return (
+    <SolutionsLiveProvider suiteId={suiteId} enabled={liveEnabled}>
+      <SolutionsDashboardBody
+        suiteId={suiteId}
+        section={section}
+        basePath={basePath}
+        user={user}
+        signOut={signOut}
+      />
+    </SolutionsLiveProvider>
+  );
+}
+
+function SolutionsDashboardBody({
+  suiteId,
+  section,
+  basePath = '/industries/preview',
+  user,
+  signOut,
+}: {
+  suiteId: string;
+  section: string;
+  basePath?: string;
+  user?: { name: string; email?: string } | null;
+  signOut?: () => void;
+}) {
+  const { version } = useSolutionsLive();
   const suite = getSolutionsSuite(suiteId);
 
   const hrefFor = (sectionId: string, targetSuiteId?: string) => {
@@ -187,11 +216,13 @@ export function SolutionsDashboard({
         user={user}
         signOut={signOut}
       >
-        {Screen ? (
-          <Screen hrefFor={hrefFor} />
-        ) : (
-          <SuitePreviewPlaceholder suiteName={suite.shortName} suiteId={suite.id} />
-        )}
+        <React.Fragment key={version}>
+          {Screen ? (
+            <Screen hrefFor={hrefFor} />
+          ) : (
+            <SuitePreviewPlaceholder suiteName={suite.shortName} suiteId={suite.id} />
+          )}
+        </React.Fragment>
       </SolutionsShell>
     </ToastProvider>
   );

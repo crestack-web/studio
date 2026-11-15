@@ -21,14 +21,14 @@ function asRows(data: any): any[] {
 function mapRecord(r: any) {
   return {
     id: r.id,
-    patient_id: r.metadata?.patient_id || null,
+    patient_id: r.meta?.patient_id || null,
     patient_name: r.title,
-    visit_id: r.metadata?.visit_id || null,
-    description: r.notes || r.metadata?.description || null,
+    visit_id: r.meta?.visit_id || null,
+    description: r.notes || r.meta?.description || null,
     amount: Number(r.amount || 0),
     status: r.status,
     created_at: r.created_at,
-    paid_at: r.metadata?.paid_at || null,
+    paid_at: r.meta?.paid_at || null,
     source: 'records',
   };
 }
@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
         amount,
         notes: payload.description,
         occurred_at: new Date().toISOString(),
-        metadata: {
+        meta: {
           patient_id: payload.patient_id,
           visit_id: payload.visit_id,
           description: payload.description,
@@ -182,16 +182,16 @@ export async function POST(req: NextRequest) {
     if (body.amount != null) recPatch.amount = Number(body.amount);
     if (body.description != null) recPatch.notes = body.description;
 
-    // stamp paid_at in metadata when marking paid
+    // stamp paid_at in meta when marking paid
     if (body.status === 'paid') {
       const existing = await admin
         .from('industry_records')
-        .select('metadata')
+        .select('meta')
         .eq('id', id)
         .eq('business_id', c.businessId)
         .maybeSingle();
-      recPatch.metadata = {
-        ...(existing.data?.metadata || {}),
+      recPatch.meta = {
+        ...(existing.data?.meta || {}),
         paid_at: new Date().toISOString(),
       };
     }

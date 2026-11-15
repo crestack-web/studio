@@ -28,26 +28,6 @@ import {
   timeStats,
 } from './mock';
 
-const revenueChart = revenueSeries.map((p) => ({
-  label: fmtDate(p.date),
-  Billed: p.billed,
-  Collected: p.collected,
-}));
-
-const billedSpark = revenueSeries.map((p) => p.billed);
-const hourSpark = revenueSeries.map((p) => p.hours);
-
-const openProjects = projects
-  .filter((p) => p.status === 'active' || p.status === 'review')
-  .sort((a, b) => a.due.localeCompare(b.due));
-
-const dueSoon = tasks
-  .filter((t) => t.status !== 'done')
-  .sort((a, b) => a.due.localeCompare(b.due))
-  .slice(0, 6);
-
-const todayEvents = events.filter((e) => e.date === todayISO());
-
 const kindIcon: Record<string, string> = {
   project: 'layers',
   task: 'checklist',
@@ -57,10 +37,30 @@ const kindIcon: Record<string, string> = {
   client: 'users',
 };
 
-const activePeople = team.filter((m) => m.status === 'active');
-
 export function ProfessionalOverview({ hrefFor }: { hrefFor: (s: string) => string }) {
-  const targetPct = Math.round((revenueSummary.monthToDate / revenueSummary.target) * 100);
+  const targetPct = Math.round((revenueSummary.monthToDate / Math.max(1, revenueSummary.target)) * 100);
+
+  const revenueChart = revenueSeries.map((p) => ({
+    label: fmtDate(p.date),
+    Billed: p.billed,
+    Collected: p.collected,
+  }));
+
+  const billedSpark = revenueSeries.map((p) => p.billed);
+  const hourSpark = revenueSeries.map((p) => p.hours);
+
+  const openProjects = projects
+    .filter((p) => p.status === 'active' || p.status === 'review')
+    .sort((a, b) => a.due.localeCompare(b.due));
+
+  const dueSoon = tasks
+    .filter((t) => t.status !== 'done')
+    .sort((a, b) => a.due.localeCompare(b.due))
+    .slice(0, 6);
+
+  const todayEvents = events.filter((e) => e.date === todayISO());
+
+  const activePeople = team.filter((m) => m.status === 'active');
 
   return (
     <>

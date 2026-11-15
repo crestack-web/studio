@@ -38,7 +38,7 @@ async function resolveStaffName(
   }
   const rec = await admin
     .from('industry_records')
-    .select('id, title, metadata')
+    .select('id, title, meta')
     .eq('business_id', businessId)
     .eq('id', staffId)
     .maybeSingle();
@@ -46,7 +46,7 @@ async function resolveStaffName(
     return {
       id: rec.data.id,
       name: String(rec.data.title || 'Clinician'),
-      role: rec.data.metadata?.role || null,
+      role: rec.data.meta?.role || null,
     };
   }
   return null;
@@ -109,11 +109,11 @@ async function listRecords(admin: ReturnType<typeof getSupabaseAdmin>, businessI
   return {
     rows: asRows(data).map((r) => ({
       id: r.id,
-      patient_id: r.metadata?.patient_id || null,
+      patient_id: r.meta?.patient_id || null,
       patient_name: r.title,
-      appointment_id: r.metadata?.appointment_id || null,
-      clinician_staff_id: r.metadata?.clinician_staff_id || null,
-      clinician_name: r.metadata?.clinician_name || null,
+      appointment_id: r.meta?.appointment_id || null,
+      clinician_staff_id: r.meta?.clinician_staff_id || null,
+      clinician_name: r.meta?.clinician_name || null,
       chief_complaint: r.notes,
       status: r.status,
       amount: r.amount,
@@ -228,7 +228,7 @@ export async function POST(req: NextRequest) {
         amount: payload.amount,
         notes: payload.chief_complaint || payload.notes,
         occurred_at: new Date().toISOString(),
-        metadata: {
+        meta: {
           patient_id: payload.patient_id,
           appointment_id: payload.appointment_id,
           clinician_staff_id: payload.clinician_staff_id,
@@ -312,7 +312,7 @@ export async function POST(req: NextRequest) {
 
     const existing = await admin
       .from('industry_records')
-      .select('metadata')
+      .select('meta')
       .eq('id', id)
       .eq('business_id', c.businessId)
       .maybeSingle();
@@ -324,8 +324,8 @@ export async function POST(req: NextRequest) {
         const member = await resolveStaffName(admin, c.businessId, String(sid));
         cname = member?.name || null;
       }
-      recPatch.metadata = {
-        ...(existing.data?.metadata || {}),
+      recPatch.meta = {
+        ...(existing.data?.meta || {}),
         clinician_staff_id: sid || null,
         clinician_name: cname,
       };

@@ -6,6 +6,7 @@ import {
   Avatar,
   Badge,
   Card,
+  Field,
   Kpi,
   PageHeader,
   SearchInput,
@@ -18,13 +19,29 @@ import {
 } from '../primitives';
 import { Icon } from '../icons';
 import { compactMoney, fmtDate, money } from '../format';
-import { students } from './mock';
+import { classes, students } from './mock';
+import { useSolutionsLive } from '../live';
+
+const emptyEnroll = {
+  name: '',
+  admissionNo: '',
+  className: '',
+  gender: 'Female',
+  dob: '',
+  guardian: '',
+  guardianPhone: '',
+  email: '',
+};
 
 export function EducationStudents() {
   const { toast } = useToast();
+  const { mutate, status: liveStatus } = useSolutionsLive();
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
   const [selected, setSelected] = useState<(typeof students)[number] | null>(null);
+  const [enrollOpen, setEnrollOpen] = useState(false);
+  const [enroll, setEnroll] = useState(emptyEnroll);
+  const [saving, setSaving] = useState(false);
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -51,6 +68,39 @@ export function EducationStudents() {
     }),
     { billed: 0, paid: 0 },
   );
+
+  const openEnroll = () => {
+    setEnroll({ ...emptyEnroll, className: classes[0]?.name || '' });
+    setEnrollOpen(true);
+  };
+
+  const enrollStudent = async () => {
+    if (!enroll.name.trim() || !enroll.className) {
+      toast('Enter the student’s name and choose a class.');
+      return;
+    }
+    setSaving(true);
+    const res = await mutate({
+      action: 'student_create',
+      fullName: enroll.name.trim(),
+      admissionNo: enroll.admissionNo.trim() || undefined,
+      className: enroll.className,
+      gender: enroll.gender,
+      dateOfBirth: enroll.dob || undefined,
+      guardian: enroll.guardian.trim() || undefined,
+      guardianPhone: enroll.guardianPhone.trim() || undefined,
+      email: enroll.email.trim() || undefined,
+      status: 'active',
+    });
+    setSaving(false);
+    if (!res.ok) {
+      toast(res.error || 'Could not enroll the student.');
+      return;
+    }
+    toast(`${enroll.name.trim()} enrolled in ${enroll.className}.`);
+    setEnroll(emptyEnroll);
+    setEnrollOpen(false);
+  };
 
   return (
     <>
@@ -86,7 +136,7 @@ export function EducationStudents() {
             >
               <Download size={15} aria-hidden /> Export
             </button>
-            <button type="button" className="sol-btn sol-btn-primary" onClick={() => toast('Admission form opened.')}>
+            <button type="button" className="sol-btn sol-btn-primary" onClick={openEnroll}>
               <Icon name="plus" size={15} aria-hidden /> Enroll student
             </button>
           </>
@@ -294,6 +344,103 @@ export function EducationStudents() {
               </button>
             </div>
           </div>
+        ) : null}
+      </Sheet>
+
+      <Sheet
+        open={enrollOpen}
+        onClose={() => setEnrollOpen(false)}
+        title="Enroll a student"
+        subtitle="Add a learner to the roll for this term."
+        width={480}
+        footer={
+          <>
+            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => setEnrollOpen(false)}>
+              Cancel
+            </button>
+            <button type="button" className="sol-btn sol-btn-primary" onClick={enrollStudent} disabled={saving}>
+              <Icon name="plus" size={15} aria-hidden /> {saving ? 'Saving…' : 'Enroll student'}
+            </button>
+          </>
+        }
+      >
+        <div className="sol-form-grid">
+          <Field label="Full name" className="full">
+            <input
+              className="sol-input"
+              value={enroll.name}
+              onChange={(e) => setEnroll({ ...enroll, name: e.target.value })}
+              placeholder="e.g. Tobi Adeleke"
+            />
+          </Field>
+          <Field label="Class">
+            <select
+              className="sol-select"
+              value={enroll.className}
+              onChange={(e) => setEnroll({ ...enroll, className: e.target.value })}
+            >
+              {classes.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Admission no" hint="Leave blank to auto-generate.">
+            <input
+              className="sol-input"
+              value={enroll.admissionNo}
+              onChange={(e) => setEnroll({ ...enroll, admissionNo: e.target.value })}
+              placeholder="e.g. CA/2026/091"
+            />
+          </Field>
+          <Field label="Gender">
+            <select
+              className="sol-select"
+              value={enroll.gender}
+              onChange={(e) => setEnroll({ ...enroll, gender: e.target.value })}
+            >
+              <option>Female</option>
+              <option>Male</option>
+            </select>
+          </Field>
+          <Field label="Date of birth">
+            <input
+              type="date"
+              className="sol-input"
+              value={enroll.dob}
+              onChange={(e) => setEnroll({ ...enroll, dob: e.target.value })}
+            />
+          </Field>
+          <Field label="Guardian">
+            <input
+              className="sol-input"
+              value={enroll.guardian}
+              onChange={(e) => setEnroll({ ...enroll, guardian: e.target.value })}
+              placeholder="Parent or guardian name"
+            />
+          </Field>
+          <Field label="Guardian phone">
+            <input
+              className="sol-input"
+              value={enroll.guardianPhone}
+              onChange={(e) => setEnroll({ ...enroll, guardianPhone: e.target.value })}
+              placeholder="+234 800 000 0000"
+            />
+          </Field>
+          <Field label="Guardian email" className="full">
+            <input
+              className="sol-input"
+              value={enroll.email}
+              onChange={(e) => setEnroll({ ...enroll, email: e.target.value })}
+              placeholder="guardian@email.com"
+            />
+          </Field>
+        </div>
+        {liveStatus === 'live' ? (
+          <p className="sol-small sol-muted" style={{ marginTop: 10 }}>
+            Saves straight to your live student register.
+          </p>
         ) : null}
       </Sheet>
     </>

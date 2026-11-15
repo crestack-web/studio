@@ -100,9 +100,44 @@ const INDUSTRY_CONTEXT: Record<
   },
 };
 
-function offlineReply(industry: Industry, message: string): string {
+function offlineReply(industry: Industry, message: string, patient?: any): string {
   const ctx = INDUSTRY_CONTEXT[industry] || INDUSTRY_CONTEXT.business;
   const m = message.toLowerCase();
+
+  if (patient && patient.name) {
+    const conditions: string[] = Array.isArray(patient.conditions) ? patient.conditions : [];
+    const allergies: string[] = Array.isArray(patient.allergies) ? patient.allergies : [];
+    const logs: any[] = Array.isArray(patient.conditionLog) ? patient.conditionLog : [];
+    const active = logs.filter((l) => String(l.status) === 'active');
+    const latest = [...logs].sort((a, b) => String(b.recorded_at).localeCompare(String(a.recorded_at)))[0];
+
+    if (m.includes('allerg')) {
+      return allergies.length
+        ? `**${patient.name}** has recorded allergies: ${allergies.join(', ')}. Confirm before prescribing or dispensing.`
+        : `No allergies are recorded for **${patient.name}**. Ask the patient to confirm before prescribing.`;
+    }
+    if (m.includes('condition') || m.includes('diagnos') || m.includes('summary') || m.includes('history') || m.includes('conclusion')) {
+      const lines = [
+        `**${patient.name}** — ${patient.age ? `${patient.age}y` : 'age not recorded'}${patient.sex ? ` · ${patient.sex}` : ''}${patient.mrn ? ` · ${patient.mrn}` : ''}.`,
+        conditions.length ? `Active problems: ${conditions.join(', ')}.` : 'No active problems recorded.',
+        allergies.length ? `Allergies: ${allergies.join(', ')}.` : 'No known allergies recorded.',
+        latest ? `Latest entry (${String(latest.recorded_at).slice(0, 10)}): ${latest.condition} — ${latest.note || latest.status}.` : '',
+        patient.notes ? `Clinical notes: ${patient.notes}` : '',
+        active.length ? `Open follow-ups: ${active.map((l) => l.condition).join(', ')}.` : '',
+      ].filter(Boolean);
+      return `${lines.join('\n\n')}\n\nThis is a summary of recorded data only — confirm with the patient and your own examination before acting.`;
+    }
+    if (m.includes('follow') || m.includes('next') || m.includes('review') || m.includes('plan')) {
+      return active.length
+        ? `Suggested focus for **${patient.name}**: ${active
+            .map((l) => `${l.condition}${l.severity ? ` (${l.severity})` : ''}`)
+            .join(', ')}. Review the latest notes, confirm adherence and book the next follow-up.`
+        : `No open conditions flagged for **${patient.name}**. A routine review and preventive screening check would be reasonable.`;
+    }
+    return `**${patient.name}**: ${conditions.length ? conditions.join(', ') : 'no recorded conditions'}${
+      allergies.length ? ` · allergies: ${allergies.join(', ')}` : ''
+    }. Ask me for a summary, allergy check, or follow-up plan.`;
+  }
 
   if (m.includes('logo') || m.includes('brand')) {
     return `In ${ctx.product}, open **Owner overview → Settings / Branding**. Set the display name and logo URL. The staff desk (${ctx.label.toLowerCase()} live desk) shows that branding immediately.`;
@@ -138,6 +173,35 @@ export async function POST(req: NextRequest) {
     const industry = (String(body.industry || body.productEdition || 'business').toLowerCase() ||
       'business') as Industry;
     const businessName = String(body.businessName || '').trim();
+    const patientContext =
+      body.patientContext && typeof body.patientContext === 'object' ? body.patientContext : null;
+
+    const patientBlock = patientContext
+      ? `\nPatient in context (the clinician is reviewing this record):
+- Name: ${String(patientContext.name || 'Patient')}
+- Age / sex: ${patientContext.age ? `${patientContext.age}y` : 'unknown'} / ${patientContext.sex || 'unknown'}
+- MRN: ${patientContext.mrn || 'unknown'}
+- Blood group: ${patientContext.blood_group || 'unknown'}
+- Active conditions: ${Array.isArray(patientContext.conditions) && patientContext.conditions.length ? patientContext.conditions.join(', ') : 'none recorded'}
+- Allergies: ${Array.isArray(patientContext.allergies) && patientContext.allergies.length ? patientContext.allergies.join(', ') : 'none recorded'}
+- Last visit: ${patientContext.last_visit || 'unknown'}
+- Outstanding balance: ${patientContext.balance ?? 0}
+- Clinical notes: ${patientContext.notes || 'none'}
+- Condition timeline:
+${
+  Array.isArray(patientContext.conditionLog) && patientContext.conditionLog.length
+    ? patientContext.conditionLog
+        .slice(0, 12)
+        .map(
+          (l: any) =>
+            `  • ${String(l.recorded_at || '').slice(0, 10)} — ${l.condition} [${l.status}${
+              l.severity ? ` · ${l.severity}` : ''
+            }]${l.note ? `: ${l.note}` : ''}`,
+        )
+        .join('\n')
+    : '  (no entries yet)'
+}
+` : '';
 
     if (!message) {
       return NextResponse.json({ error: 'message required' }, { status: 400 });
@@ -154,13 +218,15 @@ Your role: ${ctx.role}
 
 Product capabilities (stay within these — do not invent clinical EMRs, channel managers, or features that are not listed):
 ${ctx.capabilities.map((c) => `- ${c}`).join('\n')}
+${patientBlock}
 
 Guidance:
 - Be concise, practical, and Nigeria/Africa business aware when relevant (₦, mobile-first).
 - Distinguish owner dashboard (control/setup/reports) from the staff live desk (day-to-day ops).
 - If asked about Busmo Business retail features (stock SKUs, POS), clarify this is the ${ctx.label} solution unless they switch products.
 - Never claim unlimited AI or unbuilt hospital/lab systems.
-- Use short paragraphs or bullets.`;
+- Use short paragraphs or bullets.
+${patientContext ? '- Ground every patient answer strictly in the patient record above. Do not invent test results, vitals or diagnoses.\n- You support clinical judgement; never give a definitive diagnosis or prescribe. Flag red flags and recommend the clinician confirm.' : ''}`;
 
     // Prefer Mistral when configured
     if (process.env.MISTRAL_API_KEY) {
@@ -202,7 +268,7 @@ Guidance:
 
     return NextResponse.json({
       ok: true,
-      reply: offlineReply(safeIndustry, message),
+      reply: offlineReply(safeIndustry, message, patientContext),
       industry: safeIndustry,
       source: 'offline',
     });

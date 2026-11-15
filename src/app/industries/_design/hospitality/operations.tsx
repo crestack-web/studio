@@ -32,6 +32,7 @@ import {
   staff,
   tasks,
 } from './mock';
+import { useSolutionsLive } from '../live';
 import type { HousekeepingRoom, HotelTask, RoomServiceOrder, StaffMember } from '../types';
 
 /* ── Housekeeping ─────────────────────────────────────────────────── */
@@ -45,8 +46,77 @@ const STAGES: { id: HousekeepingRoom['stage']; label: string }[] = [
 
 export function HospitalityHousekeeping({ hrefFor }: { hrefFor: (s: string) => string }) {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<HousekeepingRoom | null>(null);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assign, setAssign] = useState({ room: '', assignee: '', priority: 'medium', note: '' });
+
+  const attendants = staff.filter((s) => s.department === 'Housekeeping');
+
+  const openAssign = () => {
+    setAssign({
+      room: housekeepingRooms[0]?.room_number || '',
+      assignee: attendants[0]?.full_name || '',
+      priority: 'medium',
+      note: '',
+    });
+    setAssignOpen(true);
+  };
+
+  const assignTask = async () => {
+    if (!assign.room || !assign.assignee) {
+      toast('Choose a room and an attendant.');
+      return;
+    }
+    const room = housekeepingRooms.find((r) => r.room_number === assign.room);
+    const res = await mutate({
+      action: 'record_create',
+      module: 'housekeeping',
+      title: `Room ${assign.room}`,
+      status: 'dirty',
+      meta: {
+        room_number: assign.room,
+        category: room?.category || '',
+        assignee: assign.assignee,
+        priority: assign.priority,
+        note: assign.note.trim() || undefined,
+      },
+    });
+    if (!res.ok) {
+      toast(res.error || 'Could not assign the task.');
+      return;
+    }
+    toast(`Room ${assign.room} assigned to ${assign.assignee}.`);
+    setAssignOpen(false);
+  };
+
+  const updateStage = async (room: HousekeepingRoom, stage: HousekeepingRoom['stage'], message: string) => {
+    const res = await mutate({ action: 'record_update', id: room.id, status: stage });
+    if (!res.ok) {
+      toast(res.error || 'Could not update the room.');
+      return;
+    }
+    toast(message);
+    setSelected(null);
+  };
+
+  const reassign = async (room: HousekeepingRoom) => {
+    if (!attendants.length) return;
+    const index = attendants.findIndex((s) => s.full_name === room.assignee);
+    const next = attendants[(index + 1) % attendants.length];
+    const res = await mutate({
+      action: 'record_update',
+      id: room.id,
+      meta: { assignee: next.full_name },
+    });
+    if (!res.ok) {
+      toast(res.error || 'Could not reassign the room.');
+      return;
+    }
+    toast(`Room ${room.room_number} reassigned to ${next.full_name}.`);
+    setSelected(null);
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -63,7 +133,7 @@ export function HospitalityHousekeeping({ hrefFor }: { hrefFor: (s: string) => s
         title="Housekeeping"
         subtitle="Today's cleaning board. Drag-free flow: each room moves from dirty to ready as the team works."
         actions={
-          <button type="button" className="sol-btn sol-btn-primary" onClick={() => toast('New housekeeping task created.')}>
+          <button type="button" className="sol-btn sol-btn-primary" onClick={openAssign}>
             <Plus size={15} aria-hidden /> Assign task
           </button>
         }
@@ -187,7 +257,7 @@ export function HospitalityHousekeeping({ hrefFor }: { hrefFor: (s: string) => s
             <button
               type="button"
               className="sol-btn sol-btn-primary"
-              onClick={() => { toast(`Room ${selected?.room_number} marked ready.`); setSelected(null); }}
+              onClick={() => selected && updateStage(selected, 'ready', `Room ${selected.room_number} marked ready.`)}
             >
               <Check size={15} /> Mark ready
             </button>
@@ -209,10 +279,14 @@ export function HospitalityHousekeeping({ hrefFor }: { hrefFor: (s: string) => s
               <div className="sol-kv-row"><span>Note</span><strong>{selected.note || '—'}</strong></div>
             </div>
             <div className="sol-row sol-gap-2 sol-wrap">
-              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => toast('Reassigned to Ruth Okoro.')}>
+              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => reassign(selected)}>
                 Reassign
               </button>
-              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => toast('Marked inspected.')}>
+              <button
+                type="button"
+                className="sol-btn sol-btn-subtle sol-btn-sm"
+                onClick={() => updateStage(selected, 'inspected', 'Marked inspected.')}
+              >
                 Mark inspected
               </button>
               <button type="button" className="sol-btn sol-btn-ghost sol-btn-sm" onClick={() => toast('Maintenance ticket opened.')}>
@@ -221,6 +295,73 @@ export function HospitalityHousekeeping({ hrefFor }: { hrefFor: (s: string) => s
             </div>
           </>
         ) : null}
+      </Sheet>
+
+      <Sheet
+        open={assignOpen}
+        onClose={() => setAssignOpen(false)}
+        title="Assign a housekeeping task"
+        subtitle="Put a room on the cleaning board with an owner and priority."
+        width={440}
+        footer={
+          <>
+            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => setAssignOpen(false)}>
+              Cancel
+            </button>
+            <button type="button" className="sol-btn sol-btn-primary" onClick={assignTask}>
+              <Plus size={15} /> Assign task
+            </button>
+          </>
+        }
+      >
+        <div className="sol-form-grid">
+          <Field label="Room">
+            <select
+              className="sol-select"
+              value={assign.room}
+              onChange={(e) => setAssign({ ...assign, room: e.target.value })}
+            >
+              {housekeepingRooms.map((r) => (
+                <option key={r.id} value={r.room_number}>
+                  Room {r.room_number} · {r.category}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Attendant">
+            <select
+              className="sol-select"
+              value={assign.assignee}
+              onChange={(e) => setAssign({ ...assign, assignee: e.target.value })}
+            >
+              {attendants.map((s) => (
+                <option key={s.id} value={s.full_name}>
+                  {s.full_name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Priority">
+            <select
+              className="sol-select"
+              value={assign.priority}
+              onChange={(e) => setAssign({ ...assign, priority: e.target.value })}
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </Field>
+          <Field label="Note" className="full">
+            <input
+              className="sol-input"
+              value={assign.note}
+              onChange={(e) => setAssign({ ...assign, note: e.target.value })}
+              placeholder="e.g. Deep clean after late checkout"
+            />
+          </Field>
+        </div>
       </Sheet>
     </>
   );
@@ -563,22 +704,64 @@ export function HospitalityStaff({ hrefFor }: { hrefFor: (s: string) => string }
 
 export function HospitalityTasks({ hrefFor }: { hrefFor: (s: string) => string }) {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
   const [tab, setTab] = useState<'today' | 'upcoming' | 'done'>('today');
-  const [done, setDone] = useState<Record<string, boolean>>(
-    () => Object.fromEntries(tasks.map((t) => [t.id, t.done]))
-  );
   const [selected, setSelected] = useState<HotelTask | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [form, setForm] = useState({
+    title: '',
+    room: '',
+    assignee: staff[0]?.full_name || '',
+    priority: 'medium',
+    due: 'Today · 12:00',
+    group: 'today',
+  });
 
-  const rows = tasks.filter((t) => (tab === 'done' ? done[t.id] : t.group === tab && !done[t.id]));
-  const openCount = tasks.filter((t) => !done[t.id]).length;
-  const urgent = tasks.filter((t) => t.priority === 'urgent' && !done[t.id]).length;
+  const rows = tasks.filter((t) => (tab === 'done' ? t.done : t.group === tab && !t.done));
+  const openCount = tasks.filter((t) => !t.done).length;
+  const urgent = tasks.filter((t) => t.priority === 'urgent' && !t.done).length;
 
-  const toggle = (id: string) => {
-    setDone((d) => {
-      const next = { ...d, [id]: !d[id] };
-      toast(next[id] ? 'Task completed.' : 'Task reopened.');
-      return next;
+  const toggle = async (task: HotelTask) => {
+    const next = !task.done;
+    const res = await mutate({
+      action: 'record_update',
+      id: task.id,
+      status: next ? 'done' : 'open',
+      meta: { done: next },
     });
+    if (!res.ok) {
+      toast(res.error || 'Could not update the task.');
+      return;
+    }
+    toast(next ? 'Task completed.' : 'Task reopened.');
+    setSelected(null);
+  };
+
+  const createTask = async () => {
+    if (!form.title.trim()) {
+      toast('Give the task a title to continue.');
+      return;
+    }
+    const res = await mutate({
+      action: 'record_create',
+      module: 'tasks',
+      title: form.title.trim(),
+      status: 'open',
+      meta: {
+        room: form.room.trim() || undefined,
+        assignee: form.assignee,
+        priority: form.priority,
+        due: form.due,
+        group: form.group,
+      },
+    });
+    if (!res.ok) {
+      toast(res.error || 'Could not create the task.');
+      return;
+    }
+    toast(`${form.title.trim()} added to ${form.group === 'today' ? 'today' : 'upcoming'}.`);
+    setForm({ ...form, title: '', room: '' });
+    setCreateOpen(false);
   };
 
   return (
@@ -588,7 +771,7 @@ export function HospitalityTasks({ hrefFor }: { hrefFor: (s: string) => string }
         title="Tasks"
         subtitle="Everything the team needs to action today — assigned, prioritised and visible to all."
         actions={
-          <button type="button" className="sol-btn sol-btn-primary" onClick={() => toast('New task created.')}>
+          <button type="button" className="sol-btn sol-btn-primary" onClick={() => setCreateOpen(true)}>
             <Plus size={15} aria-hidden /> New task
           </button>
         }
@@ -596,7 +779,7 @@ export function HospitalityTasks({ hrefFor }: { hrefFor: (s: string) => string }
           <>
             <span className="sol-stat-line"><span className="sol-dot amber" /> {openCount} open</span>
             <span className="sol-stat-line"><span className="sol-dot red" /> {urgent} urgent</span>
-            <span className="sol-stat-line"><span className="sol-dot green" /> {tasks.filter((t) => done[t.id]).length} completed</span>
+            <span className="sol-stat-line"><span className="sol-dot green" /> {tasks.filter((t) => t.done).length} completed</span>
           </>
         }
       />
@@ -604,8 +787,8 @@ export function HospitalityTasks({ hrefFor }: { hrefFor: (s: string) => string }
       <div className="sol-kpis">
         <Kpi label="Open tasks" value={openCount} icon="checklist" foot="across the property" accent />
         <Kpi label="Urgent" value={urgent} icon="bell" foot="needs attention now" />
-        <Kpi label="Due today" value={tasks.filter((t) => t.group === 'today' && !done[t.id]).length} icon="clock" foot="before close" />
-        <Kpi label="Completed" value={tasks.filter((t) => done[t.id]).length} icon="checkCircle" delta="On track" deltaDir="up" foot="today" />
+        <Kpi label="Due today" value={tasks.filter((t) => t.group === 'today' && !t.done).length} icon="clock" foot="before close" />
+        <Kpi label="Completed" value={tasks.filter((t) => t.done).length} icon="checkCircle" delta="On track" deltaDir="up" foot="today" />
       </div>
 
       <Card
@@ -627,14 +810,14 @@ export function HospitalityTasks({ hrefFor }: { hrefFor: (s: string) => string }
         {rows.length ? (
           <div>
             {rows.map((t) => (
-              <div key={t.id} className="sol-check-row" data-done={done[t.id] ? 'true' : 'false'}>
+              <div key={t.id} className="sol-check-row" data-done={t.done ? 'true' : 'false'}>
                 <button
                   type="button"
                   className="sol-check"
                   role="checkbox"
-                  aria-checked={Boolean(done[t.id])}
+                  aria-checked={Boolean(t.done)}
                   aria-label={`Mark ${t.title} complete`}
-                  onClick={() => toggle(t.id)}
+                  onClick={() => toggle(t)}
                 >
                   <Check size={13} aria-hidden />
                 </button>
@@ -671,8 +854,8 @@ export function HospitalityTasks({ hrefFor }: { hrefFor: (s: string) => string }
         footer={
           <>
             <button type="button" className="sol-btn sol-btn-ghost" onClick={() => setSelected(null)}>Close</button>
-            <button type="button" className="sol-btn sol-btn-primary" onClick={() => { if (selected) toggle(selected.id); setSelected(null); }}>
-              <Check size={15} /> {selected && done[selected.id] ? 'Reopen task' : 'Complete task'}
+            <button type="button" className="sol-btn sol-btn-primary" onClick={() => { if (selected) toggle(selected); setSelected(null); }}>
+              <Check size={15} /> {selected && selected.done ? 'Reopen task' : 'Complete task'}
             </button>
           </>
         }
@@ -689,7 +872,7 @@ export function HospitalityTasks({ hrefFor }: { hrefFor: (s: string) => string }
               <div className="sol-kv-row"><span>Assigned to</span><strong>{selected.assignee}</strong></div>
               <div className="sol-kv-row"><span>Due</span><strong>{selected.due}</strong></div>
               {selected.room ? <div className="sol-kv-row"><span>Room</span><strong>{selected.room}</strong></div> : null}
-              <div className="sol-kv-row"><span>Status</span><strong>{done[selected.id] ? 'Completed' : 'Open'}</strong></div>
+              <div className="sol-kv-row"><span>Status</span><strong>{selected.done ? 'Completed' : 'Open'}</strong></div>
             </div>
             <div className="sol-row sol-gap-2 sol-wrap">
               <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => toast('Task reassigned.')}>Reassign</button>
@@ -697,6 +880,85 @@ export function HospitalityTasks({ hrefFor }: { hrefFor: (s: string) => string }
             </div>
           </>
         ) : null}
+      </Sheet>
+
+      <Sheet
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="New task"
+        subtitle="Add an operational item to today's or the upcoming list."
+        width={440}
+        footer={
+          <>
+            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </button>
+            <button type="button" className="sol-btn sol-btn-primary" onClick={createTask}>
+              <Plus size={15} /> Create task
+            </button>
+          </>
+        }
+      >
+        <div className="sol-form-grid">
+          <Field label="Task" className="full">
+            <input
+              className="sol-input"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              placeholder="e.g. Restock minibar on floor 3"
+            />
+          </Field>
+          <Field label="Room (optional)">
+            <input
+              className="sol-input"
+              value={form.room}
+              onChange={(e) => setForm({ ...form, room: e.target.value })}
+              placeholder="e.g. 204"
+            />
+          </Field>
+          <Field label="Assignee">
+            <select
+              className="sol-select"
+              value={form.assignee}
+              onChange={(e) => setForm({ ...form, assignee: e.target.value })}
+            >
+              {staff.map((s) => (
+                <option key={s.id} value={s.full_name}>
+                  {s.full_name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Priority">
+            <select
+              className="sol-select"
+              value={form.priority}
+              onChange={(e) => setForm({ ...form, priority: e.target.value })}
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </Field>
+          <Field label="Due">
+            <input
+              className="sol-input"
+              value={form.due}
+              onChange={(e) => setForm({ ...form, due: e.target.value })}
+            />
+          </Field>
+          <Field label="List">
+            <select
+              className="sol-select"
+              value={form.group}
+              onChange={(e) => setForm({ ...form, group: e.target.value })}
+            >
+              <option value="today">Today</option>
+              <option value="upcoming">Upcoming</option>
+            </select>
+          </Field>
+        </div>
       </Sheet>
     </>
   );

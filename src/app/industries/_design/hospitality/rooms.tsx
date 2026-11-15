@@ -25,6 +25,7 @@ import {
 import { Icon } from '../icons';
 import { compactMoney, fmtDate, money } from '../format';
 import { bookings, occupancy, roomTypeStats, rooms } from './mock';
+import { useSolutionsLive } from '../live';
 import type { Room, RoomStatus } from '../types';
 
 type StatusTab = 'all' | RoomStatus;
@@ -41,6 +42,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 export function HospitalityRooms({ hrefFor }: { hrefFor: (s: string) => string }) {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
   const [tab, setTab] = useState<StatusTab>('all');
   const [view, setView] = useState<ViewId>('grid');
   const [query, setQuery] = useState('');
@@ -80,10 +82,14 @@ export function HospitalityRooms({ hrefFor }: { hrefFor: (s: string) => string }
     ? bookings.find((b) => b.guest_name === selected.guest_name && b.room_number === selected.room_number)
     : undefined;
 
-  const setRoomStatus = (room: Room, status: RoomStatus, message: string) => {
+  const setRoomStatus = async (room: Room, status: RoomStatus, message: string) => {
+    const res = await mutate({ action: 'room_update', id: room.id, status });
+    if (!res.ok) {
+      toast(res.error || 'Could not update the room.');
+      return;
+    }
     toast(message);
     setSelected(null);
-    void status;
   };
 
   return (
@@ -416,9 +422,31 @@ export function HospitalityRooms({ hrefFor }: { hrefFor: (s: string) => string }
 
 function AddRoomSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ number: '', floor: 'Floor 1', category: 'Deluxe King', rate: '95000', capacity: '2' });
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const addRoom = async () => {
+    setSaving(true);
+    const res = await mutate({
+      action: 'room_create',
+      roomNumber: form.number.trim(),
+      floor: form.floor,
+      category: form.category,
+      rateAmount: Number(form.rate) || 0,
+      capacity: Number(form.capacity) || 2,
+      status: 'available',
+    });
+    setSaving(false);
+    if (!res.ok) {
+      toast(res.error || 'Could not add the room.');
+      return;
+    }
+    toast(`Room ${form.number.trim()} added as ${form.category}.`);
+    onClose();
+  };
 
   return (
     <Sheet
@@ -433,13 +461,10 @@ function AddRoomSheet({ open, onClose }: { open: boolean; onClose: () => void })
           <button
             type="button"
             className="sol-btn sol-btn-primary"
-            disabled={!form.number.trim()}
-            onClick={() => {
-              toast(`Room ${form.number.trim()} added as ${form.category}.`);
-              onClose();
-            }}
+            disabled={!form.number.trim() || saving}
+            onClick={addRoom}
           >
-            Add room
+            {saving ? 'Adding…' : 'Add room'}
           </button>
         </>
       }

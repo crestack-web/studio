@@ -17,7 +17,8 @@ import {
 } from '../primitives';
 import { Icon } from '../icons';
 import { money } from '../format';
-import { clinic, clinicians, patients } from './mock';
+import { clinic, clinicians, orgSettings, patients } from './mock';
+import { useSolutionsLive } from '../live';
 
 /* ── Clinic settings ──────────────────────────────────────────────── */
 
@@ -40,6 +41,8 @@ const PAYERS = [
 
 export function HealthcareClinicSettings() {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: clinic.name,
     legal: clinic.legalName,
@@ -52,11 +55,25 @@ export function HealthcareClinicSettings() {
     beds: String(clinic.totalBeds),
   });
   const [settings, setSettings] = useState({
-    autoConfirm: true,
-    reminders: true,
-    teleconsult: true,
-    walkIns: true,
+    autoConfirm: orgSettings.autoConfirm ?? true,
+    reminders: orgSettings.reminders ?? true,
+    teleconsult: orgSettings.teleconsult ?? true,
+    walkIns: orgSettings.walkIns ?? true,
   });
+
+  const save = async () => {
+    setSaving(true);
+    const res = await mutate({
+      action: 'settings_save',
+      settings: { ...form, ...settings, currency: clinic.currency },
+    });
+    setSaving(false);
+    if (!res.ok) {
+      toast(res.error || 'Could not save clinic settings.');
+      return;
+    }
+    toast('Clinic settings saved.');
+  };
   const set =
     (key: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -73,8 +90,8 @@ export function HealthcareClinicSettings() {
         title="Clinic settings"
         subtitle="Clinic details, opening hours, services and the defaults that power appointments, visits and billing."
         actions={
-          <button type="button" className="sol-btn sol-btn-primary" onClick={() => toast('Clinic settings saved.')}>
-            Save changes
+          <button type="button" className="sol-btn sol-btn-primary" onClick={save} disabled={saving}>
+            {saving ? 'Saving…' : 'Save changes'}
           </button>
         }
       />

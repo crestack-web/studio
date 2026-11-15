@@ -36,18 +36,21 @@ import {
 
 /* ── Revenue ──────────────────────────────────────────────────────── */
 
-const revenueChart = revenueSeries.map((p) => ({
-  label: fmtDate(p.date),
-  Rooms: p.rooms,
-  'Food & beverage': p.food,
-  Services: p.other,
-}));
-
-const occupancyChart = revenueSeries.map((p) => ({ label: fmtDate(p.date), Occupancy: p.occupancy }));
-
 export function HospitalityRevenue({ hrefFor }: { hrefFor: (s: string) => string }) {
   const { toast } = useToast();
   const [range, setRange] = useState<'7d' | '14d' | '30d'>('14d');
+
+  const revenueChart = revenueSeries.map((p) => ({
+    label: fmtDate(p.date),
+    Rooms: p.rooms,
+    'Food & beverage': p.food,
+    Services: p.other,
+  }));
+
+  const occupancyChart = revenueSeries.map((p) => ({
+    label: fmtDate(p.date),
+    Occupancy: p.occupancy,
+  }));
 
   const rangeData = range === '7d' ? revenueChart.slice(-7) : revenueChart;
   const total = rangeData.reduce((a, p) => a + p.Rooms + p['Food & beverage'] + p.Services, 0);
@@ -431,6 +434,13 @@ export function HospitalityPayments({ hrefFor }: { hrefFor: (s: string) => strin
 export function HospitalityReports({ hrefFor }: { hrefFor: (s: string) => string }) {
   const { toast } = useToast();
   const [selected, setSelected] = useState<(typeof reports)[number] | null>(null);
+
+  const revenueChart = revenueSeries.map((p) => ({
+    label: fmtDate(p.date),
+    Rooms: p.rooms,
+    'Food & beverage': p.food,
+    Services: p.other,
+  }));
 
   return (
     <>

@@ -4,6 +4,7 @@ import type {
   Bed,
   Clinician,
   ClinicalActivity,
+  ConditionLogEntry,
   HealthPayment,
   Invoice,
   Patient,
@@ -13,6 +14,9 @@ import type {
 
 const TODAY = todayISO();
 const CUR = 'NGN';
+
+/** Saved workspace preferences from the live `settings` record. */
+export const orgSettings: Record<string, any> = {};
 
 export const clinic = {
   name: 'Meridian Health Clinic',
@@ -98,6 +102,21 @@ export const patients: Patient[] = patientSeeds.map((seed, i) => ({
 }));
 
 const patientByName = new Map(patients.map((p) => [p.full_name, p]));
+
+/* ── Condition timeline ───────────────────────────────────────────── */
+
+export const conditionLog: ConditionLogEntry[] = [
+  { id: 'cond-1', patient_id: 'patient-200', patient_name: 'Ngozi Okafor', condition: 'Hypertension', action: 'add', status: 'active', severity: 'moderate', note: 'BP 158/96 at review. Started amlodipine 5mg daily.', recorded_by: 'Dr. Ifeoma Nnaji', recorded_at: addDays(TODAY, -60) },
+  { id: 'cond-2', patient_id: 'patient-200', patient_name: 'Ngozi Okafor', condition: 'Hypertension', action: 'note', status: 'note', severity: 'mild', note: 'BP 132/84 — well controlled on current dose.', recorded_by: 'Nurse Blessing Ibe', recorded_at: addDays(TODAY, -3) },
+  { id: 'cond-3', patient_id: 'patient-201', patient_name: 'Emeka Obi', condition: 'Type 2 diabetes', action: 'add', status: 'active', severity: 'moderate', note: 'HbA1c 8.1% at diagnosis. Metformin started.', recorded_by: 'Dr. Ifeoma Nnaji', recorded_at: addDays(TODAY, -180) },
+  { id: 'cond-4', patient_id: 'patient-201', patient_name: 'Emeka Obi', condition: 'Hypertension', action: 'add', status: 'active', severity: 'moderate', note: 'Clinic BP 149/94 on two readings.', recorded_by: 'Dr. Bashir Lawal', recorded_at: addDays(TODAY, -40) },
+  { id: 'cond-5', patient_id: 'patient-201', patient_name: 'Emeka Obi', condition: 'Type 2 diabetes', action: 'note', status: 'note', severity: 'mild', note: 'HbA1c down to 6.9%. Dietitian review completed.', recorded_by: 'Dr. Ifeoma Nnaji', recorded_at: addDays(TODAY, -6) },
+  { id: 'cond-6', patient_id: 'patient-204', patient_name: 'Chiamaka Eze', condition: 'Asthma', action: 'add', status: 'active', severity: 'moderate', note: 'Recurrent night cough. Salbutamol inhaler with spacer prescribed.', recorded_by: 'Dr. Adaeze Nwosu', recorded_at: addDays(TODAY, -14) },
+  { id: 'cond-7', patient_id: 'patient-205', patient_name: 'Ibrahim Musa', condition: 'Cardiac arrhythmia', action: 'note', status: 'note', severity: 'moderate', note: 'Palpitations reported. ECG requested today.', recorded_by: 'Dr. Bashir Lawal', recorded_at: addDays(TODAY, -2) },
+  { id: 'cond-8', patient_id: 'patient-209', patient_name: 'David Okon', condition: 'Hypertension', action: 'add', status: 'active', severity: 'severe', note: 'Hypertensive urgency 178/108. Admitted for hourly monitoring.', recorded_by: 'Dr. Bashir Lawal', recorded_at: addDays(TODAY, -7) },
+  { id: 'cond-9', patient_id: 'patient-207', patient_name: 'Samuel Nnamdi', condition: 'Malaria', action: 'add', status: 'active', severity: 'moderate', note: 'Malaria RDT positive. Artemether-lumefantrine started.', recorded_by: 'Dr. Maryam Isa', recorded_at: TODAY },
+  { id: 'cond-10', patient_id: 'patient-211', patient_name: 'Yusuf Danladi', condition: 'Tonsillitis', action: 'resolve', status: 'resolved', severity: 'mild', note: 'Course completed, throat clear on review.', recorded_by: 'Dr. Adaeze Nwosu', recorded_at: addDays(TODAY, -5) },
+];
 
 /* ── Clinicians ───────────────────────────────────────────────────── */
 
@@ -458,3 +477,422 @@ export const notifications = [
   { id: 'hn-3', title: '2 invoices are overdue', detail: '₦81,500 past due date', time: '1h', unread: true },
   { id: 'hn-4', title: 'Dr. Lawal running 22 minutes late', detail: '3 appointments affected', time: '1h', unread: false },
 ];
+
+/* ── Live hydration ───────────────────────────────────────────────── */
+
+function asArray<T = any>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function replaceArray<T>(target: T[], next: T[]) {
+  target.splice(0, target.length, ...next);
+}
+
+function ageFromDob(dob: string | undefined | null): number {
+  if (!dob) return 0;
+  const d = new Date(dob);
+  if (Number.isNaN(d.getTime())) return 0;
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / (365.25 * 86_400_000)));
+}
+
+function recalcHealthcareSummaries() {
+  replaceArray(todaysAppointments, appointments.filter((a) => a.date === TODAY));
+  replaceArray(upcomingAppointments, appointments.filter((a) => a.date > TODAY));
+
+  Object.assign(appointmentStats, {
+    today: todaysAppointments.length,
+    waiting: todaysAppointments.filter((a) => a.status === 'waiting' || a.status === 'checked_in').length,
+    inConsultation: todaysAppointments.filter((a) => a.status === 'in_consultation').length,
+    completed: todaysAppointments.filter((a) => a.status === 'completed').length,
+    cancelled: todaysAppointments.filter((a) => a.status === 'cancelled' || a.status === 'no_show').length,
+    upcoming: upcomingAppointments.length,
+  });
+
+  Object.assign(visitStats, {
+    queue: visits.filter((v) => v.status === 'waiting').length,
+    inConsultation: visits.filter((v) => v.status === 'in_consultation').length,
+    completed: visits.filter((v) => v.status === 'completed').length,
+    avgWait: 18,
+  });
+
+  replaceArray(wards, Array.from(new Set(beds.map((b) => b.ward))));
+  Object.assign(bedOccupancy, {
+    total: beds.length,
+    occupied: beds.filter((b) => b.status === 'occupied').length,
+    available: beds.filter((b) => b.status === 'available').length,
+    cleaning: beds.filter((b) => b.status === 'cleaning').length,
+    reserved: beds.filter((b) => b.status === 'reserved').length,
+  });
+
+  Object.assign(supplyStats, {
+    items: supplies.length,
+    low: supplies.filter((s) => s.status === 'low_stock').length,
+    out: supplies.filter((s) => s.status === 'out_of_stock').length,
+    value: supplies.reduce((a, s) => a + s.stock * s.unit_cost, 0),
+  });
+
+  const billed = invoices.reduce((s, i) => s + i.amount, 0);
+  const collected = invoices.reduce((s, i) => s + i.paid, 0);
+  Object.assign(billingSummary, {
+    billedMTD: billed,
+    collectedMTD: collected,
+    outstanding: invoices.reduce((s, i) => s + Math.max(0, i.amount - i.paid), 0),
+    overdue: invoices
+      .filter((i) => i.status === 'overdue')
+      .reduce((s, i) => s + Math.max(0, i.amount - i.paid), 0),
+    invoices: invoices.length,
+    target: Math.max(20_000_000, Math.round(billed * 1.2)),
+  });
+
+  Object.assign(paymentSummary, {
+    collectedToday: payments
+      .filter((p) => p.status === 'settled' && p.date === TODAY)
+      .reduce((s, p) => s + p.amount, 0),
+    pending: payments.filter((p) => p.status === 'pending').reduce((s, p) => s + p.amount, 0),
+    refunds: payments.filter((p) => p.status === 'refunded').reduce((s, p) => s + p.amount, 0),
+    settled: payments.filter((p) => p.status === 'settled').length,
+  });
+
+  const byDay = new Map<string, { billed: number; count: number }>();
+  for (const invoice of invoices) {
+    const key = invoice.date || TODAY;
+    const row = byDay.get(key) || { billed: 0, count: 0 };
+    row.billed += invoice.amount;
+    row.count += 1;
+    byDay.set(key, row);
+  }
+  const days = Array.from(byDay.keys()).sort().slice(-14);
+  replaceArray(
+    revenueSeries,
+    days.length > 1
+      ? days.map((date) => {
+          const row = byDay.get(date) as { billed: number; count: number };
+          return {
+            date,
+            consultations: row.billed,
+            procedures: 0,
+            laboratory: 0,
+            pharmacy: 0,
+            patients: row.count,
+          };
+        })
+      : revenueSeries,
+  );
+
+  const payerCounts = new Map<string, number>();
+  for (const invoice of invoices) payerCounts.set(invoice.payer, (payerCounts.get(invoice.payer) || 0) + 1);
+  const payerTotal = Math.max(1, invoices.length);
+  replaceArray(
+    payerMix,
+    Array.from(payerCounts.entries()).map(([name, count], i) => ({
+      name,
+      value: Math.round((count / payerTotal) * 100),
+      color: `var(--sol-chart-${(i % 4) + 1})`,
+    })),
+  );
+
+  const deptCounts = new Map<string, number>();
+  for (const appt of appointments) {
+    if (!appt.department) continue;
+    deptCounts.set(appt.department, (deptCounts.get(appt.department) || 0) + 1);
+  }
+  replaceArray(
+    departmentMix,
+    Array.from(deptCounts.entries()).map(([name, value]) => ({ name, value })),
+  );
+}
+
+export function hydrateHealthcare(payload: any): boolean {
+  if (!payload) return false;
+
+  const livePatients: Patient[] = asArray(payload.patients).map((r: any) => ({
+    id: String(r.id),
+    mrn: String(r.patient_code || r.mrn || `MRC-${String(r.id).slice(0, 4)}`),
+    full_name: String(r.full_name || r.name || 'Patient'),
+    phone: String(r.phone || ''),
+    email: String(r.email || ''),
+    date_of_birth: String(r.date_of_birth || ''),
+    age: ageFromDob(r.date_of_birth),
+    sex: String(r.sex || '').toLowerCase() === 'male' ? 'Male' : 'Female',
+    blood_group: String(r.blood_group || ''),
+    conditions: asArray(r.conditions).map(String),
+    allergies: asArray(r.allergies).map(String),
+    status: (['active', 'new', 'chronic', 'inactive'].includes(String(r.status))
+      ? r.status
+      : 'active') as Patient['status'],
+    visits: 0,
+    last_visit: String(r.updated_at || r.created_at || TODAY).slice(0, 10),
+    balance: 0,
+    notes: r.notes ? String(r.notes) : undefined,
+  }));
+
+  const liveAppointments: Appointment[] = asArray(payload.appointments).map((r: any) => {
+    const when = r.scheduled_at ? new Date(r.scheduled_at) : new Date();
+    const valid = !Number.isNaN(when.getTime());
+    return {
+      id: String(r.id),
+      patient_id: String(r.patient_id || ''),
+      patient_name: String(r.patient_name || 'Patient'),
+      clinician: String(r.clinician_name || 'Unassigned'),
+      department: String(r.department || 'General medicine'),
+      date: valid ? when.toISOString().slice(0, 10) : TODAY,
+      time: valid ? when.toTimeString().slice(0, 5) : '09:00',
+      duration: Number(r.duration_minutes || 20),
+      reason: String(r.reason || 'Consultation'),
+      status: (['scheduled', 'checked_in', 'waiting', 'in_consultation', 'completed', 'cancelled', 'no_show'].includes(
+        String(r.status),
+      )
+        ? r.status
+        : 'scheduled') as Appointment['status'],
+      mode: String(r.mode) === 'teleconsult' ? 'teleconsult' : 'in_person',
+      room: r.room ? String(r.room) : undefined,
+    };
+  });
+
+  const liveVisits: Visit[] = asArray(payload.visits).map((r: any) => ({
+    id: String(r.id),
+    patient_id: String(r.patient_id || ''),
+    patient_name: String(r.patient_name || 'Patient'),
+    clinician: String(r.clinician_name || 'Unassigned'),
+    department: String(r.department || 'General medicine'),
+    type: (['consultation', 'follow_up', 'procedure', 'lab'].includes(String(r.visit_type))
+      ? r.visit_type
+      : 'consultation') as Visit['type'],
+    status:
+      String(r.status) === 'completed'
+        ? 'completed'
+        : String(r.status) === 'in_progress' || String(r.status) === 'open'
+          ? 'in_consultation'
+          : 'waiting',
+    checked_in_at: String(r.created_at || new Date().toISOString()),
+    room: String(r.room || ''),
+    reason: String(r.chief_complaint || ''),
+    vitals: {
+      blood_pressure: String(r.vitals?.blood_pressure || ''),
+      temperature: Number(r.vitals?.temperature || 0),
+      pulse: Number(r.vitals?.pulse || 0),
+      weight: Number(r.vitals?.weight || 0),
+      oxygen: Number(r.vitals?.oxygen || 0),
+    },
+    diagnosis: r.diagnosis ? String(r.diagnosis) : undefined,
+    note: r.notes ? String(r.notes) : undefined,
+  }));
+
+  const liveClinicians: Clinician[] = asArray(payload.staff).map((r: any) => ({
+    id: String(r.id),
+    full_name: String(r.full_name || 'Clinician'),
+    email: String(r.email || ''),
+    phone: String(r.phone || ''),
+    role: String(r.role || 'Clinician'),
+    department: String(r.department || 'General medicine'),
+    shift: (['Morning', 'Afternoon', 'Night', 'Off duty'].includes(String(r.shift))
+      ? r.shift
+      : 'Morning') as Clinician['shift'],
+    status:
+      String(r.status) === 'on_leave'
+        ? 'on_leave'
+        : String(r.status) === 'inactive'
+          ? 'off_duty'
+          : 'on_duty',
+    appointments_today: liveAppointments.filter(
+      (a) => a.date === TODAY && a.clinician === String(r.full_name),
+    ).length,
+    license: String(r.license_number || ''),
+  }));
+
+  const liveInvoices: Invoice[] = asArray(payload.billing).map((r: any) => {
+    const amount = Number(r.amount || 0);
+    const paid = Number(r.paid_amount || 0);
+    const raw = String(r.status || '');
+    const status: Invoice['status'] =
+      raw === 'paid' || (amount > 0 && paid >= amount)
+        ? 'paid'
+        : paid > 0
+          ? 'partially_paid'
+          : raw === 'overdue'
+            ? 'overdue'
+            : 'pending';
+    return {
+      id: String(r.id),
+      number: String(r.invoice_number || `INV-${String(r.id).slice(0, 4)}`),
+      patient_id: String(r.patient_id || ''),
+      patient_name: String(r.patient_name || 'Patient'),
+      services: asArray(r.meta?.services).length
+        ? asArray(r.meta.services)
+        : [{ name: String(r.description || 'Care services'), amount }],
+      amount,
+      paid,
+      status,
+      date: String(r.created_at || TODAY).slice(0, 10),
+      due_date: String(r.due_date || TODAY).slice(0, 10),
+      payer: (['Self-pay', 'HMO', 'Corporate', 'Insurance'].includes(String(r.payer))
+        ? r.payer
+        : 'Self-pay') as Invoice['payer'],
+    };
+  });
+
+  const livePayments: HealthPayment[] = asArray(payload.payments).map((r: any) => {
+    const meta = r.meta || {};
+    return {
+      id: String(r.id),
+      reference: String(meta.reference || r.reference || `MER-${String(r.id).slice(0, 4)}`),
+      patient_name: String(meta.patient_name || r.title || 'Patient'),
+      invoice_number: String(meta.invoice_number || ''),
+      amount: Number(r.amount || 0),
+      method: (['card', 'transfer', 'cash', 'pos', 'insurance'].includes(String(meta.method))
+        ? meta.method
+        : 'cash') as HealthPayment['method'],
+      status: (String(r.status) === 'pending'
+        ? 'pending'
+        : String(r.status) === 'refunded' || String(r.status) === 'reversed'
+          ? 'refunded'
+          : 'settled') as HealthPayment['status'],
+      date: String(r.occurred_at || r.created_at || TODAY).slice(0, 10),
+    };
+  });
+
+  const liveBeds: Bed[] = asArray(payload.beds).map((r: any) => {
+    const meta = r.meta || {};
+    return {
+      id: String(r.id),
+      label: String(meta.label || r.title || 'Bed'),
+      ward: String(meta.ward || 'Medical ward'),
+      status: (['occupied', 'available', 'cleaning', 'reserved'].includes(String(r.status))
+        ? r.status
+        : 'available') as Bed['status'],
+      patient_name: meta.patient_name ? String(meta.patient_name) : undefined,
+      admitted_at: meta.admitted_at ? String(meta.admitted_at) : undefined,
+      nurse: String(meta.nurse || 'Unassigned'),
+      note: meta.note ? String(meta.note) : undefined,
+    };
+  });
+
+  const liveSupplies: SupplyItem[] = asArray(payload.supplies).map((r: any) => {
+    const meta = r.meta || {};
+    const stock = Number(meta.stock ?? 0);
+    const reorder = Number(meta.reorder_level ?? 0);
+    return {
+      id: String(r.id),
+      name: String(r.title || meta.name || 'Supply'),
+      category: String(meta.category || 'Consumables'),
+      unit: String(meta.unit || 'unit'),
+      stock,
+      reorder_level: reorder,
+      supplier: String(meta.supplier || ''),
+      last_restock: String(meta.last_restock || r.occurred_at || TODAY).slice(0, 10),
+      unit_cost: Number(meta.unit_cost ?? 0),
+      status:
+        stock <= 0 ? 'out_of_stock' : stock <= reorder ? 'low_stock' : 'in_stock',
+    };
+  });
+
+  const liveConditionLog: ConditionLogEntry[] = asArray(payload.conditionLog).map((r: any) => {
+    const meta = r.meta || {};
+    const status = ['active', 'resolved', 'note'].includes(String(r.status))
+      ? (String(r.status) as ConditionLogEntry['status'])
+      : 'active';
+    return {
+      id: String(r.id),
+      patient_id: String(meta.patient_id || ''),
+      patient_name: String(meta.patient_name || ''),
+      condition: String(r.title || meta.condition || ''),
+      action: (['add', 'resolve', 'note'].includes(String(meta.action))
+        ? meta.action
+        : status === 'resolved'
+          ? 'resolve'
+          : status === 'note'
+            ? 'note'
+            : 'add') as ConditionLogEntry['action'],
+      status,
+      severity: (['mild', 'moderate', 'severe'].includes(String(meta.severity))
+        ? meta.severity
+        : undefined) as ConditionLogEntry['severity'],
+      note: r.notes ? String(r.notes) : meta.note ? String(meta.note) : undefined,
+      recorded_by: meta.recorded_by ? String(meta.recorded_by) : undefined,
+      recorded_at: String(r.occurred_at || r.created_at || TODAY),
+    };
+  });
+
+  for (const log of liveConditionLog) {
+    if (log.status !== 'active') continue;
+    const patient = livePatients.find(
+      (p) => p.id === log.patient_id || p.full_name === log.patient_name,
+    );
+    const title = log.condition;
+    if (patient && title && !patient.conditions.some((c) => c.toLowerCase() === title.toLowerCase())) {
+      patient.conditions.push(title);
+    }
+  }
+
+  // Roll billing + visit activity onto patients
+  for (const patient of livePatients) {
+    const bill = liveInvoices.filter(
+      (i) => i.patient_id === patient.id || i.patient_name === patient.full_name,
+    );
+    patient.balance = bill.reduce((s, i) => s + Math.max(0, i.amount - i.paid), 0);
+    const patientVisits = liveVisits.filter(
+      (v) => v.patient_id === patient.id || v.patient_name === patient.full_name,
+    );
+    patient.visits = patientVisits.length;
+    if (patientVisits.length) {
+      patient.last_visit = patientVisits
+        .map((v) => v.checked_in_at.slice(0, 10))
+        .sort()
+        .pop() as string;
+    }
+    if (!patient.status || patient.status === 'active') {
+      if (patient.conditions.length >= 2) patient.status = 'chronic';
+    }
+  }
+
+  const settingsRow =
+    payload.settings && typeof payload.settings === 'object' ? payload.settings : null;
+  const settingsMeta =
+    settingsRow && settingsRow.meta && typeof settingsRow.meta === 'object'
+      ? (settingsRow.meta as Record<string, any>)
+      : null;
+
+  const anyLive =
+    livePatients.length +
+      liveAppointments.length +
+      liveVisits.length +
+      liveClinicians.length +
+      liveInvoices.length +
+      liveBeds.length +
+      liveSupplies.length +
+      livePayments.length +
+      liveConditionLog.length +
+      (settingsMeta ? 1 : 0) >
+    0;
+  if (!anyLive) return false;
+
+  if (settingsMeta) {
+    Object.assign(orgSettings, settingsMeta);
+    const s = settingsMeta;
+    if (s.name) clinic.name = String(s.name);
+    if (s.legal) clinic.legalName = String(s.legal);
+    if (s.location) clinic.location = String(s.location);
+    if (s.address) clinic.address = String(s.address);
+    if (s.phone) clinic.phone = String(s.phone);
+    if (s.email) clinic.email = String(s.email);
+    if (s.website) clinic.website = String(s.website);
+    if (s.opening) clinic.opening = String(s.opening);
+    if (s.closing) clinic.closing = String(s.closing);
+    if (s.tax != null && s.tax !== '') clinic.taxRate = Number(s.tax);
+    if (s.beds != null && s.beds !== '') clinic.totalBeds = Number(s.beds);
+    if (s.currency) clinic.currency = String(s.currency);
+  }
+
+  replaceArray(patients, livePatients);
+  replaceArray(conditionLog, liveConditionLog);
+  replaceArray(appointments, liveAppointments);
+  replaceArray(visits, liveVisits);
+  replaceArray(clinicians, liveClinicians);
+  replaceArray(invoices, liveInvoices);
+  replaceArray(payments, livePayments);
+  replaceArray(beds, liveBeds);
+  replaceArray(supplies, liveSupplies);
+
+  recalcHealthcareSummaries();
+  return true;
+}

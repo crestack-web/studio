@@ -18,35 +18,33 @@ import {
   timeStats,
 } from './mock';
 
-const revenueChart = revenueSeries.map((p) => ({
-  label: fmtDate(p.date),
-  Billed: p.billed,
-  Collected: p.collected,
-}));
-
-const utilisationChart = revenueSeries.slice(-7).map((p) => ({
-  label: fmtDate(p.date),
-  Utilisation: p.utilisation,
-}));
-
-const collectionRate = Math.round(
-  (revenueSummary.collectedMTD / Math.max(1, revenueSummary.billedMTD)) * 100,
-);
-
-const margins = projects
-  .filter((p) => p.budget > 0 && p.status !== 'draft')
-  .map((p) => ({
-    project: p,
-    margin: Math.round(((p.budget - p.spent) / p.budget) * 100),
-  }))
-  .sort((a, b) => b.margin - a.margin);
-
-const avgMargin = Math.round(margins.reduce((s, m) => s + m.margin, 0) / Math.max(1, margins.length));
-
-const utilisationSeries = revenueSeries.map((p) => p.utilisation);
-
 export function ProfessionalReports() {
   const { toast } = useToast();
+
+  const revenueChart = revenueSeries.map((p) => ({
+    label: fmtDate(p.date),
+    Billed: p.billed,
+    Collected: p.collected,
+  }));
+
+  const utilisationChart = revenueSeries.slice(-7).map((p) => ({
+    label: fmtDate(p.date),
+    Utilisation: p.utilisation,
+  }));
+
+  const collectionRate = Math.round(
+    (revenueSummary.collectedMTD / Math.max(1, revenueSummary.billedMTD)) * 100,
+  );
+
+  const margins = projects
+    .filter((p) => p.budget > 0 && p.status !== 'draft')
+    .map((p) => ({
+      project: p,
+      margin: Math.round(((p.budget - p.spent) / p.budget) * 100),
+    }))
+    .sort((a, b) => b.margin - a.margin);
+
+  const avgMargin = Math.round(margins.reduce((s, m) => s + m.margin, 0) / Math.max(1, margins.length));
 
   return (
     <>

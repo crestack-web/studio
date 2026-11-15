@@ -235,6 +235,20 @@ export type Patient = {
   notes?: string;
 };
 
+/** A single entry in a patient's condition timeline (add / resolve / note). */
+export type ConditionLogEntry = {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  condition: string;
+  action: 'add' | 'resolve' | 'note';
+  status: 'active' | 'resolved' | 'note';
+  severity?: 'mild' | 'moderate' | 'severe';
+  note?: string;
+  recorded_by?: string;
+  recorded_at: string;
+};
+
 export type AppointmentStatus =
   | 'scheduled'
   | 'checked_in'
@@ -621,6 +635,21 @@ export type TimetableSlot = {
   subject: string;
   teacher: string;
   room: string;
+};
+
+export type TopicStatus = 'planned' | 'in_progress' | 'covered';
+
+export type TeachingTopic = {
+  id: string;
+  class_name: string;
+  subject: string;
+  title: string;
+  teacher: string;
+  status: TopicStatus;
+  lessons_planned: number;
+  lessons_done: number;
+  term: string;
+  notes?: string;
 };
 
 export type FeeStatus = 'paid' | 'partially_paid' | 'pending' | 'overdue';

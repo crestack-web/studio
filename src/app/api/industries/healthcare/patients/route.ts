@@ -37,7 +37,7 @@ async function staffMap(admin: ReturnType<typeof getSupabaseAdmin>, businessId: 
   }
   const rec = await admin
     .from('industry_records')
-    .select('id, title, metadata, status')
+    .select('id, title, meta, status')
     .eq('business_id', businessId)
     .eq('product_edition', 'healthcare')
     .eq('module', 'staff')
@@ -47,7 +47,7 @@ async function staffMap(admin: ReturnType<typeof getSupabaseAdmin>, businessId: 
       map.set(r.id, {
         id: r.id,
         name: String(r.title || 'Staff'),
-        role: r.metadata?.role || null,
+        role: r.meta?.role || null,
       });
     }
   }

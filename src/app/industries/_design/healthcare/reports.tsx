@@ -17,20 +17,22 @@ import {
   visitStats,
 } from './mock';
 
-const revenueChart = revenueSeries.map((p) => ({
-  label: fmtDate(p.date),
-  Consultations: p.consultations,
-  Procedures: p.procedures,
-  Laboratory: p.laboratory,
-  Pharmacy: p.pharmacy,
-}));
-
-const departmentChart = departmentMix.map((d) => ({ label: d.name, Visits: d.value }));
-
-const collectionRate = Math.round((billingSummary.collectedMTD / billingSummary.billedMTD) * 100);
-
 export function HealthcareReports() {
   const { toast } = useToast();
+
+  const revenueChart = revenueSeries.map((p) => ({
+    label: fmtDate(p.date),
+    Consultations: p.consultations,
+    Procedures: p.procedures,
+    Laboratory: p.laboratory,
+    Pharmacy: p.pharmacy,
+  }));
+
+  const departmentChart = departmentMix.map((d) => ({ label: d.name, Visits: d.value }));
+
+  const collectionRate = Math.round(
+    (billingSummary.collectedMTD / Math.max(1, billingSummary.billedMTD)) * 100,
+  );
 
   return (
     <>

@@ -23,14 +23,6 @@ import {
   timetable,
 } from './mock';
 
-const revenueChart = revenueSeries.map((p) => ({
-  label: fmtDate(p.date),
-  Billed: p.billed,
-  Collected: p.collected,
-}));
-
-const attendanceSpark = attendanceDays.map((d) => d.rate);
-
 const enrolmentStages = [
   { id: 'applied', label: 'Applied', tone: 'blue' as const },
   { id: 'assessment', label: 'Assessment', tone: 'violet' as const },
@@ -49,20 +41,28 @@ const kindIcon: Record<string, string> = {
 
 const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
-const jsDay = new Date(`${todayISO()}T12:00:00`).getDay();
-const isSchoolDay = jsDay >= 1 && jsDay <= 5;
-const lessonDay = isSchoolDay ? WEEKDAY_SHORT[jsDay] : 'Mon';
-const lessonWhen = isSchoolDay ? 'today' : 'on Monday';
-const lessonsLabel = isSchoolDay ? "Today's lessons" : "Monday's lessons";
-
-const todayLessons = timetable.filter((slot) => slot.day === lessonDay).slice(0, 5);
-
-const collecting = students
-  .filter((s) => s.balance > 0)
-  .sort((a, b) => b.balance - a.balance)
-  .slice(0, 5);
-
 export function EducationOverview({ hrefFor }: { hrefFor: (s: string) => string }) {
+  const revenueChart = revenueSeries.map((p) => ({
+    label: fmtDate(p.date),
+    Billed: p.billed,
+    Collected: p.collected,
+  }));
+
+  const attendanceSpark = attendanceDays.map((d) => d.rate);
+
+  const jsDay = new Date(`${todayISO()}T12:00:00`).getDay();
+  const isSchoolDay = jsDay >= 1 && jsDay <= 5;
+  const lessonDay = isSchoolDay ? WEEKDAY_SHORT[jsDay] : 'Mon';
+  const lessonWhen = isSchoolDay ? 'today' : 'on Monday';
+  const lessonsLabel = isSchoolDay ? "Today's lessons" : "Monday's lessons";
+
+  const todayLessons = timetable.filter((slot) => slot.day === lessonDay).slice(0, 5);
+
+  const collecting = students
+    .filter((s) => s.balance > 0)
+    .sort((a, b) => b.balance - a.balance)
+    .slice(0, 5);
+
   const targetPct = Math.min(
     100,
     Math.round((feeSummary.collected / Math.max(1, feeSummary.collected + feeSummary.outstanding)) * 100),

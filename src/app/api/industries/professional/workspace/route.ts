@@ -6,6 +6,8 @@ import { loadIndustrySession } from '@/lib/industries/session';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const EDITION = 'professional';
+
 async function ctx(req: NextRequest) {
   const user = await getAuthUser(req);
   if (!user) return null;
@@ -21,7 +23,8 @@ function asRows(data: any): any[] {
 async function loadRecords(
   admin: ReturnType<typeof getSupabaseAdmin>,
   businessId: string,
-  moduleName: string
+  moduleName: string,
+  max = 200
 ) {
   const { data, error } = await admin
     .from('industry_records')
@@ -30,7 +33,7 @@ async function loadRecords(
     .eq('product_edition', 'professional')
     .eq('module', moduleName)
     .order('created_at', { ascending: false })
-    .limit(200);
+    .limit(max);
   if (error) return { rows: [] as any[], warning: error.message };
   return { rows: asRows(data), warning: null as string | null };
 }
@@ -54,6 +57,7 @@ export async function GET(req: NextRequest) {
     team,
     workload,
     payments,
+    settings,
   ] = await Promise.all([
     admin.from('solution_branding').select('*').eq('business_id', businessId).maybeSingle(),
     admin
@@ -77,6 +81,7 @@ export async function GET(req: NextRequest) {
     loadRecords(admin, businessId, 'team'),
     loadRecords(admin, businessId, 'workload'),
     loadRecords(admin, businessId, 'payments'),
+    loadRecords(admin, businessId, 'settings', 1),
   ]);
 
   const clients = asRows(clientsRes.data);
@@ -128,6 +133,7 @@ export async function GET(req: NextRequest) {
     team: team.rows,
     workload: workload.rows,
     payments: payments.rows,
+    settings: settings.rows[0] || null,
     warnings,
   });
 }
@@ -140,6 +146,56 @@ export async function POST(req: NextRequest) {
   const { businessId } = c;
   const action = String(body.action || '').trim();
 
+  if (action === 'settings_save') {
+    const settings = body.settings && typeof body.settings === 'object' ? body.settings : {};
+    const title = String(settings.name || settings.displayName || 'Studio settings');
+    const existing = await admin
+      .from('industry_records')
+      .select('id')
+      .eq('business_id', businessId)
+      .eq('product_edition', EDITION)
+      .eq('module', 'settings')
+      .limit(1)
+      .maybeSingle();
+    const { data, error } = existing.data
+      ? await admin
+          .from('industry_records')
+          .update({ title, meta: settings, status: 'active' })
+          .eq('id', existing.data.id)
+          .eq('business_id', businessId)
+          .select('*')
+          .single()
+      : await admin
+          .from('industry_records')
+          .insert({
+            business_id: businessId,
+            product_edition: EDITION,
+            module: 'settings',
+            title,
+            status: 'active',
+            meta: settings,
+            occurred_at: new Date().toISOString(),
+          })
+          .select('*')
+          .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    if (settings.name || settings.logoUrl || settings.currency) {
+      await admin.from('solution_branding').upsert(
+        {
+          business_id: businessId,
+          product_edition: EDITION,
+          display_name: settings.name || title,
+          logo_url: settings.logoUrl || null,
+          currency: settings.currency || 'NGN',
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'business_id' }
+      );
+    }
+    return NextResponse.json({ ok: true, settings: data });
+  }
+
   if (action === 'client_create') {
     const name = String(body.name || '').trim();
     if (!name) return NextResponse.json({ error: 'Client name required' }, { status: 400 });
@@ -151,6 +207,8 @@ export async function POST(req: NextRequest) {
         email: body.email || null,
         phone: body.phone || null,
         company: body.company || null,
+        industry: body.industry || null,
+        retainer: body.retainer != null && body.retainer !== '' ? Number(body.retainer) : 0,
         notes: body.notes || null,
         status: body.status || 'active',
       })
@@ -175,6 +233,11 @@ export async function POST(req: NextRequest) {
     if (body.status != null) patch.status = body.status;
     if (body.name != null) patch.name = body.name;
     if (body.notes != null) patch.notes = body.notes;
+    if (body.industry != null) patch.industry = body.industry;
+    if (body.retainer != null && body.retainer !== '') patch.retainer = Number(body.retainer);
+    if (body.email != null) patch.email = body.email;
+    if (body.phone != null) patch.phone = body.phone;
+    if (body.company != null) patch.company = body.company;
     const { data, error } = await admin
       .from('professional_clients')
       .update(patch)
@@ -255,7 +318,7 @@ export async function POST(req: NextRequest) {
         amount: body.amount != null ? Number(body.amount) : 0,
         notes: body.notes || null,
         occurred_at: body.occurredAt || new Date().toISOString(),
-        metadata: body.metadata || {},
+        meta: body.meta || body.meta || {},
       })
       .select('*')
       .single();

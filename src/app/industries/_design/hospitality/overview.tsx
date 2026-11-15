@@ -27,23 +27,6 @@ import {
   hotel,
 } from './mock';
 
-const highlightRooms = [
-  ...rooms.filter((r) => r.status === 'occupied').slice(0, 4),
-  ...rooms.filter((r) => r.status === 'available').slice(0, 4),
-  ...rooms.filter((r) => r.status === 'cleaning').slice(0, 2),
-  ...rooms.filter((r) => r.status === 'ooo').slice(0, 2),
-];
-
-const revenueChart = revenueSeries.map((p) => ({
-  label: fmtDate(p.date),
-  Rooms: p.rooms,
-  'Food & beverage': p.food,
-  Services: p.other,
-}));
-
-const occupancySpark = revenueSeries.map((p) => p.occupancy);
-const revenueSpark = revenueSeries.map((p) => p.rooms + p.food + p.other);
-
 const kindIcon: Record<string, string> = {
   check_in: 'login',
   check_out: 'logout',
@@ -57,6 +40,23 @@ export function HospitalityOverview({ hrefFor }: { hrefFor: (s: string) => strin
   const today = todayISO();
   const hkDone = housekeepingRooms.filter((r) => r.stage === 'ready' || r.stage === 'inspected').length;
   const vipArrivals = todaysArrivals.filter((b) => b.rate_per_night >= 150000).length;
+
+  const highlightRooms = [
+    ...rooms.filter((r) => r.status === 'occupied').slice(0, 4),
+    ...rooms.filter((r) => r.status === 'available').slice(0, 4),
+    ...rooms.filter((r) => r.status === 'cleaning').slice(0, 2),
+    ...rooms.filter((r) => r.status === 'ooo').slice(0, 2),
+  ];
+
+  const revenueChart = revenueSeries.map((p) => ({
+    label: fmtDate(p.date),
+    Rooms: p.rooms,
+    'Food & beverage': p.food,
+    Services: p.other,
+  }));
+
+  const occupancySpark = revenueSeries.map((p) => p.occupancy);
+  const revenueSpark = revenueSeries.map((p) => p.rooms + p.food + p.other);
 
   return (
     <>

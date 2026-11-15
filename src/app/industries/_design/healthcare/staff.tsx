@@ -16,6 +16,7 @@ import {
 } from '../primitives';
 import { Icon } from '../icons';
 import { clinicians, clinic } from './mock';
+import { useSolutionsLive } from '../live';
 import type { Clinician, ClinicianStatus } from '../types';
 
 type Filter = 'all' | ClinicianStatus;
@@ -29,10 +30,48 @@ const FILTERS: { id: Filter; label: string }[] = [
 
 export function HealthcareStaff() {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
   const [filter, setFilter] = useState<Filter>('all');
   const [selected, setSelected] = useState<Clinician | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: '', role: 'Staff nurse', department: 'Nursing', shift: 'Morning' });
+
+  const invite = async () => {
+    if (!form.name.trim()) {
+      toast('Enter the staff member’s name to continue.');
+      return;
+    }
+    setSaving(true);
+    const res = await mutate({
+      action: 'staff_create',
+      fullName: form.name.trim(),
+      role: form.role,
+      department: form.department,
+      shift: form.shift,
+      status: 'off_duty',
+    });
+    setSaving(false);
+    if (!res.ok) {
+      toast(res.error || 'Could not add the staff member.');
+      return;
+    }
+    toast(`${form.name.trim()} added to ${clinic.name}.`);
+    setForm({ ...form, name: '' });
+    setInviteOpen(false);
+  };
+
+  const cycleShift = async (person: Clinician) => {
+    const order = ['Morning', 'Afternoon', 'Night'];
+    const next = order[(order.indexOf(person.shift) + 1) % order.length] || 'Morning';
+    const res = await mutate({ action: 'staff_update', id: person.id, shift: next });
+    if (!res.ok) {
+      toast(res.error || 'Could not update the shift.');
+      return;
+    }
+    toast(`${person.full_name} moved to the ${next.toLowerCase()} shift.`);
+    setSelected(null);
+  };
 
   const list = useMemo(
     () => clinicians.filter((c) => (filter === 'all' ? true : c.status === filter)),
@@ -163,10 +202,7 @@ export function HealthcareStaff() {
             <button
               type="button"
               className="sol-btn sol-btn-primary"
-              onClick={() => {
-                toast(`Shift updated for ${selected?.full_name}.`);
-                setSelected(null);
-              }}
+              onClick={() => selected && cycleShift(selected)}
             >
               <Icon name="clock" size={15} /> Update shift
             </button>
@@ -254,17 +290,10 @@ export function HealthcareStaff() {
             <button
               type="button"
               className="sol-btn sol-btn-primary"
-              onClick={() => {
-                if (!form.name.trim()) {
-                  toast('Enter the staff member’s name to continue.');
-                  return;
-                }
-                toast(`${form.name.trim()} invited to ${clinic.name}.`);
-                setForm({ ...form, name: '' });
-                setInviteOpen(false);
-              }}
+              onClick={invite}
+              disabled={saving}
             >
-              <Icon name="mail" size={15} /> Send invite
+              <Icon name="mail" size={15} /> {saving ? 'Sending…' : 'Send invite'}
             </button>
           </>
         }

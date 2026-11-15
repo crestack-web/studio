@@ -22,6 +22,7 @@ import {
 import { Icon } from '../icons';
 import { compactMoney, fmtDate, money } from '../format';
 import { clients, invoices, projects } from './mock';
+import { useSolutionsLive } from '../live';
 import type { Client, ClientStatus } from '../types';
 
 type Filter = 'all' | ClientStatus;
@@ -64,6 +65,7 @@ function outstandingFor(clientId: string) {
 
 export function ProfessionalClients({ hrefFor }: { hrefFor: (s: string) => string }) {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<Client | null>(null);
@@ -93,9 +95,23 @@ export function ProfessionalClients({ hrefFor }: { hrefFor: (s: string) => strin
     ? projects.filter((p) => p.client_id === selected.id)
     : [];
 
-  const create = () => {
+  const create = async () => {
     if (!form.company.trim() || !form.name.trim()) {
       toast('Add the company and a contact name to continue.');
+      return;
+    }
+    const res = await mutate({
+      action: 'client_create',
+      name: form.name.trim(),
+      company: form.company.trim(),
+      email: form.email.trim() || undefined,
+      phone: form.phone.trim() || undefined,
+      industry: form.industry,
+      retainer: Number(form.retainer) || 0,
+      status: form.status,
+    });
+    if (!res.ok) {
+      toast(res.error || 'Could not add the client.');
       return;
     }
     toast(`${form.company.trim()} added as a client.`);

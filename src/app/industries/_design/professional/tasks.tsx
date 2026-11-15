@@ -23,6 +23,7 @@ import { Icon } from '../icons';
 import { addDays, fmtDate, todayISO } from '../format';
 import { projects, tasks, team } from './mock';
 import type { ProTask, ProTaskStatus, TaskPriority } from '../types';
+import { useSolutionsLive } from '../live';
 
 type View = 'board' | 'list';
 type Filter = 'all' | 'today' | 'week' | 'overdue' | 'urgent' | 'done';
@@ -54,6 +55,7 @@ const emptyForm = {
 
 export function ProfessionalTasks() {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
   const today = todayISO();
   const weekEnd = addDays(today, 7);
   const [view, setView] = useState<View>('board');
@@ -89,14 +91,38 @@ export function ProfessionalTasks() {
 
   const open = tasks.filter((t) => t.status !== 'done');
   const overdue = open.filter((t) => t.due < today);
-  const create = () => {
+  const create = async () => {
     if (!form.title.trim()) {
       toast('Give the task a title to continue.');
+      return;
+    }
+    const project = projects.find((p) => p.id === form.project);
+    const res = await mutate({
+      action: 'task_create',
+      title: form.title.trim(),
+      clientName: project?.client_name,
+      assignee: form.assignee,
+      priority: form.priority,
+      dueDate: form.due,
+      status: 'todo',
+    });
+    if (!res.ok) {
+      toast(res.error || 'Could not create the task.');
       return;
     }
     toast(`${form.title.trim()} assigned to ${form.assignee}.`);
     setCreateOpen(false);
     setForm({ ...emptyForm, title: '' });
+  };
+
+  const updateStatus = async (task: ProTask, status: ProTaskStatus, message: string) => {
+    const res = await mutate({ action: 'task_update', id: task.id, status });
+    if (!res.ok) {
+      toast(res.error || 'Could not update the task.');
+      return;
+    }
+    toast(message);
+    setSelected(null);
   };
 
   const card = (t: ProTask) => {
@@ -329,10 +355,10 @@ export function ProfessionalTasks() {
             <button
               type="button"
               className="sol-btn sol-btn-primary"
-              onClick={() => {
-                toast(`${selected?.title} marked complete.`);
-                setSelected(null);
-              }}
+              onClick={() =>
+                selected &&
+                updateStatus(selected, 'done', `${selected.title} marked complete.`)
+              }
             >
               <Icon name="checkCircle" size={15} /> Mark complete
             </button>
@@ -389,10 +415,9 @@ export function ProfessionalTasks() {
               <button
                 type="button"
                 className="sol-btn sol-btn-subtle sol-btn-sm"
-                onClick={() => {
-                  toast(`${selected.title} moved to in progress.`);
-                  setSelected(null);
-                }}
+                onClick={() =>
+                  updateStatus(selected, 'in_progress', `${selected.title} moved to in progress.`)
+                }
               >
                 <Icon name="layers" size={14} /> Start task
               </button>

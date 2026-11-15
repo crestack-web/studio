@@ -31,25 +31,6 @@ import {
   visits,
 } from './mock';
 
-const revenueChart = revenueSeries.map((p) => ({
-  label: fmtDate(p.date),
-  Consultations: p.consultations,
-  Procedures: p.procedures,
-  Laboratory: p.laboratory,
-  Pharmacy: p.pharmacy,
-}));
-
-const revenueSpark = revenueSeries.map(
-  (p) => p.consultations + p.procedures + p.laboratory + p.pharmacy,
-);
-const patientSpark = revenueSeries.map((p) => p.patients);
-
-const highlightBeds = [
-  ...beds.filter((b) => b.status === 'occupied').slice(0, 6),
-  ...beds.filter((b) => b.status === 'available').slice(0, 4),
-  ...beds.filter((b) => b.status === 'cleaning').slice(0, 2),
-];
-
 const kindIcon: Record<string, string> = {
   check_in: 'login',
   appointment: 'calendar',
@@ -59,15 +40,36 @@ const kindIcon: Record<string, string> = {
   alert: 'bell',
 };
 
-const occupancyRate = Math.round((bedOccupancy.occupied / bedOccupancy.total) * 100);
-const openQueue = visits.filter((v) => v.status !== 'completed');
-const lowSupply = supplies.filter((s) => s.status !== 'in_stock');
-
 export function HealthcareOverview({ hrefFor }: { hrefFor: (s: string) => string }) {
   const today = todayISO();
   const nextUp = todaysAppointments
     .filter((a) => a.status !== 'cancelled' && a.status !== 'completed')
     .sort((a, b) => a.time.localeCompare(b.time));
+
+  const revenueChart = revenueSeries.map((p) => ({
+    label: fmtDate(p.date),
+    Consultations: p.consultations,
+    Procedures: p.procedures,
+    Laboratory: p.laboratory,
+    Pharmacy: p.pharmacy,
+  }));
+
+  const revenueSpark = revenueSeries.map(
+    (p) => p.consultations + p.procedures + p.laboratory + p.pharmacy,
+  );
+  const patientSpark = revenueSeries.map((p) => p.patients);
+
+  const highlightBeds = [
+    ...beds.filter((b) => b.status === 'occupied').slice(0, 6),
+    ...beds.filter((b) => b.status === 'available').slice(0, 4),
+    ...beds.filter((b) => b.status === 'cleaning').slice(0, 2),
+  ];
+
+  const occupancyRate = bedOccupancy.total
+    ? Math.round((bedOccupancy.occupied / bedOccupancy.total) * 100)
+    : 0;
+  const openQueue = visits.filter((v) => v.status !== 'completed');
+  const lowSupply = supplies.filter((s) => s.status !== 'in_stock');
 
   return (
     <>

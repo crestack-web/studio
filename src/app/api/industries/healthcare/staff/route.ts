@@ -22,10 +22,10 @@ function mapRecord(r: any) {
   return {
     id: r.id,
     full_name: r.title,
-    role: r.metadata?.role || null,
-    specialty: r.metadata?.specialty || null,
-    phone: r.metadata?.phone || null,
-    email: r.metadata?.email || null,
+    role: r.meta?.role || null,
+    specialty: r.meta?.specialty || null,
+    phone: r.meta?.phone || null,
+    email: r.meta?.email || null,
     notes: r.notes || null,
     status: r.status,
     created_at: r.created_at,
@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
         status: payload.status,
         notes: payload.notes,
         occurred_at: new Date().toISOString(),
-        metadata: {
+        meta: {
           role: payload.role,
           specialty: payload.specialty,
           phone: payload.phone,
@@ -192,13 +192,13 @@ export async function POST(req: NextRequest) {
 
     const existing = await admin
       .from('industry_records')
-      .select('metadata')
+      .select('meta')
       .eq('id', id)
       .eq('business_id', c.businessId)
       .maybeSingle();
 
-    recPatch.metadata = {
-      ...(existing.data?.metadata || {}),
+    recPatch.meta = {
+      ...(existing.data?.meta || {}),
       ...(body.role != null ? { role: body.role } : {}),
       ...(body.specialty != null ? { specialty: body.specialty } : {}),
       ...(body.phone != null ? { phone: body.phone } : {}),

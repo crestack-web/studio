@@ -17,7 +17,8 @@ import {
 } from '../primitives';
 import { Icon } from '../icons';
 import { money } from '../format';
-import { firm, team } from './mock';
+import { firm, orgSettings, team } from './mock';
+import { useSolutionsLive } from '../live';
 
 /* ── Business settings ────────────────────────────────────────────── */
 
@@ -31,6 +32,8 @@ const RATE_CARD = [
 
 export function ProfessionalBusinessSettings() {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: firm.name,
     legal: firm.legalName,
@@ -44,15 +47,29 @@ export function ProfessionalBusinessSettings() {
     target: String(firm.monthlyTarget),
   });
   const [settings, setSettings] = useState({
-    autoDraft: true,
-    overdueChase: true,
-    timesheet: true,
-    digest: true,
+    autoDraft: orgSettings.autoDraft ?? true,
+    overdueChase: orgSettings.overdueChase ?? true,
+    timesheet: orgSettings.timesheet ?? true,
+    digest: orgSettings.digest ?? true,
   });
   const set =
     (key: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const save = async () => {
+    setSaving(true);
+    const res = await mutate({
+      action: 'settings_save',
+      settings: { ...form, ...settings, currency: firm.currency },
+    });
+    setSaving(false);
+    if (!res.ok) {
+      toast(res.error || 'Could not save business settings.');
+      return;
+    }
+    toast('Business settings saved.');
+  };
 
   return (
     <>
@@ -68,9 +85,10 @@ export function ProfessionalBusinessSettings() {
           <button
             type="button"
             className="sol-btn sol-btn-primary"
-            onClick={() => toast('Business settings saved.')}
+            onClick={save}
+            disabled={saving}
           >
-            Save changes
+            {saving ? 'Saving…' : 'Save changes'}
           </button>
         }
       />

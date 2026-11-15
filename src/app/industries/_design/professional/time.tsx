@@ -28,17 +28,16 @@ import type { TimeEntry } from '../types';
 
 type TabId = 'today' | 'week' | 'all';
 
-const today = todayISO();
-
-const week = Array.from({ length: 7 }, (_, i) => addDays(today, -6 + i));
-
-const hoursByDay = week.map((date) => ({
-  label: fmtDate(date),
-  Hours: timeEntries.filter((t) => t.date === date).reduce((s, t) => s + t.hours, 0),
-}));
-
 export function ProfessionalTime() {
   const { toast } = useToast();
+  const today = todayISO();
+  const week = Array.from({ length: 7 }, (_, i) => addDays(today, -6 + i));
+
+  const hoursByDay = week.map((date) => ({
+    label: fmtDate(date),
+    Hours: timeEntries.filter((t) => t.date === date).reduce((s, t) => s + t.hours, 0),
+  }));
+
   const [tab, setTab] = useState<TabId>('week');
   const [query, setQuery] = useState('');
   const [member, setMember] = useState('all');

@@ -3,12 +3,15 @@
 import React, { useState } from 'react';
 import { Avatar, Badge, Banner, Card, Field, PageHeader, Switch, TableWrap, Td, Th, useToast } from '../primitives';
 import { Icon } from '../icons';
-import { classes, school, teachers } from './mock';
+import { classes, orgSettings, school, teachers } from './mock';
+import { useSolutionsLive } from '../live';
 
 /* ── School settings ───────────────────────────────────────────────── */
 
 export function EducationSchoolSettings() {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: school.name,
     legal: school.legalName,
@@ -22,11 +25,25 @@ export function EducationSchoolSettings() {
     session: school.session,
   });
   const [settings, setSettings] = useState({
-    smsGuardians: true,
-    lateFeePolicy: true,
-    autoReceipts: true,
-    termReminders: true,
+    smsGuardians: orgSettings.smsGuardians ?? true,
+    lateFeePolicy: orgSettings.lateFeePolicy ?? true,
+    autoReceipts: orgSettings.autoReceipts ?? true,
+    termReminders: orgSettings.termReminders ?? true,
   });
+
+  const save = async () => {
+    setSaving(true);
+    const res = await mutate({
+      action: 'settings_save',
+      settings: { ...form, ...settings, currency: school.currency },
+    });
+    setSaving(false);
+    if (!res.ok) {
+      toast(res.error || 'Could not save school settings.');
+      return;
+    }
+    toast('School settings saved.');
+  };
 
   const set =
     (key: keyof typeof form) =>
@@ -54,8 +71,8 @@ export function EducationSchoolSettings() {
         title="School settings"
         subtitle="Institution profile, fee schedule and the automations that keep operations smooth."
         actions={
-          <button type="button" className="sol-btn sol-btn-primary" onClick={() => toast('School settings saved.')}>
-            Save changes
+          <button type="button" className="sol-btn sol-btn-primary" onClick={save} disabled={saving}>
+            {saving ? 'Saving…' : 'Save changes'}
           </button>
         }
       />

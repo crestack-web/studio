@@ -28,6 +28,7 @@ import {
   todaysAppointments,
   upcomingAppointments,
 } from './mock';
+import { useSolutionsLive } from '../live';
 import type { Appointment } from '../types';
 
 type TabId = 'today' | 'upcoming' | 'cancelled' | 'all';
@@ -40,6 +41,7 @@ const HOURS = [
 
 export function HealthcareAppointments() {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
   const today = todayISO();
   const [tab, setTab] = useState<TabId>('today');
   const [selected, setSelected] = useState<Appointment | null>(null);
@@ -71,14 +73,40 @@ export function HealthcareAppointments() {
     );
   }, [tab, cancelled]);
 
-  const book = () => {
+  const book = async () => {
     if (!form.reason.trim()) {
       toast('Add a reason for the visit to book the appointment.');
+      return;
+    }
+    const patient = patients.find((p) => p.full_name === form.patient);
+    const res = await mutate({
+      action: 'appointment_create',
+      patientId: patient?.id,
+      patientName: form.patient,
+      clinicianName: form.clinician,
+      date: form.date,
+      time: form.time,
+      reason: form.reason.trim(),
+      mode: form.mode,
+      department: clinicians.find((c) => c.full_name === form.clinician)?.department,
+    });
+    if (!res.ok) {
+      toast(res.error || 'Could not book the appointment.');
       return;
     }
     toast(`Appointment booked for ${form.patient} on ${fmtDate(form.date)} at ${form.time}.`);
     setBookingOpen(false);
     setForm({ ...form, reason: '' });
+  };
+
+  const updateStatus = async (appointment: Appointment, status: string, message: string) => {
+    const res = await mutate({ action: 'appointment_update', id: appointment.id, status });
+    if (!res.ok) {
+      toast(res.error || 'Could not update the appointment.');
+      return;
+    }
+    toast(message);
+    setSelected(null);
   };
 
   return (
@@ -228,10 +256,14 @@ export function HealthcareAppointments() {
             <button
               type="button"
               className="sol-btn sol-btn-primary"
-              onClick={() => {
-                toast(`${selected?.patient_name} checked in for ${selected?.time}.`);
-                setSelected(null);
-              }}
+              onClick={() =>
+                selected &&
+                updateStatus(
+                  selected,
+                  'checked_in',
+                  `${selected.patient_name} checked in for ${selected.time}.`,
+                )
+              }
             >
               <Icon name="login" size={15} /> Check in patient
             </button>
@@ -278,30 +310,39 @@ export function HealthcareAppointments() {
               <button
                 type="button"
                 className="sol-btn sol-btn-subtle sol-btn-sm"
-                onClick={() => {
-                  toast(`${selected.patient_name} moved to the waiting queue.`);
-                  setSelected(null);
-                }}
+                onClick={() =>
+                  updateStatus(
+                    selected,
+                    'waiting',
+                    `${selected.patient_name} moved to the waiting queue.`,
+                  )
+                }
               >
                 <Icon name="users" size={14} /> Move to queue
               </button>
               <button
                 type="button"
                 className="sol-btn sol-btn-subtle sol-btn-sm"
-                onClick={() => {
-                  toast(`Consultation started with ${selected.patient_name}.`);
-                  setSelected(null);
-                }}
+                onClick={() =>
+                  updateStatus(
+                    selected,
+                    'in_consultation',
+                    `Consultation started with ${selected.patient_name}.`,
+                  )
+                }
               >
                 <Icon name="stethoscope" size={14} /> Start consultation
               </button>
               <button
                 type="button"
                 className="sol-btn sol-btn-ghost sol-btn-sm"
-                onClick={() => {
-                  toast(`Appointment for ${selected.patient_name} cancelled.`);
-                  setSelected(null);
-                }}
+                onClick={() =>
+                  updateStatus(
+                    selected,
+                    'cancelled',
+                    `Appointment for ${selected.patient_name} cancelled.`,
+                  )
+                }
               >
                 Cancel appointment
               </button>

@@ -2,10 +2,11 @@
 
 import React, { useMemo, useState } from 'react';
 import { Download } from 'lucide-react';
-import { Avatar, Badge, Card, Kpi, PageHeader, Progress, SearchInput, StatusBadge, TableWrap, Td, Th, useToast } from '../primitives';
+import { Avatar, Badge, Card, Field, Kpi, PageHeader, Progress, SearchInput, Sheet, StatusBadge, TableWrap, Td, Th, useToast } from '../primitives';
 import { Icon } from '../icons';
 import { compactMoney, money } from '../format';
-import { payments, paymentSummary } from './mock';
+import { payments, paymentSummary, students } from './mock';
+import { useSolutionsLive } from '../live';
 
 const METHOD_LABEL: Record<string, string> = {
   cash: 'Cash',
@@ -16,7 +17,47 @@ const METHOD_LABEL: Record<string, string> = {
 
 export function EducationPayments() {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
   const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    student: students[0]?.full_name || '',
+    amount: '',
+    method: 'transfer',
+    status: 'settled',
+    invoice: '',
+    note: '',
+  });
+
+  const recordPayment = async () => {
+    const amount = Number(form.amount);
+    if (!form.student || !amount || amount <= 0) {
+      toast('Choose a student and enter an amount.');
+      return;
+    }
+    const student = students.find((s) => s.full_name === form.student);
+    setSaving(true);
+    const res = await mutate({
+      action: 'fee_create',
+      studentId: student?.id,
+      studentName: form.student,
+      className: student?.class_name,
+      amount,
+      method: form.method,
+      status: form.status,
+      invoiceNumber: form.invoice.trim() || undefined,
+      note: form.note.trim() || undefined,
+    });
+    setSaving(false);
+    if (!res.ok) {
+      toast(res.error || 'Could not record the payment.');
+      return;
+    }
+    toast(`${money(amount)} recorded for ${form.student}.`);
+    setForm({ ...form, amount: '', invoice: '', note: '' });
+    setOpen(false);
+  };
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -43,7 +84,7 @@ export function EducationPayments() {
             <button type="button" className="sol-btn sol-btn-subtle" onClick={() => toast('Payment register exported as CSV.')}>
               <Download size={15} aria-hidden /> Export
             </button>
-            <button type="button" className="sol-btn sol-btn-primary" onClick={() => toast('Create fee payment opened.')}>
+            <button type="button" className="sol-btn sol-btn-primary" onClick={() => setOpen(true)}>
               <Icon name="plus" size={15} aria-hidden /> Record payment
             </button>
           </>
@@ -161,6 +202,89 @@ export function EducationPayments() {
           </div>
         </Card>
       </div>
+
+      <Sheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Record a fee payment"
+        subtitle="Post a payment against a student’s fee account."
+        width={480}
+        footer={
+          <>
+            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => setOpen(false)}>
+              Cancel
+            </button>
+            <button type="button" className="sol-btn sol-btn-primary" onClick={recordPayment} disabled={saving}>
+              <Icon name="plus" size={15} aria-hidden /> {saving ? 'Saving…' : 'Record payment'}
+            </button>
+          </>
+        }
+      >
+        <div className="sol-form-grid">
+          <Field label="Student" className="full">
+            <select
+              className="sol-select"
+              value={form.student}
+              onChange={(e) => setForm({ ...form, student: e.target.value })}
+            >
+              {students.map((s) => (
+                <option key={s.id} value={s.full_name}>
+                  {s.full_name} · {s.class_name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Amount (₦)">
+            <input
+              className="sol-input"
+              type="number"
+              min={0}
+              value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              placeholder="e.g. 75000"
+            />
+          </Field>
+          <Field label="Method">
+            <select
+              className="sol-select"
+              value={form.method}
+              onChange={(e) => setForm({ ...form, method: e.target.value })}
+            >
+              {Object.entries(METHOD_LABEL).map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Status">
+            <select
+              className="sol-select"
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+            >
+              <option value="settled">Settled</option>
+              <option value="pending">Pending</option>
+            </select>
+          </Field>
+          <Field label="Invoice no">
+            <input
+              className="sol-input"
+              value={form.invoice}
+              onChange={(e) => setForm({ ...form, invoice: e.target.value })}
+              placeholder="e.g. INV-2026-041"
+            />
+          </Field>
+          <Field label="Note" className="full">
+            <input
+              className="sol-input"
+              value={form.note}
+              onChange={(e) => setForm({ ...form, note: e.target.value })}
+              placeholder="e.g. Second instalment"
+            />
+          </Field>
+        </div>
+      </Sheet>
     </>
   );
 }

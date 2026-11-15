@@ -23,11 +23,13 @@ import { fmtDate, money } from '../format';
 import {
   guests,
   hotel,
+  orgSettings,
   reviews,
   websiteInquiries,
   websiteSections,
   websiteStats,
 } from './mock';
+import { useSolutionsLive } from '../live';
 
 /* ── Website ──────────────────────────────────────────────────────── */
 
@@ -240,6 +242,8 @@ export function HospitalityWebsite({ hrefFor }: { hrefFor: (s: string) => string
 
 export function HospitalityHotelSettings({ hrefFor }: { hrefFor: (s: string) => string }) {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: hotel.name,
     legal: hotel.legalName,
@@ -251,13 +255,27 @@ export function HospitalityHotelSettings({ hrefFor }: { hrefFor: (s: string) => 
     tax: String(hotel.taxRate),
   });
   const [settings, setSettings] = useState({
-    autoConfirm: true,
-    overbooking: false,
-    deposit: true,
-    nightAudit: true,
+    autoConfirm: orgSettings.autoConfirm ?? true,
+    overbooking: orgSettings.overbooking ?? false,
+    deposit: orgSettings.deposit ?? true,
+    nightAudit: orgSettings.nightAudit ?? true,
   });
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const save = async () => {
+    setSaving(true);
+    const res = await mutate({
+      action: 'settings_save',
+      settings: { ...form, ...settings, currency: hotel.currency },
+    });
+    setSaving(false);
+    if (!res.ok) {
+      toast(res.error || 'Could not save hotel settings.');
+      return;
+    }
+    toast('Hotel settings saved.');
+  };
 
   return (
     <>
@@ -266,8 +284,8 @@ export function HospitalityHotelSettings({ hrefFor }: { hrefFor: (s: string) => 
         title="Hotel settings"
         subtitle="Property details, policies and the defaults that power reservations, folios and the website."
         actions={
-          <button type="button" className="sol-btn sol-btn-primary" onClick={() => toast('Hotel settings saved.')}>
-            Save changes
+          <button type="button" className="sol-btn sol-btn-primary" onClick={save} disabled={saving}>
+            {saving ? 'Saving…' : 'Save changes'}
           </button>
         }
       />

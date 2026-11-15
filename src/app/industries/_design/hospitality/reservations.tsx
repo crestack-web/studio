@@ -25,6 +25,7 @@ import {
 import { Icon } from '../icons';
 import { addDays, fmtDate, money, nightsBetween, todayISO } from '../format';
 import { bookings, folioLines, hotel, roomTypeStats, rooms } from './mock';
+import { useSolutionsLive } from '../live';
 import type { Booking } from '../types';
 
 type TabId = 'all' | 'arriving' | 'in_house' | 'departing' | 'cancelled';
@@ -50,6 +51,7 @@ const SOURCE_TONE: Record<string, 'green' | 'blue' | 'violet' | 'amber' | 'gray'
 
 export function HospitalityReservations({ hrefFor }: { hrefFor: (s: string) => string }) {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
   const today = todayISO();
   const [tab, setTab] = useState<TabId>('all');
   const [view, setView] = useState<ViewId>('list');
@@ -84,6 +86,21 @@ export function HospitalityReservations({ hrefFor }: { hrefFor: (s: string) => s
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i));
   const calRooms = rooms.slice(0, 12);
+
+  const updateBooking = async (booking: Booking, status: string, message: string) => {
+    const res = await mutate({
+      action: 'booking_update',
+      id: booking.id,
+      status,
+      roomId: rooms.find((r) => r.room_number === booking.room_number)?.id,
+    });
+    if (!res.ok) {
+      toast(res.error || 'Could not update the reservation.');
+      return;
+    }
+    toast(message);
+    setSelected(null);
+  };
 
   return (
     <>
@@ -226,7 +243,11 @@ export function HospitalityReservations({ hrefFor }: { hrefFor: (s: string) => s
                                     <MenuItem
                                       onClick={() => {
                                         close();
-                                        toast(`Check-in started for ${b.guest_name}.`);
+                                        void updateBooking(
+                                          b,
+                                          'checked_in',
+                                          `Check-in started for ${b.guest_name}.`,
+                                        );
                                       }}
                                     >
                                       Check in guest
@@ -237,7 +258,11 @@ export function HospitalityReservations({ hrefFor }: { hrefFor: (s: string) => s
                                       destructive
                                       onClick={() => {
                                         close();
-                                        toast(`Reservation for ${b.guest_name} cancelled.`);
+                                        void updateBooking(
+                                          b,
+                                          'cancelled',
+                                          `Reservation for ${b.guest_name} cancelled.`,
+                                        );
                                       }}
                                     >
                                       Cancel reservation
@@ -349,10 +374,10 @@ export function HospitalityReservations({ hrefFor }: { hrefFor: (s: string) => s
             <button
               type="button"
               className="sol-btn sol-btn-primary"
-              onClick={() => {
-                toast(`Check-in started for ${selected?.guest_name}.`);
-                setSelected(null);
-              }}
+              onClick={() =>
+                selected &&
+                updateBooking(selected, 'checked_in', `Check-in started for ${selected.guest_name}.`)
+              }
             >
               <Icon name="login" size={15} /> Check in guest
             </button>
@@ -441,7 +466,9 @@ export function HospitalityReservations({ hrefFor }: { hrefFor: (s: string) => s
 
 function NewReservationSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
   const today = todayISO();
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     guest: '',
     phone: '',
@@ -461,6 +488,35 @@ function NewReservationSheet({ open, onClose }: { open: boolean; onClose: () => 
   const rate = roomTypeStats.find((t) => t.category === form.category)?.rate_amount || 65000;
   const available = rooms.filter((r) => r.category === form.category && r.status === 'available');
 
+  const createReservation = async () => {
+    const room = rooms.find((r) => r.room_number === form.room);
+    setSaving(true);
+    const res = await mutate({
+      action: 'booking_create',
+      guestName: form.guest.trim(),
+      guestPhone: form.phone.trim() || undefined,
+      guestEmail: form.email.trim() || undefined,
+      checkInDate: form.checkIn,
+      checkOutDate: form.checkOut,
+      roomId: room?.id,
+      roomNumber: room?.room_number,
+      category: form.category,
+      ratePerNight: room?.rate_amount || rate,
+      adults: Number(form.adults) || 1,
+      children: Number(form.children) || 0,
+      specialRequests: form.requests.trim() || undefined,
+      status: 'confirmed',
+      source: 'front_desk',
+    });
+    setSaving(false);
+    if (!res.ok) {
+      toast(res.error || 'Could not create the reservation.');
+      return;
+    }
+    toast(`Reservation created for ${form.guest.trim()} · ${nights} night${nights > 1 ? 's' : ''}.`);
+    onClose();
+  };
+
   return (
     <Sheet
       open={open}
@@ -476,13 +532,10 @@ function NewReservationSheet({ open, onClose }: { open: boolean; onClose: () => 
           <button
             type="button"
             className="sol-btn sol-btn-primary"
-            disabled={!form.guest.trim() || nights < 1}
-            onClick={() => {
-              toast(`Reservation created for ${form.guest.trim()} · ${nights} night${nights > 1 ? 's' : ''}.`);
-              onClose();
-            }}
+            disabled={!form.guest.trim() || nights < 1 || saving}
+            onClick={createReservation}
           >
-            Create reservation
+            {saving ? 'Creating…' : 'Create reservation'}
           </button>
         </>
       }

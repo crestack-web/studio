@@ -36,10 +36,6 @@ const DISCIPLINES: { id: Discipline; label: string }[] = [
   { id: 'Operations', label: 'Operations' },
 ];
 
-const utilisationChart = team
-  .filter((m) => m.status === 'active')
-  .map((m) => ({ label: m.full_name.split(' ')[0], Utilisation: m.utilisation }));
-
 export function ProfessionalTeam() {
   const { toast } = useToast();
   const [filter, setFilter] = useState<Discipline>('all');
@@ -53,6 +49,10 @@ export function ProfessionalTeam() {
     discipline: 'Design' as ProMember['discipline'],
     rate: '45000',
   });
+
+  const utilisationChart = team
+    .filter((m) => m.status === 'active')
+    .map((m) => ({ label: m.full_name.split(' ')[0], Utilisation: m.utilisation }));
 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
