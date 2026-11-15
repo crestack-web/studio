@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Block any private or app routes if they exist later
+# Disallow: /app/
+# Disallow: /dashboard/
+# Disallow: /api/
+
+Sitemap: https://www.busmo.io/sitemap.xml
