@@ -11,6 +11,14 @@ import {
 import { isBlackFridayActive } from '@/lib/pricing';
 import { BusmoOnePreorderModal } from './BusmoOnePreorderModal';
 
+const ONE_IMAGES = [
+  { src: '/busmo-one/hero-device.jpg', alt: 'Busmo One smart business terminal' },
+  { src: '/busmo-one/printer-detail.jpg', alt: 'Busmo One built-in printer' },
+  { src: '/busmo-one/back-scanner.jpg', alt: 'Busmo One barcode scanner' },
+  { src: '/busmo-one/unboxing.jpg', alt: 'Busmo One unboxing' },
+  { src: '/busmo-one/battery-compartment.jpg', alt: 'Busmo One battery compartment' },
+] as const;
+
 const FEATURES = [
   { title: 'Smart Checkout', body: 'Fast sale flow designed for counter and terminal use.' },
   { title: 'Barcode & SKU', body: 'Look up products by scan or code inside Busmo inventory.' },
@@ -21,6 +29,7 @@ const FEATURES = [
 
 export function BusmoOneSection() {
   const [open, setOpen] = useState(false);
+  const [activeImage, setActiveImage] = useState<(typeof ONE_IMAGES)[number]>(ONE_IMAGES[0]);
   const pricing = getBusmoOneChargePrice();
   const bf = isBlackFridayActive();
 
@@ -46,6 +55,49 @@ export function BusmoOneSection() {
         @media (max-width: 860px) {
           .busmo-one-hero { grid-template-columns: 1fr; gap: 28px; }
         }
+        .busmo-one-visual {
+          position: relative;
+          border-radius: 20px;
+          overflow: hidden;
+          background: #e8f5ee;
+          min-height: 280px;
+          box-shadow: 0 20px 50px rgba(13, 122, 67, 0.12);
+        }
+        .busmo-one-visual-hero {
+          width: 100%;
+          height: auto;
+          display: block;
+          aspect-ratio: 4 / 3;
+          object-fit: cover;
+        }
+        .busmo-one-thumbs {
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 8px;
+          margin-top: 10px;
+        }
+        .busmo-one-thumbs button {
+          border: 2px solid transparent;
+          padding: 0;
+          border-radius: 10px;
+          overflow: hidden;
+          cursor: pointer;
+          background: #fff;
+          line-height: 0;
+        }
+        .busmo-one-thumbs button.active {
+          border-color: #14A05A;
+        }
+        .busmo-one-thumbs img {
+          width: 100%;
+          height: 64px;
+          object-fit: cover;
+          display: block;
+        }
+        @media (max-width: 860px) {
+          .busmo-one-thumbs img { height: 56px; }
+        }
+
         .busmo-one-badge {
           display: inline-block;
           font-size: 0.72rem;
@@ -174,8 +226,28 @@ export function BusmoOneSection() {
               Secure Paystack checkout. Team coordinates delivery after payment.
             </p>
           </div>
-          <div className="busmo-one-visual" aria-hidden>
-            {/* keep existing imagery if parent styles provide img elsewhere */}
+          <div className="busmo-one-visual">
+            <img
+              className="busmo-one-visual-hero"
+              src={activeImage.src}
+              alt={activeImage.alt}
+              width={640}
+              height={480}
+            />
+            <div className="busmo-one-thumbs" role="tablist" aria-label="Busmo One product photos">
+              {ONE_IMAGES.map((img) => (
+                <button
+                  key={img.src}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeImage.src === img.src}
+                  className={activeImage.src === img.src ? 'active' : undefined}
+                  onClick={() => setActiveImage(img)}
+                >
+                  <img src={img.src} alt="" width={120} height={64} />
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

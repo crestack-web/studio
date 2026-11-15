@@ -7,14 +7,21 @@
 }
 
 .main {
-  padding: 48px 24px 96px;
+  /* Clear sticky announcement (~52px) + fixed nav (--nav-h 68px) */
+  padding: calc(var(--nav-h, 68px) + 36px) 24px 96px;
   max-width: 1180px;
   margin: 0 auto;
 }
 
+@media (max-width: 767px) {
+  .main {
+    padding: calc(var(--nav-h, 68px) + 28px) 16px 80px;
+  }
+}
+
 @media (min-width: 1024px) {
   .main {
-    padding: 56px 32px 112px;
+    padding: calc(var(--nav-h, 68px) + 48px) 32px 112px;
   }
 }
 
