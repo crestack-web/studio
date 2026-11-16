@@ -5,13 +5,16 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
 } from 'react';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Search, X } from 'lucide-react';
+import { initials } from './format';
+import { Icon } from './icons';
 
-/* This file is restored - toast styles inlined for visibility. */
+/* ── Toasts ───────────────────────────────────────────────────────── */
 
 type Toast = { id: number; message: string };
 type ToastContextValue = { toast: (message: string) => void };
@@ -75,3 +78,5 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     </ToastContext.Provider>
   );
 }
+
+/* RESTORED_MARKER - file continues from git history via local restore - incomplete if you see this alone */
