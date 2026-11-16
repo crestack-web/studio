@@ -1,4 +1,43 @@
-/* Mobile All-pages sheet + card spacing overrides */
+/* Mobile All-pages sheet + card spacing + logo size overrides */
+
+/* ── Dashboard header logos (sidebar + mobile top bar) ───────────── */
+.sol-brand-logo {
+  height: 40px !important;
+  width: auto !important;
+  max-width: 180px !important;
+  object-fit: contain !important;
+}
+
+.sol-brand-mark {
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 12px !important;
+  font-size: 16px !important;
+}
+
+.sol-brand-mark.small {
+  width: 36px !important;
+  height: 36px !important;
+  font-size: 14px !important;
+}
+
+.sol-suite-logo {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 8px !important;
+}
+
+.sol-mobile-logo {
+  height: 32px !important;
+  width: auto !important;
+  max-width: 160px !important;
+  object-fit: contain !important;
+}
+
+.sol-brand {
+  min-height: 76px !important;
+  gap: 12px !important;
+}
 
 @media (max-width: 1024px) {
   /* Undo global collapse rules that hid labels in the All-pages sheet */
@@ -101,5 +140,10 @@
   }
   .sol-card-body {
     padding: 14px 16px 16px !important;
+  }
+
+  /* Slightly larger logos on mobile top bar */
+  .sol-mobile-logo {
+    height: 34px !important;
   }
 }
