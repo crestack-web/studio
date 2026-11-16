@@ -6,8 +6,15 @@ import { SuiteChrome, SuiteProductGrid } from './_components/SuiteChrome';
 import { SolutionsSlideshow } from './_components/SolutionsSlideshow';
 import styles from './_components/SuiteChrome.module.css';
 
+const SOLUTION_ICONS: Record<string, string> = {
+  business: '/email-logo.png',
+  hospitality: '/industries/busmo-hospitality-icon.svg',
+  healthcare: '/industries/busmo-healthcare-icon.svg',
+  professional: '/industries/busmo-professional-icon.svg',
+  education: '/industries/busmo-education-icon.svg',
+};
+
 export default function IndustriesHubPage() {
-  // Hub opens on Business family by default (suite overview)
   const family = getSuiteFamily('business');
 
   return (
@@ -35,7 +42,16 @@ export default function IndustriesHubPage() {
       <div className={styles.productGrid}>
         {SUITE_FAMILIES.map((f) => (
           <article key={f.id} className={styles.productCard}>
-            <h3 className={styles.productName}>{f.productName}</h3>
+            <div className={styles.productHeader}>
+              <img
+                src={SOLUTION_ICONS[f.id] || '/email-logo.png'}
+                alt=""
+                width={36}
+                height={36}
+                style={{ width: 36, height: 36, objectFit: 'contain' }}
+              />
+              <h3 className={styles.productName}>{f.productName}</h3>
+            </div>
             <p className={styles.productBlurb}>{f.description}</p>
             <Link href={f.href} className={styles.tryLink}>
               Open {f.label} <span aria-hidden>›</span>
