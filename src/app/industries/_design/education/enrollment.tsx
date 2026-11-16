@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { Avatar, Badge, Card, Chips, Kpi, PageHeader, Progress, StatusBadge } from '../primitives';
+import { Avatar, Badge, Card, Chips, Field, Kpi, PageHeader, Progress, Sheet, StatusBadge, useToast } from '../primitives';
 import { Icon } from '../icons';
-import { enrollmentStats, enrollments } from './mock';
+import { classes, enrollmentStats, enrollments } from './mock';
 import type { EnrollmentStage } from '../types';
 
 const STAGES: { id: EnrollmentStage; label: string }[] = [
@@ -18,7 +18,19 @@ const STAGES: { id: EnrollmentStage; label: string }[] = [
 type EnrollmentFilter = EnrollmentStage | 'all';
 
 export function EducationEnrollment() {
+  const { toast } = useToast();
   const [stage, setStage] = useState<EnrollmentFilter>('all');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    applicant: '',
+    class_name: classes[0]?.name || '',
+    guardian: '',
+    phone: '',
+    email: '',
+    source: 'website',
+    notes: '',
+  });
 
   const list = useMemo(
     () =>
@@ -35,6 +47,33 @@ export function EducationEnrollment() {
     ...STAGES.map((s) => ({ id: s.id, label: s.label, count: counts[s.id] })),
   ];
 
+  function set<K extends keyof typeof form>(key: K) {
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+      setForm((f) => ({ ...f, [key]: e.target.value }));
+  }
+
+  function create() {
+    if (!form.applicant.trim() || !form.guardian.trim()) {
+      toast('Enter the applicant and guardian names.');
+      return;
+    }
+    setSaving(true);
+    window.setTimeout(() => {
+      setSaving(false);
+      setCreateOpen(false);
+      toast(`Application for ${form.applicant.trim()} added to the pipeline.`);
+      setForm({
+        applicant: '',
+        class_name: classes[0]?.name || '',
+        guardian: '',
+        phone: '',
+        email: '',
+        source: 'website',
+        notes: '',
+      });
+    }, 500);
+  }
+
   return (
     <>
       <PageHeader
@@ -46,7 +85,7 @@ export function EducationEnrollment() {
         title="Enrollment"
         subtitle="Applications from inquiry to enrollment, with offers and assessments tracked end to end."
         actions={
-          <button type="button" className="sol-btn sol-btn-primary">
+          <button type="button" className="sol-btn sol-btn-primary" onClick={() => setCreateOpen(true)}>
             <Icon name="plus" size={15} aria-hidden /> New application
           </button>
         }
@@ -115,6 +154,59 @@ export function EducationEnrollment() {
           ))}
         </div>
       </Card>
+
+      <Sheet
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="New application"
+        subtitle="Capture an inquiry or full application into the admissions pipeline."
+        width={480}
+        footer={
+          <>
+            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </button>
+            <button type="button" className="sol-btn sol-btn-primary" onClick={create} disabled={saving}>
+              <Icon name="plus" size={15} /> {saving ? 'Saving…' : 'Add application'}
+            </button>
+          </>
+        }
+      >
+        <div className="sol-form-grid">
+          <Field label="Applicant name" className="full">
+            <input className="sol-input" value={form.applicant} onChange={set('applicant')} placeholder="e.g. Oluwaseun Ajayi" />
+          </Field>
+          <Field label="Class applied for" className="full">
+            <select className="sol-input" value={form.class_name} onChange={set('class_name')}>
+              {classes.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Guardian name">
+            <input className="sol-input" value={form.guardian} onChange={set('guardian')} placeholder="Parent or guardian" />
+          </Field>
+          <Field label="Phone">
+            <input className="sol-input" value={form.phone} onChange={set('phone')} placeholder="+234 …" />
+          </Field>
+          <Field label="Email" className="full">
+            <input className="sol-input" type="email" value={form.email} onChange={set('email')} placeholder="guardian@email.com" />
+          </Field>
+          <Field label="Source">
+            <select className="sol-input" value={form.source} onChange={set('source')}>
+              <option value="website">Website</option>
+              <option value="walk_in">Walk-in</option>
+              <option value="referral">Referral</option>
+              <option value="open_day">Open day</option>
+            </select>
+          </Field>
+          <Field label="Notes" className="full">
+            <textarea className="sol-textarea" value={form.notes} onChange={set('notes')} placeholder="Assessment notes, preferences…" />
+          </Field>
+        </div>
+      </Sheet>
     </>
   );
 }
