@@ -20,7 +20,7 @@ const NAV_LINKS: { label: string; page: Page }[] = [
 ];
 
 const EXTRA_LINKS: { label: string; href: string }[] = [
-  { label: 'Solutions', href: '/industries' },
+  { label: 'Solutions', href: '/solutions' },
 ];
 
 export const Navbar: React.FC<NavbarProps> = ({ currentPage }) => {
