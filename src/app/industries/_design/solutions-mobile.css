@@ -39,6 +39,30 @@
   gap: 12px !important;
 }
 
+/* Ensure mobile header matches design system class names */
+.sol-mobile-top {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--sol-surface);
+  border-bottom: 1px solid var(--sol-border);
+}
+.sol-mobile-bar {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--sol-surface);
+  border-bottom: 1px solid var(--sol-border);
+}
+.sol-mobile-bar-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
 @media (max-width: 1024px) {
   /* Undo global collapse rules that hid labels in the All-pages sheet */
   .sol-sheet .sol-nav-text,
@@ -122,7 +146,33 @@
   margin-top: 8px;
 }
 
+/* Minimal Ask MO sheet head */
+.sol-sheet-head {
+  padding: 12px 14px !important;
+}
+.sol-sheet-title {
+  font-size: 15px !important;
+  font-weight: 800 !important;
+}
+.sol-sheet-sub {
+  display: none !important;
+}
+
 @media (max-width: 820px) {
+  .sol-mobile-top,
+  .sol-mobile-bar {
+    display: flex !important;
+  }
+  .sol-topbar {
+    display: none !important;
+  }
+  .sol-sidebar {
+    display: none !important;
+  }
+  .sol-mobile-nav {
+    display: block !important;
+  }
+
   .sol-content {
     padding: 16px 16px calc(92px + env(safe-area-inset-bottom, 0px)) !important;
   }
