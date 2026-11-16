@@ -1,14 +1,44 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import { Avatar, Badge, Card, Kpi, PageHeader, Progress } from '../primitives';
+import { Avatar, Badge, Card, Field, Kpi, PageHeader, Progress, Sheet, useToast } from '../primitives';
 import { Icon } from '../icons';
-import { classStats, classes } from './mock';
+import { classStats, classes, teachers } from './mock';
 
 export function EducationClasses({ hrefFor }: { hrefFor: (s: string) => string }) {
+  const { toast } = useToast();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    name: '',
+    level: 'Primary',
+    teacher: teachers[0]?.full_name || '',
+    room: '',
+    capacity: '30',
+  });
+
   const utilisation = Math.round((classStats.totalStudents / Math.max(1, classStats.totalCapacity)) * 100);
+
+  function set<K extends keyof typeof form>(key: K) {
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setForm((f) => ({ ...f, [key]: e.target.value }));
+  }
+
+  function create() {
+    if (!form.name.trim()) {
+      toast('Enter a class name.');
+      return;
+    }
+    setSaving(true);
+    window.setTimeout(() => {
+      setSaving(false);
+      setCreateOpen(false);
+      toast(`${form.name.trim()} created and ready for enrollment.`);
+      setForm({ name: '', level: 'Primary', teacher: teachers[0]?.full_name || '', room: '', capacity: '30' });
+    }, 500);
+  }
 
   return (
     <>
@@ -21,9 +51,14 @@ export function EducationClasses({ hrefFor }: { hrefFor: (s: string) => string }
         title="Classes"
         subtitle="Every teaching group, its room, teacher and current learner performance."
         actions={
-          <Link href={hrefFor('teachers')} className="sol-btn sol-btn-subtle">
-            <Icon name="badge" size={15} aria-hidden /> Manage teachers
-          </Link>
+          <>
+            <Link href={hrefFor('teachers')} className="sol-btn sol-btn-subtle">
+              <Icon name="badge" size={15} aria-hidden /> Manage teachers
+            </Link>
+            <button type="button" className="sol-btn sol-btn-primary" onClick={() => setCreateOpen(true)}>
+              <Icon name="plus" size={15} aria-hidden /> Create class
+            </button>
+          </>
         }
       />
 
@@ -44,12 +79,7 @@ export function EducationClasses({ hrefFor }: { hrefFor: (s: string) => string }
           deltaDir="flat"
           foot="Across classes"
         />
-        <Kpi
-          label="Average score"
-          value={`${classStats.averageScore}%`}
-          icon="chart"
-          foot="Learner average"
-        />
+        <Kpi label="Average score" value={`${classStats.averageScore}%`} icon="chart" foot="Learner average" />
       </div>
 
       <div className="sol-grid sol-grid-3 sol-mt-3">
@@ -98,6 +128,53 @@ export function EducationClasses({ hrefFor }: { hrefFor: (s: string) => string }
           </Card>
         ))}
       </div>
+
+      <Sheet
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Create a class"
+        subtitle="Set the group, room and lead teacher. Learners can be enrolled next."
+        width={460}
+        footer={
+          <>
+            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </button>
+            <button type="button" className="sol-btn sol-btn-primary" onClick={create} disabled={saving}>
+              <Icon name="plus" size={15} /> {saving ? 'Creating…' : 'Create class'}
+            </button>
+          </>
+        }
+      >
+        <div className="sol-form-grid">
+          <Field label="Class name" className="full">
+            <input className="sol-input" value={form.name} onChange={set('name')} placeholder="e.g. Primary 4B" />
+          </Field>
+          <Field label="Level">
+            <select className="sol-input" value={form.level} onChange={set('level')}>
+              <option>Nursery</option>
+              <option>Primary</option>
+              <option>JSS</option>
+              <option>SSS</option>
+            </select>
+          </Field>
+          <Field label="Capacity">
+            <input className="sol-input" type="number" min={1} value={form.capacity} onChange={set('capacity')} />
+          </Field>
+          <Field label="Lead teacher" className="full">
+            <select className="sol-input" value={form.teacher} onChange={set('teacher')}>
+              {teachers.map((t) => (
+                <option key={t.id} value={t.full_name}>
+                  {t.full_name} · {t.subject}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Room" className="full">
+            <input className="sol-input" value={form.room} onChange={set('room')} placeholder="e.g. Block B · R3" />
+          </Field>
+        </div>
+      </Sheet>
     </>
   );
 }
