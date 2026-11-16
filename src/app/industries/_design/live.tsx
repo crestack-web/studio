@@ -21,7 +21,6 @@ type LiveStatus = 'idle' | 'loading' | 'live' | 'error';
 export type MutateResult = {
   ok: boolean;
   error?: string;
-  /** True when the dashboard is running against seeded preview data. */
   preview?: boolean;
   data?: any;
 };
@@ -32,7 +31,6 @@ type LiveState = {
   error?: string;
   warnings: string[];
   refresh: () => Promise<void>;
-  /** Post an action to the suite workspace endpoint, then re-hydrate live data. */
   mutate: (body: Record<string, unknown>) => Promise<MutateResult>;
 };
 
@@ -109,7 +107,7 @@ export function SolutionsLiveProvider({
         if (mounted.current) {
           setWarnings(Array.isArray(json?.warnings) ? json.warnings.filter(Boolean) : []);
           setError(undefined);
-          setStatus(hydrated ? 'live' : 'idle');
+          setStatus(hydrated || json?.ok || json?.businessId ? 'live' : 'idle');
           setVersion((v) => v + 1);
         }
       } catch (e: any) {
