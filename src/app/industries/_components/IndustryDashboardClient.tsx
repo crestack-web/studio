@@ -17,10 +17,10 @@ const HOSPITALITY_PATH_ALIASES: Record<string, string> = {
 };
 
 function deskPathFor(config: IndustryConfig) {
-  if (config.id === 'hospitality') return '/industries/hospitality/front-desk';
-  if (config.id === 'healthcare') return '/industries/healthcare/desk';
-  if (config.id === 'education') return '/industries/education/front-desk';
-  if (config.id === 'professional') return '/industries/professional/desk';
+  if (config.id === 'hospitality') return '/solutions/hospitality/front-desk';
+  if (config.id === 'healthcare') return '/solutions/healthcare/desk';
+  if (config.id === 'education') return '/solutions/education/front-desk';
+  if (config.id === 'professional') return '/solutions/professional/desk';
   return config.dashboardPath;
 }
 
@@ -144,7 +144,7 @@ export function IndustryDashboardClient({
     <SolutionsDashboard
       suiteId={config.id}
       section={designSection}
-      basePath={`/industries/${config.id}`}
+      basePath={`/solutions/${config.id}/dashboard`}
       user={{ name: displayName, email: userEmail }}
       signOut={() => {
         if (typeof window !== 'undefined') window.location.href = config.loginPath;
