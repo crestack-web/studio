@@ -4,6 +4,7 @@ import { trackSignupSuccess, trackViewContent, trackClickButton } from '@/lib/ti
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
 import { getOAuthCallbackUrl } from '@/lib/site-url';
 import type { IndustryConfig } from '@/lib/industries/types';
@@ -11,7 +12,9 @@ import {
   getIndustryIntake,
   validateIndustryDetails,
 } from '@/lib/industries/solution-intake';
-import styles from './IndustryShell.module.css';
+import { Icon } from '../_design/icons';
+import '../_design/solutions.css';
+import styles from './IndustryAuth.module.css';
 
 type Mode = 'login' | 'signup';
 type SignupStep = 'account' | 'details';
@@ -39,6 +42,11 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
   const [awaitingConfirm, setAwaitingConfirm] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [isGoogleSession, setIsGoogleSession] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  const taglineMatch = config.tagline.match(/^([^.!?]+[.!?])\s*(.+)$/);
+  const taglineLead = taglineMatch ? taglineMatch[1] : config.tagline;
+  const taglineRest = taglineMatch ? taglineMatch[2] : '';
 
   function setDetail(fieldId: string, value: string | string[]) {
     setSolutionDetails((prev) => ({ ...prev, [fieldId]: value }));
@@ -279,6 +287,15 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
     })();
   }, [mode]);
 
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('busmo-solutions-theme');
+      if (stored === 'dark' || stored === 'light') setTheme(stored);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   async function handleGoogleAuth() {
     setError(null);
     setGoogleLoading(true);
@@ -316,271 +333,421 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
     mode === 'signup' && (signupStep === 'details' || !!recovery);
 
   return (
-    <div className={styles.authPage}>
-    <div className={styles.authCard}>
-      <div className={styles.authBrand}>
-        {config.logoSrc ? (
-          <div className={styles.authProductLogoWrap}>
-            <img
-              src={config.logoSrc}
-              alt={config.productName}
-              className={styles.authProductLogo}
-            />
-          </div>
-        ) : (
-          <>
-            <span className={styles.authLogo} aria-hidden>
-              $
-            </span>
-            <span>{config.productName}</span>
-          </>
-        )}
-      </div>
-
-      <h1>
-        {mode === 'login' && !recovery
-          ? 'Sign in'
-          : showDetails
-            ? 'Tell us about your operations'
-            : 'Create your account'}
-      </h1>
-      <p className={styles.authLead}>
-        {mode === 'login' && !recovery
-          ? `Sign in to ${config.productName}`
-          : showDetails
-            ? intake.sub
-            : `Two quick steps — account, then how your ${config.greetingNoun} operates.`}
-      </p>
-
-      {mode === 'signup' && !recovery && (
-        <div className={styles.stepRow} aria-label={`Step ${showDetails ? 2 : 1} of 2`}>
-          <span className={!showDetails ? styles.stepActive : styles.stepDone}>1. Account</span>
-          <span className={styles.stepSep} />
-          <span className={showDetails ? styles.stepActive : styles.stepIdle}>2. Operations</span>
-        </div>
-      )}
-
-      {mode === 'signup' && !showDetails && !recovery && (
-        <div className={styles.previewBox}>
-          <div className={styles.previewTitle}>After account, we&apos;ll ask about</div>
-          <div className={styles.outcomeRow}>
-            {intake.outcomes.map((o) => (
-              <span key={o} className={styles.outcomeChip}>{o}</span>
-            ))}
-          </div>
-          <p className={styles.previewSub}>{intake.headline}</p>
-        </div>
-      )}
-
-      {!showDetails && !recovery && !awaitingConfirm && (
-        <>
-          <button
-            type="button"
-            className={styles.btnGoogle}
-            onClick={handleGoogleAuth}
-            disabled={loading || googleLoading}
-          >
-            <span className={styles.googleIcon} aria-hidden>
-              <svg width="18" height="18" viewBox="0 0 48 48">
-                <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z"/>
-                <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 12 24 12c3.1 0 5.8 1.1 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.6 8.3 6.3 14.7z"/>
-                <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.1-11.3-7.5l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
-                <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4 5.5l.1.1 6.3 5.3C39.2 37.1 44 31.5 44 24c0-1.3-.1-2.5-.4-3.5z"/>
-              </svg>
-            </span>
-            {googleLoading
-              ? 'Connecting…'
-              : mode === 'login'
-                ? 'Continue with Google'
-                : 'Sign up with Google'}
-          </button>
-          <div className={styles.orDivider}>
-            <span>or use email</span>
-          </div>
-        </>
-      )}
-
-      {error && <div className={styles.authError}>{error}</div>}
-      {info && <div className={styles.authInfo}>{info}</div>}
-      {recovery && <div className={styles.authInfo}>{recovery}</div>}
-      {needsEmailConfirm && (
-        <div className={styles.authInfo}>
-          Confirm your email if prompted, then return here to sign in.
-        </div>
-      )}
-
-      {awaitingConfirm ? (
-        <div className={styles.previewBox}>
-          <div className={styles.previewTitle}>Check your email</div>
-          <p className={styles.previewSub}>
-            We sent a confirmation link to <strong>{email.trim()}</strong>. Confirm your address, then sign in to open {config.productName}.
-            A welcome message is on its way as well.
-          </p>
-          <div className={styles.authActions} style={{ marginTop: 16 }}>
-            <Link
-              href={config.loginPath}
-              className={styles.btnPrimary}
-              style={{ textAlign: 'center', width: '100%', justifyContent: 'center' }}
-            >
-              Go to sign in
+    <div className={`solutions ${styles.page}`} data-suite={config.id} data-theme={theme}>
+      <div className={styles.shell}>
+        <aside className={styles.showcase}>
+          <div className={styles.showcaseTop}>
+            <Link href={config.welcomePath} className={styles.brandRow}>
+              {config.logoSrc ? (
+                <span className={styles.brandPlate}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={config.logoSrc} alt="" className={styles.brandLogo} />
+                </span>
+              ) : (
+                <span className={styles.brandMark} aria-hidden>
+                  {config.shortName.slice(0, 1)}
+                </span>
+              )}
+              <span className={styles.brandText}>
+                <span className={styles.brandName}>{config.productName}</span>
+                <span className={styles.brandSub}>
+                  by Busmo · {config.shortName} suite
+                </span>
+              </span>
+            </Link>
+            <Link href="/solutions" className={styles.allSuites}>
+              All suites <ArrowRight size={12} aria-hidden />
             </Link>
           </div>
-        </div>
-      ) : (
-      <form onSubmit={onSubmit} className={styles.authForm}>
-        {(mode === 'login' || (mode === 'signup' && !showDetails) || recovery) && (
-          <>
-            {(mode === 'signup' || recovery) && (
-              <div className={styles.field}>
-                <label htmlFor="biz">{intake.orgLabel}</label>
-                <input
-                  id="biz"
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                  placeholder={intake.orgPlaceholder}
-                  required={mode === 'signup' || !!recovery}
-                  autoComplete="organization"
-                />
-              </div>
-            )}
-            {!recovery && (
-              <>
-                <div className={styles.field}>
-                  <label htmlFor="email">Email</label>
-                  <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    autoComplete="email"
-                  />
-                </div>
-                <div className={styles.field}>
-                  <label htmlFor="password">Password</label>
-                  <input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                  />
-                </div>
-              </>
-            )}
-          </>
-        )}
 
-        {showDetails && (
-          <div className={styles.intakeBlock}>
-            <div className={styles.intakeHead}>
-              <strong>{intake.headline}</strong>
-              <div className={styles.outcomeRow}>
-                {intake.outcomes.map((o) => (
-                  <span key={o} className={styles.outcomeChip}>
-                    {o}
+          <div className={styles.showcaseBody}>
+            <span className={styles.eyebrow}>
+              <Icon name="sparkles" size={12} />
+              {config.shortName} workspace
+            </span>
+            <h2 className={styles.showcaseTitle}>
+              {taglineLead}
+              {taglineRest ? (
+                <>
+                  {' '}
+                  <em>{taglineRest}</em>
+                </>
+              ) : null}
+            </h2>
+            <p className={styles.showcaseDesc}>{config.description}</p>
+            <ul className={styles.featureList}>
+              {config.features.slice(0, 4).map((feature) => (
+                <li key={feature}>
+                  <span className={styles.featureCheck}>
+                    <Icon name="check" size={11} strokeWidth={2.6} />
                   </span>
-                ))}
-              </div>
+                  {feature}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className={styles.showcaseFoot}>
+            <span className={styles.moMark}>
+              <Icon name="mo" size={16} />
+            </span>
+            <div>
+              <span className={styles.moTitle}>MO, your AI chief of staff</span>
+              <span className={styles.moSub}>
+                Ask your workspace anything — {config.greetingNoun} performance, cash, and what
+                needs attention today.
+              </span>
             </div>
-            {intake.fields.map((field) => {
-              const value = solutionDetails[field.id];
-              return (
-                <div key={field.id} className={styles.field}>
-                  <label>
-                    {field.label}
-                    {field.required ? ' *' : ''}
-                  </label>
-                  {field.type === 'text' || field.type === 'number' ? (
-                    <input
-                      type={field.type === 'number' ? 'number' : 'text'}
-                      value={typeof value === 'string' ? value : ''}
-                      placeholder={field.placeholder || ''}
-                      onChange={(e) => setDetail(field.id, e.target.value)}
-                    />
-                  ) : (
-                    <div className={styles.chipRow}>
-                      {(field.options || []).map((opt) => {
-                        const optId = typeof opt === 'string' ? opt : opt.id;
-                        const optLabel = typeof opt === 'string' ? opt : opt.label;
-                        const selected =
-                          field.type === 'multi'
-                            ? Array.isArray(value) && value.includes(optId)
-                            : value === optId;
+          </div>
+        </aside>
+
+        <main className={styles.formSide}>
+          <div className={styles.formInner}>
+            <div className={styles.topBar}>
+              <Link href={config.welcomePath} className={styles.backLink}>
+                <ArrowLeft size={14} aria-hidden />
+                {config.shortName} overview
+              </Link>
+              <Link href="/solutions" className={styles.allSuitesLight}>
+                All suites
+              </Link>
+            </div>
+
+            <div className={styles.card}>
+              <div className={styles.mobileBrand}>
+                {config.logoSrc ? (
+                  <span className={styles.mobilePlate}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={config.logoSrc} alt="" className={styles.mobileLogo} />
+                  </span>
+                ) : (
+                  <span className={styles.mobileMark} aria-hidden>
+                    {config.shortName.slice(0, 1)}
+                  </span>
+                )}
+                <span className={styles.mobileBrandText}>
+                  <strong>{config.productName}</strong>
+                  <small>{config.shortName} suite · by Busmo</small>
+                </span>
+              </div>
+
+              <div>
+                <span className={styles.kicker}>
+                  <span className={styles.kickerDot} aria-hidden />
+                  {mode === 'login' && !recovery
+                    ? 'Welcome back'
+                    : showDetails
+                      ? 'Final step'
+                      : 'Get started'}
+                </span>
+                <h1 className={styles.title}>
+                  {mode === 'login' && !recovery
+                    ? 'Sign in'
+                    : showDetails
+                      ? 'Tell us about your operations'
+                      : 'Create your account'}
+                </h1>
+                <p className={styles.lead}>
+                  {mode === 'login' && !recovery
+                    ? `Sign in to ${config.productName}`
+                    : showDetails
+                      ? intake.sub
+                      : `Two quick steps — account, then how your ${config.greetingNoun} operates.`}
+                </p>
+              </div>
+
+              {mode === 'signup' && !recovery && (
+                <div className={styles.steps} role="group" aria-label={`Step ${showDetails ? 2 : 1} of 2`}>
+                  <span
+                    className={`${styles.step} ${showDetails ? styles.stepDone : styles.stepOn}`}
+                  >
+                    <span className={styles.stepNum}>
+                      {showDetails ? <Check size={11} strokeWidth={3} aria-hidden /> : '1'}
+                    </span>
+                    Account
+                  </span>
+                  <span
+                    className={`${styles.stepLine} ${showDetails ? styles.stepLineOn : ''}`}
+                  />
+                  <span
+                    className={`${styles.step} ${showDetails ? styles.stepOn : ''}`}
+                  >
+                    <span className={styles.stepNum}>2</span>
+                    Operations
+                  </span>
+                </div>
+              )}
+
+              {mode === 'signup' && !showDetails && !recovery && (
+                <div className={styles.preview}>
+                  <div className={styles.previewHead}>
+                    <Icon name="sparkles" size={12} />
+                    After account, we&apos;ll ask about
+                  </div>
+                  <div className={styles.chipRow}>
+                    {intake.outcomes.map((o) => (
+                      <span key={o} className={`${styles.chip} ${styles.chipStatic}`}>
+                        {o}
+                      </span>
+                    ))}
+                  </div>
+                  <p className={styles.previewSub}>{intake.headline}</p>
+                </div>
+              )}
+
+              {!showDetails && !recovery && !awaitingConfirm && (
+                <>
+                  <button
+                    type="button"
+                    className={styles.googleBtn}
+                    onClick={handleGoogleAuth}
+                    disabled={loading || googleLoading}
+                  >
+                    <span className={styles.googleIcon} aria-hidden>
+                      <svg width="18" height="18" viewBox="0 0 48 48">
+                        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.5-.4-3.5z"/>
+                        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 12 24 12c3.1 0 5.8 1.1 8 3.1l5.7-5.7C34.2 6.1 29.4 4 24 4 16.3 4 9.6 8.3 6.3 14.7z"/>
+                        <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.6-5.2l-6.3-5.3C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.1-11.3-7.5l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+                        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4 5.5l.1.1 6.3 5.3C39.2 37.1 44 31.5 44 24c0-1.3-.1-2.5-.4-3.5z"/>
+                      </svg>
+                    </span>
+                    {googleLoading
+                      ? 'Connecting…'
+                      : mode === 'login'
+                        ? 'Continue with Google'
+                        : 'Sign up with Google'}
+                  </button>
+                  <div className={styles.divider}>
+                    <span>or use email</span>
+                  </div>
+                </>
+              )}
+
+              {error && (
+                <div className={styles.alertError} role="alert">
+                  {error}
+                </div>
+              )}
+              {info && (
+                <div className={styles.alertInfo} role="status">
+                  {info}
+                </div>
+              )}
+              {recovery && (
+                <div className={styles.alertInfo} role="status">
+                  {recovery}
+                </div>
+              )}
+              {needsEmailConfirm && (
+                <div className={styles.alertInfo} role="status">
+                  Confirm your email if prompted, then return here to sign in.
+                </div>
+              )}
+
+              {awaitingConfirm ? (
+                <div className={styles.preview}>
+                  <div className={styles.previewHead}>Check your email</div>
+                  <p className={styles.previewSub}>
+                    We sent a confirmation link to <strong>{email.trim()}</strong>. Confirm your
+                    address, then sign in to open {config.productName}. A welcome message is on its
+                    way as well.
+                  </p>
+                  <Link
+                    href={config.loginPath}
+                    className={`${styles.primary} ${styles.primaryLink}`}
+                  >
+                    Go to sign in
+                  </Link>
+                </div>
+              ) : (
+                <form onSubmit={onSubmit} className={styles.form}>
+                  {(mode === 'login' || (mode === 'signup' && !showDetails) || recovery) && (
+                    <>
+                      {(mode === 'signup' || recovery) && (
+                        <div className={styles.field}>
+                          <label htmlFor="biz" className={styles.label}>
+                            {intake.orgLabel}
+                          </label>
+                          <input
+                            id="biz"
+                            className={styles.input}
+                            value={businessName}
+                            onChange={(e) => setBusinessName(e.target.value)}
+                            placeholder={intake.orgPlaceholder}
+                            required={mode === 'signup' || !!recovery}
+                            autoComplete="organization"
+                          />
+                        </div>
+                      )}
+                      {!recovery && (
+                        <>
+                          <div className={styles.field}>
+                            <label htmlFor="email" className={styles.label}>
+                              Email
+                            </label>
+                            <input
+                              id="email"
+                              type="email"
+                              className={styles.input}
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                              placeholder="you@company.com"
+                              required
+                              autoComplete="email"
+                            />
+                          </div>
+                          <div className={styles.field}>
+                            <label htmlFor="password" className={styles.label}>
+                              Password
+                            </label>
+                            <input
+                              id="password"
+                              type="password"
+                              className={styles.input}
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              required
+                              minLength={6}
+                              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                            />
+                            {mode === 'signup' && (
+                              <span className={styles.fieldHelp}>At least 6 characters.</span>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
+
+                  {showDetails && (
+                    <div className={styles.intake}>
+                      <div className={styles.intakeHead}>
+                        <strong>{intake.headline}</strong>
+                        <div className={styles.chipRow}>
+                          {intake.outcomes.map((o) => (
+                            <span key={o} className={`${styles.chip} ${styles.chipStatic}`}>
+                              {o}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      {intake.fields.map((field) => {
+                        const value = solutionDetails[field.id];
                         return (
-                          <button
-                            key={optId}
-                            type="button"
-                            className={selected ? styles.chipOn : styles.chip}
-                            onClick={() => {
-                              if (field.type === 'multi') {
-                                const cur = Array.isArray(value) ? [...value] : [];
-                                setDetail(
-                                  field.id,
-                                  cur.includes(optId)
-                                    ? cur.filter((x) => x !== optId)
-                                    : [...cur, optId]
-                                );
-                              } else {
-                                setDetail(field.id, optId);
-                              }
-                            }}
-                          >
-                            {optLabel}
-                          </button>
+                          <div key={field.id} className={styles.field}>
+                            <label htmlFor={`detail-${field.id}`} className={styles.label}>
+                              {field.label}
+                              {field.required ? ' *' : ''}
+                            </label>
+                            {field.type === 'text' || field.type === 'number' ? (
+                              <input
+                                id={`detail-${field.id}`}
+                                type={field.type === 'number' ? 'number' : 'text'}
+                                className={styles.input}
+                                value={typeof value === 'string' ? value : ''}
+                                placeholder={field.placeholder || ''}
+                                aria-required={field.required || undefined}
+                                onChange={(e) => setDetail(field.id, e.target.value)}
+                              />
+                            ) : (
+                              <div
+                                className={styles.chipRow}
+                                role="group"
+                                aria-label={field.label}
+                              >
+                                {(field.options || []).map((opt) => {
+                                  const optId = typeof opt === 'string' ? opt : opt.id;
+                                  const optLabel = typeof opt === 'string' ? opt : opt.label;
+                                  const selected =
+                                    field.type === 'multi'
+                                      ? Array.isArray(value) && value.includes(optId)
+                                      : value === optId;
+                                  return (
+                                    <button
+                                      key={optId}
+                                      type="button"
+                                      className={
+                                        selected
+                                          ? `${styles.chip} ${styles.chipOn}`
+                                          : styles.chip
+                                      }
+                                      aria-pressed={selected}
+                                      onClick={() => {
+                                        if (field.type === 'multi') {
+                                          const cur = Array.isArray(value) ? [...value] : [];
+                                          setDetail(
+                                            field.id,
+                                            cur.includes(optId)
+                                              ? cur.filter((x) => x !== optId)
+                                              : [...cur, optId]
+                                          );
+                                        } else {
+                                          setDetail(field.id, optId);
+                                        }
+                                      }}
+                                    >
+                                      {optLabel}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
                   )}
-                </div>
-              );
-            })}
+
+                  <div className={styles.actions}>
+                    {showDetails && mode === 'signup' && !recovery && (
+                      <button
+                        type="button"
+                        className={styles.ghost}
+                        onClick={() => setSignupStep('account')}
+                        disabled={loading}
+                      >
+                        Back
+                      </button>
+                    )}
+                    <button type="submit" className={styles.primary} disabled={loading}>
+                      {loading
+                        ? 'Please wait…'
+                        : mode === 'login' && !recovery
+                          ? 'Sign in'
+                          : showDetails
+                            ? 'Finish setup'
+                            : 'Continue'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              <p className={styles.switch}>
+                {mode === 'login' ? (
+                  <>
+                    New here? <Link href={config.signupPath}>Create an account</Link>
+                  </>
+                ) : (
+                  <>
+                    Already have an account? <Link href={config.loginPath}>Sign in</Link>
+                  </>
+                )}
+              </p>
+            </div>
+
+            <div className={styles.legalLinks}>
+              <Link href="/solutions/business">Busmo Business</Link>
+              <span className={styles.dotSep}>·</span>
+              <Link href="/login">Business login</Link>
+              <span className={styles.dotSep}>·</span>
+              <Link href={config.welcomePath}>{config.shortName} overview</Link>
+            </div>
+            <p className={styles.legalNote}>
+              Secure email &amp; Google sign-in. Your workspace data stays private.
+            </p>
           </div>
-        )}
-
-        <div className={styles.authActions}>
-          {showDetails && mode === 'signup' && !recovery && (
-            <button
-              type="button"
-              className={styles.btnGhost}
-              onClick={() => setSignupStep('account')}
-              disabled={loading}
-            >
-              Back
-            </button>
-          )}
-          <button type="submit" className={styles.btnPrimary} disabled={loading}>
-            {loading
-              ? 'Please wait…'
-              : mode === 'login' && !recovery
-                ? 'Sign in'
-                : showDetails
-                  ? 'Finish setup'
-                  : 'Continue'}
-          </button>
-        </div>
-      </form>
-      )}
-
-      <p className={styles.authSwitch}>
-        {mode === 'login' ? (
-          <>
-            New here? <Link href={config.signupPath}>Create an account</Link>
-          </>
-        ) : (
-          <>
-            Already have an account? <Link href={config.loginPath}>Sign in</Link>
-          </>
-        )}
-      </p>
-      <p className={styles.authSwitch} style={{ marginTop: 8 }}>
-        <Link href="/welcome">Busmo Business</Link>
-        {' · '}
-        <Link href="/welcome/login">Busmo Business login</Link>
-      </p>
-    </div>
+        </main>
+      </div>
     </div>
   );
 }
