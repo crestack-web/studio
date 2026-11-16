@@ -1,4 +1,5 @@
-/* Restored base design system from last known-good commit, plus local mobile fixes.
-   Base is pinned so dashboards keep full styles while mobile sheet/card spacing ships. */
-@import url('https://cdn.jsdelivr.net/gh/crestack-web/studio@943a72eb8fd1816e7f6c0672b3f79209e14259cf/src/app/industries/_design/solutions.css');
+/* Local overrides for solutions dashboards.
+   Base design system is loaded at runtime from the last known-good build
+   (see IndustryDashboardClient) because Next CSS cannot reliably @import
+   large external stylesheets. */
 @import './solutions-mobile.css';
