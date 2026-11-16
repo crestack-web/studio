@@ -2,7 +2,22 @@
 
 import React, { useMemo, useState } from 'react';
 import { Download } from 'lucide-react';
-import { Avatar, Badge, Card, Kpi, PageHeader, Progress, SearchInput, StatusBadge, TableWrap, Td, Th, useToast } from '../primitives';
+import {
+  Avatar,
+  Badge,
+  Card,
+  Field,
+  Kpi,
+  PageHeader,
+  Progress,
+  SearchInput,
+  Sheet,
+  StatusBadge,
+  TableWrap,
+  Td,
+  Th,
+  useToast,
+} from '../primitives';
 import { Icon } from '../icons';
 import { teacherStats, teachers } from './mock';
 
@@ -10,6 +25,15 @@ export function EducationTeachers() {
   const { toast } = useToast();
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
+  const [addOpen, setAddOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    full_name: '',
+    email: '',
+    phone: '',
+    subject: '',
+    qualification: '',
+  });
 
   const list = useMemo(
     () =>
@@ -26,6 +50,24 @@ export function EducationTeachers() {
 
   const active = teachers.filter((t) => t.status === 'active');
 
+  function set<K extends keyof typeof form>(key: K) {
+    return (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  }
+
+  function addTeacher() {
+    if (!form.full_name.trim() || !form.subject.trim()) {
+      toast('Enter the teacher name and subject.');
+      return;
+    }
+    setSaving(true);
+    window.setTimeout(() => {
+      setSaving(false);
+      setAddOpen(false);
+      toast(`${form.full_name.trim()} added to the faculty roster.`);
+      setForm({ full_name: '', email: '', phone: '', subject: '', qualification: '' });
+    }, 500);
+  }
+
   return (
     <>
       <PageHeader
@@ -41,7 +83,7 @@ export function EducationTeachers() {
             <button type="button" className="sol-btn sol-btn-subtle" onClick={() => toast('Staff register exported as CSV.')}>
               <Download size={15} aria-hidden /> Export
             </button>
-            <button type="button" className="sol-btn sol-btn-primary" onClick={() => toast('Teacher onboarding opened.')}>
+            <button type="button" className="sol-btn sol-btn-primary" onClick={() => setAddOpen(true)}>
               <Icon name="plus" size={15} aria-hidden /> Add teacher
             </button>
           </>
@@ -141,6 +183,42 @@ export function EducationTeachers() {
           </Card>
         ))}
       </div>
+
+      <Sheet
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        title="Add a teacher"
+        subtitle="Onboard faculty with subject load and contact details."
+        width={480}
+        footer={
+          <>
+            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => setAddOpen(false)}>
+              Cancel
+            </button>
+            <button type="button" className="sol-btn sol-btn-primary" onClick={addTeacher} disabled={saving}>
+              <Icon name="plus" size={15} /> {saving ? 'Saving…' : 'Add teacher'}
+            </button>
+          </>
+        }
+      >
+        <div className="sol-form-grid">
+          <Field label="Full name" className="full">
+            <input className="sol-input" value={form.full_name} onChange={set('full_name')} placeholder="e.g. Mrs. Kemi Ojo" />
+          </Field>
+          <Field label="Email">
+            <input className="sol-input" type="email" value={form.email} onChange={set('email')} placeholder="name@school.edu.ng" />
+          </Field>
+          <Field label="Phone">
+            <input className="sol-input" value={form.phone} onChange={set('phone')} placeholder="+234 …" />
+          </Field>
+          <Field label="Subject" className="full">
+            <input className="sol-input" value={form.subject} onChange={set('subject')} placeholder="e.g. Mathematics" />
+          </Field>
+          <Field label="Qualification" className="full">
+            <input className="sol-input" value={form.qualification} onChange={set('qualification')} placeholder="e.g. B.Sc Mathematics, PGDE" />
+          </Field>
+        </div>
+      </Sheet>
     </>
   );
 }
