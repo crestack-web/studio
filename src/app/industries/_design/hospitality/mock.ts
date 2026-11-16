@@ -528,15 +528,31 @@ export function hydrateHospitality(payload: any): boolean {
 
   const livePayments: Payment[] = asArray(payload.payments).map((r: any) => {
     const meta = r.meta || {};
+    const methodRaw = String(meta.method || r.method || 'card').toLowerCase();
+    const method = (
+      methodRaw.includes('cash')
+        ? 'cash'
+        : methodRaw.includes('pos')
+          ? 'pos'
+          : methodRaw.includes('transfer') || methodRaw.includes('bank')
+            ? 'transfer'
+            : 'card'
+    ) as Payment['method'];
+    const statusRaw = String(r.status || 'pending').toLowerCase();
+    const status = (
+      statusRaw === 'settled' || statusRaw === 'paid'
+        ? 'settled'
+        : statusRaw === 'refunded'
+          ? 'refunded'
+          : 'pending'
+    ) as Payment['status'];
     return {
       id: String(r.id),
       guest_name: String(meta.guest_name || r.title || 'Guest'),
       room_number: String(meta.room_number || ''),
-      method: String(meta.method || 'Card'),
+      method,
       amount: Number(r.amount || 0),
-      status: (['settled', 'pending', 'failed', 'refunded'].includes(String(r.status))
-        ? r.status
-        : 'pending') as Payment['status'],
+      status,
       date: day(meta.date || r.occurred_at || r.created_at),
       reference: String(meta.reference || r.id || ''),
     };
@@ -546,34 +562,49 @@ export function hydrateHospitality(payload: any): boolean {
     const meta = r.meta || {};
     return {
       id: String(r.id),
-      key: String(meta.key || r.title || ''),
-      title: String(r.title || meta.title || ''),
-      body: String(meta.body || r.notes || ''),
-      visible: r.status !== 'hidden' && meta.visible !== false,
-      order: Number(meta.order || 0),
+      name: String(r.title || meta.name || meta.title || 'Section'),
+      description: String(meta.body || meta.description || r.notes || ''),
+      enabled: r.status !== 'hidden' && meta.visible !== false && meta.enabled !== false,
     };
   });
 
   const liveInquiries: WebsiteInquiry[] = asArray(payload.websiteInquiries).map((r: any) => {
     const meta = r.meta || {};
+    const statusRaw = String(r.status || 'new').toLowerCase();
+    const status = (
+      statusRaw === 'converted'
+        ? 'converted'
+        : statusRaw === 'responded' || statusRaw === 'replied'
+          ? 'responded'
+          : 'new'
+    ) as WebsiteInquiry['status'];
     return {
       id: String(r.id),
       name: String(meta.name || r.title || 'Guest'),
       email: String(meta.email || ''),
-      phone: String(meta.phone || ''),
-      message: String(meta.message || r.notes || ''),
-      status: (['new', 'replied', 'archived'].includes(String(r.status)) ? r.status : 'new') as WebsiteInquiry['status'],
-      created_at: String(r.occurred_at || r.created_at || new Date().toISOString()),
+      dates: String(meta.dates || ''),
+      guests: Number(meta.guests || 1),
+      status,
+      received_at: String(r.occurred_at || r.created_at || new Date().toISOString()),
     };
   });
 
-  const liveActivity: ActivityItem[] = asArray(payload.activity).map((r: any) => ({
-    id: String(r.id),
-    title: String(r.title || ''),
-    detail: String(r.notes || r.meta?.detail || ''),
-    time: String(r.occurred_at || r.created_at || ''),
-    tone: (['info', 'success', 'warn', 'danger'].includes(String(r.meta?.tone)) ? r.meta.tone : 'info') as ActivityItem['tone'],
-  }));
+  const liveActivity: ActivityItem[] = asArray(payload.activity).map((r: any) => {
+    const meta = r.meta || {};
+    const kindRaw = String(meta.kind || meta.type || r.module || 'booking').toLowerCase();
+    const kind = (
+      ['check_in', 'check_out', 'booking', 'payment', 'housekeeping', 'alert'].includes(kindRaw)
+        ? kindRaw
+        : 'booking'
+    ) as ActivityItem['kind'];
+    return {
+      id: String(r.id),
+      title: String(r.title || ''),
+      detail: String(r.notes || meta.detail || ''),
+      time: String(r.occurred_at || r.created_at || ''),
+      kind,
+    };
+  });
 
   replaceArray(rooms, liveRooms);
   replaceArray(bookings, liveBookings);
