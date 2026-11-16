@@ -42,6 +42,17 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      // Public rename: industries → solutions (keep old URLs working for SEO/bookmarks)
+      {
+        source: '/industries',
+        destination: '/solutions',
+        permanent: true,
+      },
+      {
+        source: '/industries/:path*',
+        destination: '/solutions/:path*',
+        permanent: true,
+      },
       {
         source: '/sell',
         destination: 'https://mo-sell.store/',
@@ -82,6 +93,15 @@ const nextConfig: NextConfig = {
   async rewrites() {
     const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
     const rewrites = [
+      // Serve solutions pages from the existing industries app routes
+      {
+        source: '/solutions',
+        destination: '/industries',
+      },
+      {
+        source: '/solutions/:path*',
+        destination: '/industries/:path*',
+      },
       {
         source: '/api/initializePayment',
         destination: `${firebaseFunctionsBaseUrl}/initializePayment`,
