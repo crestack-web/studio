@@ -42,7 +42,7 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
-      // Public rename: industries → solutions (keep old URLs working for SEO/bookmarks)
+      // Old industries URLs → solutions (SEO + bookmarks)
       {
         source: '/industries',
         destination: '/solutions',
@@ -93,15 +93,6 @@ const nextConfig: NextConfig = {
   async rewrites() {
     const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
     const rewrites = [
-      // Serve solutions pages from the existing industries app routes
-      {
-        source: '/solutions',
-        destination: '/industries',
-      },
-      {
-        source: '/solutions/:path*',
-        destination: '/industries/:path*',
-      },
       {
         source: '/api/initializePayment',
         destination: `${firebaseFunctionsBaseUrl}/initializePayment`,
@@ -160,7 +151,6 @@ const nextConfig: NextConfig = {
       },
     ];
 
-    // Only add PostHog rewrites if NEXT_PUBLIC_POSTHOG_HOST is configured
     if (posthogHost) {
       rewrites.push(
         {
@@ -180,7 +170,6 @@ const nextConfig: NextConfig = {
 
     return rewrites;
   },
-  // Enable React strict mode for better development
   reactStrictMode: true,
   images: {
     remotePatterns: [
