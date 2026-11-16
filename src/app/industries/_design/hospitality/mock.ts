@@ -1,1 +1,1 @@
-PLACEHOLDER_MOCK
+SEE_FILE_/tmp/restore_mock.ts
