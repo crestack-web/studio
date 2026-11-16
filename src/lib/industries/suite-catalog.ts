@@ -27,12 +27,12 @@ export type SuiteFamily = {
 };
 
 const businessProducts: SuiteProduct[] = [
-  { id: 'sales', name: 'Sales', blurb: 'Record sales, track stock, and close the day faster.', href: '/welcome' },
-  { id: 'cashflow', name: 'Cashflow', blurb: 'See money in and out without spreadsheet chaos.', href: '/welcome' },
-  { id: 'inventory', name: 'Inventory', blurb: 'Stock levels, low-stock alerts, and restock clarity.', href: '/welcome' },
-  { id: 'mo', name: 'Ask MO', blurb: 'Your AI business assistant for daily decisions.', href: '/welcome' },
-  { id: 'staff', name: 'Staff', blurb: 'Attendance, roles, and accountability in one place.', href: '/welcome' },
-  { id: 'builder', name: 'Business Builder', blurb: 'Describe a process — Busmo builds the tool.', href: '/welcome' },
+  { id: 'sales', name: 'Sales', blurb: 'Record sales, track stock, and close the day faster.', href: '/welcome/signup' },
+  { id: 'cashflow', name: 'Cashflow', blurb: 'See money in and out without spreadsheet chaos.', href: '/welcome/signup' },
+  { id: 'inventory', name: 'Inventory', blurb: 'Stock levels, low-stock alerts, and restock clarity.', href: '/welcome/signup' },
+  { id: 'mo', name: 'Ask MO', blurb: 'Your AI business assistant for daily decisions.', href: '/welcome/signup' },
+  { id: 'staff', name: 'Staff', blurb: 'Attendance, roles, and accountability in one place.', href: '/welcome/signup' },
+  { id: 'builder', name: 'Business Builder', blurb: 'Describe a process — Busmo builds the tool.', href: '/welcome/signup' },
 ];
 
 function industryProducts(config: IndustryConfig): SuiteProduct[] {
@@ -56,7 +56,7 @@ export const SUITE_FAMILIES: SuiteFamily[] = [
     id: 'business',
     label: 'Business',
     productName: 'Busmo Business',
-    href: '/',
+    href: '/solutions/business',
     signupHref: '/welcome/signup',
     loginHref: '/login',
     tagline: 'Run your business. Stay in control.',
