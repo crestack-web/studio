@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { SolutionsShell } from './shell';
-import { ToastProvider } from './primitives';
+import { ToastProvider, Banner } from './primitives';
 import { getSolutionsSuite } from './suites';
 import { SolutionsLiveProvider, useSolutionsLive } from './live';
 import { notifications as hospitalityNotifications } from './hospitality/mock';
@@ -153,6 +153,109 @@ function sectionToPathSegment(sectionId: string): string {
   return sectionId;
 }
 
+function Bone({ className = '', style }: { className?: string; style?: React.CSSProperties }) {
+  return <span className={`sol-skeleton-bone ${className}`.trim()} style={style} aria-hidden />;
+}
+
+/** Overview-shaped skeleton so loading matches the live dashboard layout. */
+function DashboardSkeleton({ suiteName }: { suiteName: string }) {
+  return (
+    <div className="sol-skeleton" role="status" aria-live="polite" aria-busy="true">
+      <span className="sol-sr-only">Loading {suiteName} workspace…</span>
+
+      <section className="sol-hero sol-skeleton-hero">
+        <div className="sol-hero-body">
+          <Bone className="sol-skeleton-line sol-skeleton-date" />
+          <Bone className="sol-skeleton-line sol-skeleton-title" />
+          <Bone className="sol-skeleton-line sol-skeleton-sub" />
+          <Bone className="sol-skeleton-line sol-skeleton-sub short" />
+        </div>
+        <div className="sol-hero-side">
+          <div className="sol-hero-actions">
+            <Bone className="sol-skeleton-btn" />
+            <Bone className="sol-skeleton-btn muted" />
+          </div>
+          <Bone className="sol-skeleton-line sol-skeleton-meta" />
+        </div>
+      </section>
+
+      <div className="sol-kpis">
+        {[0, 1, 2, 3].map((i) => (
+          <article key={i} className="sol-kpi sol-skeleton-kpi">
+            <div className="sol-kpi-head">
+              <Bone className="sol-skeleton-line sol-skeleton-kpi-label" />
+              <Bone className="sol-skeleton-icon" />
+            </div>
+            <Bone className="sol-skeleton-line sol-skeleton-kpi-value" />
+            <Bone className="sol-skeleton-line sol-skeleton-kpi-foot" />
+          </article>
+        ))}
+      </div>
+
+      <div className="sol-grid sol-grid-main">
+        <section className="sol-card sol-skeleton-card">
+          <div className="sol-card-head">
+            <div>
+              <Bone className="sol-skeleton-line sol-skeleton-card-title" />
+              <Bone className="sol-skeleton-line sol-skeleton-card-sub" />
+            </div>
+          </div>
+          <div className="sol-card-body">
+            <Bone className="sol-skeleton-chart" />
+            <div className="sol-skeleton-legend">
+              <Bone className="sol-skeleton-chip" />
+              <Bone className="sol-skeleton-chip" />
+              <Bone className="sol-skeleton-chip" />
+            </div>
+          </div>
+        </section>
+
+        <section className="sol-card sol-skeleton-card">
+          <div className="sol-card-head">
+            <div>
+              <Bone className="sol-skeleton-line sol-skeleton-card-title" />
+              <Bone className="sol-skeleton-line sol-skeleton-card-sub" />
+            </div>
+          </div>
+          <div className="sol-card-body sol-skeleton-ring-block">
+            <Bone className="sol-skeleton-ring" />
+            <div className="sol-skeleton-ring-stats">
+              {[0, 1, 2, 3].map((i) => (
+                <Bone key={i} className="sol-skeleton-line sol-skeleton-stat" />
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div className="sol-grid sol-grid-2">
+        {[0, 1].map((col) => (
+          <section key={col} className="sol-card sol-skeleton-card">
+            <div className="sol-card-head">
+              <div>
+                <Bone className="sol-skeleton-line sol-skeleton-card-title" />
+                <Bone className="sol-skeleton-line sol-skeleton-card-sub" />
+              </div>
+            </div>
+            <div className="sol-card-body sol-skeleton-list">
+              {[0, 1, 2, 3].map((row) => (
+                <div key={row} className="sol-skeleton-list-row">
+                  <Bone className="sol-skeleton-avatar" />
+                  <div className="sol-skeleton-list-main">
+                    <Bone className="sol-skeleton-line sol-skeleton-list-title" />
+                    <Bone className="sol-skeleton-line sol-skeleton-list-sub" />
+                  </div>
+                  <Bone className="sol-skeleton-chip" />
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function SolutionsDashboard({
   suiteId,
   section,
@@ -175,6 +278,7 @@ export function SolutionsDashboard({
         basePath={basePath}
         user={user}
         signOut={signOut}
+        liveEnabled={liveEnabled}
       />
     </SolutionsLiveProvider>
   );
@@ -186,14 +290,16 @@ function SolutionsDashboardBody({
   basePath = '/industries/preview',
   user,
   signOut,
+  liveEnabled,
 }: {
   suiteId: string;
   section: string;
   basePath?: string;
   user?: { name: string; email?: string } | null;
   signOut?: () => void;
+  liveEnabled: boolean;
 }) {
-  const { version } = useSolutionsLive();
+  const { version, status, error, refresh } = useSolutionsLive();
   const suite = getSolutionsSuite(suiteId);
 
   const hrefFor = (sectionId: string, targetSuiteId?: string) => {
@@ -221,6 +327,9 @@ function SolutionsDashboardBody({
 
   const Screen = screens ? screens[section] || screens.overview : null;
 
+  const showSkeleton = liveEnabled && status === 'loading';
+  const showError = liveEnabled && status === 'error';
+
   return (
     <ToastProvider>
       <SolutionsShell
@@ -231,13 +340,31 @@ function SolutionsDashboardBody({
         user={user}
         signOut={signOut}
       >
-        <React.Fragment key={version}>
-          {Screen ? (
-            <Screen hrefFor={hrefFor} />
-          ) : (
-            <SuitePreviewPlaceholder suiteName={suite.shortName} suiteId={suite.id} />
-          )}
-        </React.Fragment>
+        {showSkeleton ? (
+          <DashboardSkeleton suiteName={suite.shortName} />
+        ) : (
+          <React.Fragment key={version}>
+            {showError ? (
+              <Banner
+                tone="amber"
+                icon="bell"
+                title="Couldn’t load live data"
+                action={
+                  <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => void refresh()}>
+                    Retry
+                  </button>
+                }
+              >
+                {error || 'Check your connection and try again. Showing the workspace shell for now.'}
+              </Banner>
+            ) : null}
+            {Screen ? (
+              <Screen hrefFor={hrefFor} />
+            ) : (
+              <SuitePreviewPlaceholder suiteName={suite.shortName} suiteId={suite.id} />
+            )}
+          </React.Fragment>
+        )}
       </SolutionsShell>
     </ToastProvider>
   );

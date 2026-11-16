@@ -135,8 +135,12 @@ export function IndustryDashboardClient({
     return (
       <div className={styles.boot}>
         <div className={styles.bootCard}>
+          <div className={styles.bootMark} aria-hidden>
+            {(config.productName || 'B').slice(0, 1).toUpperCase()}
+          </div>
           <div className={styles.bootPulse} />
-          <p>Opening {config.productName}…</p>
+          <p className={styles.bootTitle}>Opening {config.productName}</p>
+          <p className={styles.bootSub}>Preparing your workspace…</p>
         </div>
       </div>
     );
