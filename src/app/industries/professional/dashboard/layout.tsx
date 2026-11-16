@@ -1,5 +1,6 @@
 import type { Viewport } from 'next';
 import '../../_design/solutions.css';
+import { SolutionsCssLink } from '../../_design/loadSolutionsCss';
 import { getIndustryConfig } from '@/lib/industries/config';
 import { IndustryDashboardClient } from '../../_components/IndustryDashboardClient';
 
@@ -10,15 +11,16 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
-/**
- * Shell stays mounted across /dashboard and /dashboard/* so auth and chrome
- * do not re-run on every section switch.
- */
 export default function ProfessionalDashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   void children;
-  return <IndustryDashboardClient config={getIndustryConfig('professional')!} />;
+  return (
+    <>
+      <SolutionsCssLink />
+      <IndustryDashboardClient config={getIndustryConfig('professional')!} />
+    </>
+  );
 }
