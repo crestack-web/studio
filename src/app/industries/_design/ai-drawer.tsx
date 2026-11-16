@@ -253,7 +253,7 @@ export function AIDrawer({
     <div className="mo-root">
       <div className="mo-hero">
         <div className="mo-hero-avatar">
-          <MoIcon size={28} />
+          <MoIcon size={20} />
         </div>
         <div>
           <div className="mo-hero-title">
@@ -356,8 +356,8 @@ export function AIDrawer({
 
       <style>{`
         .mo-root{display:flex;flex-direction:column;gap:14px;min-height:min(70vh,640px)}
-        .mo-hero{display:flex;align-items:center;gap:14px;padding:14px;border-radius:16px;background:radial-gradient(120% 140% at 0% 0%,var(--sol-accent-soft) 0%,transparent 55%),linear-gradient(180deg,var(--sol-surface),var(--sol-surface-2));border:1px solid var(--sol-border);box-shadow:var(--sol-shadow-sm)}
-        .mo-hero-avatar{flex-shrink:0;width:64px;height:64px;border-radius:18px;display:grid;place-items:center;background:#0b1220;border:1px solid rgba(255,255,255,.08);box-shadow:0 10px 28px rgba(15,23,32,.18)}
+        .mo-hero{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:var(--sol-surface-2);border:none;box-shadow:none}
+        .mo-hero-avatar{flex-shrink:0;width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:#0b1220;border:none;box-shadow:none}
         .mo-hero-title{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:800;letter-spacing:-.03em;color:var(--sol-text)}
         .mo-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:var(--sol-accent-soft);color:var(--sol-accent);border:1px solid var(--sol-accent-border);font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
         .mo-hero-sub{margin:3px 0 0;font-size:12.5px;font-weight:700;color:var(--sol-text-2)}
@@ -384,9 +384,11 @@ export function AIDrawer({
         .mo-quick-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 11px;border-radius:999px;border:1px solid var(--sol-border);background:var(--sol-surface);color:var(--sol-text-2);font:inherit;font-size:12px;font-weight:700;cursor:pointer}
         .mo-quick-btn:hover:not(:disabled){border-color:var(--sol-accent-border);color:var(--sol-accent);background:var(--sol-accent-soft)}
         .mo-quick-btn:disabled{opacity:.55;cursor:not-allowed}
-        .mo-composer{display:flex;align-items:center;gap:8px;padding:8px;border-radius:16px;background:var(--sol-surface);border:1px solid var(--sol-border);box-shadow:var(--sol-shadow-sm)}
-        .mo-input{flex:1;min-width:0;height:40px;padding:0 12px;border:none;background:transparent;color:var(--sol-text);font:inherit;font-size:14px;outline:none}
+        .mo-composer{display:flex;align-items:center;gap:8px;padding:6px 4px 6px 8px;border-radius:16px;background:var(--sol-surface-2);border:none;box-shadow:none}
+        .mo-input{flex:1;min-width:0;height:40px;padding:0 12px;border:none!important;background:transparent;color:var(--sol-text);font:inherit;font-size:14px;outline:none!important;box-shadow:none!important;-webkit-appearance:none}
         .mo-input::placeholder{color:var(--sol-text-3)}
+        .mo-input:focus,.mo-input:focus-visible{outline:none!important;border:none!important;box-shadow:none!important}
+        .mo-composer:focus-within{outline:none;box-shadow:none;border:none}
         .mo-send{width:40px;height:40px;border-radius:12px;border:none;display:grid;place-items:center;background:var(--sol-accent);color:var(--sol-accent-contrast);cursor:pointer;flex-shrink:0}
         .mo-send:disabled{opacity:.45;cursor:not-allowed}
       `}</style>
