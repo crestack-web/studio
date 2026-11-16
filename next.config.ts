@@ -42,15 +42,35 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
-      // Old industries URLs → solutions (SEO + bookmarks)
+      // Landing-page rename only (not full app tree — login/dashboard stay under industries internally)
       {
         source: '/industries',
         destination: '/solutions',
         permanent: true,
       },
       {
-        source: '/industries/:path*',
-        destination: '/solutions/:path*',
+        source: '/industries/business',
+        destination: '/solutions/business',
+        permanent: true,
+      },
+      {
+        source: '/industries/hospitality',
+        destination: '/solutions/hospitality',
+        permanent: true,
+      },
+      {
+        source: '/industries/healthcare',
+        destination: '/solutions/healthcare',
+        permanent: true,
+      },
+      {
+        source: '/industries/professional',
+        destination: '/solutions/professional',
+        permanent: true,
+      },
+      {
+        source: '/industries/education',
+        destination: '/solutions/education',
         permanent: true,
       },
       {
@@ -92,7 +112,13 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
+    // afterFiles behavior: real /solutions and /solutions/{product} pages win;
+    // deeper paths (login, dashboard, front-desk) fall through to industries.
     const rewrites = [
+      {
+        source: '/solutions/:path*',
+        destination: '/industries/:path*',
+      },
       {
         source: '/api/initializePayment',
         destination: `${firebaseFunctionsBaseUrl}/initializePayment`,
