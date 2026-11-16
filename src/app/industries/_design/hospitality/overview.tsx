@@ -58,6 +58,15 @@ export function HospitalityOverview({ hrefFor }: { hrefFor: (s: string) => strin
   const occupancySpark = revenueSeries.map((p) => p.occupancy);
   const revenueSpark = revenueSeries.map((p) => p.rooms + p.food + p.other);
 
+  // Safe access when live hydrate returns empty series (new workspace / no data yet)
+  const lastPoint =
+    revenueSeries.length > 0
+      ? revenueSeries[revenueSeries.length - 1]
+      : { rooms: 0, food: 0, other: 0, occupancy: 0, date: today };
+  const todayRevenue = lastPoint.rooms + lastPoint.food + lastPoint.other;
+  const hkProgress =
+    housekeepingRooms.length > 0 ? (hkDone / housekeepingRooms.length) * 100 : 0;
+
   return (
     <>
       <section className="sol-hero">
@@ -65,10 +74,10 @@ export function HospitalityOverview({ hrefFor }: { hrefFor: (s: string) => strin
           <div className="sol-hero-date">
             <Clock size={13} aria-hidden /> {fmtDate(today, { weekday: true, year: true })} · Front desk live
           </div>
-          <h1>Welcome back, Amara.</h1>
+          <h1>Welcome back{hotel.ownerName ? `, ${hotel.ownerName.split(' ')[0]}` : ''}.</h1>
           <p className="sol-hero-sub">
             {todaysArrivals.length} guests arriving, {todaysDepartures.length} checking out and{' '}
-            {occupancy.available} rooms ready to sell. Here is how {hotel.name} is running today.
+            {occupancy.available} rooms ready to sell. Here is how {hotel.name || 'your hotel'} is running today.
           </p>
         </div>
         <div className="sol-hero-side">
@@ -81,7 +90,7 @@ export function HospitalityOverview({ hrefFor }: { hrefFor: (s: string) => strin
             </Link>
           </div>
           <div className="sol-row sol-small sol-muted">
-            <span className="sol-dot green" /> All systems normal · night audit completed 00:14
+            <span className="sol-dot green" /> All systems normal
           </div>
         </div>
       </section>
@@ -91,11 +100,9 @@ export function HospitalityOverview({ hrefFor }: { hrefFor: (s: string) => strin
           label="Occupancy rate"
           value={`${occupancy.rate}%`}
           icon="trend"
-          delta="+4.2%"
-          deltaDir="up"
-          foot="vs last week"
+          foot="of total rooms"
           accent
-          spark={<Sparkline data={occupancySpark} />}
+          spark={occupancySpark.length ? <Sparkline data={occupancySpark} /> : undefined}
         />
         <Kpi
           label="Available rooms"
@@ -107,18 +114,16 @@ export function HospitalityOverview({ hrefFor }: { hrefFor: (s: string) => strin
           label="Arrivals today"
           value={todaysArrivals.length}
           icon="calendar"
-          delta={`${vipArrivals} priority`}
-          deltaDir="flat"
-          foot="first at 13:00"
+          delta={vipArrivals ? `${vipArrivals} priority` : undefined}
+          deltaDir={vipArrivals ? 'flat' : undefined}
+          foot={todaysArrivals.length ? 'expected today' : 'none expected'}
         />
         <Kpi
           label="Revenue today"
-          value={compactMoney(revenueSeries[revenueSeries.length - 1].rooms + revenueSeries[revenueSeries.length - 1].food + revenueSeries[revenueSeries.length - 1].other)}
+          value={compactMoney(todayRevenue)}
           icon="wallet"
-          delta="+8.6%"
-          deltaDir="up"
-          foot="vs yesterday"
-          spark={<Sparkline data={revenueSpark} color="var(--sol-chart-2)" />}
+          foot="rooms + F&B + services"
+          spark={revenueSpark.length ? <Sparkline data={revenueSpark} color="var(--sol-chart-2)" /> : undefined}
         />
       </div>
 
@@ -132,17 +137,23 @@ export function HospitalityOverview({ hrefFor }: { hrefFor: (s: string) => strin
             </Link>
           }
         >
-          <TrendChart
-            data={revenueChart}
-            series={[
-              { key: 'Rooms', name: 'Rooms' },
-              { key: 'Food & beverage', name: 'Food & beverage', color: 'var(--sol-chart-2)' },
-              { key: 'Services', name: 'Services', color: 'var(--sol-chart-3)' },
-            ]}
-            height={264}
-            money
-            yFormat={(v) => compactMoney(v)}
-          />
+          {revenueChart.length > 0 ? (
+            <TrendChart
+              data={revenueChart}
+              series={[
+                { key: 'Rooms', name: 'Rooms' },
+                { key: 'Food & beverage', name: 'Food & beverage', color: 'var(--sol-chart-2)' },
+                { key: 'Services', name: 'Services', color: 'var(--sol-chart-3)' },
+              ]}
+              height={264}
+              money
+              yFormat={(v) => compactMoney(v)}
+            />
+          ) : (
+            <div className="sol-muted sol-small" style={{ padding: '48px 0', textAlign: 'center' }}>
+              No revenue data yet. Record bookings and payments to see the chart.
+            </div>
+          )}
           <div className="sol-between sol-mt-3">
             <div className="sol-legend">
               <span className="sol-legend-item">
@@ -205,7 +216,7 @@ export function HospitalityOverview({ hrefFor }: { hrefFor: (s: string) => strin
             </Link>
           </div>
           <div className="sol-mt-2">
-            <Progress value={(hkDone / housekeepingRooms.length) * 100} label="Housekeeping rooms ready" />
+            <Progress value={hkProgress} label="Housekeeping rooms ready" />
           </div>
         </Card>
       </div>
@@ -242,12 +253,15 @@ export function HospitalityOverview({ hrefFor }: { hrefFor: (s: string) => strin
                 </div>
               </div>
             ))}
+            {!todaysArrivals.length ? (
+              <div className="sol-list-row sol-muted sol-small">No arrivals expected today.</div>
+            ) : null}
           </div>
         </Card>
 
         <Card
           title="Departures today"
-          subtitle={`${todaysDepartures.length} checking out before 11:00`}
+          subtitle={`${todaysDepartures.length} checking out`}
           flush
           action={
             <Link href={hrefFor('checkin')} className="sol-btn sol-btn-ghost sol-btn-sm">
@@ -275,12 +289,16 @@ export function HospitalityOverview({ hrefFor }: { hrefFor: (s: string) => strin
                 </div>
               </div>
             ))}
-            <div className="sol-list-row sol-muted sol-small">
-              <CheckCircle2 size={15} aria-hidden />
-              <div className="sol-list-main">
-                Rooms release to housekeeping as soon as folios are closed.
+            {!todaysDepartures.length ? (
+              <div className="sol-list-row sol-muted sol-small">No departures scheduled today.</div>
+            ) : (
+              <div className="sol-list-row sol-muted sol-small">
+                <CheckCircle2 size={15} aria-hidden />
+                <div className="sol-list-main">
+                  Rooms release to housekeeping as soon as folios are closed.
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </Card>
       </div>
@@ -296,12 +314,18 @@ export function HospitalityOverview({ hrefFor }: { hrefFor: (s: string) => strin
           }
         >
           <div className="sol-mini-rooms">
-            {highlightRooms.map((r) => (
-              <Link key={r.id} href={hrefFor('rooms')} className="sol-mini-room" data-status={r.status}>
-                <strong>{r.room_number}</strong>
-                <small>{r.status === 'ooo' ? 'OOO' : r.status}</small>
-              </Link>
-            ))}
+            {highlightRooms.length > 0 ? (
+              highlightRooms.map((r) => (
+                <Link key={r.id} href={hrefFor('rooms')} className="sol-mini-room" data-status={r.status}>
+                  <strong>{r.room_number}</strong>
+                  <small>{r.status === 'ooo' ? 'OOO' : r.status}</small>
+                </Link>
+              ))
+            ) : (
+              <div className="sol-muted sol-small" style={{ padding: '24px 0' }}>
+                No rooms configured yet. Add rooms to see the board.
+              </div>
+            )}
           </div>
           <div className="sol-legend sol-mt-3">
             <span className="sol-legend-item">
@@ -362,13 +386,9 @@ export function HospitalityOverview({ hrefFor }: { hrefFor: (s: string) => strin
                   <StatusBadge status={r.stage} />
                 </div>
               ))}
-            </div>
-            <div className="sol-divider sol-mt-3" />
-            <div className="sol-row sol-between sol-mt-2">
-              <span className="sol-small sol-muted">Room 412 · AC replacement</span>
-              <Badge tone="red" dot>
-                Out of order
-              </Badge>
+              {!housekeepingRooms.length ? (
+                <div className="sol-small sol-muted">No housekeeping tasks yet.</div>
+              ) : null}
             </div>
           </Card>
 
@@ -387,6 +407,9 @@ export function HospitalityOverview({ hrefFor }: { hrefFor: (s: string) => strin
                     <span className="sol-timeline-time">{a.time}</span>
                   </div>
                 ))}
+                {!activity.length ? (
+                  <div className="sol-small sol-muted">No recent activity.</div>
+                ) : null}
               </div>
             </div>
           </Card>

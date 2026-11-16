@@ -33,15 +33,16 @@ export const QUICK_ACTIONS: Record<SolutionsSuiteId, QuickAction[]> = {
   ],
 };
 
+/** Soft MO prompts — no fabricated numbers. Live status comes from workspace hydrate. */
 export const MO_SUMMARY: Record<SolutionsSuiteId, string> = {
   hospitality:
-    'MO: “Occupancy is 65%. 6 arrivals today — rooms 305 and 412 need attention.”',
+    'MO is ready. Ask about occupancy, arrivals, housekeeping or revenue.',
   healthcare:
-    'MO: “12 patients are in the queue. Cardiology is running 22 minutes late — consider moving Dr. Lawal’s 15:30 virtual.”',
+    'MO is ready. Ask about the care queue, appointments, beds or supplies.',
   professional:
-    'MO: “Three projects are at risk this week. Northwind has 18 unbilled hours ready to invoice.”',
+    'MO is ready. Ask about projects, clients, unbilled time or invoices.',
   education:
-    'MO: “Attendance is 92% this week. 14 students have fees outstanding before the term closes.”',
+    'MO is ready. Ask about attendance, enrollment, fees or timetable.',
 };
 
 export const PREVIEW_READY: SolutionsSuiteId[] = ['hospitality', 'healthcare', 'professional', 'education'];
