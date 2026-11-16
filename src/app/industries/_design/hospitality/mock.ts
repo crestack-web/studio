@@ -137,6 +137,16 @@ function day(iso: unknown): string {
   return String(iso || '').slice(0, 10);
 }
 
+function channelLabel(source: Booking['source'] | string): string {
+  const src = String(source || '');
+  if (src === 'website') return 'Direct';
+  if (src === 'walk_in') return 'Walk-in';
+  if (src === 'phone') return 'Phone';
+  if (src === 'ota' || src === 'agents') return 'Agents';
+  if (src === 'corporate') return 'Corporate';
+  return 'Front desk';
+}
+
 function recalcHospitalitySummaries() {
   const categories = Array.from(new Set(rooms.map((r) => r.category)));
   replaceArray(
@@ -240,16 +250,7 @@ function recalcHospitalitySummaries() {
 
   const sourceMap: Record<string, number> = {};
   activeBookings.forEach((b) => {
-    const key =
-      b.source === 'website'
-        ? 'Direct'
-        : b.source === 'walk_in'
-          ? 'Walk-in'
-          : b.source === 'phone'
-            ? 'Phone'
-            : b.source === 'ota' || b.source === 'agents'
-              ? 'Agents'
-              : 'Front desk';
+    const key = channelLabel(b.source);
     sourceMap[key] = (sourceMap[key] || 0) + 1;
   });
   const sourceTotal = Object.values(sourceMap).reduce((a, b) => a + b, 0) || 1;
@@ -529,17 +530,15 @@ export function hydrateHospitality(payload: any): boolean {
     const meta = r.meta || {};
     return {
       id: String(r.id),
-      reference: String(meta.reference || `PAY-${String(r.id).slice(0, 5)}`),
       guest_name: String(meta.guest_name || r.title || 'Guest'),
       room_number: String(meta.room_number || ''),
+      method: String(meta.method || 'Card'),
       amount: Number(r.amount || 0),
-      method: (['card', 'transfer', 'cash', 'pos'].includes(String(meta.method))
-        ? meta.method
-        : 'cash') as Payment['method'],
-      status: (['settled', 'pending', 'refunded'].includes(String(r.status))
+      status: (['settled', 'pending', 'failed', 'refunded'].includes(String(r.status))
         ? r.status
-        : 'settled') as Payment['status'],
-      date: day(r.occurred_at || r.created_at),
+        : 'pending') as Payment['status'],
+      date: day(meta.date || r.occurred_at || r.created_at),
+      reference: String(meta.reference || r.id || ''),
     };
   });
 
@@ -547,52 +546,34 @@ export function hydrateHospitality(payload: any): boolean {
     const meta = r.meta || {};
     return {
       id: String(r.id),
-      name: String(meta.name || r.title || ''),
-      description: String(meta.description || ''),
-      enabled: Boolean(meta.enabled),
+      key: String(meta.key || r.title || ''),
+      title: String(r.title || meta.title || ''),
+      body: String(meta.body || r.notes || ''),
+      visible: r.status !== 'hidden' && meta.visible !== false,
+      order: Number(meta.order || 0),
     };
   });
 
-  const liveInquiries: WebsiteInquiry[] = asArray(payload.inquiries).map((r: any) => {
+  const liveInquiries: WebsiteInquiry[] = asArray(payload.websiteInquiries).map((r: any) => {
     const meta = r.meta || {};
     return {
       id: String(r.id),
-      name: String(meta.name || r.title || 'Enquiry'),
+      name: String(meta.name || r.title || 'Guest'),
       email: String(meta.email || ''),
-      dates: String(meta.dates || ''),
-      guests: Number(meta.guests || 1),
-      status: (['new', 'responded', 'converted'].includes(String(r.status))
-        ? r.status
-        : 'new') as WebsiteInquiry['status'],
-      received_at: String(meta.received_at || r.occurred_at || r.created_at || ''),
+      phone: String(meta.phone || ''),
+      message: String(meta.message || r.notes || ''),
+      status: (['new', 'replied', 'archived'].includes(String(r.status)) ? r.status : 'new') as WebsiteInquiry['status'],
+      created_at: String(r.occurred_at || r.created_at || new Date().toISOString()),
     };
   });
 
-  const liveReviews = asArray(payload.reviews).map((r: any) => {
-    const meta = r.meta || {};
-    return {
-      id: String(r.id),
-      guest: String(meta.guest_name || meta.guest || r.title || 'Guest'),
-      rating: Number(meta.rating || r.amount || 0),
-      text: String(meta.text || r.notes || ''),
-      date: day(meta.date || r.occurred_at || r.created_at),
-    };
-  });
-
-  const liveActivity: ActivityItem[] = asArray(payload.activity).map((r: any) => {
-    const meta = r.meta || {};
-    return {
-      id: String(r.id),
-      title: String(r.title || ''),
-      detail: String(meta.detail || r.notes || ''),
-      time: String(meta.time || ''),
-      kind: (['check_in', 'check_out', 'booking', 'payment', 'housekeeping', 'alert'].includes(
-        String(meta.kind),
-      )
-        ? meta.kind
-        : 'alert') as ActivityItem['kind'],
-    };
-  });
+  const liveActivity: ActivityItem[] = asArray(payload.activity).map((r: any) => ({
+    id: String(r.id),
+    title: String(r.title || ''),
+    detail: String(r.notes || r.meta?.detail || ''),
+    time: String(r.occurred_at || r.created_at || ''),
+    tone: (['info', 'success', 'warn', 'danger'].includes(String(r.meta?.tone)) ? r.meta.tone : 'info') as ActivityItem['tone'],
+  }));
 
   replaceArray(rooms, liveRooms);
   replaceArray(bookings, liveBookings);
@@ -606,56 +587,30 @@ export function hydrateHospitality(payload: any): boolean {
   replaceArray(payments, livePayments);
   replaceArray(websiteSections, liveWebsiteSections);
   replaceArray(websiteInquiries, liveInquiries);
-  replaceArray(reviews, liveReviews);
   replaceArray(activity, liveActivity);
 
-  const settingsRow =
-    payload.settings && typeof payload.settings === 'object'
-      ? (payload.settings as Record<string, any>)
-      : {};
-  const settingsMeta =
-    settingsRow.meta && typeof settingsRow.meta === 'object'
-      ? (settingsRow.meta as Record<string, any>)
-      : {};
-  Object.assign(orgSettings, settingsMeta);
+  if (payload.settings) {
+    Object.assign(orgSettings, payload.settings);
+    if (payload.settings.property_name) hotel.name = String(payload.settings.property_name);
+    if (payload.settings.currency) hotel.currency = String(payload.settings.currency);
+    if (payload.settings.phone) hotel.phone = String(payload.settings.phone);
+    if (payload.settings.email) hotel.email = String(payload.settings.email);
+    if (payload.settings.address) hotel.address = String(payload.settings.address);
+    if (payload.settings.check_in_time) hotel.checkIn = String(payload.settings.check_in_time);
+    if (payload.settings.check_out_time) hotel.checkOut = String(payload.settings.check_out_time);
+    if (payload.settings.timezone) hotel.timezone = String(payload.settings.timezone);
+    if (payload.settings.total_rooms != null) hotel.totalRooms = Number(payload.settings.total_rooms);
+  }
 
-  const propertyName = String(
-    settingsMeta.name ||
-      settingsMeta.property_name ||
-      settingsRow.property_name ||
-      payload.businessName ||
-      '',
-  ).trim();
-  if (propertyName) hotel.name = propertyName;
-  if (settingsMeta.legal || settingsRow.legal_name) {
-    hotel.legalName = String(settingsMeta.legal || settingsRow.legal_name);
+  if (payload.website) {
+    websiteStats.published = Boolean(payload.website.published);
   }
-  if (settingsMeta.phone || settingsRow.phone) hotel.phone = String(settingsMeta.phone || settingsRow.phone);
-  if (settingsMeta.email || settingsRow.email) hotel.email = String(settingsMeta.email || settingsRow.email);
-  if (settingsMeta.address || settingsRow.address) {
-    hotel.address = String(settingsMeta.address || settingsRow.address);
+
+  if (payload.branding) {
+    if (payload.branding.display_name) hotel.name = String(payload.branding.display_name);
+    if (payload.branding.currency) hotel.currency = String(payload.branding.currency);
   }
-  if (settingsMeta.website) hotel.website = String(settingsMeta.website);
-  if (settingsMeta.checkIn || settingsMeta.check_in) {
-    hotel.checkIn = String(settingsMeta.checkIn || settingsMeta.check_in);
-  }
-  if (settingsMeta.checkOut || settingsMeta.check_out) {
-    hotel.checkOut = String(settingsMeta.checkOut || settingsMeta.check_out);
-  }
-  if (settingsMeta.tax != null || settingsMeta.taxRate != null) {
-    hotel.taxRate = Number(settingsMeta.tax ?? settingsMeta.taxRate);
-  }
-  if (settingsMeta.currency || settingsRow.currency) {
-    hotel.currency = String(settingsMeta.currency || settingsRow.currency);
-  }
-  if (settingsMeta.timezone || settingsRow.timezone) {
-    hotel.timezone = String(settingsMeta.timezone || settingsRow.timezone);
-  }
-  if (settingsMeta.websitePublished != null) {
-    websiteStats.published = Boolean(settingsMeta.websitePublished);
-  }
-  hotel.totalRooms = liveRooms.length || Number(settingsRow.total_rooms || 0) || hotel.totalRooms;
 
   recalcHospitalitySummaries();
-  return isLive || liveRooms.length + liveBookings.length + liveGuests.length > 0;
+  return isLive;
 }
