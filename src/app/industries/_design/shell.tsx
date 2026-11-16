@@ -419,12 +419,7 @@ export function SolutionsShell({
                     <Link className="sol-menu-item" role="menuitem" href={hrefFor('account')}>
                       <Icon name="user" size={15} /> Account settings
                     </Link>
-                    <button
-                      type="button"
-                      className="sol-menu-item"
-                      role="menuitem"
-                      onClick={toggleTheme}
-                    >
+                    <button type="button" className="sol-menu-item" role="menuitem" onClick={toggleTheme}>
                       {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
                       {theme === 'dark' ? 'Light mode' : 'Dark mode'}
                     </button>
@@ -446,65 +441,63 @@ export function SolutionsShell({
             </div>
           </header>
 
-          <div className="sol-mobile-bar">
-            <div className="sol-mobile-bar-inner">
+          <main className="sol-content">
+            <div className="sol-content-inner">{children}</div>
+          </main>
+
+          <div className="sol-mobile-top">
+            <button
+              type="button"
+              className="sol-icon-btn"
+              onClick={() => setMobileNavOpen(true)}
+              aria-label="Open menu"
+            >
+              <Menu size={19} aria-hidden />
+            </button>
+            {suite.logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={suite.logo} alt={suite.name} className="sol-mobile-logo" />
+            ) : (
+              <span className="sol-brand-mark small">{suite.shortName.slice(0, 1)}</span>
+            )}
+            <div className="sol-mobile-title">
+              <strong>{suite.workspace.name}</strong>
+              <small>{activeNav?.label}</small>
+            </div>
+            <button
+              type="button"
+              className="sol-icon-btn"
+              onClick={() => setPaletteOpen(true)}
+              aria-label="Search"
+            >
+              <Search size={18} aria-hidden />
+            </button>
+          </div>
+
+          <nav className="sol-mobile-nav" aria-label="Primary">
+            <div className="sol-mobile-nav-inner">
+              {mobilePrimary.map((item) => (
+                <Link
+                  key={item.id}
+                  href={hrefFor(item.id)}
+                  className="sol-mobile-tab"
+                  aria-current={item.id === section ? 'page' : undefined}
+                >
+                  <Icon name={item.icon} size={19} />
+                  <span>{item.label.split(' ')[0]}</span>
+                </Link>
+              ))}
               <button
                 type="button"
-                className="sol-icon-btn"
+                className="sol-mobile-tab"
                 onClick={() => setMobileNavOpen(true)}
-                aria-label="Open menu"
+                aria-label="More pages"
               >
                 <Menu size={19} aria-hidden />
-              </button>
-              {suite.logo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={suite.logo} alt={suite.name} className="sol-mobile-logo" />
-              ) : (
-                <span className="sol-brand-mark small">{suite.shortName.slice(0, 1)}</span>
-              )}
-              <div className="sol-mobile-title">
-                <strong>{suite.workspace.name}</strong>
-                <small>{activeNav?.label}</small>
-              </div>
-              <button
-                type="button"
-                className="sol-icon-btn"
-                onClick={() => setPaletteOpen(true)}
-                aria-label="Search"
-              >
-                <Search size={18} aria-hidden />
+                <span>More</span>
               </button>
             </div>
-
-            <nav className="sol-mobile-nav" aria-label="Primary">
-              <div className="sol-mobile-nav-inner">
-                {mobilePrimary.map((item) => (
-                  <Link
-                    key={item.id}
-                    href={hrefFor(item.id)}
-                    className="sol-mobile-tab"
-                    aria-current={item.id === section ? 'page' : undefined}
-                  >
-                    <Icon name={item.icon} size={19} />
-                    <span>{item.label.split(' ')[0]}</span>
-                  </Link>
-                ))}
-                <button
-                  type="button"
-                  className="sol-mobile-tab"
-                  onClick={() => setMobileNavOpen(true)}
-                  aria-label="More pages"
-                >
-                  <Menu size={19} aria-hidden />
-                  <span>More</span>
-                </button>
-              </div>
-            </nav>
-          </div>
-
-          <div className="sol-content">
-            <div className="sol-content-inner">{children}</div>
-          </div>
+          </nav>
         </div>
 
         <button type="button" className="sol-mo" onClick={() => setAiOpen(true)}>
@@ -514,7 +507,7 @@ export function SolutionsShell({
           Ask MO
         </button>
 
-        <Sheet open={aiOpen} onClose={() => setAiOpen(false)} title="Ask MO" subtitle="AI chief of staff" width={440}>
+        <Sheet open={aiOpen} onClose={() => setAiOpen(false)} title="MO" width={440}>
           <AIDrawer open={aiOpen} onClose={() => setAiOpen(false)} suiteId={suite.id} />
         </Sheet>
 
