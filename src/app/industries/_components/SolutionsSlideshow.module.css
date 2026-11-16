@@ -1,0 +1,253 @@
+.wrap {
+  width: 100%;
+  max-width: 920px;
+  margin: 8px auto 28px;
+}
+
+.stage {
+  position: relative;
+  border-radius: 28px;
+  padding: 28px 28px 20px;
+  background: linear-gradient(155deg, #120c24 0%, #0b0a14 55%, #08080f 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  min-height: 280px;
+}
+
+.glow {
+  position: absolute;
+  inset: -40% auto auto 50%;
+  width: 420px;
+  height: 420px;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--slide-accent, #6b3fe7) 55%, transparent) 0%, transparent 68%);
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 24px;
+  align-items: center;
+  animation: fadeSlide 0.45s ease;
+}
+
+@keyframes fadeSlide {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.iconRing {
+  width: 112px;
+  height: 112px;
+  border-radius: 28px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
+
+.icon {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  display: block;
+}
+
+.meta {
+  min-width: 0;
+  color: #fff;
+}
+
+.tagline {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--slide-accent, #c4b5fd) 80%, #fff);
+  margin-bottom: 8px;
+}
+
+.name {
+  margin: 0 0 10px;
+  font-size: clamp(1.35rem, 3vw, 1.85rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.desc {
+  margin: 0 0 18px;
+  max-width: 46ch;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 18px;
+  border-radius: 999px;
+  background: var(--slide-accent, #6b3fe7);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.88rem;
+  text-decoration: none;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.cta:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.cta span {
+  transition: transform 0.15s ease;
+}
+
+.cta:hover span {
+  transform: translateX(3px);
+}
+
+.controls {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.arrow {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.arrow:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.dots {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.dot,
+.dotActive {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.28);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.dotActive {
+  background: var(--slide-accent, #6b3fe7);
+  transform: scale(1.25);
+}
+
+.rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.railItem,
+.railItemActive {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line, #e7e8ef);
+  background: #fff;
+  color: var(--ink-2, #4b5261);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.railItem img,
+.railItemActive img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.railItem:hover {
+  border-color: #d4c6fa;
+  background: #f8f6ff;
+}
+
+.railItemActive {
+  border-color: var(--suite-accent, #6b3fe7);
+  background: var(--suite-accent-soft, #ede9fe);
+  color: var(--suite-accent-ink, #3b1a94);
+}
+
+@media (max-width: 720px) {
+  .stage {
+    padding: 22px 18px 16px;
+    min-height: 0;
+  }
+
+  .card {
+    grid-template-columns: 1fr;
+    text-align: center;
+    justify-items: center;
+  }
+
+  .desc {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .iconRing {
+    width: 96px;
+    height: 96px;
+    border-radius: 24px;
+  }
+
+  .icon {
+    width: 60px;
+    height: 60px;
+  }
+
+  .rail span {
+    display: none;
+  }
+
+  .railItem,
+  .railItemActive {
+    padding: 8px;
+  }
+}
