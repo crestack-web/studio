@@ -146,6 +146,13 @@ const EDUCATION_SCREENS: Record<string, React.ComponentType<ScreenProps>> = {
   account: EducationAccount,
 };
 
+/** Map design section ids to URL path segments under /dashboard/[section]. */
+function sectionToPathSegment(sectionId: string): string {
+  if (sectionId === 'hotel-settings') return 'settings';
+  if (sectionId === 'time-tracking') return 'time';
+  return sectionId;
+}
+
 export function SolutionsDashboard({
   suiteId,
   section,
@@ -190,6 +197,14 @@ function SolutionsDashboardBody({
   const suite = getSolutionsSuite(suiteId);
 
   const hrefFor = (sectionId: string, targetSuiteId?: string) => {
+    // Live product dashboards: basePath is already /solutions/{suite}/dashboard
+    if (basePath.includes('/dashboard')) {
+      const root = basePath.replace(/\/$/, '');
+      if (sectionId === 'overview') return root;
+      return `${root}/${sectionToPathSegment(sectionId)}`;
+    }
+
+    // Preview routes: /industries/preview/{suite}/[[...section]]
     const s = targetSuiteId || suite.id;
     if (sectionId === 'overview') return `${basePath}/${s}`;
     return `${basePath}/${s}/${sectionId}`;
