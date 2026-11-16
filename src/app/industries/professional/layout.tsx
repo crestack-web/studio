@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { SolutionsCssLink } from '../_design/loadSolutionsCss';
 
 export const metadata: Metadata = {
   applicationName: 'Busmo Professional',
@@ -27,5 +28,10 @@ export const viewport: Viewport = {
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      <SolutionsCssLink />
+      {children}
+    </>
+  );
 }
