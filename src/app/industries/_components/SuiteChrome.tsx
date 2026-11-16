@@ -125,7 +125,7 @@ export function SuiteChrome({
                   );
                 })}
                 <div className={styles.menuFoot}>
-                  <Link href="/industries" className={styles.menuFootLink} onClick={() => setOpen(false)}>
+                  <Link href="/solutions" className={styles.menuFootLink} onClick={() => setOpen(false)}>
                     Compare all solutions
                   </Link>
                   <Link href={family.loginHref} className={styles.menuFootLink} onClick={() => setOpen(false)}>
