@@ -78,6 +78,63 @@ export const reviews: any[] = [];
 export const activity: ActivityItem[] = [];
 export const revenueSeries: RevenuePoint[] = [];
 
+export const notifications = [
+  { id: 'hn-1', title: '3 arrivals still expected', detail: 'Before 6:00 pm today', time: '12m', unread: true },
+  { id: 'hn-2', title: 'Room 204 is still with housekeeping', detail: 'Turnover has not been marked ready', time: '28m', unread: true },
+  { id: 'hn-3', title: '₦126,000 still unpaid', detail: '4 open guest folios', time: '1h', unread: false },
+];
+
+export const revenueSummary = {
+  today: 612000,
+  monthToDate: 8420000,
+  target: 12000000,
+  adr: 34000,
+  revpar: 25500,
+};
+
+export const revenueByType = [
+  { label: 'Standard', revenue: 4200000 },
+  { label: 'Deluxe', revenue: 2860000 },
+  { label: 'Suite', revenue: 980000 },
+  { label: 'Family', revenue: 380000 },
+];
+
+export const channelMix = [
+  { name: 'Direct', value: 38, color: 'var(--sol-chart-1)' },
+  { name: 'Walk-in', value: 27, color: 'var(--sol-chart-2)' },
+  { name: 'Phone', value: 21, color: 'var(--sol-chart-3)' },
+  { name: 'Agents', value: 14, color: 'var(--sol-chart-4)' },
+];
+
+export const expenseSummary = {
+  monthToDate: 2140000,
+  budget: 3200000,
+  pending: 186000,
+  largest: 'Housekeeping',
+};
+
+export const paymentSummary = {
+  collectedToday: 486000,
+  outstanding: 126000,
+  refunds: 15000,
+  settled: 22,
+};
+
+export const reports = [
+  { id: 'daily-flash', name: 'Daily flash', description: 'Occupancy, revenue and arrivals for the day.', cadence: 'Daily', lastRun: '06:02', icon: 'chart' as const },
+  { id: 'night-audit', name: 'Night audit', description: 'Room charges, payments and open folios.', cadence: 'Daily', lastRun: '00:14', icon: 'receipt' as const },
+  { id: 'manager', name: 'Manager report', description: 'Week-to-date performance against target.', cadence: 'Weekly', lastRun: 'Mon', icon: 'trend' as const },
+  { id: 'channels', name: 'Channel mix', description: 'Where bookings came from this month.', cadence: 'Monthly', lastRun: '1 Nov', icon: 'globe' as const },
+];
+
+export const websiteStats = {
+  published: true,
+  visits30d: 1840,
+  directBookings30d: 46,
+  inquiries30d: 19,
+  conversion: 2.5,
+};
+
 function asArray<T = any>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
