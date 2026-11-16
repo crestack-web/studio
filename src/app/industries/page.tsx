@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { SUITE_FAMILIES, getSuiteFamily } from '@/lib/industries/suite-catalog';
 import { SuiteChrome, SuiteProductGrid } from './_components/SuiteChrome';
+import { SolutionsSlideshow } from './_components/SolutionsSlideshow';
 import styles from './_components/SuiteChrome.module.css';
 
 export default function IndustriesHubPage() {
@@ -27,6 +28,8 @@ export default function IndustriesHubPage() {
           </Link>
         </div>
       </section>
+
+      <SolutionsSlideshow />
 
       <div className={styles.sectionTitle}>Choose a solution</div>
       <div className={styles.productGrid}>
