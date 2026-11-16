@@ -1,1 +1,4 @@
-LOAD_FROM_FILE
+/* Restored base design system from last known-good commit, plus local mobile fixes.
+   Base is pinned so dashboards keep full styles while mobile sheet/card spacing ships. */
+@import url('https://cdn.jsdelivr.net/gh/crestack-web/studio@943a72eb8fd1816e7f6c0672b3f79209e14259cf/src/app/industries/_design/solutions.css');
+@import './solutions-mobile.css';
