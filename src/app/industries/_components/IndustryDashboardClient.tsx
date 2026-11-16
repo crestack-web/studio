@@ -20,22 +20,6 @@ const HOSPITALITY_PATH_ALIASES: Record<string, string> = {
 const SOLUTIONS_BASE_CSS =
   'https://cdn.jsdelivr.net/gh/crestack-web/studio@943a72eb8fd1816e7f6c0672b3f79209e14259cf/src/app/industries/_design/solutions.css';
 
-function deskPathFor(config: IndustryConfig) {
-  if (config.id === 'hospitality') return '/solutions/hospitality/front-desk';
-  if (config.id === 'healthcare') return '/solutions/healthcare/desk';
-  if (config.id === 'education') return '/solutions/education/front-desk';
-  if (config.id === 'professional') return '/solutions/professional/desk';
-  return config.dashboardPath;
-}
-
-function deskLabel(config: IndustryConfig) {
-  if (config.id === 'hospitality') return 'Front desk';
-  if (config.id === 'healthcare') return 'Reception';
-  if (config.id === 'education') return 'Front office';
-  if (config.id === 'professional') return 'Staff workspace';
-  return 'Staff desk';
-}
-
 function sectionFromPathname(pathname: string, config: IndustryConfig, sectionProp?: string) {
   if (sectionProp && sectionProp !== 'overview') return sectionProp;
   const base = config.dashboardPath.replace(/\/$/, '');
@@ -135,12 +119,8 @@ export function IndustryDashboardClient({
     return (
       <div className={styles.boot}>
         <div className={styles.bootCard}>
-          <div className={styles.bootMark} aria-hidden>
-            {(config.productName || 'B').slice(0, 1).toUpperCase()}
-          </div>
           <div className={styles.bootPulse} />
-          <p className={styles.bootTitle}>Opening {config.productName}</p>
-          <p className={styles.bootSub}>Preparing your workspace…</p>
+          <p>Opening {config.productName}…</p>
         </div>
       </div>
     );
