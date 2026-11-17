@@ -92,7 +92,20 @@ export function HospitalityHousekeeping({ hrefFor }: { hrefFor: (s: string) => s
   };
 
   const updateStage = async (room: HousekeepingRoom, stage: HousekeepingRoom['stage'], message: string) => {
-    const res = await mutate({ action: 'record_update', id: room.id, status: stage });
+    const res = await mutate({
+      action: 'housekeeping_set_stage',
+      id: room.id,
+      roomId: room.id,
+      roomNumber: room.room_number,
+      stage,
+      meta: {
+        room_number: room.room_number,
+        category: room.category,
+        assignee: room.assignee,
+        priority: room.priority,
+        stage,
+      },
+    });
     if (!res.ok) {
       toast(res.error || 'Could not update the room.');
       return;
@@ -106,9 +119,19 @@ export function HospitalityHousekeeping({ hrefFor }: { hrefFor: (s: string) => s
     const index = attendants.findIndex((s) => s.full_name === room.assignee);
     const next = attendants[(index + 1) % attendants.length];
     const res = await mutate({
-      action: 'record_update',
+      action: 'housekeeping_set_stage',
       id: room.id,
-      meta: { assignee: next.full_name },
+      roomId: room.id,
+      roomNumber: room.room_number,
+      stage: room.stage,
+      assignee: next.full_name,
+      meta: {
+        room_number: room.room_number,
+        category: room.category,
+        assignee: next.full_name,
+        priority: room.priority,
+        stage: room.stage,
+      },
     });
     if (!res.ok) {
       toast(res.error || 'Could not reassign the room.');
@@ -378,13 +401,15 @@ const ORDER_FLOW: { id: RoomServiceOrder['status']; label: string }[] = [
 
 export function HospitalityRoomService({ hrefFor }: { hrefFor: (s: string) => string }) {
   const { toast } = useToast();
+  const { mutate, version } = useSolutionsLive();
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<RoomServiceOrder | null>(null);
 
+  const orders = useMemo(() => [...roomServiceOrders], [version, roomServiceOrders.length]);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return roomServiceOrders;
-    return roomServiceOrders.filter((o) => `${o.code} ${o.room_number} ${o.guest_name}`.toLowerCase().includes(q));
+    if (!q) return orders;
+    return orders.filter((o) => `${o.code} ${o.room_number} ${o.guest_name}`.toLowerCase().includes(q));
   }, [query]);
 
   const activeOrders = roomServiceOrders.filter((o) => o.status !== 'delivered' && o.status !== 'cancelled');
@@ -397,7 +422,23 @@ export function HospitalityRoomService({ hrefFor }: { hrefFor: (s: string) => st
         title="Room service"
         subtitle="Every in-room order from kitchen to door. Charges post straight to the guest folio."
         actions={
-          <button type="button" className="sol-btn sol-btn-primary" onClick={() => toast('New room service order started.')}>
+          <button type="button" className="sol-btn sol-btn-primary" onClick={async () => {
+            const inHouseRoom = rooms.find((r) => String((r as any).status) === 'occupied') || rooms[0];
+            const res = await mutate({
+              action: 'room_service_create',
+              title: `RS-${Date.now().toString(36).toUpperCase().slice(-6)}`,
+              status: 'received',
+              amount: 0,
+              meta: {
+                code: `RS-${Date.now().toString(36).toUpperCase().slice(-6)}`,
+                room_number: inHouseRoom?.room_number || '',
+                guest_name: 'Guest',
+                items: [{ name: 'Custom order', qty: 1, price: 0 }],
+              },
+            });
+            if (!res.ok) { toast(res.error || 'Could not create order'); return; }
+            toast('Room service order created — open it from the board to edit.');
+          }}>
             <Plus size={15} aria-hidden /> New order
           </button>
         }
@@ -463,7 +504,28 @@ export function HospitalityRoomService({ hrefFor }: { hrefFor: (s: string) => st
         footer={
           <>
             <button type="button" className="sol-btn sol-btn-ghost" onClick={() => setSelected(null)}>Close</button>
-            <button type="button" className="sol-btn sol-btn-primary" onClick={() => { toast('Order advanced to the next stage.'); setSelected(null); }}>
+            <button
+              type="button"
+              className="sol-btn sol-btn-primary"
+              onClick={async () => {
+                if (!selected) return;
+                const flow = ['received', 'preparing', 'out_for_delivery', 'delivered'] as const;
+                const idx = flow.indexOf(selected.status as any);
+                const next = flow[Math.min(idx + 1, flow.length - 1)];
+                const res = await mutate({
+                  action: 'room_service_update',
+                  id: selected.id,
+                  status: next,
+                  meta: { advanced_at: new Date().toISOString() },
+                });
+                if (!res.ok) {
+                  toast(res.error || 'Could not advance order.');
+                  return;
+                }
+                toast(`Order ${selected.code} → ${next.replace(/_/g, ' ')}`);
+                setSelected(null);
+              }}
+            >
               Advance status
             </button>
           </>
@@ -501,7 +563,30 @@ export function HospitalityRoomService({ hrefFor }: { hrefFor: (s: string) => st
                 <div className="sol-banner-body"><strong>Kitchen note</strong><div>{selected.note}</div></div>
               </div>
             ) : null}
-            <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => toast('Posted to guest folio.')}>
+            <button
+              type="button"
+              className="sol-btn sol-btn-subtle sol-btn-sm"
+              onClick={async () => {
+                if (!selected) return;
+                const bookingId = (selected as any).booking_id;
+                if (!bookingId) {
+                  toast('Link this order to an in-house booking to post to folio.');
+                  return;
+                }
+                const res = await mutate({
+                  action: 'folio_add',
+                  bookingId,
+                  lineType: 'charge',
+                  description: `Room service ${selected.code}`,
+                  amount: selected.total,
+                });
+                if (!res.ok) {
+                  toast(res.error || 'Could not post to folio.');
+                  return;
+                }
+                toast(`₦${selected.total.toLocaleString()} posted to guest folio.`);
+              }}
+            >
               Post to folio
             </button>
           </>
