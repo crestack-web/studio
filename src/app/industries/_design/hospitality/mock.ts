@@ -502,6 +502,7 @@ export function hydrateHospitality(payload: any): boolean {
       guest_name: String(meta.guest_name || ''),
       items: asArray(meta.items),
       total: Number(r.amount || meta.total || 0),
+      booking_id: meta.booking_id ? String(meta.booking_id) : undefined,
       status: (['new', 'preparing', 'on_the_way', 'delivered', 'cancelled'].includes(String(r.status))
         ? r.status
         : 'new') as RoomServiceOrder['status'],
