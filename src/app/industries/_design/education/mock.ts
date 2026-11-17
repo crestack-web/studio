@@ -223,7 +223,7 @@ export const teacherStats = {
 
 /* ── Mixes ────────────────────────────────────────────────────────── */
 
-export const levelMix: { name: string; value: number }[] = [];
+export const levelMix: { name: string; value: number; color?: string }[] = [];
 
 export const classMix = classes.map((c) => ({ name: c.name, value: c.students, color: 'var(--sol-chart-1)' }));
 
