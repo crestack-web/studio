@@ -167,7 +167,7 @@ export function HospitalityGuests({ hrefFor }: { hrefFor: (s: string) => string 
         {filtered.length === 0 ? (
           <EmptyState
             title={guestList.length === 0 ? 'No guests yet' : 'No matches'}
-            description={
+            message={
               guestList.length === 0
                 ? 'Add a guest profile, or create a booking — guests are created automatically from reservations.'
                 : 'Try another search or filter.'
