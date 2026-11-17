@@ -412,7 +412,7 @@ export function hydrateHospitality(payload: any): boolean {
         guestBookings.reduce((s, b) => s + b.amount, 0) || Number(r.total_spend || 0),
       last_stay:
         guestBookings.map((b) => b.check_in_date).filter(Boolean).sort().pop() || day(r.updated_at),
-      vip: Boolean(r.vip),
+      vip: Boolean(r.vip) || /^\[VIP\]/i.test(String(r.notes || '')),
       notes: r.notes ? String(r.notes) : undefined,
     };
   });
@@ -481,8 +481,8 @@ export function hydrateHospitality(payload: any): boolean {
       id: String(r.id),
       room_number: String(meta.room_number || r.title || ''),
       category: String(meta.category || ''),
-      stage: (['dirty', 'in_progress', 'inspected', 'ready'].includes(String(r.status))
-        ? r.status
+      stage: (['dirty', 'in_progress', 'inspected', 'ready'].includes(String(meta.stage || r.status))
+        ? String(meta.stage || r.status)
         : 'dirty') as HousekeepingRoom['stage'],
       assignee: String(meta.assignee || 'Unassigned'),
       priority: (['low', 'medium', 'high', 'urgent'].includes(String(meta.priority))
@@ -661,6 +661,24 @@ export function hydrateHospitality(payload: any): boolean {
   replaceArray(folioLines, liveFolio);
   replaceArray(staff, liveStaff);
   replaceArray(tasks, liveTasks);
+  if (!liveHousekeeping.length && liveRooms.length) {
+    for (const r of liveRooms) {
+      const st = String((r as any).status || 'available');
+      let stage: HousekeepingRoom['stage'] = 'ready';
+      if (st === 'cleaning' || st === 'dirty' || st === 'occupied') stage = 'dirty';
+      else if (st === 'maintenance' || st === 'blocked') stage = 'dirty';
+      liveHousekeeping.push({
+        id: r.id,
+        room_number: r.room_number,
+        category: r.category || 'Standard',
+        stage,
+        assignee: '',
+        priority: st === 'maintenance' ? 'high' : 'medium',
+        minutes: 0,
+        note: undefined,
+      } as HousekeepingRoom);
+    }
+  }
   replaceArray(housekeepingRooms, liveHousekeeping);
   replaceArray(roomServiceOrders, liveRoomService);
   replaceArray(expenses, liveExpenses);
