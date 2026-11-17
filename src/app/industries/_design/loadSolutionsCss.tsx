@@ -5,7 +5,8 @@ import { useEffect } from 'react';
 /** Same-origin copy when available; CDN pinned fallback. */
 const SOURCES = [
   '/solutions-design.css',
-  'https://cdn.jsdelivr.net/gh/crestack-web/studio@943a72eb8fd1816e7f6c0672b3f79209e14259cf/src/app/industries/_design/solutions.css',
+  // mobile + sheet scroll overrides live in solutions.css after pin update
+  'https://cdn.jsdelivr.net/gh/crestack-web/studio@9a8fcdcbd3bddd58e03f8958262794fb8e3d8419/src/app/industries/_design/solutions.css',
 ];
 
 const LINK_ID = 'busmo-solutions-base-css';
