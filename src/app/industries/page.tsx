@@ -12,6 +12,7 @@ const SOLUTION_ICONS: Record<string, string> = {
   healthcare: '/industries/busmo-healthcare-icon.svg',
   professional: '/industries/busmo-professional-icon.svg',
   education: '/industries/busmo-education-icon.svg',
+  agriculture: '/industries/busmo-agriculture-icon.svg',
 };
 
 export default function IndustriesHubPage() {

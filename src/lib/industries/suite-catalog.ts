@@ -1,4 +1,4 @@
-import { HOSPITALITY, PROFESSIONAL, HEALTHCARE, EDUCATION } from './config';
+import { HOSPITALITY, PROFESSIONAL, HEALTHCARE, EDUCATION, AGRICULTURE } from './config';
 import type { IndustryConfig } from './types';
 
 export type SuiteProduct = {
@@ -10,7 +10,7 @@ export type SuiteProduct = {
 };
 
 export type SuiteFamily = {
-  id: 'business' | 'hospitality' | 'professional' | 'healthcare' | 'education';
+  id: 'business' | 'hospitality' | 'professional' | 'healthcare' | 'education' | 'agriculture';
   label: string;
   productName: string;
   href: string;
@@ -144,6 +144,25 @@ export const SUITE_FAMILIES: SuiteFamily[] = [
       { id: 'attendance', name: 'Attendance', blurb: 'Daily attendance without paper registers.', href: EDUCATION.signupPath },
       { id: 'fees', name: 'Fees', blurb: 'Fee plans, collections and outstanding balances.', href: EDUCATION.signupPath },
       { id: 'teachers', name: 'Teachers', blurb: 'Teaching staff and class assignments.', href: EDUCATION.signupPath },
+    ],
+  },
+  {
+    id: 'agriculture',
+    logoSrc: '/industries/busmo-agriculture-icon.svg',
+    label: 'Agriculture',
+    productName: AGRICULTURE.productName,
+    href: AGRICULTURE.welcomePath,
+    signupHref: AGRICULTURE.signupPath,
+    loginHref: AGRICULTURE.loginPath,
+    tagline: AGRICULTURE.tagline,
+    description: AGRICULTURE.description,
+    products: [
+      { id: 'farms', name: 'Farms & plots', blurb: 'Every farm, plot and crop cycle in one live map.', href: AGRICULTURE.signupPath },
+      { id: 'activities', name: 'Field activities', blurb: 'Plan and record planting, spraying, irrigation and weeding.', href: AGRICULTURE.signupPath },
+      { id: 'inputs', name: 'Inputs & inventory', blurb: 'Seeds, fertiliser and agrochemicals with low-stock alerts.', href: AGRICULTURE.signupPath },
+      { id: 'harvest', name: 'Harvest & yield', blurb: 'Record yields, grade produce and compare against target.', href: AGRICULTURE.signupPath },
+      { id: 'processing', name: 'Processing', blurb: 'Track batches from raw produce through to finished goods.', href: AGRICULTURE.signupPath },
+      { id: 'exports', name: 'Sales & exports', blurb: 'Orders, packaging, documentation and export compliance.', href: AGRICULTURE.signupPath },
     ],
   },
 ];

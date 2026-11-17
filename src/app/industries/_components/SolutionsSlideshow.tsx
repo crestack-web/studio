@@ -70,9 +70,9 @@ const SLIDES: Slide[] = [
     id: 'agriculture',
     name: 'Agriculture',
     productName: 'Busmo Agriculture',
-    tagline: 'Coming soon',
-    description: 'Farm and agribusiness operations — inventory, yields and sales designed for growers and distributors.',
-    href: '/solutions',
+    tagline: 'Farms & agribusiness',
+    description: 'Farms, plots, crop cycles, harvests, processing, packaging, stock, sales and exports in one workspace.',
+    href: '/solutions/agriculture',
     iconSrc: '/industries/busmo-agriculture-icon.svg',
     accent: '#0b7f4a',
   },
@@ -115,7 +115,7 @@ export function SolutionsSlideshow() {
             <h2 className={styles.name}>{slide.productName}</h2>
             <p className={styles.desc}>{slide.description}</p>
             <Link href={slide.href} className={styles.cta}>
-              {slide.id === 'agriculture' ? 'Stay tuned' : `Open ${slide.name}`}
+              Open {slide.name}
               <span aria-hidden>→</span>
             </Link>
           </div>

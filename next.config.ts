@@ -74,6 +74,11 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       {
+        source: '/industries/agriculture',
+        destination: '/solutions/agriculture',
+        permanent: true,
+      },
+      {
         source: '/sell',
         destination: 'https://mo-sell.store/',
         permanent: true,

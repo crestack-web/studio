@@ -15,6 +15,7 @@ export const PRODUCT_EDITIONS = [
   'professional',
   'healthcare',
   'education',
+  'agriculture',
 ] as const;
 export type ProductEdition = (typeof PRODUCT_EDITIONS)[number];
 
@@ -51,6 +52,15 @@ export function normalizeProductEdition(raw: unknown): ProductEdition {
     s.includes('education')
   ) {
     return 'education';
+  }
+  if (
+    s === 'agriculture' ||
+    s.includes('agric') ||
+    s.includes('farm') ||
+    s.includes('crop') ||
+    s.includes('agribusiness')
+  ) {
+    return 'agriculture';
   }
   if (s === 'business' || s === 'sme' || s === 'retail') return 'business';
   return 'business';
@@ -94,6 +104,6 @@ export function assertEditionAccess(
 
 export function isIndustryEdition(
   edition: ProductEdition
-): edition is 'hospitality' | 'professional' | 'healthcare' | 'education' {
+): edition is 'hospitality' | 'professional' | 'healthcare' | 'education' | 'agriculture' {
   return isIndustryId(edition);
 }

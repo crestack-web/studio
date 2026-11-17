@@ -298,6 +298,61 @@ export const SuiteIcons: Record<string, React.FC<IconProps>> = {
       </Svg>
     </IconTile>
   ),
+  /* agriculture suite product icons */
+  farms: () => (
+    <IconTile bg="#ecfdf3">
+      <Svg color="#0b7f4a">
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M3 10h18M3 15h18M9 4v16M15 4v16" />
+      </Svg>
+    </IconTile>
+  ),
+  activities: () => (
+    <IconTile bg="#ecfdf3">
+      <Svg color="#0b7f4a">
+        <rect x="3" y="5" width="18" height="15" rx="2" />
+        <path d="M8 3v4M16 3v4M3 10h18" />
+        <path d="M8 14l2 2 4-4" />
+      </Svg>
+    </IconTile>
+  ),
+  inputs: () => (
+    <IconTile bg="#fdf6e5">
+      <Svg color="#c2972e">
+        <path d="M6 8h12l1 12H5L6 8z" />
+        <path d="M9 8V5a3 3 0 006 0v3" />
+        <path d="M9 13h6" />
+      </Svg>
+    </IconTile>
+  ),
+  harvest: () => (
+    <IconTile bg="#ecfdf3">
+      <Svg color="#0b7f4a">
+        <path d="M4 10h16l-2 10H6L4 10z" />
+        <path d="M8 10V7M12 10V5M16 10V7" />
+        <path d="M4 14h16" />
+      </Svg>
+    </IconTile>
+  ),
+  processing: () => (
+    <IconTile bg="#fdf6e5">
+      <Svg color="#c2972e">
+        <path d="M3 8l9-4 9 4-9 4-9-4z" />
+        <path d="M3 8v8l9 4 9-4V8" />
+        <path d="M12 12v8" />
+      </Svg>
+    </IconTile>
+  ),
+  exports: () => (
+    <IconTile bg="#ecfdf3">
+      <Svg color="#0b7f4a">
+        <path d="M3 16l2 5h14l2-5H3z" />
+        <path d="M5 16V8h14v8" />
+        <path d="M9 8V5h6v3" />
+        <path d="M9 12h2M13 12h2" />
+      </Svg>
+    </IconTile>
+  ),
   default: () => (
     <IconTile bg="#F3F4F6">
       <Svg color="#6B7280">

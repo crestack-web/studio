@@ -42,7 +42,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'businessName required' }, { status: 400 });
   }
 
-  if (!['business', 'hospitality', 'professional', 'healthcare', 'education'].includes(productEdition)) {
+  if (
+    !['business', 'hospitality', 'professional', 'healthcare', 'education', 'agriculture'].includes(
+      productEdition
+    )
+  ) {
     return NextResponse.json({ error: 'Invalid productEdition' }, { status: 400 });
   }
 

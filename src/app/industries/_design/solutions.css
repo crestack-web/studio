@@ -4,6 +4,27 @@
    large external stylesheets. */
 @import './solutions-mobile.css';
 
+/* ── Agriculture suite identity ─────────────────────────────────────
+   The pinned base CSS predates agriculture, so the green accent and
+   suite dot are defined locally. Higher-specificity selectors win over
+   the base defaults regardless of stylesheet order. */
+.solutions[data-suite='agriculture'] {
+  --sol-accent: #0b7f4a;
+  --sol-accent-strong: #08663c;
+  --sol-accent-soft: #ecfdf3;
+  --sol-accent-border: #bbf7d0;
+  --sol-chart-2: #c2972e;
+}
+.solutions[data-theme='dark'][data-suite='agriculture'] {
+  --sol-accent: #4ade80;
+  --sol-accent-strong: #22c55e;
+  --sol-accent-soft: rgba(74, 222, 128, 0.14);
+  --sol-accent-border: rgba(74, 222, 128, 0.32);
+  --sol-accent-contrast: #04140b;
+  --sol-chart-2: #e3b341;
+}
+.suite-agriculture { background: #0b7f4a; }
+
 /* ── Dashboard loading skeleton (matches overview layout) ───────── */
 
 .solutions .sol-sr-only {

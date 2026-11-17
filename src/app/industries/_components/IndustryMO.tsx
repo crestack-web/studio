@@ -30,6 +30,11 @@ const PROMPTS: Record<string, string[]> = {
     'What is the staff workspace?',
     'How do I set firm branding?',
   ],
+  agriculture: [
+    'How do I log a field activity?',
+    'Where do I record a harvest?',
+    'How do I track an export?',
+  ],
 };
 
 export function IndustryMO({

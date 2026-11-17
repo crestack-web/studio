@@ -12,6 +12,7 @@ const SUITE_KIND: Record<SuiteFamily['id'], string> = {
   healthcare: 'Clinics & practices',
   professional: 'Agencies & consultancies',
   education: 'Schools & training',
+  agriculture: 'Farms & agribusiness',
 };
 
 const SECTION_LINKS = [

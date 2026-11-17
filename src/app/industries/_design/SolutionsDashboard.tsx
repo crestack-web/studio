@@ -73,6 +73,32 @@ import { EducationPayments } from './education/payments';
 import { EducationReports } from './education/reports';
 import { EducationSchoolSettings, EducationAccount } from './education/workspace';
 import { notifications as educationNotifications } from './education/mock';
+import { AgricultureOverview } from './agriculture/overview';
+import {
+  AgricultureFarms,
+  AgriculturePlots,
+  AgricultureCrops,
+  AgricultureActivities,
+  AgricultureHarvest,
+  AgricultureInputs,
+  AgricultureInventory,
+  AgricultureProcessing,
+  AgriculturePackaging,
+  AgricultureWarehouse,
+  AgricultureEquipment,
+  AgricultureTeam,
+} from './agriculture/operations';
+import {
+  AgricultureSales,
+  AgricultureExports,
+  AgricultureFinance,
+  AgricultureReports,
+} from './agriculture/finance';
+import {
+  AgricultureFarmSettings,
+  AgricultureAccount,
+} from './agriculture/workspace';
+import { notifications as agricultureNotifications } from './agriculture/mock';
 import type { ShellNotification } from './shell';
 
 type ScreenProps = { hrefFor: (sectionId: string) => string };
@@ -131,6 +157,7 @@ const NOTIFICATIONS: Record<string, ShellNotification[]> = {
   healthcare: healthcareNotifications,
   professional: professionalNotifications,
   education: educationNotifications,
+  agriculture: agricultureNotifications,
 };
 
 const EDUCATION_SCREENS: Record<string, React.ComponentType<ScreenProps>> = {
@@ -257,6 +284,35 @@ function DashboardSkeleton({ suiteName }: { suiteName: string }) {
     </div>
   );
 }
+const AGRICULTURE_SCREENS: Record<string, React.ComponentType<ScreenProps>> = {
+  overview: AgricultureOverview,
+  farms: AgricultureFarms,
+  plots: AgriculturePlots,
+  crops: AgricultureCrops,
+  activities: AgricultureActivities,
+  harvest: AgricultureHarvest,
+  inputs: AgricultureInputs,
+  inventory: AgricultureInventory,
+  processing: AgricultureProcessing,
+  packaging: AgriculturePackaging,
+  warehouse: AgricultureWarehouse,
+  equipment: AgricultureEquipment,
+  team: AgricultureTeam,
+  sales: AgricultureSales,
+  exports: AgricultureExports,
+  finance: AgricultureFinance,
+  reports: AgricultureReports,
+  settings: AgricultureFarmSettings,
+  account: AgricultureAccount,
+};
+
+const SUITE_SCREENS: Record<string, Record<string, React.ComponentType<ScreenProps>>> = {
+  hospitality: HOSPITALITY_SCREENS,
+  healthcare: HEALTHCARE_SCREENS,
+  professional: PROFESSIONAL_SCREENS,
+  education: EDUCATION_SCREENS,
+  agriculture: AGRICULTURE_SCREENS,
+};
 
 export function SolutionsDashboard({
   suiteId,
@@ -314,18 +370,26 @@ function SolutionsDashboardBody({
 
     // Preview routes: /industries/preview/{suite}/[[...section]]
     const s = targetSuiteId || suite.id;
-    if (sectionId === 'overview') return `${basePath}/${s}`;
-    return `${basePath}/${s}/${sectionId}`;
+
+    // Preview routes are /industries/preview/<suite>/<section>.
+    if (basePath.includes('/preview')) {
+      if (sectionId === 'overview') return `${basePath}/${s}`;
+      return `${basePath}/${s}/${sectionId}`;
+    }
+
+    // Live routes are /solutions/<suite>/dashboard/<section>. The basePath
+    // already contains the current suite, so rebuild from the root when
+    // switching suites and use the canonical public path.
+    const segments = basePath.replace(/\/$/, '').split('/').filter(Boolean);
+    const root = segments.length >= 2
+      ? `/${segments.slice(0, -1).join('/')}`.replace(/^\/industries/, '/solutions')
+      : '/solutions';
+    const suiteBase = `${root}/${s}`;
+    if (sectionId === 'overview') return `${suiteBase}/dashboard`;
+    return `${suiteBase}/dashboard/${sectionId}`;
   };
 
-  const screens =
-    suite.id === 'hospitality'
-      ? HOSPITALITY_SCREENS
-      : suite.id === 'healthcare'
-        ? HEALTHCARE_SCREENS
-        : suite.id === 'professional'
-          ? PROFESSIONAL_SCREENS
-          : EDUCATION_SCREENS;
+  const screens = SUITE_SCREENS[suite.id];
 
   const Screen = screens ? screens[section] || screens.overview : null;
 

@@ -11,6 +11,7 @@ type Industry =
   | 'hospitality'
   | 'healthcare'
   | 'education'
+  | 'agriculture'
   | 'professional'
   | 'business';
 
@@ -67,6 +68,24 @@ const INDUSTRY_CONTEXT: Record<
       'Where do staff collect fees?',
       'How is pricing based on students?',
       'How do I set the school logo?',
+    ],
+  },
+  agriculture: {
+    label: 'Agriculture',
+    product: 'Busmo Agriculture',
+    role: 'farm and agribusiness operations assistant',
+    capabilities: [
+      'Farms, plots and crop cycles',
+      'Field activities and harvest & yield',
+      'Inputs, inventory, processing and packaging',
+      'Warehouse, sales orders and export files',
+      'Equipment, farm team and agribusiness finance',
+    ],
+    samplePrompts: [
+      'How do I log a field activity?',
+      'Where do I record a harvest?',
+      'How do I track an export file?',
+      'How do I set the farm logo?',
     ],
   },
   professional: {
@@ -164,6 +183,20 @@ function offlineReply(industry: Industry, message: string, patient?: any): strin
   }
   if (m.includes('task') && industry === 'professional') {
     return `On the **Staff workspace**, type a task title and **Add task**. Staff can mark work **Start** or **Done**. Owners still use the professional dashboard for broader client/project control.`;
+  }
+  if (industry === 'agriculture') {
+    if (m.includes('field') || m.includes('activit') || m.includes('plant') || m.includes('spray') || m.includes('irrigat')) {
+      return `On **Field activities**, use **Log field activity** to capture the plot, activity type, assignee and due date. The farm workspace shows open jobs by crop stage so the team can work from one list.`;
+    }
+    if (m.includes('harvest') || m.includes('yield') || m.includes('plot')) {
+      return `Open **Harvest & yield** and use **Record harvest** to capture the plot, crop, quantity and grade. MO highlights plots that are ready and compares yield against the season target.`;
+    }
+    if (m.includes('export') || m.includes('shipment') || m.includes('document')) {
+      return `On **Exports**, start an export file with the buyer, destination country, expected ship date and document status. The register keeps phytosanitary and consignment documents visible in one place.`;
+    }
+    if (m.includes('stock') || m.includes('input') || m.includes('inventor')) {
+      return `**Farm inputs** and **Inventory** track seeds, fertiliser, agrochemicals and warehouse stock. Use **Restock inventory** to add a delivery, and MO will flag items below their reorder level.`;
+    }
   }
 
   return `I'm MO for **${ctx.product}** — your ${ctx.role}.\n\nI can help with:\n${ctx.capabilities.map((c) => `• ${c}`).join('\n')}\n\nTry asking:\n${ctx.samplePrompts.map((p) => `• ${p}`).join('\n')}`;

@@ -9,6 +9,7 @@ export type SolutionFamily =
   | 'education'
   | 'professional'
   | 'healthcare'
+  | 'agriculture'
   | 'enterprise';
 
 export type SolutionPlanPublic = {
@@ -42,7 +43,7 @@ export function formatSolutionNaira(amount: number): string {
 }
 
 export const SOLUTION_PRICING: Record<
-  'hospitality' | 'education' | 'professional' | 'healthcare',
+  'hospitality' | 'education' | 'professional' | 'healthcare' | 'agriculture',
   SolutionPricingPage
 > = {
   hospitality: {
@@ -408,6 +409,94 @@ export const SOLUTION_PRICING: Record<
       { name: 'Data migration', model: 'One-time' },
     ],
   },
+  agriculture: {
+    family: 'agriculture',
+    productName: 'Busmo Agriculture',
+    modelLabel: 'Hectares under management + modules',
+    headline: 'Pricing built for farms and agribusiness',
+    subhead:
+      'Priced by planted area and operational modules — from small mixed farms to processing and export operations.',
+    billingNote:
+      'Annual plans include ~2 months free. Seasonal harvest cycles can be planned monthly or annually. Export documentation and integrations are quoted separately where required.',
+    plans: [
+      {
+        id: 'starter',
+        name: 'Starter',
+        capacity: 'Up to 20 hectares',
+        tagline: 'Small farms and mixed growers',
+        monthlyPrice: 20_000,
+        yearlyPrice: 200_000,
+        cta: 'Start Agriculture',
+        features: [
+          'Farms and plots',
+          'Crop cycles',
+          'Field activities',
+          'Input inventory',
+          'Harvest and yield',
+          '14-day free trial',
+        ],
+      },
+      {
+        id: 'growth',
+        name: 'Growth',
+        capacity: 'Up to 100 hectares',
+        tagline: 'Farms with processing and packaging',
+        monthlyPrice: 55_000,
+        yearlyPrice: 550_000,
+        popular: true,
+        cta: 'Get Growth',
+        features: [
+          'Everything in Starter',
+          'Processing batches',
+          'Packaging runs',
+          'Warehouse and stock',
+          'Sales orders',
+          'Equipment and team',
+          '14-day free trial',
+        ],
+      },
+      {
+        id: 'professional',
+        name: 'Professional',
+        capacity: 'Up to 500 hectares',
+        tagline: 'Commercial farms and export teams',
+        monthlyPrice: 140_000,
+        yearlyPrice: 1_400_000,
+        cta: 'Get Professional',
+        features: [
+          'Everything in Growth',
+          'Export documentation',
+          'Compliance tracking',
+          'Advanced yield analytics',
+          'Advanced permissions',
+          'Priority support',
+          '14-day free trial',
+        ],
+      },
+      {
+        id: 'enterprise',
+        name: 'Enterprise',
+        capacity: '500+ hectares / groups',
+        tagline: 'Agribusiness groups and cooperatives',
+        monthlyPrice: null,
+        yearlyPrice: null,
+        isEnterprise: true,
+        cta: 'Talk to sales',
+        features: [
+          'Multiple farms and locations',
+          'Centralised operations',
+          'Custom workflows',
+          'Integrations',
+          'Dedicated onboarding',
+        ],
+      },
+    ],
+    addOns: [
+      { name: 'Additional farm', model: 'Monthly' },
+      { name: 'Export documentation', model: 'Per consignment' },
+      { name: 'Data migration', model: 'One-time' },
+    ],
+  },
 };
 
 export const ENTERPRISE_PRICING = {
@@ -477,6 +566,14 @@ export const PRICING_HUB = [
     href: '/industries/healthcare#pricing',
     blurb: 'Clinic operations — patients, appointments, billing.',
     fromLabel: 'From ₦40,000/mo',
+  },
+  {
+    id: 'agriculture',
+    title: 'Busmo Agriculture',
+    model: 'Hectares + modules',
+    href: '/solutions/agriculture#pricing',
+    blurb: 'Farms, processing, packaging, stock, sales and exports.',
+    fromLabel: 'From ₦20,000/mo',
   },
   {
     id: 'enterprise',

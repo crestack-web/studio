@@ -1,4 +1,9 @@
-export type SolutionsSuiteId = 'hospitality' | 'healthcare' | 'professional' | 'education';
+export type SolutionsSuiteId =
+  | 'hospitality'
+  | 'healthcare'
+  | 'professional'
+  | 'education'
+  | 'agriculture';
 
 export type SolutionsNavSection = 'main' | 'operations' | 'finance' | 'settings';
 

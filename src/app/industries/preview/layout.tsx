@@ -4,7 +4,7 @@ import '../_design/solutions.css';
 export const metadata: Metadata = {
   title: 'Busmo Solutions — preview',
   description:
-    'Preview the redesigned Busmo industry solutions: hospitality, healthcare, professional services and education.',
+    'Preview the redesigned Busmo industry solutions: hospitality, healthcare, professional services, education and agriculture.',
   robots: { index: false, follow: false },
 };
 

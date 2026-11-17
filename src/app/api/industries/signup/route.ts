@@ -48,7 +48,11 @@ export async function POST(req: NextRequest) {
     if (!businessName) {
       return NextResponse.json({ error: 'Business / hotel name is required.' }, { status: 400 });
     }
-    if (!['hospitality', 'professional', 'healthcare', 'education', 'business'].includes(productEdition)) {
+    if (
+      !['hospitality', 'professional', 'healthcare', 'education', 'agriculture', 'business'].includes(
+        productEdition
+      )
+    ) {
       return NextResponse.json({ error: 'Invalid product edition.' }, { status: 400 });
     }
 

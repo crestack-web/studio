@@ -3,7 +3,7 @@
 import { getSupabase } from '@/lib/supabase';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUp, Sparkles, Zap, BedDouble, Stethoscope, Briefcase, GraduationCap } from 'lucide-react';
+import { ArrowUp, Sparkles, Zap, BedDouble, Stethoscope, Briefcase, GraduationCap, Sprout } from 'lucide-react';
 import { useToast } from './primitives';
 import { Icon } from './icons';
 import { MoIcon } from './MoIcon';
@@ -131,7 +131,44 @@ export function moReply(suiteId: SolutionsSuiteId, prompt: string, context?: AIC
     };
   }
 
-  return { text: 'MO is online. Ask me for insights, schedules, clinical context, delivery plans or finance follow-ups.' };
+  if (suiteId === 'agriculture') {
+    if (q.includes('harvest') || q.includes('yield') || q.includes('ready') || q.includes('plot')) {
+      return {
+        text: `Two Greenfield plots are ready for harvest: Plot B4 (maize, 6.2 t) and Plot C1 (cassava, 12.1 t). I can sequence the harvest crews, reserve dryer capacity and draft the yield report against last season's benchmark.`,
+        actions: ['Plan harvest crew', 'Draft yield report', 'Reserve dryer'],
+      };
+    }
+    if (q.includes('stock') || q.includes('inventory') || q.includes('input') || q.includes('fertiliser') || q.includes('fertilizer')) {
+      return {
+        text: `Maize seed and NPK fertiliser are below reorder level. I can raise purchase orders to the preferred suppliers and update the input register so planting is not delayed.`,
+        actions: ['Draft purchase orders', 'Review low stock', 'Update input register'],
+      };
+    }
+    if (q.includes('export') || q.includes('shipment') || q.includes('document') || q.includes('compliance')) {
+      return {
+        text: `One export file to Côte d'Ivoire is awaiting phytosanitary documents. I can assemble the document checklist, flag the missing certificate and prepare the consignment note for the buyer.`,
+        actions: ['Build document checklist', 'Draft consignment note', 'Flag missing certificate'],
+      };
+    }
+    if (q.includes('field') || q.includes('activit') || q.includes('plant') || q.includes('spray') || q.includes('irrigat')) {
+      return {
+        text: `There are 8 open field activities this week. I can reprioritise by plot and crop stage, assign the spraying and irrigation jobs to available team members, and push due-date reminders.`,
+        actions: ['Reprioritise field jobs', 'Assign team', 'Send reminders'],
+      };
+    }
+    if (q.includes('sale') || q.includes('revenue') || q.includes('finance') || q.includes('buyer')) {
+      return {
+        text: `Sales orders show ₦8.4m billed this month, with ₦2.1m awaiting collection from two contract buyers. I can draft follow-up notes and age the receivables by due date.`,
+        actions: ['Draft buyer follow-up', 'Age receivables', 'Open sales register'],
+      };
+    }
+    return {
+      text: `Here is the live farm picture — planted area, active crop cycles, harvest readiness, stock alerts, processing batches and export files are all tracked. Ask me about harvests, field work, inventory, exports or sales.`,
+      actions: ['Summarise harvest readiness', 'Flag low inventory', 'Plan field activities'],
+    };
+  }
+
+  return { text: 'MO is online. Ask me for insights, schedules, clinical context, delivery plans, farm operations or finance follow-ups.' };
 }
 
 const META: Record<SolutionsSuiteId, { label: string; tagline: string; caps: string[]; greet: string }> = {
@@ -163,6 +200,13 @@ const META: Record<SolutionsSuiteId, { label: string; tagline: string; caps: str
     greet:
       "I'm MO — your AI chief of staff for this school. I draft timetables, assign topics, track attendance and chase fee follow-ups.",
   },
+  agriculture: {
+    label: 'Agriculture',
+    tagline: 'Farms · Crops · Harvest · Exports',
+    caps: ['Harvest readiness', 'Field work', 'Stock alerts', 'Exports', 'Sales'],
+    greet:
+      "I'm MO — your AI chief of staff for this farm. I track harvest readiness, field work, stock alerts, processing batches, exports and sales so you can act in seconds.",
+  },
 };
 
 const QUICK: Record<SolutionsSuiteId, { label: string; prompt: string }[]> = {
@@ -188,6 +232,12 @@ const QUICK: Record<SolutionsSuiteId, { label: string; prompt: string }[]> = {
     { label: 'Attendance', prompt: 'Attendance insights' },
     { label: 'Fee follow-ups', prompt: 'Fee follow-ups' },
   ],
+  agriculture: [
+    { label: 'Harvest readiness', prompt: 'Summarise harvest readiness' },
+    { label: 'Field work', prompt: 'Plan field activities' },
+    { label: 'Stock alerts', prompt: 'Flag low inventory' },
+    { label: 'Export files', prompt: 'Check export documents' },
+  ],
 };
 
 function Glyph({ id }: { id: SolutionsSuiteId }) {
@@ -195,7 +245,8 @@ function Glyph({ id }: { id: SolutionsSuiteId }) {
   if (id === 'hospitality') return <BedDouble {...p} />;
   if (id === 'healthcare') return <Stethoscope {...p} />;
   if (id === 'professional') return <Briefcase {...p} />;
-  return <GraduationCap {...p} />;
+  if (id === 'education') return <GraduationCap {...p} />;
+  return <Sprout {...p} />;
 }
 
 export function AIDrawer({

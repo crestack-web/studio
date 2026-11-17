@@ -1,15 +1,22 @@
 import type { IndustryConfig, IndustryId } from './types';
 
-export const INDUSTRY_IDS = ['hospitality', 'professional', 'healthcare', 'education'] as const;
+export const INDUSTRY_IDS = [
+  'hospitality',
+  'professional',
+  'healthcare',
+  'education',
+  'agriculture',
+] as const;
 
 export function isIndustryId(
   value: string | null | undefined
-): value is 'hospitality' | 'professional' | 'healthcare' | 'education' {
+): value is 'hospitality' | 'professional' | 'healthcare' | 'education' | 'agriculture' {
   return (
     value === 'hospitality' ||
     value === 'professional' ||
     value === 'healthcare' ||
-    value === 'education'
+    value === 'education' ||
+    value === 'agriculture'
   );
 }
 
@@ -258,14 +265,82 @@ export const EDUCATION: IndustryConfig = {
 };
 
 
+export const AGRICULTURE: IndustryConfig = {
+  id: 'agriculture',
+  productName: 'Busmo Agriculture',
+  logoSrc: '/industries/busmo-agriculture-icon.svg',
+  shortName: 'Agriculture',
+  tagline: 'From the field to the final sale.',
+  description:
+    'Manage farms, plots, crops, field work, harvests, processing, packaging, stock, sales, exports and agribusiness finance from one connected workspace.',
+  welcomePath: '/solutions/agriculture',
+  loginPath: '/solutions/agriculture/login',
+  signupPath: '/solutions/agriculture/signup',
+  dashboardPath: '/solutions/agriculture/dashboard',
+  features: [
+    'Farm and plot management',
+    'Crop cycles and field activities',
+    'Farm input and inventory tracking',
+    'Harvest and yield records',
+    'Processing and packaging batches',
+    'Warehouse and stock control',
+    'Sales orders and exports',
+    'Equipment, team and finance',
+  ],
+  benefits: [
+    'See every farm, plot and crop cycle in one live view',
+    'Connect field work to harvest, processing and packaging',
+    'Track stock from input store to warehouse and export',
+    'Keep sales, compliance and agribusiness finance together',
+  ],
+  greetingNoun: 'farm',
+  nav: [
+    { id: 'overview', label: 'Overview', href: '/solutions/agriculture/dashboard', section: 'main' },
+    { id: 'ask-mo', label: 'Ask MO', href: '/solutions/agriculture/dashboard#ask-mo', section: 'main' },
+    { id: 'farms', label: 'Farms', href: '/solutions/agriculture/dashboard/farms', section: 'main' },
+    { id: 'plots', label: 'Plots', href: '/solutions/agriculture/dashboard/plots', section: 'main' },
+    { id: 'crops', label: 'Crops & cycles', href: '/solutions/agriculture/dashboard/crops', section: 'main' },
+    { id: 'activities', label: 'Field activities', href: '/solutions/agriculture/dashboard/activities', section: 'main' },
+    { id: 'harvest', label: 'Harvest & yield', href: '/solutions/agriculture/dashboard/harvest', section: 'main' },
+    { id: 'inputs', label: 'Farm inputs', href: '/solutions/agriculture/dashboard/inputs', section: 'operations' },
+    { id: 'inventory', label: 'Inventory', href: '/solutions/agriculture/dashboard/inventory', section: 'operations' },
+    { id: 'processing', label: 'Processing', href: '/solutions/agriculture/dashboard/processing', section: 'operations' },
+    { id: 'packaging', label: 'Packaging', href: '/solutions/agriculture/dashboard/packaging', section: 'operations' },
+    { id: 'warehouse', label: 'Warehouse', href: '/solutions/agriculture/dashboard/warehouse', section: 'operations' },
+    { id: 'equipment', label: 'Equipment', href: '/solutions/agriculture/dashboard/equipment', section: 'operations' },
+    { id: 'team', label: 'Farm team', href: '/solutions/agriculture/dashboard/team', section: 'operations' },
+    { id: 'sales', label: 'Sales orders', href: '/solutions/agriculture/dashboard/sales', section: 'finance' },
+    { id: 'exports', label: 'Exports', href: '/solutions/agriculture/dashboard/exports', section: 'finance' },
+    { id: 'finance', label: 'Finance', href: '/solutions/agriculture/dashboard/finance', section: 'finance' },
+    { id: 'reports', label: 'Reports', href: '/solutions/agriculture/dashboard/reports', section: 'finance' },
+    { id: 'settings', label: 'Farm settings', href: '/solutions/agriculture/dashboard/settings', section: 'settings' },
+    { id: 'account', label: 'Account settings', href: '/solutions/agriculture/dashboard/account', section: 'settings' },
+  ],
+  metrics: [
+    { id: 'planted_area', label: 'Planted area', emptyValue: '0 ha', hint: 'Across all active plots' },
+    { id: 'active_cycles', label: 'Active crop cycles', emptyValue: '0' },
+    { id: 'harvest_ready', label: 'Harvest ready', emptyValue: '0 t' },
+    { id: 'revenue_month', label: 'Revenue this month', emptyValue: '₦0' },
+  ],
+  quickActions: [
+    { id: 'new-activity', label: 'Log field activity', href: '/solutions/agriculture/dashboard/activities' },
+    { id: 'new-harvest', label: 'Record harvest', href: '/solutions/agriculture/dashboard/harvest' },
+    { id: 'new-processing', label: 'Start processing batch', href: '/solutions/agriculture/dashboard/processing' },
+    { id: 'new-sale', label: 'Create sales order', href: '/solutions/agriculture/dashboard/sales' },
+    { id: 'new-export', label: 'Start export file', href: '/solutions/agriculture/dashboard/exports' },
+    { id: 'add-plot', label: 'Add plot', href: '/solutions/agriculture/dashboard/plots' },
+  ],
+};
+
 export const INDUSTRY_CONFIG: Record<
-  'hospitality' | 'professional' | 'healthcare' | 'education',
+  'hospitality' | 'professional' | 'healthcare' | 'education' | 'agriculture',
   IndustryConfig
 > = {
   hospitality: HOSPITALITY,
   professional: PROFESSIONAL,
   healthcare: HEALTHCARE,
   education: EDUCATION,
+  agriculture: AGRICULTURE,
 };
 
 
@@ -320,6 +395,15 @@ export function resolveProductEdition(opts: {
   ) {
     return 'education';
   }
+  if (
+    raw === 'agriculture' ||
+    raw.includes('agric') ||
+    raw.includes('farm') ||
+    raw.includes('crop') ||
+    raw.includes('agribusiness')
+  ) {
+    return 'agriculture';
+  }
   return 'business';
 }
 
@@ -328,5 +412,6 @@ export function dashboardPathForEdition(edition: IndustryId): string {
   if (edition === 'professional') return PROFESSIONAL.dashboardPath;
   if (edition === 'healthcare') return HEALTHCARE.dashboardPath;
   if (edition === 'education') return EDUCATION.dashboardPath;
+  if (edition === 'agriculture') return AGRICULTURE.dashboardPath;
   return '/owner/dashboard';
 }

@@ -28,6 +28,28 @@ const hospitalityNav: SolutionsNavItem[] = [
   { id: 'account', label: 'Account', icon: 'user', section: 'settings' },
 ];
 
+const agricultureNav: SolutionsNavItem[] = [
+  { id: 'overview', label: 'Overview', icon: 'dashboard', section: 'main' },
+  { id: 'farms', label: 'Farms', icon: 'sprout', section: 'main' },
+  { id: 'plots', label: 'Plots', icon: 'layers', section: 'main' },
+  { id: 'crops', label: 'Crops & cycles', icon: 'activity', section: 'main' },
+  { id: 'activities', label: 'Field activities', icon: 'checklist', section: 'main', count: 8 },
+  { id: 'harvest', label: 'Harvest & yield', icon: 'sprout', section: 'main', badge: true },
+  { id: 'inputs', label: 'Farm inputs', icon: 'box', section: 'operations' },
+  { id: 'inventory', label: 'Inventory', icon: 'box', section: 'operations', count: 3 },
+  { id: 'processing', label: 'Processing', icon: 'layers', section: 'operations' },
+  { id: 'packaging', label: 'Packaging', icon: 'box', section: 'operations' },
+  { id: 'warehouse', label: 'Warehouse', icon: 'box', section: 'operations' },
+  { id: 'equipment', label: 'Equipment', icon: 'settings', section: 'operations' },
+  { id: 'team', label: 'Farm team', icon: 'badge', section: 'operations' },
+  { id: 'sales', label: 'Sales orders', icon: 'receipt', section: 'finance' },
+  { id: 'exports', label: 'Exports', icon: 'globe', section: 'finance', count: 2 },
+  { id: 'finance', label: 'Finance', icon: 'wallet', section: 'finance' },
+  { id: 'reports', label: 'Reports', icon: 'chart', section: 'finance' },
+  { id: 'settings', label: 'Farm settings', icon: 'settings', section: 'settings' },
+  { id: 'account', label: 'Account', icon: 'user', section: 'settings' },
+];
+
 export const SOLUTIONS_SUITES: Record<SolutionsSuiteId, SolutionsSuite> = {
   hospitality: {
     id: 'hospitality',
@@ -143,6 +165,26 @@ export const SOLUTIONS_SUITES: Record<SolutionsSuiteId, SolutionsSuite> = {
       { id: 'account', label: 'Account', icon: 'user', section: 'settings' },
     ],
   },
+  agriculture: {
+    id: 'agriculture',
+    name: 'Busmo Agriculture',
+    shortName: 'Agriculture',
+    edition: 'Agriculture',
+    tagline: 'From the field to the final sale.',
+    description:
+      'Farms, plots, crops, field work, harvests, processing, packaging, stock, sales and exports in one workspace.',
+    logo: '/industries/busmo-agriculture-icon.svg',
+    greetingNoun: 'farm',
+    workspace: {
+      name: 'Greenfield Farms Ltd',
+      location: 'Ibadan, Oyo',
+      plan: 'Suite plan',
+      currency: 'NGN',
+      ownerName: 'Mrs. Folake Adeyemi',
+      ownerEmail: 'folake@greenfieldfarms.ng',
+    },
+    nav: agricultureNav,
+  },
 };
 
 export const SOLUTIONS_SUITE_IDS = Object.keys(SOLUTIONS_SUITES) as SolutionsSuiteId[];
@@ -152,7 +194,8 @@ export function isSolutionsSuiteId(value: unknown): value is SolutionsSuiteId {
     value === 'hospitality' ||
     value === 'healthcare' ||
     value === 'professional' ||
-    value === 'education'
+    value === 'education' ||
+    value === 'agriculture'
   );
 }
 

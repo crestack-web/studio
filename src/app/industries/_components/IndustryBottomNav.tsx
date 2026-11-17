@@ -150,6 +150,15 @@ function bottomItems(config: IndustryConfig): (Item & { icon: string })[] {
       { href: `${base}/settings`, label: 'Settings', icon: 'more' },
     ];
   }
+  if (config.id === 'agriculture') {
+    return [
+      { href: base, label: 'Home', icon: 'home', match: base },
+      { href: `${base}/farms`, label: 'Farms', icon: 'home' },
+      { href: `${base}/activities`, label: 'Field', icon: 'tasks' },
+      { href: `${base}/harvest`, label: 'Harvest', icon: 'check' },
+      { href: `${base}/sales`, label: 'Sales', icon: 'book' },
+    ];
+  }
   return [
     { href: base, label: 'Home', icon: 'home', match: base },
     { href: `${base}/staff`, label: 'Staff', icon: 'people' },

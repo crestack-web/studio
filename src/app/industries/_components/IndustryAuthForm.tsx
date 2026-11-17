@@ -70,6 +70,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
       else if (edition === 'professional') window.location.href = '/industries/professional/dashboard';
       else if (edition === 'healthcare') window.location.href = '/industries/healthcare/dashboard';
       else if (edition === 'education') window.location.href = '/industries/education/dashboard';
+      else if (edition === 'agriculture') window.location.href = '/industries/agriculture/dashboard';
       else window.location.href = '/owner/dashboard';
       return true;
     }
@@ -77,6 +78,7 @@ export function IndustryAuthForm({ config, mode }: { config: IndustryConfig; mod
     else if (fallbackEdition === 'professional') window.location.href = '/industries/professional/dashboard';
     else if (fallbackEdition === 'healthcare') window.location.href = '/industries/healthcare/dashboard';
     else if (fallbackEdition === 'education') window.location.href = '/industries/education/dashboard';
+    else if (fallbackEdition === 'agriculture') window.location.href = '/industries/agriculture/dashboard';
     else window.location.href = '/owner/dashboard';
     return true;
   }

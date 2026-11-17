@@ -196,7 +196,7 @@ function ArrowRight() {
 
 /* ------------------------------ content ----------------------------- */
 
-type SuiteId = 'hospitality' | 'healthcare' | 'professional' | 'education';
+type SuiteId = 'hospitality' | 'healthcare' | 'professional' | 'education' | 'agriculture';
 
 type Feature = { icon: IconName; title: string; desc: string };
 type Step = { title: string; desc: string };
@@ -657,6 +657,117 @@ const SUITE_CONTENT: Record<SuiteId, SuiteContent> = {
         { text: 'SS 1A · Physics · 12:00', state: 'todo' },
       ],
       mo: 'Attendance in JSS 3B dropped 8% this week. Flag it for the form teacher.',
+    },
+  },
+
+  agriculture: {
+    kicker: 'Farm & agribusiness',
+    headline: {
+      lead: 'From the field to',
+      em: 'the final sale.',
+      tail: '— without the guesswork.',
+    },
+    description:
+      'Farms, plots, crops and field work connect to harvests, processing, packaging, stock, sales and exports in one workspace — so the farm manager, store and back office work from the same live picture instead of notebooks and scattered spreadsheets.',
+    note: '14-day free trial · Cancel anytime',
+    ctaLabel: 'Start free trial',
+    featureLead:
+      'Replace the farm diary, input register and yield spreadsheet with one live view of the season — from land preparation and planting through to packaged stock, invoices and export documents.',
+    features: [
+      {
+        icon: 'table',
+        title: 'Farms & plots',
+        desc: 'Every farm, plot and crop in one place — with area, location and what is planted where, ready for the whole team to see.',
+      },
+      {
+        icon: 'calendar',
+        title: 'Field activities',
+        desc: 'Plan planting, weeding and spraying, assign field crews and log what actually happened against each plot and work day.',
+      },
+      {
+        icon: 'receipt',
+        title: 'Inputs & inventory',
+        desc: 'Track seeds, fertiliser and agrochemicals from purchase to use, with stock levels and reorder alerts before a field runs dry.',
+      },
+      {
+        icon: 'chart',
+        title: 'Harvest & yield',
+        desc: 'Record harvests plot by plot, compare yields against planting plans and see what each field is really producing per hectare.',
+      },
+      {
+        icon: 'briefcase',
+        title: 'Processing & packaging',
+        desc: 'Move produce from harvest into processing and packaging, track grades and batch numbers, and know how many bags or crates are ready.',
+      },
+      {
+        icon: 'globe',
+        title: 'Sales, exports & finance + MO',
+        desc: 'Sell local or export with invoices, buyer records and document checks, while finance rolls it up and MO flags what needs attention.',
+      },
+    ],
+    steps: [
+      {
+        title: 'Import farms, plots and crops',
+        desc: 'Add your farms, plots and crop plans — or bring existing land and input records in from a spreadsheet during setup.',
+      },
+      {
+        title: 'Plan the season and run field work',
+        desc: 'Set up a season cycle, schedule planting and field activities, and let crews log work against each plot as it happens.',
+      },
+      {
+        title: 'Harvest, process, sell and export',
+        desc: 'Capture yields, move stock through processing and packaging, then invoice local buyers or prepare export documents.',
+      },
+    ],
+    faq: [
+      {
+        q: 'Can we import our farms and plots?',
+        a: 'Yes. Farms, plots, crop assignments and input records can be added in bulk during setup, so you do not start a season from a blank system.',
+      },
+      {
+        q: 'Can we run more than one season cycle?',
+        a: 'Yes. Each season has its own planting plan, field activities and harvest records, so you can compare yields and inputs across seasons without losing history.',
+      },
+      {
+        q: 'Does it handle processing and packaging?',
+        a: 'Yes. Move harvested produce into processing, record grades and batch numbers, and track how many bags, crates or cartons are packed and ready to sell.',
+      },
+      {
+        q: 'Can we manage exports and compliance documents?',
+        a: 'You can attach buyers, invoices and required export documents to each sale and see what is still outstanding before a shipment is dispatched. Specific certification requirements depend on your market and should be confirmed with your buyer.',
+      },
+      {
+        q: 'What can MO report on?',
+        a: 'MO reads your own farm data and highlights what needs attention — plots ready for harvest, stock below reorder level, fields underperforming and export files waiting on documents.',
+      },
+    ],
+    ctaTitle: 'Bring the whole season into one view.',
+    ctaText:
+      'Start with farms and plots, then add field work, harvests, processing and sales. See the field and the final sale in the same workspace.',
+    mock: {
+      window: 'busmo.app/agriculture/overview',
+      workspace: 'Greenfield Farms Ltd',
+      subtitle: 'Ibadan, Oyo · Farm operations',
+      kpis: [
+        { label: 'Planted area', value: '126 ha' },
+        { label: 'Harvest ready', value: '18.4 t', delta: '+2.1 t' },
+        { label: 'Revenue', value: '₦8.4m' },
+      ],
+      listTitle: 'Today on the farm',
+      listMeta: 'Field operations',
+      rows: [
+        { title: 'Plot A4 · Maize harvest', meta: 'Ring Road block · 4.2 ha', status: 'Ready' },
+        { title: 'Fertiliser restock · Input store', meta: '12 bags left · below reorder level', status: 'Due', tone: 'warn' },
+        { title: 'Grade A cassava · Export batch', meta: '20 × 50 kg bags · packaging', status: 'In progress', tone: 'neutral' },
+      ],
+      asideTitle: 'Next field jobs',
+      asideMeta: '3 tasks',
+      aside: [
+        { text: 'Weed Plot B2 · 07:00', state: 'done' },
+        { text: 'Harvest Plot A4 · 09:30', state: 'active' },
+        { text: 'Dispatch export documents · 15:00', state: 'todo' },
+      ],
+      mo: 'Two plots are ready for harvest. Maize stock is below reorder level and one export file needs documents.',
     },
   },
 };

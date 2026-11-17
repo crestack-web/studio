@@ -31,6 +31,13 @@ export const QUICK_ACTIONS: Record<SolutionsSuiteId, QuickAction[]> = {
     { id: 'timetable', label: 'Add to timetable', icon: 'calendar', section: 'timetable' },
     { id: 'fees', label: 'Record a fee payment', icon: 'receipt', section: 'fees' },
   ],
+  agriculture: [
+    { id: 'activities', label: 'Log field activity', icon: 'checklist', section: 'activities' },
+    { id: 'harvest', label: 'Record harvest', icon: 'sprout', section: 'harvest' },
+    { id: 'sales', label: 'Create sales order', icon: 'receipt', section: 'sales' },
+    { id: 'exports', label: 'Start export file', icon: 'globe', section: 'exports' },
+    { id: 'inventory', label: 'Restock inventory', icon: 'box', section: 'inventory' },
+  ],
 };
 
 /** Soft MO prompts — no fabricated numbers. Live status comes from workspace hydrate. */
@@ -43,8 +50,16 @@ export const MO_SUMMARY: Record<SolutionsSuiteId, string> = {
     'MO is ready. Ask about projects, clients, unbilled time or invoices.',
   education:
     'MO is ready. Ask about attendance, enrollment, fees or timetable.',
+  agriculture:
+    'MO is ready. Ask about harvests, field work, stock levels, exports or sales.',
 };
 
-export const PREVIEW_READY: SolutionsSuiteId[] = ['hospitality', 'healthcare', 'professional', 'education'];
+export const PREVIEW_READY: SolutionsSuiteId[] = [
+  'hospitality',
+  'healthcare',
+  'professional',
+  'education',
+  'agriculture',
+];
 
 export const SECTION_ORDER = ['main', 'operations', 'finance', 'settings'] as const;

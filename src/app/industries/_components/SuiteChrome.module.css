@@ -94,6 +94,21 @@
   --suite-hero-em: #c7d2fe;
 }
 
+.root[data-suite='agriculture'] {
+  --suite-accent: #0b7f4a;
+  --suite-accent-strong: #08663c;
+  --suite-accent-soft: #ecfdf3;
+  --suite-accent-border: #bbf7d0;
+  --suite-accent-ink: #065f39;
+  --suite-alt: #c2972e;
+  --suite-alt-soft: #fdf6e5;
+  --suite-hero-bg: linear-gradient(155deg, #062c1d 0%, #071a13 54%, #080b0c 100%);
+  --suite-hero-glow: rgba(34, 197, 94, 0.28);
+  --suite-hero-glow-2: rgba(194, 151, 46, 0.18);
+  --suite-hero-eyebrow: #86efac;
+  --suite-hero-em: #bbf7d0;
+}
+
 /* ----------------------------- header ----------------------------- */
 
 .top {
@@ -311,6 +326,9 @@
 }
 .menuDot[data-suite='education'] {
   background: #4338ca;
+}
+.menuDot[data-suite='agriculture'] {
+  background: #0b7f4a;
 }
 .menuDot[data-suite='business'] {
   background: #6b3fe7;

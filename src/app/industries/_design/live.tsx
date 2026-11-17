@@ -11,6 +11,7 @@ import React, {
 } from 'react';
 import { getSupabase } from '@/lib/supabase';
 import type { SolutionsSuiteId } from './types';
+import { hydrateAgriculture } from './agriculture/mock';
 import { hydrateEducation } from './education/mock';
 import { hydrateHealthcare } from './healthcare/mock';
 import { hydrateHospitality } from './hospitality/mock';
@@ -51,6 +52,7 @@ const HYDRATORS: Record<SolutionsSuiteId, (payload: any) => boolean> = {
   healthcare: hydrateHealthcare,
   hospitality: hydrateHospitality,
   professional: hydrateProfessional,
+  agriculture: hydrateAgriculture,
 };
 
 export function SolutionsLiveProvider({
@@ -62,9 +64,9 @@ export function SolutionsLiveProvider({
   enabled?: boolean;
   children: React.ReactNode;
 }) {
-  const id = (['hospitality', 'healthcare', 'professional', 'education'] as const).includes(
-    suiteId as SolutionsSuiteId,
-  )
+  const id = (
+    ['hospitality', 'healthcare', 'professional', 'education', 'agriculture'] as const
+  ).includes(suiteId as SolutionsSuiteId)
     ? (suiteId as SolutionsSuiteId)
     : null;
 
