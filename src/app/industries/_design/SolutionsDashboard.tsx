@@ -1,3 +1,4 @@
+import './solutions-mobile.css';
 'use client';
 
 import React from 'react';
