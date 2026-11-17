@@ -237,7 +237,7 @@ export const reports: { id: string; name: string; description?: string; icon?: s
 
 /* ── Notifications ────────────────────────────────────────────────── */
 
-export const notifications: { id: string; title: string; detail?: string; time?: string; unread?: boolean; kind?: string }[] = [];
+export const notifications: { id: string; title: string; detail: string; time: string; unread: boolean }[] = [];
 
 /* ── Live hydration ───────────────────────────────────────────────────
  * The dashboard screens import the arrays and summary objects below by
