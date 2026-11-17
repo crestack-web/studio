@@ -673,11 +673,11 @@ export function hydrateHospitality(payload: any): boolean {
         room_number: r.room_number,
         category: r.category || 'Standard',
         stage,
-        assignee: '',
+        assignee: 'Unassigned',
         priority: st === 'maintenance' ? 'high' : 'medium',
-        minutes: 0,
+        updated_at: new Date().toISOString(),
         note: undefined,
-      } as HousekeepingRoom);
+      });
     }
   }
   replaceArray(housekeepingRooms, liveHousekeeping);
