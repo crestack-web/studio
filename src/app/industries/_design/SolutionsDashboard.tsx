@@ -1,5 +1,6 @@
-import './solutions-mobile.css';
 'use client';
+
+import './solutions-mobile.css';
 
 import React from 'react';
 import { SolutionsShell } from './shell';
