@@ -360,7 +360,7 @@ function SolutionsDashboardBody({
   const { version, status, error, refresh } = useSolutionsLive();
   const suite = getSolutionsSuite(suiteId);
 
-  const hrefFor = (sectionId: string, targetSuiteId?: string) => {
+  const hrefFor = (sectionId: string) => {
     // Live product dashboards: basePath is already /solutions/{suite}/dashboard
     if (basePath.includes('/dashboard')) {
       const root = basePath.replace(/\/$/, '');
@@ -368,23 +368,19 @@ function SolutionsDashboardBody({
       return `${root}/${sectionToPathSegment(sectionId)}`;
     }
 
-    // Preview routes: /industries/preview/{suite}/[[...section]]
-    const s = targetSuiteId || suite.id;
-
     // Preview routes are /industries/preview/<suite>/<section>.
     if (basePath.includes('/preview')) {
-      if (sectionId === 'overview') return `${basePath}/${s}`;
-      return `${basePath}/${s}/${sectionId}`;
+      if (sectionId === 'overview') return `${basePath}/${suite.id}`;
+      return `${basePath}/${suite.id}/${sectionId}`;
     }
 
     // Live routes are /solutions/<suite>/dashboard/<section>. The basePath
-    // already contains the current suite, so rebuild from the root when
-    // switching suites and use the canonical public path.
+    // already contains the current suite, so rebuild from the canonical root.
     const segments = basePath.replace(/\/$/, '').split('/').filter(Boolean);
     const root = segments.length >= 2
       ? `/${segments.slice(0, -1).join('/')}`.replace(/^\/industries/, '/solutions')
       : '/solutions';
-    const suiteBase = `${root}/${s}`;
+    const suiteBase = `${root}/${suite.id}`;
     if (sectionId === 'overview') return `${suiteBase}/dashboard`;
     return `${suiteBase}/dashboard/${sectionId}`;
   };

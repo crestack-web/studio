@@ -54,12 +54,4 @@ export const MO_SUMMARY: Record<SolutionsSuiteId, string> = {
     'MO is ready. Ask about harvests, field work, stock levels, exports or sales.',
 };
 
-export const PREVIEW_READY: SolutionsSuiteId[] = [
-  'hospitality',
-  'healthcare',
-  'professional',
-  'education',
-  'agriculture',
-];
-
 export const SECTION_ORDER = ['main', 'operations', 'finance', 'settings'] as const;

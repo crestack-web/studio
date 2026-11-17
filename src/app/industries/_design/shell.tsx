@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
   Bell,
-  Check,
   ChevronDown,
   Command,
   HelpCircle,
@@ -20,9 +19,9 @@ import { Avatar, Badge, Kbd, Sheet, useToast } from './primitives';
 import { Icon } from './icons';
 import { AIDrawer } from './ai';
 import { MoIcon } from './MoIcon';
-import { SOLUTIONS_SECTION_LABELS, SOLUTIONS_SUITE_IDS, SOLUTIONS_SUITES } from './suites';
-import type { SolutionsSuite, SolutionsSuiteId } from './types';
-import { QUICK_ACTIONS, MO_SUMMARY, PREVIEW_READY, SECTION_ORDER } from './shell-data';
+import { SOLUTIONS_SECTION_LABELS } from './suites';
+import type { SolutionsSuite } from './types';
+import { QUICK_ACTIONS, MO_SUMMARY, SECTION_ORDER } from './shell-data';
 
 export type ShellNotification = {
   id: string;
@@ -32,7 +31,7 @@ export type ShellNotification = {
   unread: boolean;
 };
 
-type MenuKey = 'suite' | 'sideUser' | 'topUser' | 'notif' | 'quick' | null;
+type MenuKey = 'sideUser' | 'topUser' | 'notif' | 'quick' | null;
 
 export function SolutionsShell({
   suite,
@@ -45,7 +44,7 @@ export function SolutionsShell({
 }: {
   suite: SolutionsSuite;
   section: string;
-  hrefFor: (sectionId: string, suiteId?: string) => string;
+  hrefFor: (sectionId: string) => string;
   notifications?: ShellNotification[];
   user?: { name: string; email?: string } | null;
   signOut?: () => void;
@@ -192,15 +191,8 @@ export function SolutionsShell({
     <div className="solutions" data-suite={suite.id} data-theme={theme} ref={shellRef}>
       <div className="sol">
         <aside className="sol-sidebar" data-collapsed={collapsed}>
-          <div className="sol-brand" data-menu-root>
-            <button
-              type="button"
-              className="sol-brand-btn"
-              onClick={() => setMenu((m) => (m === 'suite' ? null : 'suite'))}
-              aria-haspopup="menu"
-              aria-expanded={menu === 'suite'}
-              aria-label="Switch Busmo suite"
-            >
+          <div className="sol-brand">
+            <div className="sol-brand-info">
               {suite.logo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={suite.logo} alt="" className="sol-brand-logo" />
@@ -211,43 +203,9 @@ export function SolutionsShell({
                 <span className="sol-brand-name">{suite.workspace.name}</span>
                 <span className="sol-brand-meta">
                   <span className="sol-suite-chip">{suite.edition}</span>
-                  <ChevronDown size={12} aria-hidden />
                 </span>
               </span>
-            </button>
-            {menu === 'suite' ? (
-              <div className="sol-menu-pop left sol-suite-menu" role="menu">
-                <div className="sol-menu-head">
-                  <strong>Busmo suites</strong>
-                  <small>Each product has its own identity</small>
-                </div>
-                {SOLUTIONS_SUITE_IDS.map((id) => {
-                  const s = SOLUTIONS_SUITES[id];
-                  return (
-                    <Link
-                      key={id}
-                      href={hrefFor('overview', id)}
-                      className="sol-suite-option"
-                      data-active={id === suite.id}
-                      role="menuitem"
-                      onClick={() => setMenu(null)}
-                    >
-                      {s.logo ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={s.logo} alt="" className="sol-suite-logo" />
-                      ) : (
-                        <span className={`sol-suite-dot suite-${id}`} />
-                      )}
-                      <span className="sol-suite-option-text">
-                        <strong>{s.shortName}</strong>
-                        <small>{PREVIEW_READY.includes(id) ? 'Live preview' : 'Rebuild queued'}</small>
-                      </span>
-                      {id === suite.id ? <Check size={14} aria-hidden /> : null}
-                    </Link>
-                  );
-                })}
-              </div>
-            ) : null}
+            </div>
             <button
               type="button"
               className="sol-collapse"
