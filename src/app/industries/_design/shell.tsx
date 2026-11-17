@@ -63,6 +63,18 @@ export function SolutionsShell({
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
 
+  // Lock document scroll on mobile so only the in-page content scrolls
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add('sol-lock-scroll');
+    document.body.classList.add('sol-lock-scroll');
+    return () => {
+      root.classList.remove('sol-lock-scroll');
+      document.body.classList.remove('sol-lock-scroll');
+    };
+  }, []);
+
+
   const activeNav = suite.nav.find((n) => n.id === section) || suite.nav[0];
   const unread = notifications.filter((n) => n.unread).length;
   const quickActions = QUICK_ACTIONS[suite.id];
