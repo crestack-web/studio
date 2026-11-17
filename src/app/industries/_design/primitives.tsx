@@ -53,25 +53,27 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             style={{
               position: 'fixed',
               left: '50%',
-              bottom: 24 + i * 56,
+              bottom: 24 + i * 64,
               transform: 'translateX(-50%)',
               zIndex: 99999,
               display: 'flex',
-              alignItems: 'center',
+              alignItems: 'flex-start',
               gap: 9,
               background: '#0f172a',
               color: '#f8fafc',
-              borderRadius: 999,
+              borderRadius: 14,
               padding: '10px 16px',
               fontSize: 13,
-              fontWeight: 700,
+              fontWeight: 650,
               boxShadow: '0 10px 30px rgba(15,23,42,0.28)',
               maxWidth: 'min(92vw, 420px)',
+              width: 'max-content',
               pointerEvents: 'none',
+              lineHeight: 1.35,
             }}
           >
-            <CheckCircle2 size={15} strokeWidth={2.2} aria-hidden color="#4ade80" />
-            <span style={{ color: '#f8fafc' }}>{t.message}</span>
+            <CheckCircle2 size={15} strokeWidth={2.2} aria-hidden color="#4ade80" style={{ flexShrink: 0, marginTop: 2 }} />
+            <span style={{ color: '#f8fafc', flex: 1, minWidth: 0, whiteSpace: 'normal', wordBreak: 'break-word' }}>{t.message}</span>
           </div>
         ))}
       </div>
