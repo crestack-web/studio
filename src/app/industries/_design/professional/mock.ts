@@ -321,9 +321,9 @@ export const expensesSummary = {
   count: expenses.length,
 };
 
-export const disciplineMix: { name: string; value: number }[] = [];
+export const disciplineMix: { name: string; value: number; color?: string }[] = [];
 
-export const projectTypeMix: { name: string; value: number }[] = [];
+export const projectTypeMix: { name: string; value: number; color?: string }[] = [];
 
 export const activity: ProActivity[] = [];
 
