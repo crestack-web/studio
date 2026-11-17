@@ -203,9 +203,9 @@ export const revenueSummary = {
   target: 0,
 };
 
-export const payerMix = [];
+export const payerMix: { name: string; value: number }[] = [];
 
-export const departmentMix = [];
+export const departmentMix: { name: string; value: number }[] = [];
 
 /* ── Activity ─────────────────────────────────────────────────────── */
 
@@ -213,11 +213,11 @@ export const activity: ClinicalActivity[] = [];
 
 /* ── Reports ──────────────────────────────────────────────────────── */
 
-export const reports = [];
+export const reports: { id: string; name: string; description?: string; icon?: string; lastRun?: string; cadence?: string }[] = [];
 
 /* ── Notifications ────────────────────────────────────────────────── */
 
-export const notifications = [];
+export const notifications: { id: string; title: string; detail?: string; time?: string; unread?: boolean }[] = [];
 
 /* ── Live hydration ───────────────────────────────────────────────── */
 
