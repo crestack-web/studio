@@ -84,6 +84,10 @@ const patientSeeds: PatientSeed[] = [
 
 export const patients: Patient[] = [];
 
+export const appointments: Appointment[] = [];
+export const clinicians: Clinician[] = [];
+export const conditionLog: ConditionLogEntry[] = [];
+
 export const todaysAppointments = appointments.filter((a) => a.date === TODAY);
 export const upcomingAppointments = appointments.filter((a) => a.date > TODAY);
 
