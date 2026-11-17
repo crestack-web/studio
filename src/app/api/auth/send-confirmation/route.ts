@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const confirmUrl = buildConfirmEmailUrl(token, origin);
     const htmlContent = buildConfirmationEmailHtml({ name, confirmUrl });
 
-    // Use EMAIL_FROM / RESEND_FROM env (must be a domain verified in Resend)
+    // Uses BREVO_FROM_EMAIL / EMAIL_FROM / RESEND_FROM (must be a verified sender)
     const result = await sendTransactionalEmail({
       to: [{ email, name }],
       subject: 'Confirm your Busmo email address',

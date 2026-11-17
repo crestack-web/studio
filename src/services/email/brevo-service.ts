@@ -1,29 +1,66 @@
 /**
- * Email service (Resend)
+ * Transactional email service.
+ *
+ * Provider order:
+ *   1. Brevo  (BREVO_API_KEY)   — preferred
+ *   2. Resend (RESEND_API_KEY)  — fallback
  *
  * Historically named brevo-service for import compatibility.
- * All transactional sends go through Resend.
  *
- * Required env:
- *   RESEND_API_KEY
- * Optional:
+ * Optional env:
+ *   BREVO_FROM_EMAIL / BREVO_FROM_NAME
  *   EMAIL_FROM  (default: "Busmo <support@busmo.io>")
+ *   RESEND_FROM
  */
 
 import { BUSMO_LOGO } from './email-constants';
 
+const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
+const BREVO_FROM_EMAIL = (process.env.BREVO_FROM_EMAIL || '').trim();
+const BREVO_FROM_NAME = (process.env.BREVO_FROM_NAME || '').trim();
+const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email';
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const RESEND_API_URL = 'https://api.resend.com/emails';
-const DEFAULT_FROM =
-  process.env.EMAIL_FROM ||
-  process.env.RESEND_FROM ||
-  'Busmo <support@busmo.io>';
 
-if (!RESEND_API_KEY && typeof window === 'undefined') {
+type Sender = { name: string; email: string };
+
+function parseAddress(raw?: string): Sender | null {
+  if (!raw) return null;
+  const value = raw.trim();
+  const match = value.match(/^(.*)<([^>]+)>\s*$/);
+  if (match) {
+    const email = match[2].trim();
+    if (!email) return null;
+    return { name: match[1].trim().replace(/^"|"$/g, '') || 'Busmo', email };
+  }
+  if (value.includes('@')) return { name: 'Busmo', email: value };
+  return null;
+}
+
+const DEFAULT_SENDER: Sender = BREVO_FROM_EMAIL
+  ? { email: BREVO_FROM_EMAIL.trim(), name: (BREVO_FROM_NAME || 'Busmo').trim() }
+  : parseAddress(process.env.EMAIL_FROM) ||
+    parseAddress(process.env.RESEND_FROM) || {
+      name: 'Busmo',
+      email: 'support@busmo.io',
+    };
+
+export const EMAIL_PROVIDER: 'brevo' | 'resend' | null = BREVO_API_KEY
+  ? 'brevo'
+  : RESEND_API_KEY
+    ? 'resend'
+    : null;
+
+export function isEmailConfigured(): boolean {
+  return EMAIL_PROVIDER !== null;
+}
+
+if (!EMAIL_PROVIDER && typeof window === 'undefined') {
   console.warn(
-    '[email] RESEND_API_KEY is not set. Transactional emails will fail until it is configured.'
+    '[email] No email provider configured. Set BREVO_API_KEY or RESEND_API_KEY. Transactional emails will fail until one is configured.'
   );
 }
+
 
 // ── Types (kept stable for all template modules) ──────────────
 
@@ -55,39 +92,81 @@ export interface ContactList {
   folderId?: number;
 }
 
-function formatFrom(sender?: { name: string; email: string }): string {
-  if (!sender?.email) return DEFAULT_FROM;
-  if (sender.name) return `${sender.name} <${sender.email}>`;
-  return sender.email;
+function resolveSender(sender?: { name: string; email: string }): Sender {
+  if (sender?.email) {
+    return { email: sender.email, name: sender.name || 'Busmo' };
+  }
+  return DEFAULT_SENDER;
 }
 
-// ── Core send (Resend) ────────────────────────────────────────
+function formatFrom(sender?: { name: string; email: string }): string {
+  const resolved = resolveSender(sender);
+  return `${resolved.name} <${resolved.email}>`;
+}
 
-/**
- * Send a transactional email via Resend.
- * Used by every template in src/services/email/* and API routes.
- */
-export async function sendTransactionalEmail(
-  email: TransactionalEmail
+// ── Core send (Brevo → Resend fallback) ──────────────────────
+
+async function sendViaBrevo(
+  email: TransactionalEmail,
+  to: { email: string; name?: string }[]
 ): Promise<{ id: string }> {
-  if (!RESEND_API_KEY) {
-    throw new Error(
-      'Resend is not configured. Set RESEND_API_KEY in the environment.'
-    );
+  const sender = resolveSender(email.sender);
+  const body: Record<string, unknown> = {
+    sender,
+    to: to.map((recipient) =>
+      recipient.name
+        ? { email: recipient.email, name: recipient.name }
+        : { email: recipient.email }
+    ),
+    subject: email.subject,
+    htmlContent: email.htmlContent,
+  };
+
+  if (email.params?.replyTo) {
+    body.replyTo = { email: String(email.params.replyTo) };
   }
 
-  if (!email.to?.length) {
-    throw new Error('sendTransactionalEmail: at least one recipient is required');
+  const toLabel = to.map((r) => r.email).join(', ');
+  console.log('[email] Sending via Brevo →', toLabel, '| from:', formatFrom(email.sender));
+
+  const res = await fetch(BREVO_API_URL, {
+    method: 'POST',
+    headers: {
+      'api-key': BREVO_API_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const msg =
+      (data as any)?.message ||
+      (data as any)?.error ||
+      res.statusText ||
+      'Unknown Brevo error';
+    console.error('[email] Brevo error:', res.status, JSON.stringify(data));
+    throw new Error(`Failed to send email via Brevo: ${msg}`);
   }
 
-  const to = email.to.map((r) => r.email).filter(Boolean);
-  if (!to.length) {
-    throw new Error('sendTransactionalEmail: recipient email addresses are required');
+  const id = (data as any)?.messageId || '';
+  if (!id) {
+    console.error('[email] Brevo 2xx but missing messageId', data);
+    throw new Error('Brevo accepted the request but returned no message id');
   }
 
+  console.log('[email] Sent via Brevo:', id, '→', toLabel);
+  return { id };
+}
+
+async function sendViaResend(
+  email: TransactionalEmail,
+  to: { email: string; name?: string }[]
+): Promise<{ id: string }> {
   const body: Record<string, unknown> = {
     from: formatFrom(email.sender),
-    to,
+    to: to.map((r) => r.email),
     subject: email.subject,
     html: email.htmlContent,
   };
@@ -97,7 +176,8 @@ export async function sendTransactionalEmail(
     body.reply_to = email.params.replyTo;
   }
 
-  console.log('[email] Sending via Resend →', to.join(', '), '| from:', body.from);
+  const toLabel = to.map((r) => r.email).join(', ');
+  console.log('[email] Sending via Resend →', toLabel, '| from:', body.from);
 
   const res = await fetch(RESEND_API_URL, {
     method: 'POST',
@@ -128,21 +208,54 @@ export async function sendTransactionalEmail(
     throw new Error('Resend accepted the request but returned no message id');
   }
 
-  console.log('[email] Sent via Resend:', id, '→', to.join(', '));
+  console.log('[email] Sent via Resend:', id, '→', to.map((r) => r.email).join(', '));
   return { id };
 }
 
-// ── Campaign / contact stubs (Brevo-specific; not used for Resend) ─
+/**
+ * Send a transactional email.
+ * Uses Brevo when BREVO_API_KEY is set, otherwise Resend.
+ * Used by every template in src/services/email/* and API routes.
+ */
+export async function sendTransactionalEmail(
+  email: TransactionalEmail
+): Promise<{ id: string }> {
+  if (!EMAIL_PROVIDER) {
+    throw new Error(
+      'Email is not configured. Set BREVO_API_KEY or RESEND_API_KEY in the environment.'
+    );
+  }
+
+  if (!email.to?.length) {
+    throw new Error('sendTransactionalEmail: at least one recipient is required');
+  }
+
+  const to = email.to
+    .filter((recipient) => Boolean(recipient?.email))
+    .map((recipient) => ({
+      email: String(recipient.email).trim(),
+      name: recipient.name,
+    }));
+  if (!to.length) {
+    throw new Error('sendTransactionalEmail: recipient email addresses are required');
+  }
+
+  return EMAIL_PROVIDER === 'brevo'
+    ? sendViaBrevo(email, to)
+    : sendViaResend(email, to);
+}
+
+// ── Campaign / contact stubs (not used for transactional sends) ─
 
 export async function createCampaign(_campaign: EmailCampaign): Promise<any> {
   throw new Error(
-    'Email campaigns are not supported via Resend in this service. Use Resend Broadcasts or a marketing tool.'
+    'Email campaigns are not supported in this service. Use your email provider dashboard or a marketing tool.'
   );
 }
 
 export async function sendCampaign(_campaignId: number): Promise<any> {
   throw new Error(
-    'Email campaigns are not supported via Resend in this service. Use Resend Broadcasts or a marketing tool.'
+    'Email campaigns are not supported in this service. Use your email provider dashboard or a marketing tool.'
   );
 }
 
@@ -151,18 +264,18 @@ export async function scheduleCampaign(
   _scheduledAt: string
 ): Promise<any> {
   throw new Error(
-    'Email campaigns are not supported via Resend in this service. Use Resend Broadcasts or a marketing tool.'
+    'Email campaigns are not supported in this service. Use your email provider dashboard or a marketing tool.'
   );
 }
 
 export async function addContact(contact: Contact): Promise<any> {
   // No-op friendly: contacts are not required for transactional sends
-  console.warn('[email] addContact is a no-op under Resend', contact.email);
+  console.warn('[email] addContact is a no-op for transactional sends', contact.email);
   return { ok: true, email: contact.email };
 }
 
 export async function createContactList(list: ContactList): Promise<any> {
-  console.warn('[email] createContactList is a no-op under Resend', list.name);
+  console.warn('[email] createContactList is a no-op for transactional sends', list.name);
   return { ok: true, name: list.name };
 }
 

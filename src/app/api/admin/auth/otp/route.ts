@@ -142,7 +142,7 @@ export async function POST(request: Request) {
             </div>
           </div>
           <div class="footer">
-            <p>Busmo Admin · sent via Resend</p>
+            <p>Busmo Admin · security email</p>
           </div>
         </div>
       </body>
@@ -156,7 +156,10 @@ export async function POST(request: Request) {
         htmlContent,
         sender: {
           name: 'Busmo Admin',
-          email: (process.env.EMAIL_FROM || process.env.RESEND_FROM || 'support@busmo.io')
+          email: (process.env.BREVO_FROM_EMAIL ||
+            process.env.EMAIL_FROM ||
+            process.env.RESEND_FROM ||
+            'support@busmo.io')
             .replace(/^.*</, '')
             .replace(/>.*$/, '')
             .trim() || 'support@busmo.io',
@@ -187,12 +190,14 @@ export async function POST(request: Request) {
       );
       const missingKey =
         String(sendErr?.message || '').includes('RESEND_API_KEY') ||
+        String(sendErr?.message || '').includes('BREVO_API_KEY') ||
+        String(sendErr?.message || '').includes('Email is not configured') ||
         String(sendErr?.message || '').includes('Resend is not configured');
       return NextResponse.json(
         {
           success: false,
           error: missingKey
-            ? 'Email service not configured (RESEND_API_KEY). Contact engineering.'
+            ? 'Email service not configured (BREVO_API_KEY or RESEND_API_KEY). Contact engineering.'
             : 'Failed to send OTP email. Please try again.',
         },
         { status: 502 }

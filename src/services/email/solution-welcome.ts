@@ -30,6 +30,10 @@ const SOLUTION_FEATURES: Record<string, { core: string[]; tip: string }> = {
     core: ['Students', 'Classes', 'Fees & receipts', 'Attendance'],
     tip: 'Add your first class and students, then record a fee from the front office.',
   },
+  agriculture: {
+    core: ['Farms & plots', 'Crops & cycles', 'Harvest & yield', 'Sales & exports'],
+    tip: 'Add a farm and plot first, then log a field activity and record your first harvest.',
+  },
 };
 
 function productLabel(edition: string): string {

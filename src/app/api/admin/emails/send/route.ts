@@ -122,9 +122,9 @@ export async function POST(req: NextRequest) {
     const user = await requireAdminUser(req);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (!process.env.RESEND_API_KEY) {
+    if (!process.env.BREVO_API_KEY && !process.env.RESEND_API_KEY) {
       return NextResponse.json(
-        { error: 'RESEND_API_KEY is not configured on the server' },
+        { error: 'No email provider is configured on the server (BREVO_API_KEY or RESEND_API_KEY)' },
         { status: 503 }
       );
     }

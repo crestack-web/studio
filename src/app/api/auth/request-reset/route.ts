@@ -98,7 +98,12 @@ export async function POST(request: NextRequest) {
     console.error('[request-reset] Error:', msg, err);
 
     // Surface specific errors to help debug
-    if (msg.includes('RESEND_API_KEY') || msg.includes('Resend is not configured')) {
+    if (
+      msg.includes('RESEND_API_KEY') ||
+      msg.includes('BREVO_API_KEY') ||
+      msg.includes('Email is not configured') ||
+      msg.includes('Resend is not configured')
+    ) {
       return NextResponse.json(
         { error: 'Email service is not configured. Please contact support.' },
         { status: 500 }

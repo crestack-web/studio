@@ -160,7 +160,7 @@ export default function AdminEmailSender() {
               resendConfigured ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
             }`}
           >
-            {resendConfigured ? 'Resend configured' : 'RESEND_API_KEY missing'}
+            {resendConfigured ? 'Email provider configured' : 'Email provider missing'}
           </span>
         </div>
 
