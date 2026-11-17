@@ -78,7 +78,7 @@ export const reviews: any[] = [];
 export const activity: ActivityItem[] = [];
 export const revenueSeries: RevenuePoint[] = [];
 
-export const notifications = [];
+export const notifications: { id: string; title: string; detail?: string; time?: string; unread?: boolean }[] = [];
 
 export const revenueSummary = {
   today: 0,
@@ -106,7 +106,7 @@ export const paymentSummary = {
   settled: 0,
 };
 
-export const reports = [];
+export const reports: { id: string; name: string; description?: string; icon?: string; lastRun?: string; cadence?: string }[] = [];
 
 export const websiteStats = {
   published: false,
