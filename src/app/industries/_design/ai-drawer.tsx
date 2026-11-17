@@ -1,5 +1,7 @@
 'use client';
 
+import { getSupabase } from '@/lib/supabase';
+
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUp, Sparkles, Zap, BedDouble, Stethoscope, Briefcase, GraduationCap } from 'lucide-react';
 import { useToast } from './primitives';
@@ -30,7 +32,7 @@ export function moReply(suiteId: SolutionsSuiteId, prompt: string, context?: AIC
   if (suiteId === 'education') {
     if (q.includes('timetable')) {
       return {
-        text: `I reviewed the current timetable. I can draft a full first-term timetable for Crescent Academy in one pass — grouping JSS classes into 45-minute periods, reserving labs for sciences and the library for literature.`,
+        text: `I reviewed the current timetable. I can draft a full first-term timetable for your school in one pass — grouping JSS classes into 45-minute periods, reserving labs for sciences and the library for literature.`,
         actions: ['Create timetable', 'Assign topics', 'Swap a lesson'],
       };
     }
@@ -42,7 +44,7 @@ export function moReply(suiteId: SolutionsSuiteId, prompt: string, context?: AIC
     }
     if (q.includes('attendance') || q.includes('absent') || q.includes('late')) {
       return {
-        text: `Attendance across Crescent Academy is averaging 92% this term. JSS 3B is the weakest cohort at 89% — a guardian follow-up was booked.`,
+        text: `Attendance across your school is averaging 92% this term. JSS 3B is the weakest cohort at 89% — a guardian follow-up was booked.`,
         actions: ['Draft attendance notes', 'Escalate guardian follow-up'],
       };
     }
@@ -230,20 +232,48 @@ export function AIDrawer({
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages, busy]);
 
-  const send = (raw?: string) => {
+  const send = async (raw?: string) => {
     const text = (raw ?? input).trim();
     if (!text || busy) return;
     setBusy(true);
     setInput('');
     setMessages((prev) => [...prev, { id: `u-${Date.now()}`, role: 'user', text }]);
-    const reply = moReply(suiteId, text, context);
-    window.setTimeout(() => {
+    try {
+      const { data: sess } = await getSupabase().auth.getSession();
+      const token = sess.session?.access_token;
+      const res = await fetch('/api/industries/mo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          message: text,
+          industry: suiteId,
+          productEdition: suiteId,
+          patientContext: context?.patientName
+            ? { name: context.patientName, mrn: context.patientId }
+            : undefined,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      const replyText =
+        (typeof json.reply === 'string' && json.reply.trim()) ||
+        (typeof json.error === 'string' && json.error) ||
+        moReply(suiteId, text, context).text;
       setMessages((prev) => [
         ...prev,
-        { id: `m-${Date.now()}`, role: 'mo', text: reply.text, actions: reply.actions },
+        { id: `m-${Date.now()}`, role: 'mo', text: replyText },
       ]);
+    } catch {
+      const fallback = moReply(suiteId, text, context);
+      setMessages((prev) => [
+        ...prev,
+        { id: `m-${Date.now()}`, role: 'mo', text: fallback.text, actions: fallback.actions },
+      ]);
+    } finally {
       setBusy(false);
-    }, 650);
+    }
   };
 
   const onlyGreet = messages.length === 1 && messages[0].id === 'mo-greet';
