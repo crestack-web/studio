@@ -156,7 +156,7 @@ export function HealthcareReports() {
             <div className="sol-desk-top">
               <div className="sol-row sol-gap-2">
                 <span className="sol-kpi-icon">
-                  <Icon name={r.icon} size={16} />
+                  <Icon name={r.icon || 'clipboard'} size={16} />
                 </span>
                 <div>
                   <div className="sol-list-title">{r.name}</div>

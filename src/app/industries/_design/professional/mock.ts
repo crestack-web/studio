@@ -266,7 +266,7 @@ export const expenses: ProExpense[] = [];
 export const revenueSeries: ProRevenuePoint[] = [];
 
 export const revenueSummary = {
-  today: revenueSeries[revenueSeries.length - 1].collected,
+  today: revenueSeries[revenueSeries.length - 1]?.collected ?? 0,
   week: revenueSeries.slice(-7).reduce((s, p) => s + p.collected, 0),
   monthToDate: 16_240_000,
   target: 18_000_000,

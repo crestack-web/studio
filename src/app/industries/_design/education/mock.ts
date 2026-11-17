@@ -176,14 +176,22 @@ export const enrollmentStats = {
   ),
 };
 
+const latestAttendanceDay = attendanceDays[attendanceDays.length - 1] ?? {
+  date: '',
+  present: 0,
+  absent: 0,
+  late: 0,
+  rate: 0,
+};
+
 export const attendanceStats = {
-  today: attendanceDays[attendanceDays.length - 1],
+  today: latestAttendanceDay,
   average: Math.round(
     attendanceDays.reduce((s, d) => s + d.rate, 0) / Math.max(1, attendanceDays.length),
   ),
-  present: attendanceDays[attendanceDays.length - 1].present,
-  absent: attendanceDays[attendanceDays.length - 1].absent,
-  late: attendanceDays[attendanceDays.length - 1].late,
+  present: latestAttendanceDay.present,
+  absent: latestAttendanceDay.absent,
+  late: latestAttendanceDay.late,
   excused: attendanceRecords.filter((r) => r.status === 'excused').length,
 };
 
