@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMistralClient, DEFAULT_MODEL, FALLBACK_MODELS } from '@/ai/mistral';
+import { loadMoBusinessContext, formatMoBusinessContextForPrompt } from '@/lib/ask-mo/business-context';
+import { getAuthUser } from '@/app/api/mo-sales/_auth';
+import { loadIndustrySession } from '@/lib/industries/session';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -172,9 +175,37 @@ export async function POST(req: NextRequest) {
     const message = String(body.message || '').trim();
     const industry = (String(body.industry || body.productEdition || 'business').toLowerCase() ||
       'business') as Industry;
-    const businessName = String(body.businessName || '').trim();
+    let businessName = String(body.businessName || '').trim();
+    let businessId = String(body.businessId || body.business_id || '').trim();
     const patientContext =
       body.patientContext && typeof body.patientContext === 'object' ? body.patientContext : null;
+
+    // Same owner session as Busmo Business Ask MO
+    if (!businessId) {
+      try {
+        const user = await getAuthUser(req);
+        if (user) {
+          const session = await loadIndustrySession(
+            user.id,
+            user.user_metadata as Record<string, unknown>,
+          );
+          if (session?.businessId) businessId = String(session.businessId);
+          if (!businessName && session?.businessName) businessName = String(session.businessName);
+        }
+      } catch {
+        /* optional for offline replies */
+      }
+    }
+
+    let liveBusinessBlock = '';
+    if (businessId) {
+      try {
+        const live = await loadMoBusinessContext(businessId);
+        if (live) liveBusinessBlock = formatMoBusinessContextForPrompt(live);
+      } catch (e) {
+        console.warn('[industries/mo] business context', e);
+      }
+    }
 
     const patientBlock = patientContext
       ? `\nPatient in context (the clinician is reviewing this record):
@@ -226,6 +257,7 @@ Guidance:
 - If asked about Busmo Business retail features (stock SKUs, POS), clarify this is the ${ctx.label} solution unless they switch products.
 - Never claim unlimited AI or unbuilt hospital/lab systems.
 - Use short paragraphs or bullets.
+${liveBusinessBlock ? `\n${liveBusinessBlock}\nWhen answering about this organisation's performance, use the live numbers above. Prefer ${ctx.label} solution workflows (rooms, patients, projects, students, staff desks) over retail POS language unless the user asks about the linked Busmo Business catalog.` : ''}
 ${patientContext ? '- Ground every patient answer strictly in the patient record above. Do not invent test results, vitals or diagnoses.\n- You support clinical judgement; never give a definitive diagnosis or prescribe. Flag red flags and recommend the clinician confirm.' : ''}`;
 
     // Prefer Mistral when configured
