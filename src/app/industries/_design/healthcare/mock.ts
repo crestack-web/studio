@@ -20,21 +20,21 @@ export const orgSettings: Record<string, any> = {};
 
 export const clinic = {
   name: 'Your clinic',
-  legalName: 'Meridian Health Services Ltd',
-  location: 'Wuse 2, Abuja',
-  address: '12 Aminu Kano Crescent, Wuse 2, Abuja',
-  phone: '+234 809 552 1180',
-  email: 'care@meridian.health',
-  website: 'meridian.health',
+  legalName: '',
+  location: '',
+  address: '',
+  phone: '',
+  email: '',
+  website: '',
   currency: CUR,
   opening: '08:00',
   closing: '18:00',
   timezone: 'Africa/Lagos',
   taxRate: 7.5,
-  totalBeds: 24,
-  ownerName: 'Dr. Ifeoma Nnaji',
-  ownerEmail: 'ifeoma@meridian.health',
-  rating: 4.9,
+  totalBeds: 0,
+  ownerName: '',
+  ownerEmail: '',
+  rating: 0,
 };
 
 /* ── Patients ─────────────────────────────────────────────────────── */
@@ -187,86 +187,33 @@ export const paymentSummary = {
 
 /* ── Revenue ──────────────────────────────────────────────────────── */
 
-const revenueSeed = [
-  { consultations: 268_000, procedures: 142_000, laboratory: 86_000, pharmacy: 118_000, patients: 38 },
-  { consultations: 294_000, procedures: 158_000, laboratory: 92_000, pharmacy: 126_000, patients: 41 },
-  { consultations: 252_000, procedures: 134_000, laboratory: 78_000, pharmacy: 109_000, patients: 35 },
-  { consultations: 312_000, procedures: 176_000, laboratory: 104_000, pharmacy: 138_000, patients: 44 },
-  { consultations: 326_000, procedures: 188_000, laboratory: 112_000, pharmacy: 144_000, patients: 46 },
-  { consultations: 286_000, procedures: 152_000, laboratory: 88_000, pharmacy: 122_000, patients: 39 },
-  { consultations: 344_000, procedures: 202_000, laboratory: 121_000, pharmacy: 152_000, patients: 48 },
-  { consultations: 368_000, procedures: 218_000, laboratory: 132_000, pharmacy: 164_000, patients: 51 },
-  { consultations: 352_000, procedures: 206_000, laboratory: 126_000, pharmacy: 158_000, patients: 49 },
-  { consultations: 318_000, procedures: 172_000, laboratory: 101_000, pharmacy: 136_000, patients: 43 },
-  { consultations: 298_000, procedures: 160_000, laboratory: 94_000, pharmacy: 128_000, patients: 40 },
-  { consultations: 332_000, procedures: 190_000, laboratory: 114_000, pharmacy: 146_000, patients: 45 },
-  { consultations: 356_000, procedures: 212_000, laboratory: 128_000, pharmacy: 160_000, patients: 50 },
-  { consultations: 372_000, procedures: 224_000, laboratory: 136_000, pharmacy: 168_000, patients: 52 },
-];
+const revenueSeed: any[] = [];
 
-export const revenueSeries = revenueSeed.map((row, i) => ({
-  date: addDays(TODAY, i - (revenueSeed.length - 1)),
-  consultations: row.consultations,
-  procedures: row.procedures,
-  laboratory: row.laboratory,
-  pharmacy: row.pharmacy,
-  patients: row.patients,
-}));
+export const revenueSeries: any[] = [];
 
 export const revenueSummary = {
   today: 900_000,
-  monthToDate: 14_860_000,
+  monthToDate: 0,
   lastMonth: 13_240_000,
   outstanding: 0,
   target: 0,
 };
 
-export const payerMix = [
-  { name: 'HMO', value: 42, color: 'var(--sol-chart-1)' },
-  { name: 'Self-pay', value: 33, color: 'var(--sol-chart-2)' },
-  { name: 'Corporate', value: 15, color: 'var(--sol-chart-3)' },
-  { name: 'Insurance', value: 10, color: 'var(--sol-chart-4)' },
-];
+export const payerMix = [];
 
-export const departmentMix = [
-  { name: 'General medicine', value: 36 },
-  { name: 'Paediatrics', value: 18 },
-  { name: 'Obstetrics', value: 16 },
-  { name: 'Cardiology', value: 14 },
-  { name: 'Dermatology', value: 9 },
-  { name: 'Laboratory', value: 7 },
-];
+export const departmentMix = [];
 
 /* ── Activity ─────────────────────────────────────────────────────── */
 
-export const activity: ClinicalActivity[] = [
-  { id: 'ca-1', title: 'Aisha Bello checked in', detail: 'Antenatal review · Consult 3', time: '6 min ago', kind: 'check_in' },
-  { id: 'ca-2', title: 'Payment received', detail: '₦32,000 POS · Chiamaka Eze', time: '12 min ago', kind: 'payment' },
-  { id: 'ca-3', title: 'Lab result ready', detail: 'Malaria RDT positive · Samuel Nnamdi', time: '25 min ago', kind: 'lab' },
-  { id: 'ca-4', title: 'Appointment booked', detail: 'Zainab Ahmed · tomorrow 09:00', time: '40 min ago', kind: 'appointment' },
-  { id: 'ca-5', title: 'Admission recorded', detail: 'David Okon → ICU-01', time: '1h 05m ago', kind: 'admission' },
-  { id: 'ca-6', title: 'Stock alert', detail: 'Malaria test kits are out of stock', time: '1h 20m ago', kind: 'alert' },
-];
+export const activity: ClinicalActivity[] = [];
 
 /* ── Reports ──────────────────────────────────────────────────────── */
 
-export const reports = [
-  { id: 'clinic-summary', name: 'Daily clinic summary', description: 'Patients seen, waiting times, admissions and revenue for today.', icon: 'chart', lastRun: 'Today · 07:00', cadence: 'Daily' },
-  { id: 'revenue-collections', name: 'Revenue & collections', description: 'Billed, collected and outstanding by payer and service line.', icon: 'wallet', lastRun: 'Yesterday', cadence: 'Weekly' },
-  { id: 'patient-demographics', name: 'Patient demographics', description: 'Age, sex, condition and payer mix across the patient base.', icon: 'users', lastRun: '2 days ago', cadence: 'Monthly' },
-  { id: 'appointment-attendance', name: 'Appointment attendance', description: 'Show rate, no-shows and average wait by department.', icon: 'calendar', lastRun: 'Yesterday', cadence: 'Weekly' },
-  { id: 'stock-levels', name: 'Stock levels', description: 'Supplies below reorder level with recommended quantities.', icon: 'box', lastRun: 'Today · 06:30', cadence: 'Daily' },
-  { id: 'clinician-productivity', name: 'Clinician productivity', description: 'Consultations per clinician, average duration and follow-ups.', icon: 'stethoscope', lastRun: '2 days ago', cadence: 'Weekly' },
-];
+export const reports = [];
 
 /* ── Notifications ────────────────────────────────────────────────── */
 
-export const notifications = [
-  { id: 'hn-1', title: '3 patients waiting over 20 minutes', detail: 'Cardiology and Dermatology queues', time: '5m', unread: true },
-  { id: 'hn-2', title: 'Malaria test kits out of stock', detail: '5 kits used today · reorder 25', time: '18m', unread: true },
-  { id: 'hn-3', title: '2 invoices are overdue', detail: '₦81,500 past due date', time: '1h', unread: true },
-  { id: 'hn-4', title: 'Dr. Lawal running 22 minutes late', detail: '3 appointments affected', time: '1h', unread: false },
-];
+export const notifications = [];
 
 /* ── Live hydration ───────────────────────────────────────────────── */
 
