@@ -321,15 +321,15 @@ export const expensesSummary = {
   count: expenses.length,
 };
 
-export const disciplineMix = [];
+export const disciplineMix: { name: string; value: number }[] = [];
 
-export const projectTypeMix = [];
+export const projectTypeMix: { name: string; value: number }[] = [];
 
 export const activity: ProActivity[] = [];
 
-export const reports = [];
+export const reports: { id: string; name: string; description?: string; icon?: string; lastRun?: string; cadence?: string }[] = [];
 
-export const notifications = [];
+export const notifications: { id: string; title: string; detail?: string; time?: string; unread?: boolean; kind?: string }[] = [];
 
 /* ── Live hydration ───────────────────────────────────────────────── */
 
