@@ -19,7 +19,7 @@ const CUR = 'NGN';
 export const orgSettings: Record<string, any> = {};
 
 export const clinic = {
-  name: 'Meridian Health Clinic',
+  name: 'Your clinic',
   legalName: 'Meridian Health Services Ltd',
   location: 'Wuse 2, Abuja',
   address: '12 Aminu Kano Crescent, Wuse 2, Abuja',
@@ -82,113 +82,7 @@ const patientSeeds: PatientSeed[] = [
   { name: 'Ada Obi', sex: 'Female', age: 6, dob: '2020-06-08', phone: '+234 805 330 9912', email: 'obi.family@gmail.com', blood: 'A+', conditions: ['Malaria'], status: 'active', visits: 2, last: -1 },
 ];
 
-export const patients: Patient[] = patientSeeds.map((seed, i) => ({
-  id: `patient-${200 + i}`,
-  mrn: `MRC-${4200 + i}`,
-  full_name: seed.name,
-  phone: seed.phone,
-  email: seed.email,
-  date_of_birth: seed.dob,
-  age: seed.age,
-  sex: seed.sex,
-  blood_group: seed.blood,
-  conditions: seed.conditions,
-  allergies: seed.allergies,
-  status: seed.status,
-  visits: seed.visits,
-  last_visit: addDays(TODAY, seed.last),
-  balance: seed.balance ?? 0,
-  notes: seed.notes,
-}));
-
-const patientByName = new Map(patients.map((p) => [p.full_name, p]));
-
-/* ── Condition timeline ───────────────────────────────────────────── */
-
-export const conditionLog: ConditionLogEntry[] = [
-  { id: 'cond-1', patient_id: 'patient-200', patient_name: 'Ngozi Okafor', condition: 'Hypertension', action: 'add', status: 'active', severity: 'moderate', note: 'BP 158/96 at review. Started amlodipine 5mg daily.', recorded_by: 'Dr. Ifeoma Nnaji', recorded_at: addDays(TODAY, -60) },
-  { id: 'cond-2', patient_id: 'patient-200', patient_name: 'Ngozi Okafor', condition: 'Hypertension', action: 'note', status: 'note', severity: 'mild', note: 'BP 132/84 — well controlled on current dose.', recorded_by: 'Nurse Blessing Ibe', recorded_at: addDays(TODAY, -3) },
-  { id: 'cond-3', patient_id: 'patient-201', patient_name: 'Emeka Obi', condition: 'Type 2 diabetes', action: 'add', status: 'active', severity: 'moderate', note: 'HbA1c 8.1% at diagnosis. Metformin started.', recorded_by: 'Dr. Ifeoma Nnaji', recorded_at: addDays(TODAY, -180) },
-  { id: 'cond-4', patient_id: 'patient-201', patient_name: 'Emeka Obi', condition: 'Hypertension', action: 'add', status: 'active', severity: 'moderate', note: 'Clinic BP 149/94 on two readings.', recorded_by: 'Dr. Bashir Lawal', recorded_at: addDays(TODAY, -40) },
-  { id: 'cond-5', patient_id: 'patient-201', patient_name: 'Emeka Obi', condition: 'Type 2 diabetes', action: 'note', status: 'note', severity: 'mild', note: 'HbA1c down to 6.9%. Dietitian review completed.', recorded_by: 'Dr. Ifeoma Nnaji', recorded_at: addDays(TODAY, -6) },
-  { id: 'cond-6', patient_id: 'patient-204', patient_name: 'Chiamaka Eze', condition: 'Asthma', action: 'add', status: 'active', severity: 'moderate', note: 'Recurrent night cough. Salbutamol inhaler with spacer prescribed.', recorded_by: 'Dr. Adaeze Nwosu', recorded_at: addDays(TODAY, -14) },
-  { id: 'cond-7', patient_id: 'patient-205', patient_name: 'Ibrahim Musa', condition: 'Cardiac arrhythmia', action: 'note', status: 'note', severity: 'moderate', note: 'Palpitations reported. ECG requested today.', recorded_by: 'Dr. Bashir Lawal', recorded_at: addDays(TODAY, -2) },
-  { id: 'cond-8', patient_id: 'patient-209', patient_name: 'David Okon', condition: 'Hypertension', action: 'add', status: 'active', severity: 'severe', note: 'Hypertensive urgency 178/108. Admitted for hourly monitoring.', recorded_by: 'Dr. Bashir Lawal', recorded_at: addDays(TODAY, -7) },
-  { id: 'cond-9', patient_id: 'patient-207', patient_name: 'Samuel Nnamdi', condition: 'Malaria', action: 'add', status: 'active', severity: 'moderate', note: 'Malaria RDT positive. Artemether-lumefantrine started.', recorded_by: 'Dr. Maryam Isa', recorded_at: TODAY },
-  { id: 'cond-10', patient_id: 'patient-211', patient_name: 'Yusuf Danladi', condition: 'Tonsillitis', action: 'resolve', status: 'resolved', severity: 'mild', note: 'Course completed, throat clear on review.', recorded_by: 'Dr. Adaeze Nwosu', recorded_at: addDays(TODAY, -5) },
-];
-
-/* ── Clinicians ───────────────────────────────────────────────────── */
-
-export const clinicians: Clinician[] = [
-  { id: 'cl-1', full_name: 'Dr. Ifeoma Nnaji', email: 'ifeoma@meridian.health', phone: '+234 809 552 1180', role: 'Consultant physician', department: 'General medicine', shift: 'Morning', status: 'on_duty', appointments_today: 5, license: 'MDCN 48120' },
-  { id: 'cl-2', full_name: 'Dr. Adaeze Nwosu', email: 'adaeze@meridian.health', phone: '+234 803 771 2290', role: 'Paediatrician', department: 'Paediatrics', shift: 'Morning', status: 'on_duty', appointments_today: 3, license: 'MDCN 39277' },
-  { id: 'cl-3', full_name: 'Dr. Bashir Lawal', email: 'bashir@meridian.health', phone: '+234 805 118 7745', role: 'Cardiologist', department: 'Cardiology', shift: 'Morning', status: 'on_duty', appointments_today: 4, license: 'MDCN 51004' },
-  { id: 'cl-4', full_name: 'Dr. Chidinma Obiora', email: 'chidinma@meridian.health', phone: '+234 810 660 8821', role: 'Obstetrician', department: 'Obstetrics', shift: 'Morning', status: 'on_duty', appointments_today: 3, license: 'MDCN 44818' },
-  { id: 'cl-5', full_name: 'Dr. Kunle Adebayo', email: 'kunle@meridian.health', phone: '+234 802 994 1103', role: 'Dermatologist', department: 'Dermatology', shift: 'Afternoon', status: 'on_duty', appointments_today: 2, license: 'MDCN 47660' },
-  { id: 'cl-6', full_name: 'Dr. Maryam Isa', email: 'maryam@meridian.health', phone: '+234 807 220 5561', role: 'General practitioner', department: 'General medicine', shift: 'Afternoon', status: 'on_duty', appointments_today: 4, license: 'MDCN 52991' },
-  { id: 'cl-7', full_name: 'Nurse Blessing Ibe', email: 'blessing@meridian.health', phone: '+234 809 221 5540', role: 'Head nurse', department: 'Nursing', shift: 'Morning', status: 'on_duty', appointments_today: 0, license: 'NMCN 22104' },
-  { id: 'cl-8', full_name: 'Nurse Ruth Okoro', email: 'ruth@meridian.health', phone: '+234 810 998 3321', role: 'Staff nurse', department: 'Nursing', shift: 'Morning', status: 'on_duty', appointments_today: 0, license: 'NMCN 30881' },
-  { id: 'cl-9', full_name: 'Tolu Bakare', email: 'tolu@meridian.health', phone: '+234 813 776 2204', role: 'Laboratory scientist', department: 'Laboratory', shift: 'Morning', status: 'on_duty', appointments_today: 0, license: 'MLSCN 11802' },
-  { id: 'cl-10', full_name: 'Esther Nwosu', email: 'esther@meridian.health', phone: '+234 811 220 3377', role: 'Pharmacist', department: 'Pharmacy', shift: 'Afternoon', status: 'on_duty', appointments_today: 0, license: 'PCN 70231' },
-  { id: 'cl-11', full_name: 'Daniel Eze', email: 'daniel@meridian.health', phone: '+234 803 114 2299', role: 'Front desk lead', department: 'Front desk', shift: 'Morning', status: 'on_duty', appointments_today: 0, license: '—' },
-  { id: 'cl-12', full_name: 'Dr. Suleiman Bako', email: 'suleiman@meridian.health', phone: '+234 805 441 9082', role: 'Radiologist', department: 'Radiology', shift: 'Off duty', status: 'off_duty', appointments_today: 0, license: 'MDCN 36110' },
-  { id: 'cl-13', full_name: 'Nurse Halima Bello', email: 'halima.b@meridian.health', phone: '+234 802 663 4480', role: 'Staff nurse', department: 'Nursing', shift: 'Night', status: 'on_leave', appointments_today: 0, license: 'NMCN 41230' },
-];
-
-/* ── Appointments ─────────────────────────────────────────────────── */
-
-type AppointmentSeed = {
-  patient: string;
-  clinician: string;
-  department: string;
-  day: number;
-  time: string;
-  reason: string;
-  status: Appointment['status'];
-  mode?: Appointment['mode'];
-  room?: string;
-};
-
-const appointmentSeeds: AppointmentSeed[] = [
-  { patient: 'Ngozi Okafor', clinician: 'Dr. Ifeoma Nnaji', department: 'General medicine', day: 0, time: '08:00', reason: 'Blood pressure review', status: 'completed', room: 'Consult 1' },
-  { patient: 'Chiamaka Eze', clinician: 'Dr. Adaeze Nwosu', department: 'Paediatrics', day: 0, time: '08:30', reason: 'Asthma follow-up', status: 'completed', room: 'Consult 4' },
-  { patient: 'Emeka Obi', clinician: 'Dr. Ifeoma Nnaji', department: 'General medicine', day: 0, time: '09:00', reason: 'Diabetes review', status: 'completed', room: 'Consult 1' },
-  { patient: 'Tunde Balogun', clinician: 'Dr. Ifeoma Nnaji', department: 'General medicine', day: 0, time: '09:30', reason: 'Wound review', status: 'completed', room: 'Consult 1' },
-  { patient: 'Aisha Bello', clinician: 'Dr. Chidinma Obiora', department: 'Obstetrics', day: 0, time: '10:00', reason: 'Antenatal · 24 weeks', status: 'in_consultation', room: 'Consult 3' },
-  { patient: 'Ibrahim Musa', clinician: 'Dr. Bashir Lawal', department: 'Cardiology', day: 0, time: '10:30', reason: 'Palpitations and ECG', status: 'in_consultation', room: 'Consult 5' },
-  { patient: 'Grace Mensah', clinician: 'Dr. Kunle Adebayo', department: 'Dermatology', day: 0, time: '10:45', reason: 'Eczema flare', status: 'waiting', room: 'Consult 2' },
-  { patient: 'Samuel Nnamdi', clinician: 'Dr. Maryam Isa', department: 'General medicine', day: 0, time: '11:00', reason: 'Fever and chills', status: 'waiting', room: 'Consult 6' },
-  { patient: 'Yusuf Danladi', clinician: 'Dr. Adaeze Nwosu', department: 'Paediatrics', day: 0, time: '11:30', reason: 'Sore throat', status: 'checked_in', room: 'Consult 4' },
-  { patient: 'Kemi Alabi', clinician: 'Dr. Bashir Lawal', department: 'Cardiology', day: 0, time: '12:00', reason: 'BP and lipid review', status: 'scheduled', room: 'Consult 5' },
-  { patient: 'Funmi Adeyemi', clinician: 'Dr. Maryam Isa', department: 'General medicine', day: 0, time: '13:30', reason: 'Recurring migraine', status: 'scheduled', room: 'Consult 6' },
-  { patient: 'Halima Sani', clinician: 'Dr. Chidinma Obiora', department: 'Obstetrics', day: 0, time: '14:00', reason: 'Antenatal · 32 weeks', status: 'scheduled', room: 'Consult 3' },
-  { patient: 'David Okon', clinician: 'Dr. Bashir Lawal', department: 'Cardiology', day: 0, time: '15:00', reason: 'Hypertension review', status: 'scheduled', mode: 'teleconsult' },
-  { patient: 'Chuka Mba', clinician: 'Dr. Maryam Isa', department: 'General medicine', day: 0, time: '16:00', reason: 'Gastritis follow-up', status: 'cancelled', room: 'Consult 6' },
-  { patient: 'Zainab Ahmed', clinician: 'Dr. Ifeoma Nnaji', department: 'General medicine', day: 1, time: '09:00', reason: 'Routine check-up', status: 'scheduled', room: 'Consult 1' },
-  { patient: 'Musa Garba', clinician: 'Dr. Maryam Isa', department: 'General medicine', day: 1, time: '10:30', reason: 'Arthritis review', status: 'scheduled', room: 'Consult 6' },
-  { patient: 'Rita Ekong', clinician: 'Dr. Chidinma Obiora', department: 'Obstetrics', day: 1, time: '12:00', reason: 'Antenatal · 18 weeks', status: 'scheduled', room: 'Consult 3' },
-  { patient: 'Peter Okoye', clinician: 'Dr. Maryam Isa', department: 'General medicine', day: 2, time: '09:30', reason: 'Physiotherapy review', status: 'scheduled', mode: 'teleconsult' },
-  { patient: 'Femi Oladipo', clinician: 'Dr. Bashir Lawal', department: 'Cardiology', day: 2, time: '11:00', reason: 'Hypertension review', status: 'scheduled', room: 'Consult 5' },
-];
-
-export const appointments: Appointment[] = appointmentSeeds.map((seed, i) => {
-  const patient = patientByName.get(seed.patient);
-  return {
-    id: `ap-${300 + i}`,
-    patient_id: patient?.id || `patient-${200 + i}`,
-    patient_name: seed.patient,
-    clinician: seed.clinician,
-    department: seed.department,
-    date: addDays(TODAY, seed.day),
-    time: seed.time,
-    duration: 20,
-    reason: seed.reason,
-    status: seed.status,
-    mode: seed.mode || 'in_person',
-    room: seed.room,
-  };
-});
+export const patients: Patient[] = [];
 
 export const todaysAppointments = appointments.filter((a) => a.date === TODAY);
 export const upcomingAppointments = appointments.filter((a) => a.date > TODAY);
@@ -204,63 +98,7 @@ export const appointmentStats = {
 
 /* ── Visits (today's care queue) ──────────────────────────────────── */
 
-export const visits: Visit[] = [
-  {
-    id: 'vs-1', patient_id: 'patient-202', patient_name: 'Aisha Bello', clinician: 'Dr. Chidinma Obiora',
-    department: 'Obstetrics', type: 'consultation', status: 'in_consultation', checked_in_at: `${TODAY}T09:42:00`,
-    room: 'Consult 3', reason: 'Antenatal · 24 weeks',
-    vitals: { blood_pressure: '112/72', temperature: 36.7, pulse: 82, weight: 68.4, oxygen: 99 },
-    diagnosis: 'Normal antenatal progress', note: 'Fundal height consistent with dates. Next scan at 28 weeks.',
-  },
-  {
-    id: 'vs-2', patient_id: 'patient-205', patient_name: 'Ibrahim Musa', clinician: 'Dr. Bashir Lawal',
-    department: 'Cardiology', type: 'consultation', status: 'in_consultation', checked_in_at: `${TODAY}T10:02:00`,
-    room: 'Consult 5', reason: 'Palpitations and ECG',
-    vitals: { blood_pressure: '148/92', temperature: 36.5, pulse: 104, weight: 79.1, oxygen: 97 },
-    note: 'Irregular rhythm on examination. ECG running now.',
-  },
-  {
-    id: 'vs-3', patient_id: 'patient-210', patient_name: 'Grace Mensah', clinician: 'Dr. Kunle Adebayo',
-    department: 'Dermatology', type: 'consultation', status: 'waiting', checked_in_at: `${TODAY}T10:11:00`,
-    room: 'Consult 2', reason: 'Eczema flare',
-    vitals: { blood_pressure: '118/76', temperature: 36.6, pulse: 74, weight: 61.2, oxygen: 99 },
-  },
-  {
-    id: 'vs-4', patient_id: 'patient-207', patient_name: 'Samuel Nnamdi', clinician: 'Dr. Maryam Isa',
-    department: 'General medicine', type: 'consultation', status: 'waiting', checked_in_at: `${TODAY}T10:24:00`,
-    room: 'Consult 6', reason: 'Fever and chills',
-    vitals: { blood_pressure: '106/68', temperature: 38.9, pulse: 96, weight: 72.5, oxygen: 98 },
-    note: 'Malaria RDT positive. Awaiting clinician review.',
-  },
-  {
-    id: 'vs-5', patient_id: 'patient-200', patient_name: 'Ngozi Okafor', clinician: 'Dr. Ifeoma Nnaji',
-    department: 'General medicine', type: 'follow_up', status: 'completed', checked_in_at: `${TODAY}T08:02:00`,
-    room: 'Consult 1', reason: 'Blood pressure review',
-    vitals: { blood_pressure: '128/82', temperature: 36.4, pulse: 78, weight: 70.2, oxygen: 99 },
-    diagnosis: 'Hypertension — controlled', note: 'Continue amlodipine 5mg. Review in 8 weeks.',
-  },
-  {
-    id: 'vs-6', patient_id: 'patient-204', patient_name: 'Chiamaka Eze', clinician: 'Dr. Adaeze Nwosu',
-    department: 'Paediatrics', type: 'follow_up', status: 'completed', checked_in_at: `${TODAY}T08:34:00`,
-    room: 'Consult 4', reason: 'Asthma follow-up',
-    vitals: { blood_pressure: '96/62', temperature: 36.8, pulse: 92, weight: 26.4, oxygen: 98 },
-    diagnosis: 'Mild persistent asthma', note: 'Continue inhaler with spacer. Mother to track night cough.',
-  },
-  {
-    id: 'vs-7', patient_id: 'patient-201', patient_name: 'Emeka Obi', clinician: 'Dr. Ifeoma Nnaji',
-    department: 'General medicine', type: 'follow_up', status: 'completed', checked_in_at: `${TODAY}T09:05:00`,
-    room: 'Consult 1', reason: 'Diabetes review',
-    vitals: { blood_pressure: '132/84', temperature: 36.5, pulse: 76, weight: 84.6, oxygen: 98 },
-    diagnosis: 'Type 2 diabetes — improving', note: 'HbA1c 7.1%. Continue metformin; repeat in 3 months.',
-  },
-  {
-    id: 'vs-8', patient_id: 'patient-203', patient_name: 'Tunde Balogun', clinician: 'Dr. Ifeoma Nnaji',
-    department: 'General medicine', type: 'procedure', status: 'completed', checked_in_at: `${TODAY}T09:36:00`,
-    room: 'Treatment room', reason: 'Wound review',
-    vitals: { blood_pressure: '124/80', temperature: 36.6, pulse: 72, weight: 77.8, oxygen: 99 },
-    diagnosis: 'Post-op wound healing well', note: 'Dressing changed. No signs of infection.',
-  },
-];
+export const visits: Visit[] = [];
 
 export const visitStats = {
   queue: visits.filter((v) => v.status === 'waiting').length,
@@ -300,16 +138,7 @@ const bedSeeds: BedSeed[] = [
   { label: 'ICU-04', ward: 'ICU', status: 'available', nurse: 'Nurse Ruth Okoro' },
 ];
 
-export const beds: Bed[] = bedSeeds.map((seed, i) => ({
-  id: `bed-${i + 1}`,
-  label: seed.label,
-  ward: seed.ward,
-  status: seed.status,
-  patient_name: seed.patient,
-  admitted_at: seed.days != null ? addDays(TODAY, seed.days) : undefined,
-  nurse: seed.nurse,
-  note: seed.note,
-}));
+export const beds: Bed[] = [];
 
 export const wards = Array.from(new Set(beds.map((b) => b.ward)));
 
@@ -323,20 +152,7 @@ export const bedOccupancy = {
 
 /* ── Supplies ─────────────────────────────────────────────────────── */
 
-export const supplies: SupplyItem[] = [
-  { id: 'sp-1', name: 'Paracetamol 500mg', category: 'Pharmacy', unit: 'pack of 100', stock: 42, reorder_level: 20, supplier: 'Emzor Pharma', last_restock: addDays(TODAY, -6), unit_cost: 3200, status: 'in_stock' },
-  { id: 'sp-2', name: 'Amoxicillin 250mg', category: 'Pharmacy', unit: 'pack of 100', stock: 8, reorder_level: 15, supplier: 'GSK Nigeria', last_restock: addDays(TODAY, -12), unit_cost: 5400, status: 'low_stock' },
-  { id: 'sp-3', name: 'IV normal saline', category: 'Fluids', unit: '1L bag', stock: 96, reorder_level: 40, supplier: 'Dana Pharmaceuticals', last_restock: addDays(TODAY, -3), unit_cost: 1800, status: 'in_stock' },
-  { id: 'sp-4', name: 'Surgical gloves (M)', category: 'Consumables', unit: 'box of 100', stock: 6, reorder_level: 12, supplier: 'MedSupply NG', last_restock: addDays(TODAY, -9), unit_cost: 7800, status: 'low_stock' },
-  { id: 'sp-5', name: 'Syringes 5ml', category: 'Consumables', unit: 'box of 100', stock: 0, reorder_level: 10, supplier: 'MedSupply NG', last_restock: addDays(TODAY, -18), unit_cost: 4200, status: 'out_of_stock' },
-  { id: 'sp-6', name: 'Face masks', category: 'Consumables', unit: 'box of 50', stock: 18, reorder_level: 15, supplier: 'MedSupply NG', last_restock: addDays(TODAY, -5), unit_cost: 3500, status: 'in_stock' },
-  { id: 'sp-7', name: 'Blood collection tubes', category: 'Laboratory', unit: 'pack of 100', stock: 24, reorder_level: 20, supplier: 'LabEquip Ltd', last_restock: addDays(TODAY, -7), unit_cost: 6200, status: 'in_stock' },
-  { id: 'sp-8', name: 'Malaria test kits', category: 'Laboratory', unit: 'kit of 25', stock: 0, reorder_level: 25, supplier: 'LabEquip Ltd', last_restock: addDays(TODAY, -21), unit_cost: 11500, status: 'out_of_stock' },
-  { id: 'sp-9', name: 'Hand sanitizer', category: 'Consumables', unit: '500ml bottle', stock: 34, reorder_level: 12, supplier: 'CleanCare', last_restock: addDays(TODAY, -4), unit_cost: 2400, status: 'in_stock' },
-  { id: 'sp-10', name: 'Gauze rolls', category: 'Consumables', unit: 'pack of 12', stock: 11, reorder_level: 10, supplier: 'MedSupply NG', last_restock: addDays(TODAY, -8), unit_cost: 2900, status: 'in_stock' },
-  { id: 'sp-11', name: 'Insulin 100IU', category: 'Pharmacy', unit: 'vial', stock: 7, reorder_level: 20, supplier: 'Sanofi Nigeria', last_restock: addDays(TODAY, -14), unit_cost: 8900, status: 'low_stock' },
-  { id: 'sp-12', name: 'Oxygen cylinders', category: 'Equipment', unit: 'cylinder', stock: 4, reorder_level: 3, supplier: 'AirCare Medical', last_restock: addDays(TODAY, -2), unit_cost: 42000, status: 'in_stock' },
-];
+export const supplies: SupplyItem[] = [];
 
 export const supplyStats = {
   items: supplies.length,
@@ -347,51 +163,25 @@ export const supplyStats = {
 
 /* ── Billing ──────────────────────────────────────────────────────── */
 
-export const invoices: Invoice[] = [
-  { id: 'in-1', number: 'INV-2041', patient_id: 'patient-200', patient_name: 'Ngozi Okafor', services: [{ name: 'Consultation', amount: 22000 }, { name: 'Full blood count', amount: 23000 }], amount: 45000, paid: 45000, status: 'paid', date: addDays(TODAY, -3), due_date: addDays(TODAY, 4), payer: 'HMO' },
-  { id: 'in-2', number: 'INV-2042', patient_id: 'patient-201', patient_name: 'Emeka Obi', services: [{ name: 'Consultation', amount: 22000 }, { name: 'HbA1c', amount: 16000 }], amount: 38000, paid: 38000, status: 'paid', date: addDays(TODAY, -6), due_date: addDays(TODAY, 1), payer: 'Self-pay' },
-  { id: 'in-3', number: 'INV-2043', patient_id: 'patient-202', patient_name: 'Aisha Bello', services: [{ name: 'Antenatal package', amount: 120000 }], amount: 120000, paid: 60000, status: 'partially_paid', date: addDays(TODAY, -8), due_date: addDays(TODAY, 12), payer: 'HMO' },
-  { id: 'in-4', number: 'INV-2044', patient_id: 'patient-203', patient_name: 'Tunde Balogun', services: [{ name: 'Wound dressing x3', amount: 24000 }, { name: 'Consultation', amount: 30000 }], amount: 54000, paid: 54000, status: 'paid', date: addDays(TODAY, -8), due_date: addDays(TODAY, -1), payer: 'Corporate' },
-  { id: 'in-5', number: 'INV-2045', patient_id: 'patient-204', patient_name: 'Chiamaka Eze', services: [{ name: 'Paediatric consultation', amount: 18000 }, { name: 'Nebulisation', amount: 14000 }], amount: 32000, paid: 32000, status: 'paid', date: TODAY, due_date: addDays(TODAY, 7), payer: 'Self-pay' },
-  { id: 'in-6', number: 'INV-2046', patient_id: 'patient-205', patient_name: 'Ibrahim Musa', services: [{ name: 'Cardiology consultation', amount: 35000 }, { name: 'ECG', amount: 33000 }], amount: 68000, paid: 0, status: 'pending', date: TODAY, due_date: addDays(TODAY, 7), payer: 'Insurance' },
-  { id: 'in-7', number: 'INV-2047', patient_id: 'patient-206', patient_name: 'Funmi Adeyemi', services: [{ name: 'Consultation', amount: 22000 }], amount: 22000, paid: 22000, status: 'paid', date: TODAY, due_date: addDays(TODAY, 7), payer: 'Self-pay' },
-  { id: 'in-8', number: 'INV-2048', patient_id: 'patient-207', patient_name: 'Samuel Nnamdi', services: [{ name: 'Malaria RDT', amount: 8500 }, { name: 'Artemether course', amount: 18000 }], amount: 26500, paid: 0, status: 'overdue', date: addDays(TODAY, -12), due_date: addDays(TODAY, -2), payer: 'Self-pay' },
-  { id: 'in-9', number: 'INV-2049', patient_id: 'patient-208', patient_name: 'Halima Sani', services: [{ name: 'Antenatal package', amount: 120000 }], amount: 120000, paid: 40000, status: 'partially_paid', date: addDays(TODAY, -4), due_date: addDays(TODAY, 16), payer: 'HMO' },
-  { id: 'in-10', number: 'INV-2050', patient_id: 'patient-209', patient_name: 'David Okon', services: [{ name: 'Cardiology review', amount: 35000 }, { name: 'Lipid profile', amount: 20000 }], amount: 55000, paid: 0, status: 'overdue', date: addDays(TODAY, -14), due_date: addDays(TODAY, -5), payer: 'Corporate' },
-  { id: 'in-11', number: 'INV-2051', patient_id: 'patient-210', patient_name: 'Grace Mensah', services: [{ name: 'Dermatology consultation', amount: 24000 }], amount: 24000, paid: 24000, status: 'paid', date: TODAY, due_date: addDays(TODAY, 7), payer: 'Self-pay' },
-  { id: 'in-12', number: 'INV-2052', patient_id: 'patient-211', patient_name: 'Yusuf Danladi', services: [{ name: 'Paediatric consultation', amount: 18000 }], amount: 18000, paid: 18000, status: 'paid', date: addDays(TODAY, -5), due_date: addDays(TODAY, 2), payer: 'Self-pay' },
-  { id: 'in-13', number: 'INV-2053', patient_id: 'patient-212', patient_name: 'Kemi Alabi', services: [{ name: 'Lipid profile', amount: 20000 }, { name: 'Fasting glucose', amount: 12000 }, { name: 'Consultation', amount: 10000 }], amount: 42000, paid: 20000, status: 'partially_paid', date: addDays(TODAY, -3), due_date: addDays(TODAY, 4), payer: 'HMO' },
-  { id: 'in-14', number: 'INV-2054', patient_id: 'patient-213', patient_name: 'Peter Okoye', services: [{ name: 'Physiotherapy x4', amount: 48000 }], amount: 48000, paid: 0, status: 'pending', date: TODAY, due_date: addDays(TODAY, 10), payer: 'Corporate' },
-];
+export const invoices: Invoice[] = [];
 
 export const billingSummary = {
-  billedMTD: 14_860_000,
-  collectedMTD: 11_440_000,
-  outstanding: 343_500,
-  overdue: 81_500,
+  billedMTD: 0,
+  collectedMTD: 0,
+  outstanding: 0,
+  overdue: 0,
   invoices: invoices.length,
-  target: 20_000_000,
+  target: 0,
 };
 
 /* ── Payments ─────────────────────────────────────────────────────── */
 
-export const payments: HealthPayment[] = [
-  { id: 'hp-1', reference: 'MER-7781', patient_name: 'Emeka Obi', invoice_number: 'INV-2042', amount: 38000, method: 'transfer', status: 'settled', date: addDays(TODAY, -1) },
-  { id: 'hp-2', reference: 'MER-7782', patient_name: 'Ngozi Okafor', invoice_number: 'INV-2041', amount: 45000, method: 'card', status: 'settled', date: addDays(TODAY, -1) },
-  { id: 'hp-3', reference: 'MER-7783', patient_name: 'Chiamaka Eze', invoice_number: 'INV-2045', amount: 32000, method: 'pos', status: 'settled', date: TODAY },
-  { id: 'hp-4', reference: 'MER-7784', patient_name: 'Aisha Bello', invoice_number: 'INV-2043', amount: 60000, method: 'insurance', status: 'settled', date: addDays(TODAY, -2) },
-  { id: 'hp-5', reference: 'MER-7785', patient_name: 'Halima Sani', invoice_number: 'INV-2049', amount: 40000, method: 'transfer', status: 'settled', date: addDays(TODAY, -3) },
-  { id: 'hp-6', reference: 'MER-7786', patient_name: 'Funmi Adeyemi', invoice_number: 'INV-2047', amount: 22000, method: 'cash', status: 'settled', date: TODAY },
-  { id: 'hp-7', reference: 'MER-7787', patient_name: 'Kemi Alabi', invoice_number: 'INV-2053', amount: 20000, method: 'card', status: 'settled', date: addDays(TODAY, -2) },
-  { id: 'hp-8', reference: 'MER-7788', patient_name: 'Peter Okoye', invoice_number: 'INV-2054', amount: 16000, method: 'transfer', status: 'pending', date: TODAY },
-  { id: 'hp-9', reference: 'MER-7789', patient_name: 'Grace Mensah', invoice_number: 'INV-2051', amount: 24000, method: 'card', status: 'settled', date: TODAY },
-  { id: 'hp-10', reference: 'MER-7790', patient_name: 'Yusuf Danladi', invoice_number: 'INV-2052', amount: 18000, method: 'pos', status: 'refunded', date: addDays(TODAY, -1) },
-];
+export const payments: HealthPayment[] = [];
 
 export const paymentSummary = {
-  collectedToday: 418_000,
-  pending: 16_000,
-  refunds: 18_000,
+  collectedToday: 0,
+  pending: 0,
+  refunds: 0,
   settled: payments.filter((p) => p.status === 'settled').length,
 };
 
@@ -427,8 +217,8 @@ export const revenueSummary = {
   today: 900_000,
   monthToDate: 14_860_000,
   lastMonth: 13_240_000,
-  outstanding: 343_500,
-  target: 20_000_000,
+  outstanding: 0,
+  target: 0,
 };
 
 export const payerMix = [
@@ -852,19 +642,6 @@ export function hydrateHealthcare(payload: any): boolean {
       ? (settingsRow.meta as Record<string, any>)
       : null;
 
-  const anyLive =
-    livePatients.length +
-      liveAppointments.length +
-      liveVisits.length +
-      liveClinicians.length +
-      liveInvoices.length +
-      liveBeds.length +
-      liveSupplies.length +
-      livePayments.length +
-      liveConditionLog.length +
-      (settingsMeta ? 1 : 0) >
-    0;
-  if (!anyLive) return false;
 
   if (settingsMeta) {
     Object.assign(orgSettings, settingsMeta);
