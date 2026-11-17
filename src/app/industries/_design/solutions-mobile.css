@@ -267,3 +267,76 @@ html.sol-lock-scroll body {
     bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+
+/* ── Sheets / modals: scroll inside the drawer, not the page ───────── */
+.sol-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 90 !important;
+  background: rgba(15, 23, 42, 0.45) !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sol-sheet {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 91 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  width: min(440px, 100%) !important;
+  max-height: 100dvh !important;
+  height: 100dvh !important;
+  background: #fff !important;
+  box-shadow: -12px 0 40px rgba(15, 23, 42, 0.18) !important;
+  overflow: hidden !important;
+}
+
+.sol-sheet-head {
+  flex-shrink: 0 !important;
+  padding: 16px 18px 12px !important;
+  border-bottom: 1px solid #e8eef2 !important;
+}
+
+.sol-sheet-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  padding: 16px 18px 24px !important;
+}
+
+.sol-sheet-foot {
+  flex-shrink: 0 !important;
+  display: flex !important;
+  gap: 8px !important;
+  justify-content: flex-end !important;
+  padding: 12px 18px calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+  border-top: 1px solid #e8eef2 !important;
+  background: #fff !important;
+}
+
+html.sol-sheet-open,
+html.sol-sheet-open body {
+  overflow: hidden !important;
+  overscroll-behavior: none !important;
+}
+
+@media (max-width: 640px) {
+  .sol-sheet {
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    width: 100% !important;
+    max-height: min(92dvh, 100%) !important;
+    height: auto !important;
+    border-radius: 16px 16px 0 0 !important;
+  }
+  .sol-sheet-body {
+    max-height: calc(92dvh - 140px) !important;
+  }
+}
