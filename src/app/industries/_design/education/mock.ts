@@ -223,7 +223,7 @@ export const teacherStats = {
 
 /* ── Mixes ────────────────────────────────────────────────────────── */
 
-export const levelMix = [];
+export const levelMix: { name: string; value: number }[] = [];
 
 export const classMix = classes.map((c) => ({ name: c.name, value: c.students, color: 'var(--sol-chart-1)' }));
 
@@ -233,11 +233,11 @@ export const activity: EduActivity[] = [];
 
 /* ── Reports ──────────────────────────────────────────────────────── */
 
-export const reports = [];
+export const reports: { id: string; name: string; description?: string; icon?: string; lastRun?: string; cadence?: string }[] = [];
 
 /* ── Notifications ────────────────────────────────────────────────── */
 
-export const notifications = [];
+export const notifications: { id: string; title: string; detail?: string; time?: string; unread?: boolean; kind?: string }[] = [];
 
 /* ── Live hydration ───────────────────────────────────────────────────
  * The dashboard screens import the arrays and summary objects below by
