@@ -20,20 +20,20 @@ const CUR = 'NGN';
 export const orgSettings: Record<string, any> = {};
 
 export const firm = {
-  name: 'Northwind Studio',
-  legalName: 'Northwind Creative Ltd',
-  location: 'Victoria Island, Lagos',
-  address: '8A Akin Adesola Street, Victoria Island, Lagos',
-  phone: '+234 803 555 0142',
-  email: 'hello@northwind.studio',
-  website: 'northwind.studio',
+  name: 'Your firm',
+  legalName: '',
+  location: '',
+  address: '',
+  phone: '',
+  email: '',
+  website: '',
   currency: CUR,
   taxRate: 7.5,
-  founded: '2019',
-  ownerName: 'Tobi Adeyemi',
-  ownerEmail: 'tobi@northwind.studio',
-  standardRate: 65000,
-  monthlyTarget: 18_000_000,
+  founded: '',
+  ownerName: '',
+  ownerEmail: '',
+  standardRate: 0,
+  monthlyTarget: 0,
   paymentTerms: 14,
 };
 
@@ -263,22 +263,7 @@ export const expenses: ProExpense[] = [];
 
 /* ── Analytics ────────────────────────────────────────────────────── */
 
-export const revenueSeries: ProRevenuePoint[] = [
-  { date: addDays(TODAY, -13), billed: 680_000, collected: 420_000, hours: 34, utilisation: 62 },
-  { date: addDays(TODAY, -12), billed: 910_000, collected: 760_000, hours: 38, utilisation: 68 },
-  { date: addDays(TODAY, -11), billed: 1_240_000, collected: 890_000, hours: 41, utilisation: 71 },
-  { date: addDays(TODAY, -10), billed: 1_050_000, collected: 1_100_000, hours: 39, utilisation: 69 },
-  { date: addDays(TODAY, -9), billed: 1_480_000, collected: 980_000, hours: 44, utilisation: 76 },
-  { date: addDays(TODAY, -8), billed: 1_260_000, collected: 1_320_000, hours: 42, utilisation: 74 },
-  { date: addDays(TODAY, -7), billed: 760_000, collected: 640_000, hours: 28, utilisation: 52 },
-  { date: addDays(TODAY, -6), billed: 1_320_000, collected: 1_100_000, hours: 45, utilisation: 79 },
-  { date: addDays(TODAY, -5), billed: 1_540_000, collected: 1_260_000, hours: 47, utilisation: 82 },
-  { date: addDays(TODAY, -4), billed: 1_180_000, collected: 1_410_000, hours: 43, utilisation: 77 },
-  { date: addDays(TODAY, -3), billed: 1_690_000, collected: 1_240_000, hours: 48, utilisation: 84 },
-  { date: addDays(TODAY, -2), billed: 1_420_000, collected: 1_520_000, hours: 46, utilisation: 81 },
-  { date: addDays(TODAY, -1), billed: 1_760_000, collected: 1_380_000, hours: 49, utilisation: 86 },
-  { date: TODAY, billed: 1_300_000, collected: 1_640_000, hours: 40, utilisation: 73 },
-];
+export const revenueSeries: ProRevenuePoint[] = [];
 
 export const revenueSummary = {
   today: revenueSeries[revenueSeries.length - 1].collected,
@@ -336,167 +321,15 @@ export const expensesSummary = {
   count: expenses.length,
 };
 
-export const disciplineMix = [
-  { name: 'Design', value: 38, color: 'var(--sol-chart-1)' },
-  { name: 'Engineering', value: 24, color: 'var(--sol-chart-2)' },
-  { name: 'Strategy', value: 21, color: 'var(--sol-chart-3)' },
-  { name: 'Content', value: 10, color: 'var(--sol-chart-4)' },
-  { name: 'Operations', value: 7, color: 'var(--sol-chart-5)' },
-];
+export const disciplineMix = [];
 
-export const projectTypeMix = [
-  { name: 'Brand', value: 34, color: 'var(--sol-chart-1)' },
-  { name: 'Digital product', value: 31, color: 'var(--sol-chart-2)' },
-  { name: 'Websites', value: 21, color: 'var(--sol-chart-3)' },
-  { name: 'Campaigns', value: 14, color: 'var(--sol-chart-4)' },
-];
+export const projectTypeMix = [];
 
-export const activity: ProActivity[] = [
-  {
-    id: 'act-1',
-    title: 'Verdant packaging moved to review',
-    detail: 'Ifeoma Obi uploaded the final print files',
-    time: '12m ago',
-    kind: 'project',
-  },
-  {
-    id: 'act-2',
-    title: 'Payment received from Lumen Health',
-    detail: '₦2,300,000 · invoice NW-2049',
-    time: '48m ago',
-    kind: 'payment',
-  },
-  {
-    id: 'act-3',
-    title: 'Aura app onboarding screens updated',
-    detail: 'Emeka Nwosu · 5 hours logged',
-    time: '1h ago',
-    kind: 'time',
-  },
-  {
-    id: 'act-4',
-    title: 'Helio site demo booked',
-    detail: 'Thursday 15:00 · Kunle Salami and Tobi Adeyemi',
-    time: '2h ago',
-    kind: 'task',
-  },
-  {
-    id: 'act-5',
-    title: 'Fairview deposit part-paid',
-    detail: '₦600,000 received of ₦1,200,000',
-    time: '3h ago',
-    kind: 'invoice',
-  },
-  {
-    id: 'act-6',
-    title: 'New client added — Pebble Studio',
-    detail: 'Art direction retainer at ₦250,000 / month',
-    time: 'Yesterday',
-    kind: 'client',
-  },
-  {
-    id: 'act-7',
-    title: 'Kite & Co identity archived',
-    detail: 'Source files handed over to the client',
-    time: 'Yesterday',
-    kind: 'project',
-  },
-  {
-    id: 'act-8',
-    title: 'Zainab Bello is at 92% utilisation',
-    detail: 'Highest billable load this week',
-    time: '2d ago',
-    kind: 'time',
-  },
-];
+export const activity: ProActivity[] = [];
 
-export const reports = [
-  {
-    id: 'report-utilisation',
-    name: 'Team utilisation',
-    description: 'Billable hours against capacity for every member of the studio.',
-    cadence: 'Weekly · Mondays',
-    lastRun: '2 days ago',
-    icon: 'users',
-  },
-  {
-    id: 'report-profitability',
-    name: 'Project profitability',
-    description: 'Budget, spend and margin by engagement with overrun flags.',
-    cadence: 'Monthly · 1st',
-    lastRun: '12 days ago',
-    icon: 'trend',
-  },
-  {
-    id: 'report-revenue',
-    name: 'Revenue & collections',
-    description: 'Billed versus collected, with aging buckets for every client.',
-    cadence: 'Weekly · Fridays',
-    lastRun: 'Yesterday',
-    icon: 'wallet',
-  },
-  {
-    id: 'report-clients',
-    name: 'Client scorecard',
-    description: 'Retainer value, delivery health and payment behaviour by client.',
-    cadence: 'Monthly · 5th',
-    lastRun: '9 days ago',
-    icon: 'badge',
-  },
-  {
-    id: 'report-capacity',
-    name: 'Capacity forecast',
-    description: 'Upcoming workload against available hours for the next eight weeks.',
-    cadence: 'Fortnightly',
-    lastRun: '5 days ago',
-    icon: 'calendar',
-  },
-];
+export const reports = [];
 
-export const notifications = [
-  {
-    id: 'notif-1',
-    title: 'Verdant packaging is due in 4 days',
-    detail: 'Print files are in review — two tasks remain open.',
-    time: '20m ago',
-    unread: true,
-  },
-  {
-    id: 'notif-2',
-    title: 'Invoice NW-2052 is 18 days overdue',
-    detail: '₦1,850,000 outstanding from Verdant Foods.',
-    time: '1h ago',
-    unread: true,
-  },
-  {
-    id: 'notif-3',
-    title: 'Emeka Nwosu hit 88% utilisation',
-    detail: 'Consider balancing the Aura app work this week.',
-    time: '3h ago',
-    unread: true,
-  },
-  {
-    id: 'notif-4',
-    title: 'New enquiry from Kite & Co',
-    detail: 'They asked about social templates for the new menu launch.',
-    time: '5h ago',
-    unread: false,
-  },
-  {
-    id: 'notif-5',
-    title: 'Helio site demo confirmed',
-    detail: 'Thursday at 15:00 on Zoom.',
-    time: 'Yesterday',
-    unread: false,
-  },
-  {
-    id: 'notif-6',
-    title: 'Monthly invoice run due Thursday',
-    detail: 'Three draft invoices are ready to send.',
-    time: 'Yesterday',
-    unread: false,
-  },
-];
+export const notifications = [];
 
 /* ── Live hydration ───────────────────────────────────────────────── */
 
