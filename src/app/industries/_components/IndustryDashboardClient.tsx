@@ -16,10 +16,6 @@ const HOSPITALITY_PATH_ALIASES: Record<string, string> = {
   settings: 'hotel-settings',
 };
 
-/** Pinned last known-good solutions design system (full file). */
-const SOLUTIONS_BASE_CSS =
-  'https://cdn.jsdelivr.net/gh/crestack-web/studio@9a8fcdcbd3bddd58e03f8958262794fb8e3d8419/src/app/industries/_design/solutions.css';
-
 function sectionFromPathname(pathname: string, config: IndustryConfig, sectionProp?: string) {
   if (sectionProp && sectionProp !== 'overview') return sectionProp;
   const base = config.dashboardPath.replace(/\/$/, '');
@@ -49,17 +45,6 @@ export function IndustryDashboardClient({
     () => sectionFromPathname(pathname, config, sectionProp),
     [pathname, config, sectionProp],
   );
-
-  // Ensure base design system is present (Next cannot ship the full CSS via @import right now)
-  useEffect(() => {
-    const id = 'busmo-solutions-base-css';
-    if (document.getElementById(id)) return;
-    const link = document.createElement('link');
-    link.id = id;
-    link.rel = 'stylesheet';
-    link.href = SOLUTIONS_BASE_CSS;
-    document.head.appendChild(link);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;

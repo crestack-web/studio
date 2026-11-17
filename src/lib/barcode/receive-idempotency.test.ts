@@ -32,3 +32,5 @@ const r4 = receive('biz-other', 'op-1', 'p1', 5);
 assert(r4.duplicate === false, 'same operationId other business is separate key in model');
 
 console.log('receive-idempotency.test.ts OK');
+
+export {};

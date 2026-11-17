@@ -1,162 +1,107 @@
-﻿# ðŸš€ Busmo - Quick Deployment Guide
+﻿# Deploy Busmo
 
-## âœ… What's Ready
+Current stack: **Next.js 15 (App Router) · Supabase (Auth + Postgres + Storage) · Paystack · Brevo · PostHog · Google AI**.
 
-- [x] Staff authentication fixed (uses real Firebase)
-- [x] Forgot password page created
-- [x] Storage rules created
-- [x] Firestore indexes created
-- [x] Environment files created
-- [x] Paystack LIVE key configured âœ…
-- [x] DashScope API key configured âœ…
-
-## âš ï¸ Missing Keys (Get These Now)
-
-You need 2 more keys to complete setup:
-
-### 1. Google AI API Key (2 minutes)
-**Get it here:** https://makersuite.google.com/app/apikey
-
-1. Go to the link above
-2. Sign in with Google account
-3. Click "Create API Key"
-4. Copy the key (starts with `AIza...`)
-5. Add to both files:
-   - `.env.local`: Replace `your-google-ai-api-key`
-   - `functions/.env`: Replace `your-google-ai-api-key`
-
-### 2. SendGrid API Key (5 minutes)
-**Get it here:** https://app.sendgrid.com/settings/api_keys
-
-1. Go to the link above (create free account if needed)
-2. Click "Create API Key"
-3. Name it "Busmo Production"
-4. Select "Full Access"
-5. Copy the key (starts with `SG.`)
-6. Add to both files:
-   - `.env.local`: Replace `your-sendgrid-api-key`
-   - `functions/.env`: Replace `your-sendgrid-api-key`
+> Ignore any older Firebase deployment notes. Production runs on Supabase + Vercel.
 
 ---
 
-## ðŸš€ Deploy to Firebase (5 minutes)
+## 1. Supabase project
 
-### Step 1: Login to Firebase
+1. Create/choose the production project at <https://supabase.com/dashboard>.
+2. Copy from **Project Settings → API**:
+   - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
+   - `anon` public key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `service_role` secret key → `SUPABASE_SERVICE_ROLE_KEY` (server only, never `NEXT_PUBLIC_`)
+3. **Authentication → URL Configuration**
+   - Site URL: `https://<your-domain>`
+   - Redirect URLs: `https://<your-domain>/auth/callback`
+4. **Authentication → Providers** — enable Email; Google is optional (needs Client ID/Secret + redirect URI from Supabase).
 
-```bash
-cd c:\firebase\studio
-firebase login
-```
+## 2. Apply migrations
 
-### Step 2: Set Your Project
-
-```bash
-firebase use bizassistant2-62305643-adad7
-```
-
-### Step 3: Deploy Secrets (Secure Method)
-
-```bash
-# Deploy API keys securely
-firebase functions:secrets:set MISTRAL_API_KEY
-# (Paste your Google AI key when prompted)
-
-firebase functions:secrets:set SENDGRID_API_KEY
-# (Paste your SendGrid key when prompted)
-
-firebase functions:secrets:set PAYSTACK_SECRET_KEY
-# (Already in .env, but this secures it in cloud)
-```
-
-### Step 4: Deploy Everything
+Migrations live in `supabase/migrations/` and must be applied in order (`0001` → `0035`). `0035_solution_desk_completion.sql` is the latest and still needs confirmation in production.
 
 ```bash
-# Deploy all Firebase services
-firebase deploy
+npx supabase login
+npx supabase link --project-ref <project-ref>
+npx supabase db push
 ```
 
-This will deploy:
-- âœ… Firestore rules
-- âœ… Firestore indexes
-- âœ… Storage rules
-- âœ… Cloud Functions
-- âœ… Hosting (if configured)
+If you cannot use the CLI, paste each migration file into the Supabase SQL editor in order. Do not skip `0027_solution_staff_desks.sql`, `0028_industry_records.sql` or `0031`–`0035` — the solution dashboards depend on them.
 
-### Step 5: Test Everything
+## 3. Environment variables
 
-1. **Test Staff Login:**
-   - Go to: `http://localhost:3000/staff/login`
-   - Enter your staff email
-   - Check email for OTP
-   - Enter OTP and login
-
-2. **Test Forgot Password:**
-   - Go to: `http://localhost:3000/forgot`
-   - Enter your email
-   - Check for reset email
-
-3. **Test Payment:**
-   - Go to: `http://localhost:3000/plans/subscribe`
-   - Click on a plan
-   - Paystack modal should appear
-
----
-
-## ðŸŽ¯ Launch Checklist
-
-- [ ] Get Google AI API Key
-- [ ] Get SendGrid API Key
-- [ ] Add keys to `.env.local` and `functions/.env`
-- [ ] Run `firebase login`
-- [ ] Run `firebase use bizassistant2-62305643-adad7`
-- [ ] Run `firebase deploy`
-- [ ] Test staff login
-- [ ] Test forgot password
-- [ ] Test payment flow
-- [ ] **LAUNCH!** ðŸš€
-
----
-
-## ðŸ“ž Quick Commands
+Set these in `.env.local` for local dev and in **Vercel → Project → Settings → Environment Variables** for production.
 
 ```bash
-# Check if server is running
-npm run dev
+# Supabase (required)
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
 
-# Deploy only Cloud Functions
-firebase deploy --only functions
+# Public URLs
+NEXT_PUBLIC_APP_URL=https://<your-domain>
+NEXT_PUBLIC_SITE_URL=https://<your-domain>
+PUBLIC_APP_URL=https://<your-domain>
+PUBLIC_BRAND_HOST=<your-domain>
 
-# Deploy only Firestore rules
-firebase deploy --only firestore:rules
+# Payments (Paystack)
+PAYSTACK_SECRET_KEY=
+PAYSTACK_PUBLIC_KEY=
+NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY=
+DEFAULT_CURRENCY=NGN
+PAYOUT_DELAY_HOURS=24
 
-# Deploy only Storage rules
-firebase deploy --only storage:rules
+# Email (Brevo preferred; Resend is a fallback)
+BREVO_API_KEY=
+BREVO_FROM_EMAIL=
+BREVO_FROM_NAME=Busmo
+# Optional fallback if Brevo is not used
+RESEND_API_KEY=
+EMAIL_FROM=Busmo <support@busmo.io>
 
-# View Cloud Functions logs
-firebase functions:log
+# AI (Mo)
+GOOGLE_GENAI_API_KEY=
 
-# Stop local server
-# Press Ctrl+C in the terminal
+# Optional integrations
+MO_SELL_SUPABASE_URL=
+MO_SELL_SUPABASE_SERVICE_ROLE_KEY=
+MO_SELL_APP_URL=
+NEXT_PUBLIC_POSTHOG_KEY=
+NEXT_PUBLIC_POSTHOG_HOST=
 ```
 
----
+`SUPABASE_SERVICE_ROLE_KEY` must stay server-side only.
 
-## ðŸŽ‰ You're Almost There!
+## 4. Build and verify locally
 
-**Current Status:** 85% Ready
+```bash
+npm install
+npm run typecheck
+npm run build
+npm start
+```
 
-**What's Working:**
-- âœ… Staff authentication (real Firebase)
-- âœ… Forgot password page
-- âœ… Paystack LIVE payments
-- âœ… All config files
-- âœ… Firebase rules & indexes
+`typescript.ignoreBuildErrors` is `false`, so a clean typecheck is required for a successful build.
 
-**What's Needed:**
-- â³ Google AI Key (2 min)
-- â³ SendGrid Key (5 min)
-- â³ Deploy to Firebase (5 min)
+## 5. Deploy to Vercel
 
-**Total Time to Launch:** ~15 minutes
+```bash
+npx vercel link
+npx vercel --prod
+```
 
-Let's go! ðŸš€
+Or connect the Git repo in the Vercel dashboard; every push to `main` deploys automatically.
+
+## 6. Smoke test production
+
+For each suite — hospitality, healthcare, professional, education, agriculture:
+
+1. Open `/solutions/<suite>` — welcome page loads, suite switcher works.
+2. Sign up at `/solutions/<suite>/signup` — organization is provisioned.
+3. Log in at `/solutions/<suite>/login` — lands on `/solutions/<suite>/dashboard`.
+4. Create/read records in 2–3 sections — data persists after refresh.
+5. Confirm no console errors and no horizontal scroll at 360 px / 856 px / 1280 px.
+
+Also check `/auth/callback` (email confirmation) and `/api/industries/session` returns `200` with a valid session token.

@@ -59,3 +59,5 @@ assert(
 assert(wouldAllow({ userId: owner, businessId: '' }) === false, 'empty businessId');
 
 console.log('auth-policy.test.ts OK');
+
+export {};
