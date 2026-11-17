@@ -1,5 +1,7 @@
 'use client';
 
+import { getSupabase } from '@/lib/supabase';
+
 import React, { useEffect, useRef, useState } from 'react';
 import type { IndustryConfig } from '@/lib/industries/types';
 import { MoIcon } from './MoIcon';
@@ -71,12 +73,18 @@ export function IndustryMO({
     setMessages((m) => [...m, { id: `u-${Date.now()}`, role: 'user', text: trimmed }]);
     setBusy(true);
     try {
+      const { data: sess } = await getSupabase().auth.getSession();
+      const token = sess.session?.access_token;
       const res = await fetch('/api/industries/mo', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           message: trimmed,
           industry: config.id,
+          productEdition: config.id,
           businessName: businessName || config.productName,
         }),
       });
