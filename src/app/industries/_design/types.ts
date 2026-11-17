@@ -153,6 +153,7 @@ export type RoomServiceOrder = {
   status: 'new' | 'preparing' | 'on_the_way' | 'delivered' | 'cancelled';
   placed_at: string;
   note?: string;
+  booking_id?: string;
 };
 
 export type RevenuePoint = {
