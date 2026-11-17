@@ -1,3 +1,4 @@
+import { SOLUTION_ICONS } from '@/lib/industries/solution-icons';
 import type { SolutionsNavItem, SolutionsSuite, SolutionsSuiteId } from './types';
 
 const SECTIONS: { main: string; operations: string; finance: string; settings: string } = {
@@ -59,7 +60,7 @@ export const SOLUTIONS_SUITES: Record<SolutionsSuiteId, SolutionsSuite> = {
     tagline: 'Run your hotel. Stay in control.',
     description:
       'Reservations, rooms, guests, housekeeping and revenue in one connected workspace.',
-    logo: '/industries/busmo-hospitality-logo.png',
+    logo: SOLUTION_ICONS.hospitality,
     greetingNoun: 'hotel',
     workspace: {
       name: 'Your hotel',
@@ -78,7 +79,7 @@ export const SOLUTIONS_SUITES: Record<SolutionsSuiteId, SolutionsSuite> = {
     edition: 'Healthcare',
     tagline: 'Care operations. Clearer every day.',
     description: 'Patients, appointments, visits, clinical staff and billing in one workspace.',
-    logo: '/industries/busmo-healthcare-logo.png',
+    logo: SOLUTION_ICONS.healthcare,
     greetingNoun: 'clinic',
     workspace: {
       name: 'Your clinic',
@@ -110,6 +111,7 @@ export const SOLUTIONS_SUITES: Record<SolutionsSuiteId, SolutionsSuite> = {
     edition: 'Professional',
     tagline: 'Manage your work. Grow your business.',
     description: 'Clients, projects, tasks, time and invoices for agencies and consultancies.',
+    logo: SOLUTION_ICONS.professional,
     greetingNoun: 'firm',
     workspace: {
       name: 'Your firm',
@@ -141,6 +143,7 @@ export const SOLUTIONS_SUITES: Record<SolutionsSuiteId, SolutionsSuite> = {
     edition: 'Education',
     tagline: 'Schools and training, organized.',
     description: 'Students, classes, attendance, teachers and fees in one workspace.',
+    logo: SOLUTION_ICONS.education,
     greetingNoun: 'school',
     workspace: {
       name: 'Your school',
@@ -173,7 +176,7 @@ export const SOLUTIONS_SUITES: Record<SolutionsSuiteId, SolutionsSuite> = {
     tagline: 'From the field to the final sale.',
     description:
       'Farms, plots, crops, field work, harvests, processing, packaging, stock, sales and exports in one workspace.',
-    logo: '/industries/busmo-agriculture-icon.svg',
+    logo: SOLUTION_ICONS.agriculture,
     greetingNoun: 'farm',
     workspace: {
       name: 'Greenfield Farms Ltd',

@@ -1,4 +1,5 @@
 import { HOSPITALITY, PROFESSIONAL, HEALTHCARE, EDUCATION, AGRICULTURE } from './config';
+import { SOLUTION_ICONS } from './solution-icons';
 import type { IndustryConfig } from './types';
 
 export type SuiteProduct = {
@@ -54,6 +55,7 @@ function industryProducts(config: IndustryConfig): SuiteProduct[] {
 export const SUITE_FAMILIES: SuiteFamily[] = [
   {
     id: 'business',
+    logoSrc: SOLUTION_ICONS.business,
     label: 'Business',
     productName: 'Busmo Business',
     href: '/solutions/business',
@@ -65,7 +67,7 @@ export const SUITE_FAMILIES: SuiteFamily[] = [
   },
   {
     id: 'hospitality',
-    logoSrc: '/industries/busmo-hospitality-logo.png',
+    logoSrc: SOLUTION_ICONS.hospitality,
     label: 'Hospitality',
     productName: HOSPITALITY.productName,
     href: HOSPITALITY.welcomePath,
@@ -86,6 +88,7 @@ export const SUITE_FAMILIES: SuiteFamily[] = [
   },
   {
     id: 'professional',
+    logoSrc: SOLUTION_ICONS.professional,
     label: 'Professional',
     productName: PROFESSIONAL.productName,
     href: PROFESSIONAL.welcomePath,
@@ -107,7 +110,7 @@ export const SUITE_FAMILIES: SuiteFamily[] = [
 
   {
     id: 'healthcare',
-    logoSrc: '/industries/busmo-healthcare-logo.png',
+    logoSrc: SOLUTION_ICONS.healthcare,
     label: 'Healthcare',
     productName: HEALTHCARE.productName,
     href: HEALTHCARE.welcomePath,
@@ -128,6 +131,7 @@ export const SUITE_FAMILIES: SuiteFamily[] = [
   },
   {
     id: 'education',
+    logoSrc: SOLUTION_ICONS.education,
     label: 'Education',
     productName: EDUCATION.productName,
     href: EDUCATION.welcomePath,
@@ -148,7 +152,7 @@ export const SUITE_FAMILIES: SuiteFamily[] = [
   },
   {
     id: 'agriculture',
-    logoSrc: '/industries/busmo-agriculture-icon.svg',
+    logoSrc: SOLUTION_ICONS.agriculture,
     label: 'Agriculture',
     productName: AGRICULTURE.productName,
     href: AGRICULTURE.welcomePath,

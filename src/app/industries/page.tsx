@@ -1,19 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import { SOLUTION_ICONS } from '@/lib/industries/solution-icons';
 import { SUITE_FAMILIES, getSuiteFamily } from '@/lib/industries/suite-catalog';
 import { SuiteChrome, SuiteProductGrid } from './_components/SuiteChrome';
 import { SolutionsSlideshow } from './_components/SolutionsSlideshow';
 import styles from './_components/SuiteChrome.module.css';
-
-const SOLUTION_ICONS: Record<string, string> = {
-  business: '/email-logo.png',
-  hospitality: '/industries/busmo-hospitality-icon.svg',
-  healthcare: '/industries/busmo-healthcare-icon.svg',
-  professional: '/industries/busmo-professional-icon.svg',
-  education: '/industries/busmo-education-icon.svg',
-  agriculture: '/industries/busmo-agriculture-icon.svg',
-};
 
 export default function IndustriesHubPage() {
   const family = getSuiteFamily('business');

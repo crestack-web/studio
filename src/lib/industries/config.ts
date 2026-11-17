@@ -1,3 +1,4 @@
+import { SOLUTION_ICONS } from './solution-icons';
 import type { IndustryConfig, IndustryId } from './types';
 
 export const INDUSTRY_IDS = [
@@ -23,7 +24,7 @@ export function isIndustryId(
 export const HOSPITALITY: IndustryConfig = {
   id: 'hospitality',
   productName: 'Busmo Hospitality',
-  logoSrc: '/industries/busmo-hospitality-logo.png',
+  logoSrc: SOLUTION_ICONS.hospitality,
   shortName: 'Hospitality',
   tagline: 'Run your hotel. Stay in control.',
   description:
@@ -88,6 +89,7 @@ export const HOSPITALITY: IndustryConfig = {
 export const PROFESSIONAL: IndustryConfig = {
   id: 'professional',
   productName: 'Busmo Professional',
+  logoSrc: SOLUTION_ICONS.professional,
   shortName: 'Professional',
   tagline: 'Manage your work. Grow your business.',
   description:
@@ -152,7 +154,7 @@ export const PROFESSIONAL: IndustryConfig = {
 export const HEALTHCARE: IndustryConfig = {
   id: 'healthcare',
   productName: 'Busmo Healthcare',
-  logoSrc: '/industries/busmo-healthcare-logo.png',
+  logoSrc: SOLUTION_ICONS.healthcare,
   shortName: 'Healthcare',
   tagline: 'Care operations. Clearer every day.',
   description:
@@ -210,6 +212,7 @@ export const HEALTHCARE: IndustryConfig = {
 export const EDUCATION: IndustryConfig = {
   id: 'education',
   productName: 'Busmo Education',
+  logoSrc: SOLUTION_ICONS.education,
   shortName: 'Education',
   tagline: 'Schools and training, organized.',
   description:
@@ -268,7 +271,7 @@ export const EDUCATION: IndustryConfig = {
 export const AGRICULTURE: IndustryConfig = {
   id: 'agriculture',
   productName: 'Busmo Agriculture',
-  logoSrc: '/industries/busmo-agriculture-icon.svg',
+  logoSrc: SOLUTION_ICONS.agriculture,
   shortName: 'Agriculture',
   tagline: 'From the field to the final sale.',
   description:

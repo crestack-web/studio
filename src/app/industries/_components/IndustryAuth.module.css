@@ -124,20 +124,21 @@
 
 .brandPlate {
   flex-shrink: 0;
+  width: 44px;
   height: 44px;
-  padding: 0 11px;
+  padding: 6px;
   border-radius: 11px;
   background: #fff;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
 }
 
 .brandLogo {
   display: block;
-  height: 26px;
-  width: auto;
-  max-width: 168px;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
 }
 
@@ -406,21 +407,22 @@
 
 .mobilePlate {
   flex-shrink: 0;
+  width: 38px;
   height: 38px;
-  padding: 0 10px;
+  padding: 5px;
   border-radius: 10px;
   background: #fff;
   border: 1px solid var(--sol-border);
   box-shadow: var(--sol-shadow-xs);
   display: inline-flex;
   align-items: center;
+  justify-content: center;
 }
 
 .mobileLogo {
   display: block;
-  height: 22px;
-  width: auto;
-  max-width: 140px;
+  width: 28px;
+  height: 28px;
   object-fit: contain;
 }
 

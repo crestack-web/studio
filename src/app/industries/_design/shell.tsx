@@ -56,6 +56,7 @@ export function SolutionsShell({
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [themeReady, setThemeReady] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const collapsedPreference = useRef(false);
   const [menu, setMenu] = useState<MenuKey>(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -103,6 +104,28 @@ export function SolutionsShell({
       /* ignore */
     }
   }, [theme, themeReady]);
+
+  // Desktop breakpoints: full sidebar above 1024px, icon rail at 1024–821px.
+  // The rail is the default in the compact range, but the toggle stays available.
+  useEffect(() => {
+    try {
+      collapsedPreference.current =
+        localStorage.getItem('busmo-solutions-sidebar-collapsed') === 'true';
+    } catch {
+      collapsedPreference.current = false;
+    }
+
+    const mq = window.matchMedia('(max-width: 1024px)');
+    let wasCompact: boolean | null = null;
+    const applyBreakpoint = () => {
+      if (wasCompact === mq.matches) return;
+      wasCompact = mq.matches;
+      setCollapsed(mq.matches ? true : collapsedPreference.current);
+    };
+    applyBreakpoint();
+    mq.addEventListener?.('change', applyBreakpoint);
+    return () => mq.removeEventListener?.('change', applyBreakpoint);
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -153,6 +176,16 @@ export function SolutionsShell({
   };
 
   const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    collapsedPreference.current = next;
+    try {
+      localStorage.setItem('busmo-solutions-sidebar-collapsed', String(next));
+    } catch {
+      /* ignore */
+    }
+    setCollapsed(next);
+  };
   const mobilePrimary = suite.nav.filter((n) => n.section === 'main').slice(0, 4);
 
   return (
@@ -218,7 +251,7 @@ export function SolutionsShell({
             <button
               type="button"
               className="sol-collapse"
-              onClick={() => setCollapsed((v) => !v)}
+              onClick={toggleCollapsed}
               aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >

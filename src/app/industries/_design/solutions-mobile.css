@@ -2,9 +2,9 @@
 
 /* ── Dashboard header logos (sidebar + mobile top bar) ───────────── */
 .sol-brand-logo {
-  height: 40px !important;
-  width: auto !important;
-  max-width: 180px !important;
+  width: 34px !important;
+  height: 34px !important;
+  max-width: none !important;
   object-fit: contain !important;
 }
 
@@ -28,15 +28,20 @@
 }
 
 .sol-mobile-logo {
-  height: 32px !important;
-  width: auto !important;
-  max-width: 160px !important;
+  width: 30px !important;
+  height: 30px !important;
+  max-width: none !important;
   object-fit: contain !important;
 }
 
 .sol-brand {
   min-height: 76px !important;
   gap: 12px !important;
+}
+
+.sol-sidebar[data-collapsed='true'] .sol-brand {
+  justify-content: center !important;
+  gap: 4px !important;
 }
 
 /* Ensure mobile header matches design system class names */
@@ -194,6 +199,7 @@
 
   /* Slightly larger logos on mobile top bar */
   .sol-mobile-logo {
+    width: 34px !important;
     height: 34px !important;
   }
 }
