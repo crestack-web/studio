@@ -219,7 +219,7 @@ export function HospitalityGuests({ hrefFor }: { hrefFor: (s: string) => string 
                     <Td>
                       <div onClick={(e) => e.stopPropagation()}>
                         <Menu>
-                          {({ close }) => (
+                          {(close) => (
                             <>
                               <MenuItem onClick={() => { close(); setSelected(g); }}>View guest</MenuItem>
                               <MenuItem onClick={() => { close(); setSelected(g); setChargeOpen(true); }}>Add charge</MenuItem>
