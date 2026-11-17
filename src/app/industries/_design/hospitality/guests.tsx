@@ -97,14 +97,22 @@ export function HospitalityGuests({ hrefFor }: { hrefFor: (s: string) => string 
       id: g.id,
       vip: next,
       fullName: g.full_name,
+      phone: g.phone || undefined,
+      email: g.email || undefined,
+      notes: g.notes || undefined,
     });
     setBusy(false);
     if (!res.ok) {
       toast(res.error || 'Could not update guest');
       return;
     }
+    const newId = res.data?.guest?.id || g.id;
     toast(next ? `${g.full_name} marked VIP` : `${g.full_name} VIP removed`);
-    setSelected((s) => (s && s.id === g.id ? { ...s, vip: next } : s));
+    setSelected((s) =>
+      s && (s.id === g.id || s.full_name === g.full_name)
+        ? { ...s, id: newId, vip: next }
+        : s,
+    );
   }
 
   return (
@@ -288,8 +296,8 @@ export function HospitalityGuests({ hrefFor }: { hrefFor: (s: string) => string 
       </Sheet>
 
       <AddGuestSheet open={addOpen} onClose={() => setAddOpen(false)} />
-      <MoneySheet kind="charge" open={chargeOpen && !!selected} guest={selected} bookingId={openStay?.id} roomNumber={openStay?.room_number || ''} onClose={() => setChargeOpen(false)} />
-      <MoneySheet kind="payment" open={payOpen && !!selected} guest={selected} bookingId={openStay?.id} roomNumber={openStay?.room_number || ''} onClose={() => setPayOpen(false)} />
+      <MoneySheet kind="charge" open={chargeOpen && !!selected} guest={selected} bookingId={openStay?.id} roomNumber={openStay?.room_number || ''} balanceDue={Number(openStay?.balance_amount || 0)} stayTotal={Number(openStay?.amount || 0)} onClose={() => setChargeOpen(false)} />
+      <MoneySheet kind="payment" open={payOpen && !!selected} guest={selected} bookingId={openStay?.id} roomNumber={openStay?.room_number || ''} balanceDue={Number(openStay?.balance_amount || 0)} stayTotal={Number(openStay?.amount || 0)} onClose={() => setPayOpen(false)} />
     </>
   );
 }
@@ -359,7 +367,7 @@ function AddGuestSheet({ open, onClose }: { open: boolean; onClose: () => void }
 }
 
 function MoneySheet({
-  kind, open, onClose, guest, bookingId, roomNumber,
+  kind, open, onClose, guest, bookingId, roomNumber, balanceDue = 0, stayTotal = 0,
 }: {
   kind: 'charge' | 'payment';
   open: boolean;
@@ -367,6 +375,8 @@ function MoneySheet({
   guest: Guest | null;
   bookingId?: string;
   roomNumber: string;
+  balanceDue?: number;
+  stayTotal?: number;
 }) {
   const { toast } = useToast();
   const { mutate } = useSolutionsLive();
@@ -375,12 +385,31 @@ function MoneySheet({
   const [description, setDescription] = useState(kind === 'charge' ? 'Extra service' : 'Payment received');
   const [method, setMethod] = useState<'card' | 'transfer' | 'cash' | 'pos'>('transfer');
 
+  // Prefill payment amount with outstanding balance when opening
+  React.useEffect(() => {
+    if (!open) return;
+    if (kind === 'payment' && balanceDue > 0) {
+      setAmount(String(balanceDue));
+      setDescription(balanceDue > 0 ? 'Balance settlement' : 'Payment received');
+    } else if (kind === 'payment') {
+      setAmount('');
+      setDescription('Payment received');
+    } else {
+      setAmount('');
+      setDescription('Extra service');
+    }
+  }, [open, kind, balanceDue]);
+
   async function save() {
     const amt = Number(amount);
     if (!guest) return;
     if (!amt || amt <= 0) { toast('Enter a valid amount.'); return; }
     if (kind === 'charge' && !bookingId) {
       toast('This guest has no open stay to charge. Create a booking first.');
+      return;
+    }
+    if (kind === 'payment' && !bookingId) {
+      toast('No open stay found — open a booking to collect against a balance.');
       return;
     }
     setSaving(true);
@@ -395,6 +424,41 @@ function MoneySheet({
       setSaving(false);
       if (!res.ok) { toast(res.error || 'Could not add charge'); return; }
       toast(`Charge of ${amt.toLocaleString()} posted for ${guest.full_name}`);
+    } else if (bookingId) {
+      const res = await mutate({
+        action: 'folio_add',
+        bookingId,
+        lineType: 'payment',
+        description: description.trim() || `Payment (${method})`,
+        amount: amt,
+      });
+      if (res.ok) {
+        await mutate({
+          action: 'record_create',
+          module: 'payments',
+          title: guest.full_name,
+          amount: amt,
+          status: 'settled',
+          notes: description.trim() || null,
+          meta: {
+            guest_name: guest.full_name,
+            guest_id: guest.id,
+            room_number: roomNumber,
+            method,
+            booking_id: bookingId,
+            reference: `PAY-${Date.now().toString(36).toUpperCase()}`,
+            date: new Date().toISOString().slice(0, 10),
+          },
+        });
+      }
+      setSaving(false);
+      if (!res.ok) { toast(res.error || 'Could not record payment'); return; }
+      const remaining = Math.max(0, Number(balanceDue || 0) - amt);
+      toast(
+        remaining > 0
+          ? `Collected ₦${amt.toLocaleString()} · ₦${remaining.toLocaleString()} still due`
+          : `Collected ₦${amt.toLocaleString()} · balance settled`,
+      );
     } else {
       const res = await mutate({
         action: 'record_create',
@@ -412,18 +476,9 @@ function MoneySheet({
           date: new Date().toISOString().slice(0, 10),
         },
       });
-      if (res.ok && bookingId) {
-        await mutate({
-          action: 'folio_add',
-          bookingId,
-          lineType: 'payment',
-          description: description.trim() || `Payment (${method})`,
-          amount: amt,
-        });
-      }
       setSaving(false);
       if (!res.ok) { toast(res.error || 'Could not record payment'); return; }
-      toast(`Payment of ${amt.toLocaleString()} recorded for ${guest.full_name}`);
+      toast(`Payment of ₦${amt.toLocaleString()} recorded for ${guest.full_name}`);
     }
     setAmount('');
     onClose();
@@ -446,7 +501,31 @@ function MoneySheet({
       }
     >
       <div className="sol-form-grid">
-        <Field label="Amount (NGN)" className="full">
+        {kind === 'payment' ? (
+          <div className="full" style={{ padding: '12px 14px', borderRadius: 12, background: '#f8fafc', border: '1px solid #e2e8f0', marginBottom: 4 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#64748b' }}>
+              <span>Stay total</span>
+              <strong style={{ color: '#0f172a' }}>₦{(stayTotal || 0).toLocaleString()}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginTop: 6, fontWeight: 700, color: balanceDue > 0 ? '#b45309' : '#059669' }}>
+              <span>Balance due</span>
+              <span>₦{(balanceDue || 0).toLocaleString()}</span>
+            </div>
+            {balanceDue > 0 ? (
+              <button
+                type="button"
+                className="sol-btn sol-btn-subtle sol-btn-sm"
+                style={{ marginTop: 10, width: '100%' }}
+                onClick={() => setAmount(String(balanceDue))}
+              >
+                Collect full balance (₦{balanceDue.toLocaleString()})
+              </button>
+            ) : (
+              <p className="sol-row-sub" style={{ marginTop: 8, marginBottom: 0 }}>No outstanding balance on this stay.</p>
+            )}
+          </div>
+        ) : null}
+        <Field label={kind === 'payment' ? 'Amount to collect (NGN)' : 'Amount (NGN)'} className="full">
           <input className="sol-input" type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 15000" />
         </Field>
         <Field label="Description" className="full">
