@@ -427,7 +427,7 @@ export function HospitalityRoomService({ hrefFor }: { hrefFor: (s: string) => st
             const res = await mutate({
               action: 'room_service_create',
               title: `RS-${Date.now().toString(36).toUpperCase().slice(-6)}`,
-              status: 'received',
+              status: 'new',
               amount: 0,
               meta: {
                 code: `RS-${Date.now().toString(36).toUpperCase().slice(-6)}`,
@@ -509,8 +509,8 @@ export function HospitalityRoomService({ hrefFor }: { hrefFor: (s: string) => st
               className="sol-btn sol-btn-primary"
               onClick={async () => {
                 if (!selected) return;
-                const flow = ['received', 'preparing', 'out_for_delivery', 'delivered'] as const;
-                const idx = flow.indexOf(selected.status as any);
+                const flow = ['new', 'preparing', 'on_the_way', 'delivered'] as const;
+                const idx = Math.max(0, flow.indexOf(selected.status as any));
                 const next = flow[Math.min(idx + 1, flow.length - 1)];
                 const res = await mutate({
                   action: 'room_service_update',
