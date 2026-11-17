@@ -252,7 +252,7 @@ export function AIDrawer({
           industry: suiteId,
           productEdition: suiteId,
           patientContext: context?.patientName
-            ? { name: context.patientName, mrn: context.patientId }
+            ? { name: context.patientName }
             : undefined,
         }),
       });
