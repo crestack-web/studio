@@ -266,8 +266,23 @@
   max-width: min(92vw, 420px) !important;
   pointer-events: none !important;
 }
-.sol-toast span,
+.sol-toast span {
+  color: #f8fafc !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  line-height: 1.35 !important;
+}
 .sol-toast svg {
   color: #f8fafc !important;
-  flex-shrink: 0;
+  flex-shrink: 0 !important;
+}
+.sol-toast {
+  white-space: normal !important;
+  border-radius: 14px !important;
+  align-items: flex-start !important;
+  width: max-content !important;
+  max-width: min(92vw, 420px) !important;
 }
