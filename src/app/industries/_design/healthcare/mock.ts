@@ -203,9 +203,9 @@ export const revenueSummary = {
   target: 0,
 };
 
-export const payerMix: { name: string; value: number }[] = [];
+export const payerMix: { name: string; value: number; color?: string }[] = [];
 
-export const departmentMix: { name: string; value: number }[] = [];
+export const departmentMix: { name: string; value: number; color?: string }[] = [];
 
 /* ── Activity ─────────────────────────────────────────────────────── */
 
