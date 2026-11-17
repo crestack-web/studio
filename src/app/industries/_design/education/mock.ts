@@ -23,22 +23,22 @@ export const orgSettings: Record<string, any> = {};
 
 export const school = {
   name: 'Your school',
-  legalName: 'Crescent Academy Schools Ltd',
-  location: 'Ikeja, Lagos',
-  address: '12 Oduduwa Crescent, Ikeja GRA, Lagos',
-  phone: '+234 802 441 9070',
-  email: 'office@crescentacademy.edu.ng',
-  website: 'crescentacademy.edu.ng',
+  legalName: '',
+  location: '',
+  address: '',
+  phone: '',
+  email: '',
+  website: '',
   currency: CUR,
   term: TERM,
   session: '2026/2027',
-  ownerName: 'Mrs. Bisi Lawal',
-  ownerEmail: 'bisi@crescentacademy.edu.ng',
-  principal: 'Mrs. Bisi Lawal',
-  motto: 'Knowledge, character, service',
-  founded: '2004',
-  resumption: addDays(TODAY, -52),
-  termEnds: addDays(TODAY, 34),
+  ownerName: '',
+  ownerEmail: '',
+  principal: '',
+  motto: '',
+  founded: '',
+  resumption: TODAY,
+  termEnds: TODAY,
 };
 
 export const TERM_LABEL = TERM;
@@ -123,22 +123,7 @@ export const payments: EduPayment[] = [];
 
 /* ── Revenue series ───────────────────────────────────────────────── */
 
-export const revenueSeries: EduRevenuePoint[] = [
-  { date: addDays(TODAY, -13), billed: 1_820_000, collected: 1_410_000, enrollment: 46 },
-  { date: addDays(TODAY, -12), billed: 640_000, collected: 380_000, enrollment: 48 },
-  { date: addDays(TODAY, -11), billed: 720_000, collected: 690_000, enrollment: 47 },
-  { date: addDays(TODAY, -10), billed: 480_000, collected: 480_000, enrollment: 49 },
-  { date: addDays(TODAY, -9), billed: 910_000, collected: 610_000, enrollment: 52 },
-  { date: addDays(TODAY, -8), billed: 520_000, collected: 200_000, enrollment: 54 },
-  { date: addDays(TODAY, -7), billed: 640_000, collected: 640_000, enrollment: 53 },
-  { date: addDays(TODAY, -6), billed: 910_000, collected: 210_000, enrollment: 56 },
-  { date: addDays(TODAY, -5), billed: 690_000, collected: 300_000, enrollment: 58 },
-  { date: addDays(TODAY, -4), billed: 1_680_000, collected: 1_680_000, enrollment: 59 },
-  { date: addDays(TODAY, -3), billed: 890_000, collected: 300_000, enrollment: 61 },
-  { date: addDays(TODAY, -2), billed: 480_000, collected: 480_000, enrollment: 60 },
-  { date: addDays(TODAY, -1), billed: 1_670_000, collected: 1_670_000, enrollment: 62 },
-  { date: TODAY, billed: 480_000, collected: 240_000, enrollment: 63 },
-];
+export const revenueSeries: EduRevenuePoint[] = [];
 
 /* ── Summaries ────────────────────────────────────────────────────── */
 
@@ -238,48 +223,21 @@ export const teacherStats = {
 
 /* ── Mixes ────────────────────────────────────────────────────────── */
 
-export const levelMix = [
-  { name: 'Nursery', value: studentStats.byLevel.Nursery, color: 'var(--sol-chart-1)' },
-  { name: 'Primary', value: studentStats.byLevel.Primary, color: 'var(--sol-chart-2)' },
-  { name: 'Junior', value: studentStats.byLevel.Junior, color: 'var(--sol-chart-3)' },
-  { name: 'Senior', value: studentStats.byLevel.Senior, color: 'var(--sol-chart-4)' },
-];
+export const levelMix = [];
 
 export const classMix = classes.map((c) => ({ name: c.name, value: c.students, color: 'var(--sol-chart-1)' }));
 
 /* ── Activity ─────────────────────────────────────────────────────── */
 
-export const activity: EduActivity[] = [
-  { id: 'act-1', title: 'Fee payment received', detail: '₦950,000 from Zainab Yusuf · SS 3 Science', time: '08:12', kind: 'fees' },
-  { id: 'act-2', title: 'Attendance submitted', detail: 'SS 2 Science marked 28 present, 2 late', time: '07:58', kind: 'attendance' },
-  { id: 'act-3', title: 'New application', detail: 'Maryam Sani applied for Nursery 2', time: '07:44', kind: 'enrollment' },
-  { id: 'act-4', title: 'Offer accepted', detail: 'Zara Bello enrolled in SS 1 Science', time: 'Yesterday', kind: 'enrollment' },
-  { id: 'act-5', title: 'Teacher on leave', detail: 'Mrs. Bola Salami (Civic education) until Friday', time: 'Yesterday', kind: 'teacher' },
-  { id: 'act-6', title: 'Overdue fees flagged', detail: '2 guardians past the 14-day window', time: 'Yesterday', kind: 'alert' },
-  { id: 'act-7', title: 'Timetable updated', detail: 'SS 3 Science physics moved to Lab 3', time: '2 days ago', kind: 'class' },
-  { id: 'act-8', title: 'Guardian meeting booked', detail: 'Samuel Adeyinka · Friday 15:00', time: '2 days ago', kind: 'alert' },
-];
+export const activity: EduActivity[] = [];
 
 /* ── Reports ──────────────────────────────────────────────────────── */
 
-export const reports = [
-  { id: 'rep-1', name: 'Enrollment summary', description: 'Applications, offers and conversion by class for the current term.', cadence: 'Weekly', lastRun: '2 days ago', icon: 'graduation' },
-  { id: 'rep-2', name: 'Fees collection', description: 'Billed, collected and outstanding balances by class and guardian.', cadence: 'Daily', lastRun: 'Today', icon: 'receipt' },
-  { id: 'rep-3', name: 'Attendance register', description: 'Daily attendance rates with absence and lateness patterns.', cadence: 'Weekly', lastRun: 'Yesterday', icon: 'checklist' },
-  { id: 'rep-4', name: 'Academic performance', description: 'Average scores and subject strengths across every class.', cadence: 'Monthly', lastRun: 'Last week', icon: 'chart' },
-  { id: 'rep-5', name: 'Teacher workload', description: 'Class load, student counts and attendance by teacher.', cadence: 'Monthly', lastRun: 'Last week', icon: 'badge' },
-];
+export const reports = [];
 
 /* ── Notifications ────────────────────────────────────────────────── */
 
-export const notifications = [
-  { id: 'not-1', title: '2 fee invoices are overdue', detail: 'Fatima Bello and Samuel Adeyinka are past due.', time: '12m ago', kind: 'alert' as const, unread: true },
-  { id: 'not-2', title: 'Fee payment received', detail: '₦950,000 from Zainab Yusuf settled today.', time: '1h ago', kind: 'payment' as const, unread: true },
-  { id: 'not-3', title: 'New enrollment application', detail: 'Maryam Sani applied for Nursery 2.', time: '2h ago', kind: 'enrollment' as const, unread: true },
-  { id: 'not-4', title: 'Attendance below target', detail: 'JSS 3B dropped to 89% this week.', time: '4h ago', kind: 'alert' as const, unread: false },
-  { id: 'not-5', title: 'Offer expiring', detail: 'Oluwaseun Ajayi’s JSS 1A offer expires in 3 days.', time: 'Yesterday', kind: 'enrollment' as const, unread: false },
-  { id: 'not-6', title: 'Term calendar update', detail: 'Mid-term break now starts 4 December.', time: '2 days ago', kind: 'class' as const, unread: false },
-];
+export const notifications = [];
 
 /* ── Live hydration ───────────────────────────────────────────────────
  * The dashboard screens import the arrays and summary objects below by
