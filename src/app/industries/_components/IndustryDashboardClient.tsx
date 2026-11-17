@@ -18,7 +18,7 @@ const HOSPITALITY_PATH_ALIASES: Record<string, string> = {
 
 /** Pinned last known-good solutions design system (full file). */
 const SOLUTIONS_BASE_CSS =
-  'https://cdn.jsdelivr.net/gh/crestack-web/studio@943a72eb8fd1816e7f6c0672b3f79209e14259cf/src/app/industries/_design/solutions.css';
+  'https://cdn.jsdelivr.net/gh/crestack-web/studio@9a8fcdcbd3bddd58e03f8958262794fb8e3d8419/src/app/industries/_design/solutions.css';
 
 function sectionFromPathname(pathname: string, config: IndustryConfig, sectionProp?: string) {
   if (sectionProp && sectionProp !== 'overview') return sectionProp;
