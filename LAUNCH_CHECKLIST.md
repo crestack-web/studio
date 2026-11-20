@@ -34,7 +34,7 @@ Stack: Next.js 15 · Supabase · Paystack · Brevo · PostHog · Google AI
 - [ ] `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_SITE_URL`, `PUBLIC_APP_URL`, `PUBLIC_BRAND_HOST`
 - [ ] Paystack keys (`PAYSTACK_SECRET_KEY`, `PAYSTACK_PUBLIC_KEY`, `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY`)
 - [ ] `DEFAULT_CURRENCY`, `PAYOUT_DELAY_HOURS`
-- [ ] Brevo (`BREVO_API_KEY`, `BREVO_FROM_EMAIL`, `BREVO_FROM_NAME`) or Resend fallback (`RESEND_API_KEY`)
+- [ ] `RESEND_API_KEY` and `EMAIL_FROM` (optional Brevo fallback: `BREVO_*`)
 - [ ] `GOOGLE_GENAI_API_KEY`
 - [ ] Optional `MO_SELL_*` and PostHog variables
 

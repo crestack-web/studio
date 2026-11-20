@@ -14,6 +14,10 @@ export async function GET(req: NextRequest) {
     from: process.env.EMAIL_FROM || process.env.RESEND_FROM || 'Busmo <support@busmo.io>',
     resendConfigured: Boolean(process.env.BREVO_API_KEY || process.env.RESEND_API_KEY),
     emailConfigured: Boolean(process.env.BREVO_API_KEY || process.env.RESEND_API_KEY),
-    emailProvider: process.env.BREVO_API_KEY ? 'brevo' : process.env.RESEND_API_KEY ? 'resend' : null,
+    emailProvider: process.env.RESEND_API_KEY
+      ? 'resend'
+      : process.env.BREVO_API_KEY
+        ? 'brevo'
+        : null,
   });
 }

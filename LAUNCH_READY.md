@@ -22,7 +22,7 @@ All five industry solutions are built and wired to live Supabase data. Remaining
 | Dashboard suite switcher | Removed (dashboards are single-suite) |
 | Typecheck | Clean (`npx tsc --noEmit`) |
 | CSS delivery | Local `solutions.css` only; no external CDN dependency |
-| Transactional email | Brevo primary, Resend fallback (`brevo-service.ts`) |
+| Transactional email | Resend primary (Brevo fallback available) |
 | Service worker | `busmo-offline-v4` (old caches replaced on activate) |
 | Accessibility | Focus-visible outlines on all solutions surfaces |
 

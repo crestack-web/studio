@@ -156,9 +156,9 @@ export async function POST(request: Request) {
         htmlContent,
         sender: {
           name: 'Busmo Admin',
-          email: (process.env.BREVO_FROM_EMAIL ||
-            process.env.EMAIL_FROM ||
+          email: (process.env.EMAIL_FROM ||
             process.env.RESEND_FROM ||
+            process.env.BREVO_FROM_EMAIL ||
             'support@busmo.io')
             .replace(/^.*</, '')
             .replace(/>.*$/, '')
@@ -197,7 +197,7 @@ export async function POST(request: Request) {
         {
           success: false,
           error: missingKey
-            ? 'Email service not configured (BREVO_API_KEY or RESEND_API_KEY). Contact engineering.'
+            ? 'Email service not configured (RESEND_API_KEY). Contact engineering.'
             : 'Failed to send OTP email. Please try again.',
         },
         { status: 502 }

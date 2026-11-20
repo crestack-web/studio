@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
 
     if (!process.env.BREVO_API_KEY && !process.env.RESEND_API_KEY) {
       return NextResponse.json(
-        { error: 'No email provider is configured on the server (BREVO_API_KEY or RESEND_API_KEY)' },
+        { error: 'RESEND_API_KEY is not configured on the server' },
         { status: 503 }
       );
     }

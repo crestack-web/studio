@@ -2,15 +2,14 @@
  * Transactional email service.
  *
  * Provider order:
- *   1. Brevo  (BREVO_API_KEY)   — preferred
- *   2. Resend (RESEND_API_KEY)  — fallback
+ *   1. Resend (RESEND_API_KEY)  — production provider
+ *   2. Brevo  (BREVO_API_KEY)   — optional fallback
  *
  * Historically named brevo-service for import compatibility.
  *
  * Optional env:
- *   BREVO_FROM_EMAIL / BREVO_FROM_NAME
- *   EMAIL_FROM  (default: "Busmo <support@busmo.io>")
- *   RESEND_FROM
+ *   EMAIL_FROM / RESEND_FROM  (default: "Busmo <support@busmo.io>")
+ *   BREVO_FROM_EMAIL / BREVO_FROM_NAME  (only used on the Brevo fallback)
  */
 
 import { BUSMO_LOGO } from './email-constants';
@@ -37,18 +36,20 @@ function parseAddress(raw?: string): Sender | null {
   return null;
 }
 
-const DEFAULT_SENDER: Sender = BREVO_FROM_EMAIL
-  ? { email: BREVO_FROM_EMAIL.trim(), name: (BREVO_FROM_NAME || 'Busmo').trim() }
-  : parseAddress(process.env.EMAIL_FROM) ||
-    parseAddress(process.env.RESEND_FROM) || {
-      name: 'Busmo',
-      email: 'support@busmo.io',
-    };
+const DEFAULT_SENDER: Sender =
+  parseAddress(process.env.EMAIL_FROM) ||
+  parseAddress(process.env.RESEND_FROM) ||
+  (BREVO_FROM_EMAIL
+    ? { email: BREVO_FROM_EMAIL, name: BREVO_FROM_NAME || 'Busmo' }
+    : {
+        name: 'Busmo',
+        email: 'support@busmo.io',
+      });
 
-export const EMAIL_PROVIDER: 'brevo' | 'resend' | null = BREVO_API_KEY
-  ? 'brevo'
-  : RESEND_API_KEY
-    ? 'resend'
+export const EMAIL_PROVIDER: 'resend' | 'brevo' | null = RESEND_API_KEY
+  ? 'resend'
+  : BREVO_API_KEY
+    ? 'brevo'
     : null;
 
 export function isEmailConfigured(): boolean {
@@ -57,7 +58,7 @@ export function isEmailConfigured(): boolean {
 
 if (!EMAIL_PROVIDER && typeof window === 'undefined') {
   console.warn(
-    '[email] No email provider configured. Set BREVO_API_KEY or RESEND_API_KEY. Transactional emails will fail until one is configured.'
+    '[email] RESEND_API_KEY is not set. Set RESEND_API_KEY (or BREVO_API_KEY as a fallback). Transactional emails will fail until one is configured.'
   );
 }
 
@@ -104,7 +105,7 @@ function formatFrom(sender?: { name: string; email: string }): string {
   return `${resolved.name} <${resolved.email}>`;
 }
 
-// ── Core send (Brevo → Resend fallback) ──────────────────────
+// ── Core send (Resend → Brevo fallback) ──────────────────────
 
 async function sendViaBrevo(
   email: TransactionalEmail,
@@ -214,7 +215,7 @@ async function sendViaResend(
 
 /**
  * Send a transactional email.
- * Uses Brevo when BREVO_API_KEY is set, otherwise Resend.
+ * Uses Resend when RESEND_API_KEY is set, with Brevo as a fallback.
  * Used by every template in src/services/email/* and API routes.
  */
 export async function sendTransactionalEmail(
@@ -222,7 +223,7 @@ export async function sendTransactionalEmail(
 ): Promise<{ id: string }> {
   if (!EMAIL_PROVIDER) {
     throw new Error(
-      'Email is not configured. Set BREVO_API_KEY or RESEND_API_KEY in the environment.'
+      'Email is not configured. Set RESEND_API_KEY (or BREVO_API_KEY as a fallback) in the environment.'
     );
   }
 
@@ -240,9 +241,9 @@ export async function sendTransactionalEmail(
     throw new Error('sendTransactionalEmail: recipient email addresses are required');
   }
 
-  return EMAIL_PROVIDER === 'brevo'
-    ? sendViaBrevo(email, to)
-    : sendViaResend(email, to);
+  return EMAIL_PROVIDER === 'resend'
+    ? sendViaResend(email, to)
+    : sendViaBrevo(email, to);
 }
 
 // ── Campaign / contact stubs (not used for transactional sends) ─

@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
     if (!process.env.BREVO_API_KEY && !process.env.RESEND_API_KEY) {
       console.error('[staff/stock-alert] No email provider configured');
       return NextResponse.json(
-        { error: 'Email service not configured (BREVO_API_KEY or RESEND_API_KEY)' },
+        { error: 'Email service not configured (RESEND_API_KEY)' },
         { status: 503 }
       );
     }

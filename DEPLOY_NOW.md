@@ -53,13 +53,12 @@ NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY=
 DEFAULT_CURRENCY=NGN
 PAYOUT_DELAY_HOURS=24
 
-# Email (Brevo preferred; Resend is a fallback)
+# Email — Resend (production provider; Brevo is an optional fallback)
+RESEND_API_KEY=
+EMAIL_FROM=Busmo <support@busmo.io>
 BREVO_API_KEY=
 BREVO_FROM_EMAIL=
 BREVO_FROM_NAME=Busmo
-# Optional fallback if Brevo is not used
-RESEND_API_KEY=
-EMAIL_FROM=Busmo <support@busmo.io>
 
 # AI (Mo)
 GOOGLE_GENAI_API_KEY=
