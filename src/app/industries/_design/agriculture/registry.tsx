@@ -19,6 +19,7 @@ import {
 import { Icon } from '../icons';
 import { fmtDate, money } from '../format';
 import { useSolutionsLive } from '../live';
+import { toastInviteResult } from '../invite-feedback';
 import type { AgriRecord } from './mock';
 
 export type ResourceFieldType = 'text' | 'number' | 'date' | 'select';
@@ -62,6 +63,11 @@ export type ResourceConfig = {
   searchKeys?: string[];
   /** Returns the next status for the row action, or null when it has no next step. */
   nextStatus?: (row: AgriRecord) => string | null;
+  /** Sends a workspace invitation email after a record with an email meta key is created. */
+  invite?: {
+    emailKey: string;
+    nameKey?: string;
+  };
 };
 
 function nextInList(current: string, options: string[]): string {
@@ -144,6 +150,13 @@ export function ResourceScreen({ config, rows }: { config: ResourceConfig; rows:
       toast(`Enter a ${config.singular.toLowerCase()} name.`);
       return;
     }
+    const inviteEmail = config.invite
+      ? String(values[config.invite.emailKey] ?? '').trim().toLowerCase()
+      : '';
+    if (config.invite && (!inviteEmail || !inviteEmail.includes('@'))) {
+      toast(`Enter a valid email to invite this ${config.singular.toLowerCase()}.`);
+      return;
+    }
     const meta: Record<string, any> = {};
     for (const field of formFields) {
       if (field.key === titleKey || field.key === amountKey || field.key === 'status') continue;
@@ -168,7 +181,15 @@ export function ResourceScreen({ config, rows }: { config: ResourceConfig; rows:
       toast(res.error || `Could not add the ${config.singular.toLowerCase()}.`);
       return;
     }
-    toast(`${config.singular} added.`);
+    if (config.invite) {
+      toastInviteResult(toast, {
+        staffName: String(values[config.invite.nameKey || titleKey] ?? title).trim() || config.singular,
+        email: inviteEmail,
+        result: res,
+      });
+    } else {
+      toast(`${config.singular} added.`);
+    }
     setOpen(false);
   };
 

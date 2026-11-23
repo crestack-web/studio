@@ -8,6 +8,7 @@ import {
   Card,
   Field,
   PageHeader,
+  Sheet,
   StatusBadge,
   Switch,
   TableWrap,
@@ -19,6 +20,7 @@ import { Icon } from '../icons';
 import { money } from '../format';
 import { firm, orgSettings, team } from './mock';
 import { useSolutionsLive } from '../live';
+import { toastInviteResult } from '../invite-feedback';
 
 /* ── Business settings ────────────────────────────────────────────── */
 
@@ -266,10 +268,39 @@ export function ProfessionalBusinessSettings() {
 
 export function ProfessionalAccount() {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
   const [name, setName] = useState(firm.ownerName);
   const [email, setEmail] = useState(firm.ownerEmail);
   const [twoFactor, setTwoFactor] = useState(true);
   const [emails, setEmails] = useState(true);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteSaving, setInviteSaving] = useState(false);
+  const [inviteForm, setInviteForm] = useState({ name: '', email: '', discipline: 'Design' });
+
+  const inviteStaff = async () => {
+    const staffName = inviteForm.name.trim();
+    const staffEmail = inviteForm.email.trim().toLowerCase();
+    if (!staffName || !staffEmail || !staffEmail.includes('@')) {
+      toast('Add a name and valid email to send the invite.');
+      return;
+    }
+    setInviteSaving(true);
+    const res = await mutate({
+      action: 'record_create',
+      module: 'team',
+      title: staffName,
+      status: 'active',
+      meta: { email: staffEmail, discipline: inviteForm.discipline },
+    });
+    setInviteSaving(false);
+    if (!res.ok) {
+      toast(res.error || 'Could not add the team member.');
+      return;
+    }
+    toastInviteResult(toast, { staffName, email: staffEmail, result: res });
+    setInviteForm({ name: '', email: '', discipline: 'Design' });
+    setInviteOpen(false);
+  };
 
   return (
     <>
@@ -387,7 +418,7 @@ export function ProfessionalAccount() {
           <button
             type="button"
             className="sol-btn sol-btn-subtle sol-btn-sm"
-            onClick={() => toast('Invite flow opened.')}
+            onClick={() => setInviteOpen(true)}
           >
             <Icon name="plus" size={14} /> Invite
           </button>
@@ -431,6 +462,55 @@ export function ProfessionalAccount() {
           Workspace healthy · {team.filter((m) => m.status === 'active').length} active seats
         </Badge>
       </div>
+
+      <Sheet
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        title="Invite a team member"
+        subtitle="They will get an email to join the workspace."
+        width={440}
+        footer={
+          <>
+            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => setInviteOpen(false)}>
+              Cancel
+            </button>
+            <button type="button" className="sol-btn sol-btn-primary" onClick={inviteStaff} disabled={inviteSaving}>
+              {inviteSaving ? 'Sending…' : 'Send invite'}
+            </button>
+          </>
+        }
+      >
+        <div className="sol-form-grid">
+          <Field label="Full name" className="full">
+            <input
+              className="sol-input"
+              value={inviteForm.name}
+              onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
+              placeholder="e.g. Ada Okafor"
+            />
+          </Field>
+          <Field label="Work email" className="full">
+            <input
+              type="email"
+              className="sol-input"
+              value={inviteForm.email}
+              onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+              placeholder="name@firm.com"
+            />
+          </Field>
+          <Field label="Discipline" className="full">
+            <select
+              className="sol-select"
+              value={inviteForm.discipline}
+              onChange={(e) => setInviteForm({ ...inviteForm, discipline: e.target.value })}
+            >
+              {['Design', 'Engineering', 'Strategy', 'Content', 'Operations'].map((d) => (
+                <option key={d}>{d}</option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      </Sheet>
     </>
   );
 }

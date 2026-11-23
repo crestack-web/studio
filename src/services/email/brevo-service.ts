@@ -359,6 +359,58 @@ export async function sendStaffInvitationEmail(
   });
 }
 
+/**
+ * Invitation used by the industry solution dashboards.
+ *
+ * Unlike the owner-dashboard staff invite, these workspaces do not create an
+ * auth user or generate a temporary password, so the email only confirms the
+ * invite and points the recipient at the staff login.
+ */
+export async function sendSolutionStaffInvitationEmail(
+  email: string,
+  staffName: string,
+  businessName: string,
+  suiteName: string
+): Promise<any> {
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    'https://www.busmo.io';
+  const loginUrl = `${appUrl.replace(/\/$/, '')}/login/staff`;
+  const suiteLabel = suiteName || 'Busmo';
+  const workspaceName = businessName || 'your workspace';
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html><head><meta charset="utf-8"></head>
+    <body style="font-family:Arial,sans-serif;padding:24px;background:#f4f4f4">
+      <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
+        <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:32px;text-align:center;color:#fff">
+          <img src="${BUSMO_LOGO}" alt="Busmo" width="56" height="56" style="border-radius:12px;margin-bottom:16px;" />
+          <h1 style="margin:0;font-size:22px">You're invited to join ${workspaceName}</h1>
+        </div>
+        <div style="padding:32px;color:#333;line-height:1.55">
+          <p>Hi ${staffName},</p>
+          <p>You've been added to <strong>${workspaceName}</strong> on ${suiteLabel} as a team member.</p>
+          <p style="margin-bottom:8px"><strong>Your login email</strong></p>
+          <p style="margin-top:0;font-family:monospace;background:#f8f7ff;padding:10px 14px;border-radius:8px">${email}</p>
+          <p>If you already have a Busmo account, sign in with this address. Otherwise, follow the staff login link and use the access details shared by your workspace owner.</p>
+          <p style="margin:28px 0">
+            <a href="${loginUrl}" style="display:inline-block;padding:12px 28px;background:#667eea;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Open staff login</a>
+          </p>
+          <p style="font-size:13px;color:#888">If the button doesn't work, go to:<br/><a href="${loginUrl}">${loginUrl}</a></p>
+          <p>Best regards,<br>The Busmo Team</p>
+        </div>
+      </div>
+    </body></html>`;
+
+  return sendTransactionalEmail({
+    to: [{ email, name: staffName }],
+    subject: `You're invited to join ${workspaceName} on ${suiteLabel}`,
+    htmlContent,
+  });
+}
+
 export async function sendPasswordResetEmail(
   email: string,
   name: string,

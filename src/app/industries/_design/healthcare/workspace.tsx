@@ -8,6 +8,7 @@ import {
   Card,
   Field,
   PageHeader,
+  Sheet,
   StatusBadge,
   Switch,
   TableWrap,
@@ -19,6 +20,7 @@ import { Icon } from '../icons';
 import { money } from '../format';
 import { clinic, clinicians, orgSettings, patients } from './mock';
 import { useSolutionsLive } from '../live';
+import { toastInviteResult } from '../invite-feedback';
 
 /* ── Clinic settings ──────────────────────────────────────────────── */
 
@@ -293,10 +295,40 @@ export function HealthcareClinicSettings() {
 
 export function HealthcareAccount() {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
   const [name, setName] = useState(clinic.ownerName);
   const [email, setEmail] = useState(clinic.ownerEmail);
   const [twoFactor, setTwoFactor] = useState(true);
   const [emails, setEmails] = useState(true);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteSaving, setInviteSaving] = useState(false);
+  const [inviteForm, setInviteForm] = useState({ name: '', email: '', role: 'Staff nurse' });
+
+  const inviteStaff = async () => {
+    const staffName = inviteForm.name.trim();
+    const staffEmail = inviteForm.email.trim().toLowerCase();
+    if (!staffName || !staffEmail || !staffEmail.includes('@')) {
+      toast('Add a name and valid email to send the invite.');
+      return;
+    }
+    setInviteSaving(true);
+    const res = await mutate({
+      action: 'staff_create',
+      fullName: staffName,
+      email: staffEmail,
+      role: inviteForm.role.trim() || 'Staff nurse',
+      department: 'Nursing',
+      status: 'off_duty',
+    });
+    setInviteSaving(false);
+    if (!res.ok) {
+      toast(res.error || 'Could not add the staff member.');
+      return;
+    }
+    toastInviteResult(toast, { staffName, email: staffEmail, result: res });
+    setInviteForm({ name: '', email: '', role: 'Staff nurse' });
+    setInviteOpen(false);
+  };
 
   return (
     <>
@@ -407,7 +439,7 @@ export function HealthcareAccount() {
           <button
             type="button"
             className="sol-btn sol-btn-subtle sol-btn-sm"
-            onClick={() => toast('Invite flow opened.')}
+            onClick={() => setInviteOpen(true)}
           >
             <Icon name="plus" size={14} /> Invite
           </button>
@@ -450,6 +482,51 @@ export function HealthcareAccount() {
           Workspace healthy
         </Badge>
       </div>
+
+      <Sheet
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        title="Invite a staff member"
+        subtitle="They will get an email to join the clinic workspace."
+        width={440}
+        footer={
+          <>
+            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => setInviteOpen(false)}>
+              Cancel
+            </button>
+            <button type="button" className="sol-btn sol-btn-primary" onClick={inviteStaff} disabled={inviteSaving}>
+              {inviteSaving ? 'Sending…' : 'Send invite'}
+            </button>
+          </>
+        }
+      >
+        <div className="sol-form-grid">
+          <Field label="Full name" className="full">
+            <input
+              className="sol-input"
+              value={inviteForm.name}
+              onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
+              placeholder="e.g. Dr. Amina Sule"
+            />
+          </Field>
+          <Field label="Work email" className="full">
+            <input
+              type="email"
+              className="sol-input"
+              value={inviteForm.email}
+              onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+              placeholder="name@clinic.com"
+            />
+          </Field>
+          <Field label="Role" className="full">
+            <input
+              className="sol-input"
+              value={inviteForm.role}
+              onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value })}
+            />
+          </Field>
+        </div>
+      </Sheet>
     </>
   );
 }

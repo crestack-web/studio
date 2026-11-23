@@ -326,12 +326,14 @@ const teamConfig: ResourceConfig = {
   description: 'Farm staff, their assignments and current availability.',
   fields: [
     { key: 'title', label: 'Full name', placeholder: 'e.g. Alhaji Musa Bello' },
+    { key: 'email', label: 'Work email', placeholder: 'name@greenfieldfarms.com' },
     { key: 'role', label: 'Role', type: 'select', options: ['Farm manager', 'Agronomist', 'Field supervisor', 'Processing lead', 'Mechanic', 'Store keeper'] },
     { key: 'phone', label: 'Phone', placeholder: '+234 …' },
     { key: 'area', label: 'Area', placeholder: 'e.g. Main estate' },
   ],
   columns: [
     { key: 'title', label: 'Member' },
+    { key: 'email', label: 'Email' },
     { key: 'role', label: 'Role' },
     { key: 'area', label: 'Area' },
     { key: 'phone', label: 'Phone' },
@@ -339,7 +341,8 @@ const teamConfig: ResourceConfig = {
   ],
   statusOptions: ['active', 'on_leave', 'inactive'],
   primarySub: 'role',
-  searchKeys: ['role', 'area', 'phone'],
+  searchKeys: ['role', 'area', 'phone', 'email'],
+  invite: { emailKey: 'email', nameKey: 'title' },
 };
 
 /* ── Screens ───────────────────────────────────────────────────────── */

@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Avatar, Badge, Banner, Card, Field, PageHeader, Switch, TableWrap, Td, Th, useToast } from '../primitives';
+import { Avatar, Badge, Banner, Card, Field, PageHeader, Sheet, Switch, TableWrap, Td, Th, useToast } from '../primitives';
 import { Icon } from '../icons';
 import { classes, orgSettings, school, teachers } from './mock';
 import { useSolutionsLive } from '../live';
+import { toastInviteResult } from '../invite-feedback';
 
 /* ── School settings ───────────────────────────────────────────────── */
 
@@ -195,10 +196,39 @@ export function EducationSchoolSettings() {
 
 export function EducationAccount() {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
   const [name, setName] = useState(school.ownerName);
   const [email, setEmail] = useState(school.ownerEmail);
   const [twoFactor, setTwoFactor] = useState(true);
   const [digest, setDigest] = useState(true);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteSaving, setInviteSaving] = useState(false);
+  const [inviteForm, setInviteForm] = useState({ name: '', email: '', subject: '' });
+
+  const inviteStaff = async () => {
+    const staffName = inviteForm.name.trim();
+    const staffEmail = inviteForm.email.trim().toLowerCase();
+    if (!staffName || !staffEmail || !staffEmail.includes('@')) {
+      toast('Add a name and valid email to send the invite.');
+      return;
+    }
+    setInviteSaving(true);
+    const res = await mutate({
+      action: 'record_create',
+      module: 'teachers',
+      title: staffName,
+      status: 'active',
+      meta: { email: staffEmail, subject: inviteForm.subject.trim() },
+    });
+    setInviteSaving(false);
+    if (!res.ok) {
+      toast(res.error || 'Could not add the teacher.');
+      return;
+    }
+    toastInviteResult(toast, { staffName, email: staffEmail, result: res });
+    setInviteForm({ name: '', email: '', subject: '' });
+    setInviteOpen(false);
+  };
 
   return (
     <>
@@ -302,7 +332,7 @@ export function EducationAccount() {
         subtitle={`${teachers.length} teachers on the roster`}
         className="sol-mt-3"
         action={
-          <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => toast('Invite flow opened.')}>
+          <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => setInviteOpen(true)}>
             <Icon name="plus" size={14} aria-hidden /> Invite
           </button>
         }
@@ -336,6 +366,52 @@ export function EducationAccount() {
           </table>
         </TableWrap>
       </Card>
+
+      <Sheet
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        title="Invite a teacher"
+        subtitle="They will get an email to join the school workspace."
+        width={440}
+        footer={
+          <>
+            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => setInviteOpen(false)}>
+              Cancel
+            </button>
+            <button type="button" className="sol-btn sol-btn-primary" onClick={inviteStaff} disabled={inviteSaving}>
+              {inviteSaving ? 'Sending…' : 'Send invite'}
+            </button>
+          </>
+        }
+      >
+        <div className="sol-form-grid">
+          <Field label="Full name" className="full">
+            <input
+              className="sol-input"
+              value={inviteForm.name}
+              onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
+              placeholder="e.g. Mrs. Ngozi Eze"
+            />
+          </Field>
+          <Field label="Work email" className="full">
+            <input
+              type="email"
+              className="sol-input"
+              value={inviteForm.email}
+              onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+              placeholder="name@school.edu.ng"
+            />
+          </Field>
+          <Field label="Subject" className="full">
+            <input
+              className="sol-input"
+              value={inviteForm.subject}
+              onChange={(e) => setInviteForm({ ...inviteForm, subject: e.target.value })}
+              placeholder="e.g. Mathematics"
+            />
+          </Field>
+        </div>
+      </Sheet>
     </>
   );
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/app/api/mo-sales/_auth';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { loadIndustrySession } from '@/lib/industries/session';
+import { notifySolutionStaffInvite } from '@/lib/industries/staff-invite';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -229,7 +230,20 @@ export async function POST(req: NextRequest) {
   if (action === 'record_create') {
     const res = await insertRecord(admin, businessId, body);
     if ('error' in res) return NextResponse.json({ error: res.error }, { status: res.status });
-    return NextResponse.json({ ok: true, record: res.record });
+
+    const meta = body.meta && typeof body.meta === 'object' ? (body.meta as Record<string, any>) : {};
+    const inviteEmail = String(meta.email || '').trim();
+    const invite =
+      String(body.module || '') === 'team' && inviteEmail
+        ? await notifySolutionStaffInvite({
+            email: inviteEmail,
+            staffName: String(body.title || 'there'),
+            businessName: c.businessName,
+            suiteName: 'Busmo Agriculture',
+          })
+        : null;
+
+    return NextResponse.json({ ok: true, record: res.record, businessName: c.businessName, ...(invite || {}) });
   }
 
   if (action === 'record_update') {

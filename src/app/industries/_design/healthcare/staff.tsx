@@ -17,6 +17,7 @@ import {
 import { Icon } from '../icons';
 import { clinicians, clinic } from './mock';
 import { useSolutionsLive } from '../live';
+import { toastInviteResult } from '../invite-feedback';
 import type { Clinician, ClinicianStatus } from '../types';
 
 type Filter = 'all' | ClinicianStatus;
@@ -35,17 +36,30 @@ export function HealthcareStaff() {
   const [selected, setSelected] = useState<Clinician | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ name: '', role: 'Staff nurse', department: 'Nursing', shift: 'Morning' });
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    role: 'Staff nurse',
+    department: 'Nursing',
+    shift: 'Morning',
+  });
 
   const invite = async () => {
-    if (!form.name.trim()) {
+    const name = form.name.trim();
+    const email = form.email.trim().toLowerCase();
+    if (!name) {
       toast('Enter the staff member’s name to continue.');
+      return;
+    }
+    if (!email || !email.includes('@')) {
+      toast('Enter a valid work email so we can send the invitation.');
       return;
     }
     setSaving(true);
     const res = await mutate({
       action: 'staff_create',
-      fullName: form.name.trim(),
+      fullName: name,
+      email,
       role: form.role,
       department: form.department,
       shift: form.shift,
@@ -56,8 +70,13 @@ export function HealthcareStaff() {
       toast(res.error || 'Could not add the staff member.');
       return;
     }
-    toast(`${form.name.trim()} added to ${clinic.name}.`);
-    setForm({ ...form, name: '' });
+    toastInviteResult(toast, {
+      staffName: name,
+      email,
+      result: res,
+      addedLabel: `added to ${clinic.name}`,
+    });
+    setForm({ ...form, name: '', email: '' });
     setInviteOpen(false);
   };
 
@@ -305,6 +324,15 @@ export function HealthcareStaff() {
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="e.g. Dr. Amina Sule"
+            />
+          </Field>
+          <Field label="Work email" className="full">
+            <input
+              type="email"
+              className="sol-input"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              placeholder="name@clinic.com"
             />
           </Field>
           <Field label="Role">

@@ -33,6 +33,7 @@ import {
   tasks,
 } from './mock';
 import { useSolutionsLive } from '../live';
+import { toastInviteResult } from '../invite-feedback';
 import type { HousekeepingRoom, HotelTask, RoomServiceOrder, StaffMember } from '../types';
 
 /* ── Housekeeping ─────────────────────────────────────────────────── */
@@ -600,12 +601,59 @@ export function HospitalityRoomService({ hrefFor }: { hrefFor: (s: string) => st
 
 export function HospitalityStaff({ hrefFor }: { hrefFor: (s: string) => string }) {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
   const [query, setQuery] = useState('');
   const [dept, setDept] = useState('all');
   const [selected, setSelected] = useState<StaffMember | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    department: 'Front office',
+    shift: 'Morning',
+  });
 
-  const departments = useMemo(() => Array.from(new Set(staff.map((s) => s.department))), []);
+  const departments = Array.from(
+    new Set([
+      ...staff.map((s) => s.department),
+      'Front office',
+      'Housekeeping',
+      'Food & beverage',
+      'Maintenance',
+    ])
+  ).filter(Boolean);
+
+  const invite = async () => {
+    const name = form.name.trim();
+    const email = form.email.trim().toLowerCase();
+    if (!name) {
+      toast('Enter the staff member’s name to continue.');
+      return;
+    }
+    if (!email || !email.includes('@')) {
+      toast('Enter a valid work email so we can send the invitation.');
+      return;
+    }
+    setSaving(true);
+    const res = await mutate({
+      action: 'staff_create',
+      fullName: name,
+      email,
+      role: 'Team member',
+      department: form.department,
+      shift: form.shift,
+      status: 'invited',
+    });
+    setSaving(false);
+    if (!res.ok) {
+      toast(res.error || 'Could not invite the staff member.');
+      return;
+    }
+    toastInviteResult(toast, { staffName: name, email, result: res });
+    setForm({ name: '', email: '', department: departments[0] || 'Front office', shift: 'Morning' });
+    setAddOpen(false);
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -764,20 +812,52 @@ export function HospitalityStaff({ hrefFor }: { hrefFor: (s: string) => string }
         footer={
           <>
             <button type="button" className="sol-btn sol-btn-ghost" onClick={() => setAddOpen(false)}>Cancel</button>
-            <button type="button" className="sol-btn sol-btn-primary" onClick={() => { toast('Invitation sent.'); setAddOpen(false); }}>Send invite</button>
+            <button
+              type="button"
+              className="sol-btn sol-btn-primary"
+              onClick={invite}
+              disabled={saving}
+            >
+              {saving ? 'Sending…' : 'Send invite'}
+            </button>
           </>
         }
       >
         <div className="sol-form-grid">
-          <Field label="Full name" className="full"><input className="sol-input" placeholder="e.g. Tolu Ade" /></Field>
-          <Field label="Email" className="full"><input className="sol-input" placeholder="name@hotel.com" /></Field>
+          <Field label="Full name" className="full">
+            <input
+              className="sol-input"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="e.g. Tolu Ade"
+            />
+          </Field>
+          <Field label="Email" className="full">
+            <input
+              type="email"
+              className="sol-input"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              placeholder="name@hotel.com"
+            />
+          </Field>
           <Field label="Department">
-            <select className="sol-select">
+            <select
+              className="sol-select"
+              value={form.department}
+              onChange={(e) => setForm({ ...form, department: e.target.value })}
+            >
               {departments.map((d) => <option key={d}>{d}</option>)}
             </select>
           </Field>
           <Field label="Shift">
-            <select className="sol-select"><option>Morning</option><option>Evening</option><option>Night</option></select>
+            <select
+              className="sol-select"
+              value={form.shift}
+              onChange={(e) => setForm({ ...form, shift: e.target.value })}
+            >
+              {['Morning', 'Evening', 'Night'].map((s) => <option key={s}>{s}</option>)}
+            </select>
           </Field>
         </div>
       </Sheet>

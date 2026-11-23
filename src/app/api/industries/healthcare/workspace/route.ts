@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/app/api/mo-sales/_auth';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { loadIndustrySession } from '@/lib/industries/session';
+import { notifySolutionStaffInvite } from '@/lib/industries/staff-invite';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -526,7 +527,18 @@ export async function POST(req: NextRequest) {
       : admin.from('healthcare_staff').insert({ business_id: businessId, ...payload });
     const { data, error } = await query.select('*').single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, staff: data });
+
+    const invite =
+      !isUpdate && String(payload.email || '')
+        ? await notifySolutionStaffInvite({
+            email: String(payload.email),
+            staffName: fullName || 'there',
+            businessName: c.businessName,
+            suiteName: 'Busmo Healthcare',
+          })
+        : null;
+
+    return NextResponse.json({ ok: true, staff: data, businessName: c.businessName, ...(invite || {}) });
   }
 
   if (action === 'billing_create' || action === 'billing_update') {

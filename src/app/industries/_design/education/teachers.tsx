@@ -19,10 +19,13 @@ import {
   useToast,
 } from '../primitives';
 import { Icon } from '../icons';
+import { useSolutionsLive } from '../live';
+import { toastInviteResult } from '../invite-feedback';
 import { teacherStats, teachers } from './mock';
 
 export function EducationTeachers() {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
   const [addOpen, setAddOpen] = useState(false);
@@ -54,18 +57,38 @@ export function EducationTeachers() {
     return (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [key]: e.target.value }));
   }
 
-  function addTeacher() {
-    if (!form.full_name.trim() || !form.subject.trim()) {
+  async function addTeacher() {
+    const name = form.full_name.trim();
+    const email = form.email.trim().toLowerCase();
+    if (!name || !form.subject.trim()) {
       toast('Enter the teacher name and subject.');
       return;
     }
+    if (!email || !email.includes('@')) {
+      toast('Enter a valid email so we can send the invitation.');
+      return;
+    }
     setSaving(true);
-    window.setTimeout(() => {
-      setSaving(false);
-      setAddOpen(false);
-      toast(`${form.full_name.trim()} added to the faculty roster.`);
-      setForm({ full_name: '', email: '', phone: '', subject: '', qualification: '' });
-    }, 500);
+    const res = await mutate({
+      action: 'record_create',
+      module: 'teachers',
+      title: name,
+      status: 'active',
+      meta: {
+        email,
+        phone: form.phone.trim(),
+        subject: form.subject.trim(),
+        qualification: form.qualification.trim(),
+      },
+    });
+    setSaving(false);
+    if (!res.ok) {
+      toast(res.error || 'Could not add the teacher.');
+      return;
+    }
+    toastInviteResult(toast, { staffName: name, email, result: res, addedLabel: 'added to the faculty roster' });
+    setAddOpen(false);
+    setForm({ full_name: '', email: '', phone: '', subject: '', qualification: '' });
   }
 
   return (

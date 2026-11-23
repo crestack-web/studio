@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/app/api/mo-sales/_auth';
 import { getSupabaseAdmin } from '@/lib/supabase-server';
 import { loadIndustrySession } from '@/lib/industries/session';
+import { notifySolutionStaffInvite } from '@/lib/industries/staff-invite';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -323,7 +324,20 @@ export async function POST(req: NextRequest) {
       .select('*')
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, record: data });
+
+    const meta = body.meta && typeof body.meta === 'object' ? (body.meta as Record<string, any>) : {};
+    const inviteEmail = String(meta.email || '').trim();
+    const invite =
+      moduleName === 'team' && inviteEmail
+        ? await notifySolutionStaffInvite({
+            email: inviteEmail,
+            staffName: title,
+            businessName: c.businessName,
+            suiteName: 'Busmo Professional',
+          })
+        : null;
+
+    return NextResponse.json({ ok: true, record: data, businessName: c.businessName, ...(invite || {}) });
   }
 
   if (action === 'record_update') {

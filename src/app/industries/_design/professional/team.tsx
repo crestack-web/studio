@@ -22,6 +22,8 @@ import {
 import { BarsChart } from '../charts';
 import { Icon } from '../icons';
 import { compactMoney, fmtDate, money } from '../format';
+import { useSolutionsLive } from '../live';
+import { toastInviteResult } from '../invite-feedback';
 import { projects, team, timeStats } from './mock';
 import type { ProMember } from '../types';
 
@@ -38,6 +40,8 @@ const DISCIPLINES: { id: Discipline; label: string }[] = [
 
 export function ProfessionalTeam() {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
+  const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState<Discipline>('all');
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<ProMember | null>(null);
@@ -76,12 +80,33 @@ export function ProfessionalTeam() {
     ? projects.filter((p) => p.team.includes(selected.full_name))
     : [];
 
-  const invite = () => {
-    if (!form.name.trim() || !form.email.trim()) {
-      toast('Add a name and email to send the invite.');
+  const invite = async () => {
+    const name = form.name.trim();
+    const email = form.email.trim().toLowerCase();
+    if (!name || !email || !email.includes('@')) {
+      toast('Add a name and valid email to send the invite.');
       return;
     }
-    toast(`Invite sent to ${form.email.trim()}.`);
+    setSaving(true);
+    const res = await mutate({
+      action: 'record_create',
+      module: 'team',
+      title: name,
+      status: 'active',
+      amount: Number(form.rate) || 0,
+      meta: {
+        email,
+        role: form.role.trim(),
+        discipline: form.discipline,
+        rate: Number(form.rate) || 0,
+      },
+    });
+    setSaving(false);
+    if (!res.ok) {
+      toast(res.error || 'Could not add the team member.');
+      return;
+    }
+    toastInviteResult(toast, { staffName: name, email, result: res });
     setInviteOpen(false);
     setForm({ name: '', email: '', role: '', discipline: 'Design', rate: '45000' });
   };
@@ -461,8 +486,8 @@ export function ProfessionalTeam() {
             <button type="button" className="sol-btn sol-btn-subtle" onClick={() => setInviteOpen(false)}>
               Cancel
             </button>
-            <button type="button" className="sol-btn sol-btn-primary" onClick={invite}>
-              <Icon name="mail" size={15} /> Send invite
+            <button type="button" className="sol-btn sol-btn-primary" onClick={invite} disabled={saving}>
+              <Icon name="mail" size={15} /> {saving ? 'Sending…' : 'Send invite'}
             </button>
           </>
         }
