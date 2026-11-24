@@ -20,6 +20,7 @@ import {
 } from '../primitives';
 import { Icon } from '../icons';
 import { fmtDate, money } from '../format';
+import { copyText } from '../action-helpers';
 import {
   hotel,
   orgSettings,
@@ -74,10 +75,10 @@ export function HospitalityWebsite({ hrefFor }: { hrefFor: (s: string) => string
         subtitle="A direct-booking site that stays in sync with rooms, rates and availability."
         actions={
           <>
-            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => toast('Website link copied.')}>
+            <button type="button" className="sol-btn sol-btn-subtle" onClick={async () => { const ok = await copyText(`https://${hotel.website}`); toast(ok ? 'Website link copied.' : 'Could not copy link.'); }}>
               <Copy size={15} aria-hidden /> Copy link
             </button>
-            <button type="button" className="sol-btn sol-btn-primary" onClick={() => toast('Opening site preview…')}>
+            <button type="button" className="sol-btn sol-btn-primary" onClick={() => (()=>{if(typeof window!=='undefined'&&hotel?.website)window.open(`https://${hotel.website}`,'_blank','noopener,noreferrer'); else toast('No website configured.');})()}>
               <ExternalLink size={15} aria-hidden /> Visit site
             </button>
           </>
@@ -302,7 +303,7 @@ export function HospitalityHotelSettings({ hrefFor }: { hrefFor: (s: string) => 
       </div>
 
       <Banner tone="amber" icon="help" title="Danger zone" action={
-        <button type="button" className="sol-btn sol-btn-danger sol-btn-sm" onClick={() => toast('This action needs owner confirmation.')}>
+        <button type="button" className="sol-btn sol-btn-danger sol-btn-sm" onClick={() => { if(window.confirm('Close this property? This should only be done by the owner.')) toast('Contact support to close the property workspace.'); }}>
           Close property
         </button>
       }>

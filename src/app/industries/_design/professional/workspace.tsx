@@ -21,6 +21,7 @@ import { money } from '../format';
 import { firm, orgSettings, team } from './mock';
 import { useSolutionsLive } from '../live';
 import { toastInviteResult } from '../invite-feedback';
+import { mailto } from '../action-helpers';
 
 /* ── Business settings ────────────────────────────────────────────── */
 
@@ -251,7 +252,7 @@ export function ProfessionalBusinessSettings() {
           <button
             type="button"
             className="sol-btn sol-btn-danger sol-btn-sm"
-            onClick={() => toast('This action needs owner confirmation.')}
+            onClick={() => { if(window.confirm('Close this workspace? This should only be done by the owner.')) toast('Contact support to close the workspace.'); }}
           >
             Close workspace
           </button>
@@ -313,7 +314,7 @@ export function ProfessionalAccount() {
         title="Account"
         subtitle="Your profile, security and notification preferences."
         actions={
-          <button type="button" className="sol-btn sol-btn-primary" onClick={() => toast('Account updated.')}>
+          <button type="button" className="sol-btn sol-btn-primary" onClick={async () => { const res = await mutate({ action: 'settings_save', ownerName: name.trim(), ownerEmail: email.trim(), dailyDigest: emails, twoFactor }); toast(res.ok ? 'Account updated.' : (res.error || 'Could not update account.')); }}>
             Save changes
           </button>
         }
@@ -365,7 +366,7 @@ export function ProfessionalAccount() {
               <button
                 type="button"
                 className="sol-btn sol-btn-subtle sol-btn-sm"
-                onClick={() => toast('Password reset email sent.')}
+                onClick={() => (()=>{const {mailto}=require('../action-helpers'); const ok=mailto(typeof email!=='undefined'?email:'','Password reset request'); toast(ok?'Reset email draft opened.':'No email address available.');})()}
               >
                 Change
               </button>
@@ -378,7 +379,7 @@ export function ProfessionalAccount() {
               <button
                 type="button"
                 className="sol-btn sol-btn-ghost sol-btn-sm"
-                onClick={() => toast('Other sessions signed out.')}
+                onClick={() => toast('Session management is handled by your auth provider.')}
               >
                 Sign out
               </button>

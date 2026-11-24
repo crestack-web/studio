@@ -24,6 +24,7 @@ import { Icon } from '../icons';
 import { compactMoney, fmtDate, money, todayISO } from '../format';
 import { expenses, expensesSummary, projects, team } from './mock';
 import type { ProExpense, ProExpenseStatus } from '../types';
+import { downloadCsv } from '../action-helpers';
 
 type Filter = 'all' | ProExpenseStatus;
 
@@ -134,7 +135,7 @@ export function ProfessionalExpenses() {
             <button
               type="button"
               className="sol-btn sol-btn-subtle"
-              onClick={() => toast('Expense ledger exported as CSV.')}
+              onClick={() => { downloadCsv('expenses.csv', list); toast('Expense ledger exported as CSV.'); }}
             >
               <Download size={15} aria-hidden /> Export
             </button>

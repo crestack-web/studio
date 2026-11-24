@@ -7,6 +7,7 @@ import { Icon } from '../icons';
 import { compactMoney, money } from '../format';
 import { payments, paymentSummary, students } from './mock';
 import { useSolutionsLive } from '../live';
+import { downloadCsv } from '../action-helpers';
 
 const METHOD_LABEL: Record<string, string> = {
   cash: 'Cash',
@@ -81,7 +82,7 @@ export function EducationPayments() {
         subtitle="Fee collections by channel, status and student."
         actions={
           <>
-            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => toast('Payment register exported as CSV.')}>
+            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => { downloadCsv('payments.csv', list); toast('Payment register exported as CSV.'); }}>
               <Download size={15} aria-hidden /> Export
             </button>
             <button type="button" className="sol-btn sol-btn-primary" onClick={() => setOpen(true)}>

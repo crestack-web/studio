@@ -18,6 +18,7 @@ import { Icon } from '../icons';
 import { clinicians, clinic } from './mock';
 import { useSolutionsLive } from '../live';
 import { toastInviteResult } from '../invite-feedback';
+import { mailto } from '../action-helpers';
 import type { Clinician, ClinicianStatus } from '../types';
 
 type Filter = 'all' | ClinicianStatus;
@@ -272,23 +273,9 @@ export function HealthcareStaff() {
               <button
                 type="button"
                 className="sol-btn sol-btn-subtle sol-btn-sm"
-                onClick={() => toast(`Message sent to ${selected.full_name}.`)}
+                onClick={() => mailto(selected.email, `Message for ${selected.full_name}`) ? toast(`Email draft opened for ${selected.full_name}.`) : toast('No email address for this staff member.')}
               >
                 <Icon name="mail" size={14} /> Message
-              </button>
-              <button
-                type="button"
-                className="sol-btn sol-btn-subtle sol-btn-sm"
-                onClick={() => toast(`Clinic list opened for ${selected.full_name}.`)}
-              >
-                <Icon name="calendar" size={14} /> Clinic list
-              </button>
-              <button
-                type="button"
-                className="sol-btn sol-btn-ghost sol-btn-sm"
-                onClick={() => toast(`On-call schedule opened for ${selected.department}.`)}
-              >
-                On-call rota
               </button>
             </div>
           </div>

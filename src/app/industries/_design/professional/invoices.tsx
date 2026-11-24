@@ -23,6 +23,7 @@ import { Icon } from '../icons';
 import { addDays, compactMoney, fmtDate, money, todayISO } from '../format';
 import { clients, firm, invoices, projects, revenueSummary } from './mock';
 import type { ProInvoice, ProInvoiceStatus } from '../types';
+import { downloadCsv } from '../action-helpers';
 
 type TabId = 'all' | ProInvoiceStatus;
 
@@ -138,7 +139,7 @@ export function ProfessionalInvoices() {
             <button
               type="button"
               className="sol-btn sol-btn-subtle"
-              onClick={() => toast('Invoice register exported as CSV.')}
+              onClick={() => { downloadCsv('invoices.csv', list); toast('Invoice register exported as CSV.'); }}
             >
               <Download size={15} aria-hidden /> Export
             </button>

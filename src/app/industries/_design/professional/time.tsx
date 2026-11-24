@@ -25,11 +25,14 @@ import { Icon } from '../icons';
 import { addDays, compactMoney, fmtDate, money, todayISO } from '../format';
 import { projects, team, timeEntries } from './mock';
 import type { TimeEntry } from '../types';
+import { downloadCsv } from '../action-helpers';
+import { useSolutionsLive } from '../live';
 
 type TabId = 'today' | 'week' | 'all';
 
 export function ProfessionalTime() {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
   const today = todayISO();
   const week = Array.from({ length: 7 }, (_, i) => addDays(today, -6 + i));
 
@@ -125,7 +128,7 @@ export function ProfessionalTime() {
             <button
               type="button"
               className="sol-btn sol-btn-subtle"
-              onClick={() => toast('Timesheet exported as CSV.')}
+              onClick={() => { downloadCsv('timesheet.csv', list); toast('Timesheet exported as CSV.'); }}
             >
               <Download size={15} aria-hidden /> Export
             </button>
@@ -376,9 +379,12 @@ export function ProfessionalTime() {
               <button
                 type="button"
                 className="sol-btn sol-btn-ghost sol-btn-sm"
-                onClick={() => {
-                  toast('Time entry editor opened.');
-                  setSelected(null);
+                onClick={async () => {
+                  const notes = window.prompt('Update notes', selected.notes || '');
+                  if (notes == null) return;
+                  const res = await mutate({ action: 'record_update', module: 'time', id: selected.id, notes });
+                  toast(res.ok ? 'Time entry updated.' : (res.error || 'Could not update entry.'));
+                  if (res.ok) setSelected(null);
                 }}
               >
                 Edit entry

@@ -26,6 +26,7 @@ import { Icon } from '../icons';
 import { addDays, fmtDate, money, nightsBetween, todayISO } from '../format';
 import { bookings, folioLines, hotel, roomTypeStats, rooms } from './mock';
 import { useSolutionsLive } from '../live';
+import { copyText, downloadCsv, mailto } from '../action-helpers';
 import type { Booking } from '../types';
 
 type TabId = 'all' | 'arriving' | 'in_house' | 'departing' | 'cancelled';
@@ -102,6 +103,11 @@ export function HospitalityReservations({ hrefFor }: { hrefFor: (s: string) => s
     setSelected(null);
   };
 
+  const mailtoGuest = (email: string, confirmation: string) => {
+    const ok = mailto(email, `Your reservation ${confirmation}`);
+    toast(ok ? 'Email draft opened.' : 'No guest email available.');
+  };
+
   return (
     <>
       <PageHeader
@@ -114,7 +120,7 @@ export function HospitalityReservations({ hrefFor }: { hrefFor: (s: string) => s
         subtitle="Every booking, arrival and departure in one place. Changes sync to the front desk and housekeeping instantly."
         actions={
           <>
-            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => toast('Reservation list exported as CSV.')}>
+            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => { downloadCsv('reservations.csv', filtered.map((r) => ({ confirmation: r.id, guest: r.guest_name, room: r.room_number, check_in: r.check_in_date, check_out: r.check_out_date, status: r.status, amount: r.amount }))); toast('Reservation list exported as CSV.'); }}>
               <Download size={15} aria-hidden /> Export
             </button>
             <button type="button" className="sol-btn sol-btn-primary" onClick={() => setNewOpen(true)}>
@@ -442,10 +448,10 @@ export function HospitalityReservations({ hrefFor }: { hrefFor: (s: string) => s
             </div>
 
             <div className="sol-row sol-gap-2 sol-wrap">
-              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => toast('Confirmation copied to clipboard.')}>
+              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={async () => { const ok = await copyText(selected.id); toast(ok ? 'Confirmation copied to clipboard.' : 'Could not copy confirmation.'); }}>
                 Copy confirmation
               </button>
-              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => toast('Folio sent to the guest.')}>
+              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => mailtoGuest(selected.guest_email, selected.id)}>
                 Email folio
               </button>
             </div>

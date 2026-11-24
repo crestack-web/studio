@@ -24,6 +24,7 @@ import { compactMoney, fmtDate, money } from '../format';
 import { clients, invoices, projects } from './mock';
 import { useSolutionsLive } from '../live';
 import type { Client, ClientStatus } from '../types';
+import { downloadCsv } from '../action-helpers';
 
 type Filter = 'all' | ClientStatus;
 
@@ -144,7 +145,7 @@ export function ProfessionalClients({ hrefFor }: { hrefFor: (s: string) => strin
             <button
               type="button"
               className="sol-btn sol-btn-subtle"
-              onClick={() => toast('Client list exported as CSV.')}
+              onClick={() => { downloadCsv('clients.csv', list); toast('Client list exported as CSV.'); }}
             >
               <Download size={15} aria-hidden /> Export
             </button>

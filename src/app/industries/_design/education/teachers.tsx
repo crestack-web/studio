@@ -103,7 +103,7 @@ export function EducationTeachers() {
         subtitle="Faculty roster, subject load and attendance across the staff."
         actions={
           <>
-            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => toast('Staff register exported as CSV.')}>
+            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => { const { downloadCsv } = require('../action-helpers'); downloadCsv('teachers.csv', list.map((t) => ({ name: t.full_name, email: t.email, subject: t.subject, classes: t.classes, students: t.students, status: t.status, attendance: t.attendance_rate, qualification: t.qualification }))); toast('Staff register exported as CSV.'); }}>
               <Download size={15} aria-hidden /> Export
             </button>
             <button type="button" className="sol-btn sol-btn-primary" onClick={() => setAddOpen(true)}>

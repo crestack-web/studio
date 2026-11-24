@@ -6,6 +6,7 @@ import { Badge, Card, Kpi, PageHeader, Progress, StatusBadge, TableWrap, Td, Th,
 import { BarsChart, Donut, Legend, TrendChart } from '../charts';
 import { Icon } from '../icons';
 import { compactMoney, fmtDate, money } from '../format';
+import { downloadCsv } from '../action-helpers';
 import {
   deliveryStats,
   disciplineMix,
@@ -68,7 +69,7 @@ export function ProfessionalReports() {
           <button
             type="button"
             className="sol-btn sol-btn-subtle"
-            onClick={() => toast('Report pack exported as PDF.')}
+            onClick={() => { downloadCsv('professional-report.csv', revenueChart); toast('Report exported as CSV.'); }}
           >
             <Download size={15} aria-hidden /> Export pack
           </button>

@@ -34,6 +34,7 @@ import {
   revenueSummary,
 } from './mock';
 import { useSolutionsLive } from '../live';
+import { downloadCsv } from '../action-helpers';
 
 export function HospitalityRevenue({ hrefFor }: { hrefFor: (s: string) => string }) {
   const { toast } = useToast();
@@ -56,10 +57,10 @@ export function HospitalityRevenue({ hrefFor }: { hrefFor: (s: string) => string
         subtitle="How the property is performing — rooms, food and services, with occupancy and rate in context."
         actions={
           <>
-            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => toast('Revenue report exported.')}>
+            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => { const { downloadCsv } = require('../action-helpers'); downloadCsv('revenue-report.csv', rangeData); toast('Revenue report exported.'); }}>
               <Download size={15} aria-hidden /> Export
             </button>
-            <button type="button" className="sol-btn sol-btn-primary" onClick={() => toast('Rate plan editor opened.')}>
+            <button type="button" className="sol-btn sol-btn-primary" onClick={() => toast('Rate plans are managed in room settings for this release.')}>
               <Icon name="wallet" size={15} /> Rate plans
             </button>
           </>
@@ -296,7 +297,7 @@ export function HospitalityPayments({ hrefFor }: { hrefFor: (s: string) => strin
   return (
     <>
       <PageHeader eyebrow={<><Icon name="card" size={13} /> Finance</>} title="Payments" subtitle="All transactions across the property — every card, transfer and cash settlement." actions={
-        <button type="button" className="sol-btn sol-btn-subtle" onClick={() => toast('Payment log exported.')}><Download size={15} aria-hidden /> Export</button>
+        <button type="button" className="sol-btn sol-btn-subtle" onClick={() => { const { downloadCsv } = require('../action-helpers'); downloadCsv('payments.csv', payments); toast('Payment log exported.'); }}><Download size={15} aria-hidden /> Export</button>
       } meta={
         <><span className="sol-stat-line"><span className="sol-dot green" /> {paymentSummary.settled} settled</span><span className="sol-stat-line"><span className="sol-dot amber" /> {compactMoney(paymentSummary.outstanding)} outstanding</span></>
       } />
@@ -352,7 +353,7 @@ export function HospitalityReports({ hrefFor }: { hrefFor: (s: string) => string
   return (
     <>
       <PageHeader eyebrow={<><Icon name="chart" size={13} /> Finance</>} title="Reports" subtitle="Daily flash, night audit and performance reports — run from live property data." actions={
-        <button type="button" className="sol-btn sol-btn-subtle" onClick={() => toast('Report pack exported.')}><Download size={15} aria-hidden /> Export pack</button>
+        <button type="button" className="sol-btn sol-btn-subtle" onClick={() => { const { downloadCsv } = require('../action-helpers'); downloadCsv('report-pack.csv', revenueChart); toast('Report pack exported.'); }}><Download size={15} aria-hidden /> Export pack</button>
       } />
       <div className="sol-grid sol-grid-2">
         {reports.map((r) => (

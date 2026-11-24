@@ -27,6 +27,7 @@ import { compactMoney, fmtDate, money } from '../format';
 import { bookings, occupancy, roomTypeStats, rooms } from './mock';
 import { useSolutionsLive } from '../live';
 import type { Room, RoomStatus } from '../types';
+import { downloadCsv } from '../action-helpers';
 
 type StatusTab = 'all' | RoomStatus;
 type ViewId = 'grid' | 'list';
@@ -104,7 +105,7 @@ export function HospitalityRooms({ hrefFor }: { hrefFor: (s: string) => string }
         subtitle="The live state of every room in the property. Availability syncs to reservations, housekeeping and your website."
         actions={
           <>
-            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => toast('Room list exported as CSV.')}>
+            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => { downloadCsv('rooms.csv', filtered); toast('Room list exported as CSV.'); }}>
               <Download size={15} aria-hidden /> Export
             </button>
             <button type="button" className="sol-btn sol-btn-primary" onClick={() => setAddOpen(true)}>
@@ -331,9 +332,7 @@ export function HospitalityRooms({ hrefFor }: { hrefFor: (s: string) => string }
           <div className="sol-divider sol-mt-3" />
           <div className="sol-row sol-between sol-mt-3">
             <span className="sol-small sol-muted">Maintenance assigned to Musa Garba</span>
-            <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => toast('Maintenance schedule opened.')}>
-              View schedule
-            </button>
+            <a className="sol-btn sol-btn-subtle sol-btn-sm" href={hrefFor('tasks')}>View tasks</a>
           </div>
         </Card>
       </div>
@@ -407,8 +406,8 @@ export function HospitalityRooms({ hrefFor }: { hrefFor: (s: string) => string }
               <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => toast(`Maintenance ticket opened for room ${selected.room_number}.`)}>
                 Log maintenance
               </button>
-              <button type="button" className="sol-btn sol-btn-ghost sol-btn-sm" onClick={() => toast('Room history opened.')}>
-                View history
+              <button type="button" className="sol-btn sol-btn-ghost sol-btn-sm" onClick={() => toast(`Room ${selected.room_number}: ${selected.category}, status ${selected.status}.`)}>
+                View details
               </button>
             </div>
           </>

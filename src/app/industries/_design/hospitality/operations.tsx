@@ -34,6 +34,7 @@ import {
 } from './mock';
 import { useSolutionsLive } from '../live';
 import { toastInviteResult } from '../invite-feedback';
+import { mailto } from '../action-helpers';
 import type { HousekeepingRoom, HotelTask, RoomServiceOrder, StaffMember } from '../types';
 
 /* ── Housekeeping ─────────────────────────────────────────────────── */
@@ -263,9 +264,9 @@ export function HospitalityHousekeeping({ hrefFor }: { hrefFor: (s: string) => s
             ))}
           </div>
           <div className="sol-divider sol-mt-3" />
-          <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm sol-mt-3 sol-full" onClick={() => toast('Maintenance schedule opened.')}>
-            View maintenance schedule
-          </button>
+          <a className="sol-btn sol-btn-subtle sol-btn-sm sol-mt-3 sol-full" href={hrefFor('rooms')}>
+            View rooms
+          </a>
         </Card>
       </div>
 
@@ -313,7 +314,7 @@ export function HospitalityHousekeeping({ hrefFor }: { hrefFor: (s: string) => s
               >
                 Mark inspected
               </button>
-              <button type="button" className="sol-btn sol-btn-ghost sol-btn-sm" onClick={() => toast('Maintenance ticket opened.')}>
+              <button type="button" className="sol-btn sol-btn-ghost sol-btn-sm" onClick={async () => { if(!selected) return; const note = window.prompt('Issue for room '+selected.room_number, ''); if(!note) return; const res = await mutate({ action:'record_create', module:'tasks', title:`Maintenance: Room ${selected.room_number}`, status:'open', meta:{ room:selected.room_number, note, priority:'high' } }); toast(res.ok?'Maintenance task created.':(res.error||'Could not create task.')); }}>
                 Report issue
               </button>
             </div>
@@ -607,6 +608,8 @@ export function HospitalityStaff({ hrefFor }: { hrefFor: (s: string) => string }
   const [selected, setSelected] = useState<StaffMember | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profile, setProfile] = useState({ role: 'Team member', phone: '', status: 'active' as StaffMember['status'] });
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -623,6 +626,32 @@ export function HospitalityStaff({ hrefFor }: { hrefFor: (s: string) => string }
       'Maintenance',
     ])
   ).filter(Boolean);
+
+  const openProfile = (s: StaffMember) => {
+    setSelected(s);
+    setProfile({ role: s.role || 'Team member', phone: s.phone || '', status: s.status });
+  };
+
+  const saveProfile = async () => {
+    if (!selected) return;
+    setProfileSaving(true);
+    const res = await mutate({
+      action: 'staff_update',
+      id: selected.id,
+      fullName: selected.full_name,
+      email: selected.email,
+      role: profile.role,
+      phone: profile.phone,
+      status: profile.status,
+    });
+    setProfileSaving(false);
+    if (!res.ok) {
+      toast(res.error || 'Could not update staff profile.');
+      return;
+    }
+    toast(`${selected.full_name} updated.`);
+    setSelected(null);
+  };
 
   const invite = async () => {
     const name = form.name.trim();
@@ -720,7 +749,7 @@ export function HospitalityStaff({ hrefFor }: { hrefFor: (s: string) => string }
                   </thead>
                   <tbody>
                     {filtered.map((s) => (
-                      <tr key={s.id} data-clickable="true" onClick={() => setSelected(s)}>
+                      <tr key={s.id} data-clickable="true" onClick={() => openProfile(s)}>
                         <Td>
                           <div className="sol-person">
                             <Avatar name={s.full_name} />
@@ -739,9 +768,8 @@ export function HospitalityStaff({ hrefFor }: { hrefFor: (s: string) => string }
                             <Menu label={`${s.full_name} actions`}>
                               {(close) => (
                                 <>
-                                  <MenuItem onClick={() => { close(); setSelected(s); }}>View profile</MenuItem>
-                                  <MenuItem onClick={() => { close(); toast(`Shift updated for ${s.full_name}.`); }}>Change shift</MenuItem>
-                                  <MenuItem onClick={() => { close(); toast(`Message sent to ${s.full_name}.`); }}>Send message</MenuItem>
+                                  <MenuItem onClick={() => { close(); openProfile(s); }}>View profile</MenuItem>
+                                  <MenuItem onClick={() => { close(); mailto(s.email, 'Shift update') ? toast(`Email draft opened for ${s.full_name}.`) : toast('No email address for this staff member.'); }}>Send message</MenuItem>
                                 </>
                               )}
                             </Menu>
@@ -768,8 +796,8 @@ export function HospitalityStaff({ hrefFor }: { hrefFor: (s: string) => string }
         footer={
           <>
             <button type="button" className="sol-btn sol-btn-ghost" onClick={() => setSelected(null)}>Close</button>
-            <button type="button" className="sol-btn sol-btn-primary" onClick={() => { toast('Staff profile updated.'); setSelected(null); }}>
-              Save changes
+            <button type="button" className="sol-btn sol-btn-primary" onClick={saveProfile} disabled={profileSaving}>
+              {profileSaving ? 'Saving…' : 'Save changes'}
             </button>
           </>
         }
@@ -786,8 +814,24 @@ export function HospitalityStaff({ hrefFor }: { hrefFor: (s: string) => string }
               </div>
               <StatusBadge status={selected.status} />
             </div>
+            <div className="sol-form-grid sol-mt-3">
+              <Field label="Role">
+                <select className="sol-select" value={profile.role} onChange={(e) => setProfile({ ...profile, role: e.target.value })}>
+                  {['Team member', 'Front desk', 'Housekeeping', 'Manager', 'Security', 'Other'].map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </Field>
+              <Field label="Access">
+                <select className="sol-select" value={profile.status} onChange={(e) => setProfile({ ...profile, status: e.target.value as StaffMember['status'] })}>
+                  <option value="active">Active</option>
+                  <option value="invited">Invited</option>
+                  <option value="inactive">Disabled</option>
+                </select>
+              </Field>
+              <Field label="Phone" className="full">
+                <input className="sol-input" value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} />
+              </Field>
+            </div>
             <div className="sol-kv">
-              <div className="sol-kv-row"><span>Phone</span><strong>{selected.phone}</strong></div>
               <div className="sol-kv-row"><span>Department</span><strong>{selected.department}</strong></div>
               <div className="sol-kv-row"><span>Shift</span><strong>{selected.shift}</strong></div>
               {selected.rooms_assigned != null ? (
@@ -795,9 +839,7 @@ export function HospitalityStaff({ hrefFor }: { hrefFor: (s: string) => string }
               ) : null}
             </div>
             <div className="sol-row sol-gap-2 sol-wrap">
-              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => toast('Message sent.')}>Send message</button>
-              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => toast('Shift updated.')}>Update shift</button>
-              <button type="button" className="sol-btn sol-btn-ghost sol-btn-sm" onClick={() => toast('Access settings opened.')}>Manage access</button>
+              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => mailto(selected.email, `Message from ${'your hotel'}`) ? toast(`Email draft opened for ${selected.full_name}.`) : toast('No email address for this staff member.')}>Send message</button>
             </div>
           </>
         ) : null}
@@ -1040,8 +1082,32 @@ export function HospitalityTasks({ hrefFor }: { hrefFor: (s: string) => string }
               <div className="sol-kv-row"><span>Status</span><strong>{selected.done ? 'Completed' : 'Open'}</strong></div>
             </div>
             <div className="sol-row sol-gap-2 sol-wrap">
-              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => toast('Task reassigned.')}>Reassign</button>
-              <button type="button" className="sol-btn sol-btn-ghost sol-btn-sm" onClick={() => toast('Due date updated.')}>Change due date</button>
+              <button
+                type="button"
+                className="sol-btn sol-btn-subtle sol-btn-sm"
+                onClick={async () => {
+                  if (!selected) return;
+                  const next = staff.find((s) => s.full_name !== selected.assignee) || staff[0];
+                  if (!next) { toast('No staff available to reassign.'); return; }
+                  const res = await mutate({ action: 'record_update', module: 'tasks', id: selected.id, meta: { assignee: next.full_name } });
+                  if (!res.ok) { toast(res.error || 'Could not reassign task.'); return; }
+                  toast(`Task reassigned to ${next.full_name}.`);
+                  setSelected(null);
+                }}
+              >Reassign</button>
+              <button
+                type="button"
+                className="sol-btn sol-btn-ghost sol-btn-sm"
+                onClick={async () => {
+                  if (!selected) return;
+                  const due = window.prompt('New due time/date', selected.due || '');
+                  if (!due) return;
+                  const res = await mutate({ action: 'record_update', module: 'tasks', id: selected.id, meta: { due: due.trim() } });
+                  if (!res.ok) { toast(res.error || 'Could not update due date.'); return; }
+                  toast('Due date updated.');
+                  setSelected(null);
+                }}
+              >Change due date</button>
             </div>
           </>
         ) : null}

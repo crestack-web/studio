@@ -24,6 +24,7 @@ import { Icon } from '../icons';
 import { compactMoney, fmtDate, money } from '../format';
 import { useSolutionsLive } from '../live';
 import { toastInviteResult } from '../invite-feedback';
+import { mailto, downloadCsv } from '../action-helpers';
 import { projects, team, timeStats } from './mock';
 import type { ProMember } from '../types';
 
@@ -137,7 +138,7 @@ export function ProfessionalTeam() {
             <button
               type="button"
               className="sol-btn sol-btn-subtle"
-              onClick={() => toast('Team directory exported as CSV.')}
+              onClick={() => { downloadCsv('team.csv', list.map((m) => ({ name: m.full_name, email: m.email, role: m.role, discipline: m.discipline, status: m.status, rate: m.rate, billable_hours: m.billable_hours, utilisation: m.utilisation }))); toast('Team directory exported as CSV.'); }}
             >
               <Download size={15} aria-hidden /> Export
             </button>
@@ -452,23 +453,9 @@ export function ProfessionalTeam() {
               <button
                 type="button"
                 className="sol-btn sol-btn-subtle sol-btn-sm"
-                onClick={() => toast(`Time entries for ${selected.full_name} opened.`)}
-              >
-                <Icon name="clock" size={14} /> View time
-              </button>
-              <button
-                type="button"
-                className="sol-btn sol-btn-subtle sol-btn-sm"
-                onClick={() => toast(`Message draft started for ${selected.full_name}.`)}
+                onClick={() => mailto(selected.email, `Message for ${selected.full_name}`) ? toast(`Email draft opened for ${selected.full_name}.`) : toast('No email address for this team member.')}
               >
                 <Icon name="mail" size={14} /> Message
-              </button>
-              <button
-                type="button"
-                className="sol-btn sol-btn-ghost sol-btn-sm"
-                onClick={() => toast(`${selected.full_name} access settings opened.`)}
-              >
-                Access
               </button>
             </div>
           </div>

@@ -322,7 +322,7 @@ export function HealthcarePatients({ hrefFor }: { hrefFor: (s: string) => string
             <button
               type="button"
               className="sol-btn sol-btn-subtle"
-              onClick={() => toast('Patient register exported as CSV.')}
+              onClick={() => { const { downloadCsv } = require('../action-helpers'); downloadCsv('patients.csv', list.map((p) => ({ name: p.full_name, mrn: p.mrn, phone: p.phone, email: p.email, status: p.status, last_visit: p.last_visit }))); toast('Patient register exported as CSV.'); }}
             >
               <Download size={15} aria-hidden /> Export
             </button>

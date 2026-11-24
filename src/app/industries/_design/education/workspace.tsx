@@ -6,6 +6,7 @@ import { Icon } from '../icons';
 import { classes, orgSettings, school, teachers } from './mock';
 import { useSolutionsLive } from '../live';
 import { toastInviteResult } from '../invite-feedback';
+import { mailto } from '../action-helpers';
 
 /* ── School settings ───────────────────────────────────────────────── */
 
@@ -241,7 +242,7 @@ export function EducationAccount() {
         title="Account"
         subtitle="Your profile, security and notification preferences."
         actions={
-          <button type="button" className="sol-btn sol-btn-primary" onClick={() => toast('Account updated.')}>
+          <button type="button" className="sol-btn sol-btn-primary" onClick={async () => { const res = await mutate({ action: 'settings_save', ownerName: name.trim(), ownerEmail: email.trim(), dailyDigest: digest, twoFactor }); toast(res.ok ? 'Account updated.' : (res.error || 'Could not update account.')); }}>
             Save changes
           </button>
         }
@@ -286,7 +287,7 @@ export function EducationAccount() {
                 <strong>Password</strong>
                 <small>Last changed 3 months ago.</small>
               </div>
-              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => toast('Password reset email sent.')}>
+              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => (()=>{const {mailto}=require('../action-helpers'); const ok=mailto(typeof email!=='undefined'?email:'','Password reset request'); toast(ok?'Reset email draft opened.':'No email address available.');})()}>
                 Change
               </button>
             </div>
@@ -295,7 +296,7 @@ export function EducationAccount() {
                 <strong>Staff sessions</strong>
                 <small>{teachers.filter((t) => t.status === 'active').length} teachers signed in this week.</small>
               </div>
-              <button type="button" className="sol-btn sol-btn-ghost sol-btn-sm" onClick={() => toast('Other sessions signed out.')}>
+              <button type="button" className="sol-btn sol-btn-ghost sol-btn-sm" onClick={() => toast('Session management is handled by your auth provider.')}>
                 Sign out
               </button>
             </div>

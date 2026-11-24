@@ -25,6 +25,7 @@ import { compactMoney, fmtDate, money } from '../format';
 import { bookings, guests } from './mock';
 import { useSolutionsLive } from '../live';
 import type { Guest } from '../types';
+import { downloadCsv } from '../action-helpers';
 
 type TabId = 'all' | 'vip' | 'in_house' | 'repeat';
 
@@ -123,7 +124,7 @@ export function HospitalityGuests({ hrefFor }: { hrefFor: (s: string) => string 
         subtitle="Every guest, their stays and spend — with live profiles from your property."
         actions={
           <>
-            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => toast('Export is coming soon.')}>
+            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => { const { downloadCsv } = require('../action-helpers'); downloadCsv('guests.csv', filtered); toast(filtered.length ? 'Guests exported as CSV.' : 'Nothing to export.'); }}>
               <Download size={15} aria-hidden /> Export
             </button>
             <button type="button" className="sol-btn sol-btn-primary" onClick={() => setAddOpen(true)}>

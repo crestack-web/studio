@@ -21,6 +21,7 @@ import { Icon } from '../icons';
 import { compactMoney, fmtDate, money } from '../format';
 import { classes, students } from './mock';
 import { useSolutionsLive } from '../live';
+import { downloadCsv } from '../action-helpers';
 
 const emptyEnroll = {
   name: '',
@@ -132,7 +133,7 @@ export function EducationStudents() {
             <button
               type="button"
               className="sol-btn sol-btn-subtle"
-              onClick={() => toast('Student register exported as CSV.')}
+              onClick={() => { downloadCsv('students.csv', list); toast('Student register exported as CSV.'); }}
             >
               <Download size={15} aria-hidden /> Export
             </button>
@@ -336,10 +337,7 @@ export function EducationStudents() {
             ) : null}
 
             <div className="sol-row sol-gap-2 sol-wrap">
-              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => toast('Fee schedule editor opened.')}>
-                <Icon name="receipt" size={14} aria-hidden /> Fee schedule
-              </button>
-              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => toast('Message to guardian opened.')}>
+              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => { const { mailto } = require('../action-helpers'); const email = (selected as any).guardian_email || (selected as any).guardianEmail || ''; mailto(email, `Regarding ${selected.full_name}`); toast(email ? 'Email draft opened.' : 'No guardian email on file.'); }}>
                 <Mail size={14} aria-hidden /> Message guardian
               </button>
             </div>

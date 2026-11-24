@@ -22,6 +22,7 @@ import { Icon } from '../icons';
 import { fmtDate, money, titleCase } from '../format';
 import { invoices, paymentSummary, payments } from './mock';
 import type { HealthPayment } from '../types';
+import { downloadCsv } from '../action-helpers';
 
 type TabId = 'all' | 'settled' | 'pending' | 'refunded';
 
@@ -221,7 +222,7 @@ export function HealthcarePayments() {
             <button
               type="button"
               className="sol-btn sol-btn-subtle sol-btn-sm sol-full sol-mt-3"
-              onClick={() => toast('Daily settlement report exported.')}
+              onClick={() => { const { downloadCsv } = require('../action-helpers'); downloadCsv('settlement-report.csv', list); toast('Settlement report exported.'); }}
             >
               <Icon name="chart" size={14} /> Export settlement
             </button>

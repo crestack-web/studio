@@ -19,6 +19,7 @@ import {
 import { Icon } from '../icons';
 import { attendanceDays, attendanceRecords } from './mock';
 import { TakeAttendanceSheet } from './CreateSheets';
+import { downloadCsv } from '../action-helpers';
 
 export function EducationAttendance() {
   const { toast } = useToast();
@@ -51,7 +52,7 @@ export function EducationAttendance() {
         subtitle="Daily registers, absence patterns and lateness across every class."
         actions={
           <>
-            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => toast('Attendance register exported as CSV.')}>
+            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => { downloadCsv('attendance.csv', records); toast('Attendance register exported as CSV.'); }}>
               <Download size={15} aria-hidden /> Export
             </button>
             <button type="button" className="sol-btn sol-btn-primary" onClick={() => setTakeOpen(true)}>

@@ -17,12 +17,14 @@ import {
 import { Icon } from '../icons';
 import { fmtDate, money } from '../format';
 import { bookings, hotel, todaysArrivals, todaysDepartures } from './mock';
+import { useSolutionsLive } from '../live';
 import type { Booking } from '../types';
 
 type TabId = 'arrivals' | 'departures' | 'in_house';
 
 export function HospitalityCheckin({ hrefFor }: { hrefFor: (s: string) => string }) {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
   const [tab, setTab] = useState<TabId>('arrivals');
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<Booking | null>(null);
@@ -231,14 +233,11 @@ export function HospitalityCheckin({ hrefFor }: { hrefFor: (s: string) => string
             )}
 
             <div className="sol-row sol-gap-2 sol-wrap">
-              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => toast('Payment recorded.')}>
+              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={async () => { const amt = window.prompt('Amount received', String(selected.balance_amount || '')); if(!amt) return; const res = await mutate({ action: 'folio_add', bookingId: selected.id, lineType: 'payment', description: 'Front desk payment', amount: Number(amt) }); toast(res.ok ? 'Payment recorded.' : (res.error || 'Could not record payment.')); }}>
                 Take payment
               </button>
-              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => toast('Folio sent to guest email.')}>
+              <button type="button" className="sol-btn sol-btn-subtle sol-btn-sm" onClick={() => { const { mailto } = require('../action-helpers'); const ok = mailto(selected.guest_email, `Your folio ${selected.id}`); toast(ok ? 'Email draft opened.' : 'No guest email available.'); }}>
                 Email folio
-              </button>
-              <button type="button" className="sol-btn sol-btn-ghost sol-btn-sm" onClick={() => toast('Room moved — update the board.')}>
-                Change room
               </button>
             </div>
           </>

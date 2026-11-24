@@ -25,6 +25,7 @@ import { Icon } from '../icons';
 import { addDays, compactMoney, fmtDate, money, todayISO } from '../format';
 import { clients, deliveryStats, projects, team } from './mock';
 import type { Project, ProjectStatus } from '../types';
+import { downloadCsv } from '../action-helpers';
 
 type View = 'board' | 'list';
 type Filter = 'all' | ProjectStatus;
@@ -147,7 +148,7 @@ export function ProfessionalProjects() {
             <button
               type="button"
               className="sol-btn sol-btn-subtle"
-              onClick={() => toast('Project register exported as CSV.')}
+              onClick={() => { downloadCsv('projects.csv', list); toast('Project register exported as CSV.'); }}
             >
               <Download size={15} aria-hidden /> Export
             </button>

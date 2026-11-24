@@ -7,6 +7,7 @@ import { Icon } from '../icons';
 import { compactMoney, fmtDate, money } from '../format';
 import { feeInvoices, feeSummary, students } from './mock';
 import { NewFeeInvoiceSheet } from './CreateSheets';
+import { downloadCsv } from '../action-helpers';
 
 export function EducationFees() {
   const { toast } = useToast();
@@ -38,7 +39,7 @@ export function EducationFees() {
         subtitle="Tuition, books and transport invoices, balances and collection rate."
         actions={
           <>
-            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => toast('Fee register exported as CSV.')}>
+            <button type="button" className="sol-btn sol-btn-subtle" onClick={() => { downloadCsv('fees.csv', list); toast('Fee register exported as CSV.'); }}>
               <Download size={15} aria-hidden /> Export
             </button>
             <button type="button" className="sol-btn sol-btn-primary" onClick={() => setCreateOpen(true)}>

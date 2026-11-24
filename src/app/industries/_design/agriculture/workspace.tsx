@@ -202,12 +202,22 @@ export function AgricultureFarmSettings() {
 
 export function AgricultureAccount({ hrefFor }: { hrefFor?: (sectionId: string) => string }) {
   const { toast } = useToast();
+  const { mutate } = useSolutionsLive();
   const href = hrefFor ?? ((section: string) => `#${section}`);
   const [name, setName] = useState(farm.ownerName);
   const [email, setEmail] = useState(farm.ownerEmail);
   const [twoFactor, setTwoFactor] = useState(true);
   const [digest, setDigest] = useState(true);
+  const [saving, setSaving] = useState(false);
   const activeStaff = team.filter((member) => member.status === 'active').length;
+
+  const save = async () => {
+    setSaving(true);
+    const res = await mutate({ action: 'settings_save', ownerName: name.trim(), ownerEmail: email.trim(), dailyDigest: digest, twoFactor });
+    setSaving(false);
+    if (!res.ok) { toast(res.error || 'Could not save account settings.'); return; }
+    toast('Account updated.');
+  };
 
   return (
     <>
@@ -220,8 +230,8 @@ export function AgricultureAccount({ hrefFor }: { hrefFor?: (sectionId: string) 
         title="Account"
         subtitle="Your profile, security and notification preferences."
         actions={
-          <button type="button" className="sol-btn sol-btn-primary" onClick={() => toast('Account updated.')}>
-            Save changes
+          <button type="button" className="sol-btn sol-btn-primary" onClick={save} disabled={saving}>
+            {saving ? 'Saving…' : 'Save changes'}
           </button>
         }
       />
@@ -265,7 +275,7 @@ export function AgricultureAccount({ hrefFor }: { hrefFor?: (sectionId: string) 
               <button
                 type="button"
                 className="sol-btn sol-btn-subtle sol-btn-sm"
-                onClick={() => toast('Password reset email sent.')}
+                onClick={() => { const { mailto } = require('../action-helpers'); mailto(email, 'Password reset request'); toast('Reset email draft opened.'); }}
               >
                 Change
               </button>
@@ -275,13 +285,7 @@ export function AgricultureAccount({ hrefFor }: { hrefFor?: (sectionId: string) 
                 <strong>Staff sessions</strong>
                 <small>{activeStaff} team members signed in this week.</small>
               </div>
-              <button
-                type="button"
-                className="sol-btn sol-btn-ghost sol-btn-sm"
-                onClick={() => toast('Other sessions signed out.')}
-              >
-                Sign out
-              </button>
+              <span className="sol-muted sol-small">Managed by your auth provider</span>
             </div>
           </Card>
 
@@ -312,13 +316,7 @@ export function AgricultureAccount({ hrefFor }: { hrefFor?: (sectionId: string) 
           <Link href={href('reports')} className="sol-btn sol-btn-subtle">
             <Icon name="chart" size={15} /> Reports
           </Link>
-          <button
-            type="button"
-            className="sol-btn sol-btn-ghost"
-            onClick={() => toast('Signed out of this workspace.')}
-          >
-            <Icon name="logout" size={15} /> Sign out
-          </button>
+          <span className="sol-muted sol-small">Use the main account menu to sign out.</span>
         </div>
       </Card>
     </>

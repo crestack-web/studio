@@ -24,6 +24,7 @@ import { addDays, fmtDate, todayISO } from '../format';
 import { projects, tasks, team } from './mock';
 import type { ProTask, ProTaskStatus, TaskPriority } from '../types';
 import { useSolutionsLive } from '../live';
+import { downloadCsv } from '../action-helpers';
 
 type View = 'board' | 'list';
 type Filter = 'all' | 'today' | 'week' | 'overdue' | 'urgent' | 'done';
@@ -187,7 +188,7 @@ export function ProfessionalTasks() {
             <button
               type="button"
               className="sol-btn sol-btn-subtle"
-              onClick={() => toast('Task list exported as CSV.')}
+              onClick={() => { downloadCsv('tasks.csv', list); toast('Task list exported as CSV.'); }}
             >
               <Download size={15} aria-hidden /> Export
             </button>
@@ -424,7 +425,14 @@ export function ProfessionalTasks() {
               <button
                 type="button"
                 className="sol-btn sol-btn-subtle sol-btn-sm"
-                onClick={() => toast(`Reassign flow opened for ${selected.title}.`)}
+                onClick={async () => {
+                  const assignee = window.prompt('Reassign to', selected.assignee || '');
+                  if (!assignee) return;
+                  const res = await mutate({ action: 'task_update', id: selected.id, assignee: assignee.trim() });
+                  if (!res.ok) { toast(res.error || 'Could not reassign task.'); return; }
+                  toast(`Task reassigned to ${assignee.trim()}.`);
+                  setSelected(null);
+                }}
               >
                 <Icon name="user" size={14} /> Reassign
               </button>
