@@ -656,12 +656,19 @@ export async function POST(req: NextRequest) {
     if (!isUpdate && (!fullName || !email)) {
       return NextResponse.json({ error: 'fullName and email required' }, { status: 400 });
     }
+    // hospitality_staff schema (0032): full_name, email, phone, role, user_id, status.
+    // department/shift are UI-only for now; do not write them or PostgREST errors.
+    const allowedRoles = new Set(['front_desk', 'housekeeping', 'manager', 'security', 'other']);
+    const rawRole = String(body.role || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+    const role = allowedRoles.has(rawRole) ? rawRole : 'other';
+    const rawStatus = String(body.status || '').trim().toLowerCase();
+    const status = ['invited', 'active', 'disabled'].includes(rawStatus) ? rawStatus : 'invited';
     const payload: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (fullName) payload.full_name = fullName;
     if (email) payload.email = email;
-    for (const key of ['phone', 'role', 'department', 'shift', 'status']) {
-      if (body[key] !== undefined) payload[key] = body[key];
-    }
+    if (body.phone !== undefined) payload.phone = body.phone || null;
+    payload.role = role;
+    payload.status = status;
     const query = isUpdate
       ? admin.from('hospitality_staff').update(payload).eq('id', id).eq('business_id', businessId)
       : admin.from('hospitality_staff').insert({ business_id: businessId, ...payload });
